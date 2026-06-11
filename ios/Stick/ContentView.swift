@@ -208,15 +208,8 @@ private struct StageHeroView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 舞台区（火柴人 + 状态色背景 + 右上 scrubbing / 状态徽章）
+            // 舞台区（火柴人 + 透明背景，跟整页一个底色）
             ZStack {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Theme.card)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(Theme.border, lineWidth: 1)
-                    )
-
                 StickFigureView(state: state)
                     .padding(.horizontal, 32)
                     .padding(.top, 8)

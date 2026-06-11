@@ -440,28 +440,29 @@ private func midStandPose(x: Double) -> Pose {
     )
 }
 
-/// 趴桌午休：身体在桌面上，头朝右，脸朝下；双臂在头下作枕；腿从桌沿垂下
+/// 趴桌午休：下半身完全复用 sitPose (髋/膝/踝不动)，只上半身前倾，
+/// 头放在桌上、双臂前伸到手垫在头两侧
 /// z: 进入午休后的时间，用于 Z 浮动
 private func napPose(z: Double) -> Pose {
     Pose(
-        // 头：圆心 y=152 → 椭圆底 y=176 刚好压在桌面上
-        head:     CGPoint(x: 170, y: 152),
-        // 颈在头右下
-        neck:     CGPoint(x: 188, y: 172),
-        // 肩在桌沿
-        shoulder: CGPoint(x: 200, y: 178),
-        // 髋在桌面右段（带点下垂）
-        hip:      CGPoint(x: 232, y: 184),
-        // 臂折叠在头下，左手垫头，右手略外
-        lElbow:   CGPoint(x: 192, y: 180),
-        lHand:    CGPoint(x: 172, y: 184),
-        rElbow:   CGPoint(x: 200, y: 180),
-        rHand:    CGPoint(x: 180, y: 186),
-        // 大腿沿桌延展到桌沿，膝略弯
-        lKnee:    CGPoint(x: 244, y: 188),
-        lAnkle:   CGPoint(x: 256, y: 224),
-        rKnee:    CGPoint(x: 246, y: 192),
-        rAnkle:   CGPoint(x: 258, y: 232),
+        // 头：圆心 y=172，椭圆底刚好压到桌沿 (y=176)
+        head:     CGPoint(x: 170, y: 172),
+        // 颈从肩前伸到头
+        neck:     CGPoint(x: 160, y: 188),
+        // 肩：上半身前倾 (比坐姿低、靠前)
+        shoulder: CGPoint(x: 148, y: 200),
+        // 髋：保持 sitPose 不动
+        hip:      CGPoint(x: 134, y: 224),
+        // 臂前伸到桌面（手在头两侧）
+        lElbow:   CGPoint(x: 162, y: 200),
+        lHand:    CGPoint(x: 175, y: 200),
+        rElbow:   CGPoint(x: 168, y: 200),
+        rHand:    CGPoint(x: 182, y: 200),
+        // 腿：与 sitPose 一字不差
+        lKnee:    CGPoint(x: 185, y: 222),
+        lAnkle:   CGPoint(x: 185, y: 295),
+        rKnee:    CGPoint(x: 200, y: 222),
+        rAnkle:   CGPoint(x: 200, y: 295),
         headRot: 0
     )
 }
@@ -515,30 +516,37 @@ private enum FilmStats {
     }()
 
     static func formatHM(_ m: Int) -> String {
-        String(format: "%dh%02dm", m / 60, m % 60)
+        // 8h00m → 8.0h 风格
+        let hours = Double(m) / 60.0
+        return String(format: "%.1fh", hours)
     }
 }
 
-/// 3 个 Z 浮起
+/// 3 个 Z 浮起 (大尺寸 + 黑色描边白字显眼)
 private func drawZzz(ctx: inout GraphicsContext, t: Double) {
-    // 头部位置：napPose.head 在 (188, 174)。Z 从头部飘到左上方
-    let headY: CGFloat = 174
-    let headX: CGFloat = 188
+    // 头部位置：napPose.head 在 (170, 172)。Z 从头部飘到左上方
+    let headY: CGFloat = 172
+    let headX: CGFloat = 170
     let zConfigs: [(fontSize: CGFloat, delay: Double, drift: CGFloat)] = [
-        (24, 0.0,  20),
-        (18, 0.35, 16),
-        (12, 0.7,  12),
+        (40, 0.0,  32),
+        (28, 0.30, 24),
+        (18, 0.60, 18),
     ]
     for (i, z) in zConfigs.enumerated() {
-        let local = max(0, t - z.delay) * 1.6
+        let local = max(0, t - z.delay) * 1.4
         if local > 1 { continue }
         let fade = min(1, local) * (1 - max(0, local - 0.85) / 0.15)
-        let y = headY - 14 - CGFloat(local) * z.drift
-        let x = headX - 18 - CGFloat(i) * 7
-        let txt = Text("Z")
+        let y = headY - 20 - CGFloat(local) * z.drift
+        let x = headX - 22 - CGFloat(i) * 10
+        // 描边 (黑) + 内部白字 — 更醒目
+        let outline = Text("Z")
+            .font(.system(size: z.fontSize, weight: .heavy, design: .serif))
+            .foregroundColor(.black.opacity(fade))
+        let fill = Text("Z")
             .font(.system(size: z.fontSize, weight: .heavy, design: .serif))
             .foregroundColor(.white.opacity(fade))
-        ctx.draw(txt, at: CGPoint(x: x, y: y), anchor: .center)
+        ctx.draw(outline, at: CGPoint(x: x, y: y), anchor: .center)
+        ctx.draw(fill,    at: CGPoint(x: x - 0.6, y: y - 0.6), anchor: .center)
     }
 }
 
@@ -1214,8 +1222,8 @@ struct MiniFilmShareSheet: View {
         let text = """
         我的一天 · 10 秒
         \(mood.period) · \(mood.bodyState) · \(mood.moodWord)
-        起床 → 走到办公桌 → 敲键盘 → 下班回家
-        今日：工作 8h00m · 休息 9h00m · 活动 7h00m
+        起床 → 走到办公桌 → 午休 → 下午工作 → 下班回家
+        今日：工作 8.0h · 休息 9.0h · 活动 7.0h
         — 用 Stick 记录
         """
         let act = UIActivityViewController(activityItems: [text], applicationActivities: nil)
