@@ -1,0 +1,809 @@
+import SwiftUI
+import UIKit
+
+/// 10 秒火柴人短片（播一遍后停在统计页，进度条可拖）：
+///   起床伸懒腰 → 走到办公桌 → 坐下 → 敲键盘点鼠标 → 起身 → 离开工位
+///   最后 1s 叠一行"今日工作/休息/走动"统计。
+///
+/// 不依赖 StickState — 自己跑一条时间线，骨骼化 Pose + 阶段间插值。
+struct MiniFilmView: View {
+    var durationSec: Double = 10
+    /// 默认深色（适配浅色卡片背景）。要深色背景时改成 .white 即可。
+    var lineColor: Color = Color(red: 0.10, green: 0.14, blue: 0.20)
+    /// 场景（桌/椅/地面）的线色。
+    var sceneColor: Color = Color(red: 0.45, green: 0.50, blue: 0.58)
+
+    @State private var time: Double = 0
+    @State private var isPlaying: Bool = true
+    @State private var trackWidth: CGFloat = 0
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ZStack {
+                Canvas { gc, size in
+                    let t = min(time, durationSec)
+                    let phase = FilmTimeline.phase(at: t)
+                    drawFilm(ctx: gc, size: size, t: t, phase: phase)
+                }
+            }
+            .aspectRatio(280.0 / 320.0, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                time = 0
+                isPlaying = true
+            }
+
+            progressBar
+                .padding(.horizontal, 6)
+        }
+        .onReceive(Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()) { _ in
+            guard isPlaying else { return }
+            time += 1.0 / 60.0
+            if time >= durationSec {
+                time = durationSec
+                isPlaying = false
+            }
+        }
+    }
+
+    // MARK: - 进度条
+
+    private var progressBar: some View {
+        GeometryReader { g in
+            ZStack(alignment: .leading) {
+                // 底
+                Capsule()
+                    .fill(Color.black.opacity(0.08))
+                // 已播
+                Capsule()
+                    .fill(Color.black)
+                    .frame(width: trackWidth * CGFloat(time / durationSec))
+                // 阶段刻度
+                ForEach(Array(FilmTimeline.breakpoints.dropFirst().dropLast().enumerated()), id: \.offset) { _, bp in
+                    Rectangle()
+                        .fill(Color.black.opacity(0.18))
+                        .frame(width: 1, height: 10)
+                        .offset(x: trackWidth * CGFloat(bp / durationSec) - 0.5)
+                }
+                // thumb
+                Circle()
+                    .fill(Color.black)
+                    .frame(width: 14, height: 14)
+                    .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
+                    .offset(x: max(0, trackWidth * CGFloat(time / durationSec) - 7))
+            }
+            .frame(height: 14)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        isPlaying = false
+                        let pct = min(1, max(0, value.location.x / trackWidth))
+                        time = Double(pct) * durationSec
+                    }
+            )
+            .onAppear { trackWidth = g.size.width }
+            .onChange(of: g.size.width) { _, new in trackWidth = new }
+        }
+        .frame(height: 22)
+    }
+}
+
+// MARK: - 阶段定义
+
+struct FilmPhase: Equatable {
+    var englishTag: String
+    var caption: String
+    var accent: Color
+}
+
+private enum FilmTimeline {
+    // 6 段 / 10s
+    static let wakeEnd: Double  = 1.0   // 0.0  – 1.0  起床伸懒腰
+    static let walkEnd: Double  = 3.0   // 1.0  – 3.0  走到办公桌
+    static let sitEnd: Double   = 4.0   // 3.0  – 4.0  坐下 (过渡，1s)
+    static let typeEnd: Double  = 7.5   // 4.0  – 7.5  敲键盘点鼠标 (3.5s)
+    static let standEnd: Double = 8.5   // 7.5  – 8.5 起身 (过渡，1s)
+    // 8.5  – 10.0  离开工位 (1.5s) — 期间 9.0–10.0 显示总结
+
+    /// 进度条上的阶段刻度（去掉首尾）
+    static let breakpoints: [Double] = [wakeEnd, walkEnd, sitEnd, typeEnd, standEnd]
+
+    static let walkColor = Color(red: 0.20, green: 0.78, blue: 0.55)
+    static let sitColor  = Color(red: 0.96, green: 0.62, blue: 0.10)
+    static let wakeColor = Color(red: 0.62, green: 0.82, blue: 0.98)
+    static let leaveColor = Color(red: 0.62, green: 0.55, blue: 0.98)
+
+    static func phase(at t: Double) -> FilmPhase {
+        if t < wakeEnd {
+            return .init(englishTag: "WAKE",  caption: "起床·伸个懒腰",   accent: wakeColor)
+        } else if t < walkEnd {
+            return .init(englishTag: "WALK",  caption: "走到办公桌",     accent: walkColor)
+        } else if t < sitEnd {
+            return .init(englishTag: "SIT",   caption: "坐下",           accent: sitColor)
+        } else if t < typeEnd {
+            return .init(englishTag: "TYPE",  caption: "敲键盘·点鼠标",   accent: sitColor)
+        } else if t < standEnd {
+            return .init(englishTag: "STAND", caption: "起身",           accent: sitColor)
+        } else {
+            return .init(englishTag: "LEAVE", caption: "下班·回家",      accent: leaveColor)
+        }
+    }
+}
+
+// MARK: - 骨骼
+
+private struct Pose {
+    var head: CGPoint
+    var neck: CGPoint
+    var shoulder: CGPoint
+    var hip: CGPoint
+    var lElbow: CGPoint
+    var lHand: CGPoint
+    var rElbow: CGPoint
+    var rHand: CGPoint
+    var lKnee: CGPoint
+    var lAnkle: CGPoint
+    var rKnee: CGPoint
+    var rAnkle: CGPoint
+    var headRot: Double = 0   // degrees
+}
+
+// MARK: - 渲染主入口
+
+private extension MiniFilmView {
+    func drawFilm(ctx: GraphicsContext, size: CGSize, t: Double, phase: FilmPhase) {
+        var gc = ctx
+        // 280x320 内部坐标系
+        let canvasW: CGFloat = 280
+        let canvasH: CGFloat = 320
+        let scale = min(size.width / canvasW, size.height / canvasH)
+        let dx = (size.width - canvasW * scale) / 2
+        let dy = (size.height - canvasH * scale) / 2
+        gc.translateBy(x: dx, y: dy)
+        gc.scaleBy(x: scale, y: scale)
+
+        drawScene(ctx: &gc, t: t, phase: phase)
+
+        let pose = poseFor(t: t)
+        drawFigure(ctx: &gc, pose: pose, accent: phase.accent, line: lineColor)
+
+        // 最后 1s：叠一层今日统计
+        let summaryStart: Double = durationSec - 1.0
+        if t >= summaryStart {
+            let alpha = min(1, max(0, (t - summaryStart) / 0.3))
+            drawSummary(ctx: &gc, alpha: alpha)
+        }
+    }
+
+    func poseFor(t: Double) -> Pose {
+        if t < FilmTimeline.wakeEnd {
+            let p = t / FilmTimeline.wakeEnd
+            return wakePose(x: 50, p: p)
+        } else if t < FilmTimeline.walkEnd {
+            let p = (t - FilmTimeline.wakeEnd) / (FilmTimeline.walkEnd - FilmTimeline.wakeEnd)
+            let x = 50 + easeInOut(p) * 90
+            let cycle = (t - FilmTimeline.wakeEnd) * 1.5
+            return walkPose(x: x, cycle: fract(cycle), facing: 1)
+        } else if t < FilmTimeline.sitEnd {
+            // 坐下分两段：站→半蹲→坐 (感受更明显)
+            let p = (t - FilmTimeline.walkEnd) / (FilmTimeline.sitEnd - FilmTimeline.walkEnd)
+            let standing = walkPose(x: 140, cycle: 0, facing: 1)
+            let mid = midSitPose(x: 140)
+            let sitting = sitPose(x: 140, typeT: 0, mouseT: 0)
+            if p < 0.5 {
+                return blendPose(standing, mid, t: easeInOut(p * 2))
+            } else {
+                return blendPose(mid, sitting, t: easeInOut((p - 0.5) * 2))
+            }
+        } else if t < FilmTimeline.typeEnd {
+            let local = t - FilmTimeline.sitEnd
+            return sitPose(x: 140, typeT: local * 4.0, mouseT: local * 2.3)
+        } else if t < FilmTimeline.standEnd {
+            // 起身分两段：坐→半蹲→站 (手撑椅子 + 推起)
+            let p = (t - FilmTimeline.typeEnd) / (FilmTimeline.standEnd - FilmTimeline.typeEnd)
+            let sitting = sitPose(x: 140, typeT: 0, mouseT: 0)
+            let mid = midStandPose(x: 140)
+            let standing = walkPose(x: 140, cycle: 0, facing: 1)
+            if p < 0.5 {
+                return blendPose(sitting, mid, t: easeInOut(p * 2))
+            } else {
+                return blendPose(mid, standing, t: easeInOut((p - 0.5) * 2))
+            }
+        } else {
+            let p = (t - FilmTimeline.standEnd) / (15.0 - FilmTimeline.standEnd)
+            let x = 140 + easeInOut(p) * 150
+            let cycle = (t - FilmTimeline.standEnd) * 1.5
+            return walkPose(x: x, cycle: fract(cycle), facing: 1)
+        }
+    }
+}
+
+// MARK: - Pose 构造
+
+private func standingPose(x: Double, bob: Double = 0) -> Pose {
+    Pose(
+        head:     CGPoint(x: x,      y: 70 - bob),
+        neck:     CGPoint(x: x,      y: 108 - bob * 0.4),
+        shoulder: CGPoint(x: x,      y: 132),
+        hip:      CGPoint(x: x - 2,  y: 238),
+        lElbow:   CGPoint(x: x - 18, y: 178),
+        lHand:    CGPoint(x: x - 22, y: 218),
+        rElbow:   CGPoint(x: x + 18, y: 178),
+        rHand:    CGPoint(x: x + 22, y: 218),
+        lKnee:    CGPoint(x: x - 8,  y: 282),
+        lAnkle:   CGPoint(x: x - 8,  y: 318),
+        rKnee:    CGPoint(x: x + 8,  y: 282),
+        rAnkle:   CGPoint(x: x + 8,  y: 318),
+        headRot: 0
+    )
+}
+
+private func wakePose(x: Double, p: Double) -> Pose {
+    // p = 0..1, 中段双臂上举到极致
+    let s = sin(p * .pi)              // 0→1→0
+    let armUp = s
+    let bob = sin(p * .pi * 6) * 0.4   // 轻微呼吸
+    var pose = standingPose(x: x, bob: bob)
+    pose.head    = CGPoint(x: x,                       y: 70 - bob - armUp * 6)
+    pose.lElbow  = CGPoint(x: x - 20 - armUp * 4,      y: 178 - armUp * 60)
+    pose.lHand   = CGPoint(x: x - 26 - armUp * 8,      y: 218 - armUp * 168)
+    pose.rElbow  = CGPoint(x: x + 20 + armUp * 4,      y: 178 - armUp * 60)
+    pose.rHand   = CGPoint(x: x + 26 + armUp * 8,      y: 218 - armUp * 168)
+    pose.headRot = -armUp * 5
+    return pose
+}
+
+private func walkPose(x: Double, cycle: Double, facing: Double) -> Pose {
+    let θ = cycle * .pi * 2
+    let stride: Double = 18
+    let lift: Double = 12
+    let bodyBob = abs(sin(θ * 2)) * 1.8
+
+    // 沿前进方向给头一点 lead
+    let headLead = 4.0 * facing
+
+    let leftPhase = θ
+    let rightPhase = θ + .pi
+    let leftLift = max(0, sin(leftPhase))
+    let rightLift = max(0, sin(rightPhase))
+
+    return Pose(
+        head:     CGPoint(x: x + headLead,                                       y: 72 - bodyBob),
+        neck:     CGPoint(x: x + headLead * 0.5,                                 y: 110 - bodyBob * 0.4),
+        shoulder: CGPoint(x: x,                                                  y: 132),
+        hip:      CGPoint(x: x - 2,                                              y: 240),
+        lElbow:   CGPoint(x: x - 16 - sin(rightPhase) * 6,                       y: 175),
+        lHand:    CGPoint(x: x - 22 - sin(rightPhase) * 14,                      y: 212 + sin(rightPhase) * 4),
+        rElbow:   CGPoint(x: x + 16 + sin(leftPhase) * 6,                        y: 175),
+        rHand:    CGPoint(x: x + 22 + sin(leftPhase) * 14,                       y: 212 - sin(leftPhase) * 4),
+        lKnee:    CGPoint(x: x - 4 + sin(leftPhase) * (stride * 0.55),           y: 280 - leftLift * 4),
+        lAnkle:   CGPoint(x: x - 4 + sin(leftPhase - 0.25) * (stride + 4),       y: 318 - leftLift * lift),
+        rKnee:    CGPoint(x: x + 4 + sin(rightPhase) * (stride * 0.55),          y: 280 - rightLift * 4),
+        rAnkle:   CGPoint(x: x + 4 + sin(rightPhase - 0.25) * (stride + 4),      y: 318 - rightLift * lift),
+        headRot: 6
+    )
+}
+
+private func sitPose(x: Double, typeT: Double, mouseT: Double) -> Pose {
+    // 坐椅子 (椅面在 y≈218)，左手敲键盘，右手握鼠标
+    let typeBob = sin(typeT * .pi * 2) * 1.8
+    let mouseBob = sin(mouseT * .pi * 2 + .pi / 2) * 1.0
+    let mouseSlide = sin(mouseT * .pi) * 4
+    let head = CGPoint(x: x + 12, y: 78)
+
+    return Pose(
+        head:     head,
+        neck:     CGPoint(x: x + 6,  y: 108),
+        shoulder: CGPoint(x: x,      y: 132),
+        hip:      CGPoint(x: x - 6,  y: 224),
+        // 左臂 → 键盘 (左手腕)
+        lElbow:   CGPoint(x: x + 18, y: 178),
+        lHand:    CGPoint(x: x + 40, y: 212 - typeBob),
+        // 右臂 → 鼠标 (再往右)
+        rElbow:   CGPoint(x: x + 32, y: 180),
+        rHand:    CGPoint(x: x + 65 + mouseSlide, y: 214 - mouseBob),
+        // 大腿水平 → 小腿垂直 (椅面 y=222)
+        lKnee:    CGPoint(x: x + 45, y: 222),
+        lAnkle:   CGPoint(x: x + 45, y: 295),
+        rKnee:    CGPoint(x: x + 60, y: 222),
+        rAnkle:   CGPoint(x: x + 60, y: 295),
+        headRot: 18
+    )
+}
+
+/// 坐下中途 — 身体下沉 + 膝盖弯曲 + 一手撑椅子
+private func midSitPose(x: Double) -> Pose {
+    Pose(
+        head:     CGPoint(x: x - 2,  y: 95),
+        neck:     CGPoint(x: x - 4,  y: 130),
+        shoulder: CGPoint(x: x - 5,  y: 155),
+        hip:      CGPoint(x: x - 5,  y: 232),
+        // 左臂向后撑椅子
+        lElbow:   CGPoint(x: x - 14, y: 188),
+        lHand:    CGPoint(x: x - 22, y: 218),
+        // 右臂前伸 (向桌面)
+        rElbow:   CGPoint(x: x + 18, y: 175),
+        rHand:    CGPoint(x: x + 50, y: 195),
+        // 大腿稍下倾 + 小腿向前
+        lKnee:    CGPoint(x: x + 18, y: 235),
+        lAnkle:   CGPoint(x: x + 22, y: 305),
+        rKnee:    CGPoint(x: x + 32, y: 235),
+        rAnkle:   CGPoint(x: x + 38, y: 305),
+        headRot: 10
+    )
+}
+
+/// 起身后半段 — 身体推起 + 手还撑在椅子上
+private func midStandPose(x: Double) -> Pose {
+    Pose(
+        head:     CGPoint(x: x - 2,  y: 90),
+        neck:     CGPoint(x: x - 4,  y: 128),
+        shoulder: CGPoint(x: x - 5,  y: 153),
+        hip:      CGPoint(x: x - 4,  y: 235),
+        // 左臂还压在椅子扶手上
+        lElbow:   CGPoint(x: x - 12, y: 188),
+        lHand:    CGPoint(x: x - 20, y: 220),
+        // 右臂前伸 / 准备离开
+        rElbow:   CGPoint(x: x + 18, y: 172),
+        rHand:    CGPoint(x: x + 50, y: 192),
+        // 腿快站直
+        lKnee:    CGPoint(x: x + 5, y: 270),
+        lAnkle:   CGPoint(x: x + 5, y: 318),
+        rKnee:    CGPoint(x: x + 18, y: 268),
+        rAnkle:   CGPoint(x: x + 18, y: 318),
+        headRot: 6
+    )
+}
+
+private func blendPose(_ a: Pose, _ b: Pose, t: Double) -> Pose {
+    let s = max(0, min(1, t))
+    func l(_ p: CGPoint, _ q: CGPoint) -> CGPoint {
+        CGPoint(x: p.x + (q.x - p.x) * s, y: p.y + (q.y - p.y) * s)
+    }
+    return Pose(
+        head:     l(a.head, b.head),
+        neck:     l(a.neck, b.neck),
+        shoulder: l(a.shoulder, b.shoulder),
+        hip:      l(a.hip, b.hip),
+        lElbow:   l(a.lElbow, b.lElbow),
+        lHand:    l(a.lHand, b.lHand),
+        rElbow:   l(a.rElbow, b.rElbow),
+        rHand:    l(a.rHand, b.rHand),
+        lKnee:    l(a.lKnee, b.lKnee),
+        lAnkle:   l(a.lAnkle, b.lAnkle),
+        rKnee:    l(a.rKnee, b.rKnee),
+        rAnkle:   l(a.rAnkle, b.rAnkle),
+        headRot:  a.headRot + (b.headRot - a.headRot) * s
+    )
+}
+
+private func easeInOut(_ t: Double) -> Double {
+    t < 0.5 ? 2 * t * t : 1 - pow(-2 * t + 2, 2) / 2
+}
+
+// MARK: - 今日统计 (最后 1s 显示)
+
+private enum FilmStats {
+    static let work: String = {
+        let mins = StickState.daySchedule
+            .filter { $0.state == .sit }
+            .reduce(0) { acc, seg in acc + seg.duration }
+        return formatHM(mins)
+    }()
+    static let rest: String = {
+        let mins = StickState.daySchedule
+            .filter { $0.state == .sleep }
+            .reduce(0) { acc, seg in acc + seg.duration }
+        return formatHM(mins)
+    }()
+    static let move: String = {
+        let mins = StickState.daySchedule
+            .filter { $0.state == .walk }
+            .reduce(0) { acc, seg in acc + seg.duration }
+        return formatHM(mins)
+    }()
+
+    static func formatHM(_ m: Int) -> String {
+        String(format: "%dh%02dm", m / 60, m % 60)
+    }
+}
+
+/// 叠在画面上：暗色背景 + 3 行统计
+private func drawSummary(ctx: inout GraphicsContext, alpha: Double) {
+    // 半透明遮罩
+    ctx.fill(
+        Path(CGRect(x: 0, y: 0, width: 280, height: 320)),
+        with: .color(.black.opacity(0.55 * alpha))
+    )
+
+    // 顶部小标
+    let title = Text("今日")
+        .font(.system(size: 10, weight: .bold, design: .monospaced))
+        .tracking(2.5)
+        .foregroundColor(.white.opacity(0.7 * alpha))
+    ctx.draw(title, at: CGPoint(x: 140, y: 78), anchor: .center)
+
+    // 3 行：图标小圆点 + 标签 + 数值
+    let rows: [(String, String, String, Color)] = [
+        ("work", "工作", FilmStats.work, Color(red: 0.96, green: 0.62, blue: 0.10)),
+        ("rest", "休息", FilmStats.rest, Color(red: 0.62, green: 0.55, blue: 0.98)),
+        ("move", "走动", FilmStats.move, Color(red: 0.20, green: 0.78, blue: 0.55)),
+    ]
+    let baseY: CGFloat = 122
+    let gap: CGFloat = 58
+    for (i, row) in rows.enumerated() {
+        let y = baseY + CGFloat(i) * gap
+        let rowColor = row.3
+        // 色点
+        ctx.fill(
+            Path(ellipseIn: CGRect(x: 38, y: y - 5, width: 10, height: 10)),
+            with: .color(rowColor.opacity(alpha))
+        )
+        // 标签
+        let label = Text(row.1)
+            .font(.system(size: 13, weight: .medium))
+            .foregroundColor(.white.opacity(0.7 * alpha))
+        ctx.draw(label, at: CGPoint(x: 58, y: y), anchor: .leading)
+        // 数值
+        let value = Text(row.2)
+            .font(.system(size: 26, weight: .heavy, design: .rounded))
+            .monospacedDigit()
+            .foregroundColor(rowColor.opacity(alpha))
+        ctx.draw(value, at: CGPoint(x: 220, y: y), anchor: .trailing)
+    }
+}
+
+private func fract(_ x: Double) -> Double {
+    x - floor(x)
+}
+
+// MARK: - 场景
+
+private func drawScene(ctx: inout GraphicsContext, t: Double, phase: FilmPhase) {
+    let sc = Color(red: 0.45, green: 0.50, blue: 0.58).opacity(0.55)
+    let dim = sc.opacity(0.45)
+    let groundY: CGFloat = 322
+
+    // 地面
+    ctx.stroke(
+        Path { p in
+            p.move(to: CGPoint(x: 0, y: groundY))
+            p.addLine(to: CGPoint(x: 280, y: groundY))
+        },
+        with: .color(sc), lineWidth: 1.2
+    )
+
+    // 远景三角 (左侧两个，提示出门 → 室内)
+    drawFar(ctx: &ctx, color: dim, base: 0, peak: 14, ground: groundY)
+    drawFar(ctx: &ctx, color: dim.opacity(0.7), base: 22, peak: 8, ground: groundY)
+
+    // 办公桌 (右侧)
+    let deskTopY: CGFloat = 176
+    let deskL: CGFloat = 150
+    let deskR: CGFloat = 268
+    let deskTop = Path { p in
+        p.move(to: CGPoint(x: deskL, y: deskTopY))
+        p.addLine(to: CGPoint(x: deskR, y: deskTopY))
+        p.addLine(to: CGPoint(x: deskR, y: deskTopY + 5))
+        p.addLine(to: CGPoint(x: deskL, y: deskTopY + 5))
+        p.closeSubpath()
+    }
+    ctx.fill(deskTop, with: .color(sc.opacity(0.35)))
+    ctx.stroke(deskTop, with: .color(sc), lineWidth: 1.3)
+    // 桌腿
+    for lx in [deskL + 4, deskR - 4] {
+        ctx.stroke(
+            Path { p in
+                p.move(to: CGPoint(x: lx, y: deskTopY + 5))
+                p.addLine(to: CGPoint(x: lx, y: groundY - 2))
+            },
+            with: .color(sc), lineWidth: 1.3
+        )
+    }
+
+    // 显示器
+    let monRect = CGRect(x: 174, y: 102, width: 64, height: 54)
+    ctx.fill(Path(roundedRect: monRect, cornerRadius: 3), with: .color(Color.black))
+    ctx.stroke(Path(roundedRect: monRect, cornerRadius: 3), with: .color(sc), lineWidth: 1.3)
+
+    // 屏幕里的"内容线" — 敲键盘时闪烁
+    let onScreen = t >= FilmTimeline.sitEnd && t < FilmTimeline.typeEnd
+    let pulse = onScreen ? (sin(t * 6.0) * 0.4 + 0.6) : 0.35
+    let screenAccent = phase.accent.opacity(pulse * 0.85)
+    var sy: CGFloat = 113
+    for width in [40.0, 34.0, 46.0, 28.0] {
+        ctx.stroke(
+            Path { p in
+                p.move(to: CGPoint(x: 180, y: sy))
+                p.addLine(to: CGPoint(x: 180 + width, y: sy))
+            },
+            with: .color(screenAccent), lineWidth: 1.6
+        )
+        sy += 9
+    }
+    // 屏幕底座
+    ctx.stroke(
+        Path { p in
+            p.move(to: CGPoint(x: 200, y: 156))
+            p.addLine(to: CGPoint(x: 212, y: 156))
+            p.addLine(to: CGPoint(x: 212, y: 170))
+            p.addLine(to: CGPoint(x: 192, y: 170))
+            p.addLine(to: CGPoint(x: 212, y: 170))
+        },
+        with: .color(sc), lineWidth: 1.2
+    )
+
+    // 键盘 (扁矩形)
+    let kb = CGRect(x: 158, y: 172, width: 50, height: 4)
+    ctx.fill(Path(roundedRect: kb, cornerRadius: 1), with: .color(sc.opacity(0.7)))
+    // 按键被按下时高亮一格
+    if onScreen {
+        let keyIdx = Int(t * 7) % 5
+        let key = CGRect(x: 160 + Double(keyIdx) * 9.5, y: 173, width: 8, height: 2.4)
+        ctx.fill(Path(roundedRect: key, cornerRadius: 0.6), with: .color(phase.accent))
+    }
+    // 鼠标 (椭圆)
+    let mouseSlide = onScreen ? sin((t - FilmTimeline.sitEnd) * .pi * 2.3) * 3 : 0
+    let mouseRect = CGRect(x: 220 + mouseSlide, y: 171, width: 10, height: 6)
+    ctx.fill(Path(ellipseIn: mouseRect), with: .color(sc.opacity(0.85)))
+    ctx.stroke(Path(ellipseIn: mouseRect), with: .color(sc), lineWidth: 1)
+
+    // 椅子 (椅面 y=220 / 椅背曲线 / 升降柱 / 五星脚 / 滚轮)
+    drawChair(ctx: &ctx, centerX: 160, sc: sc)
+}
+
+private func drawChair(ctx: inout GraphicsContext, centerX: Double, sc: Color) {
+    let seatY: Double = 220
+    // 椅面
+    let seat = Path { p in
+        p.addRoundedRect(in: CGRect(x: centerX - 26, y: seatY, width: 56, height: 4),
+                         cornerSize: CGSize(width: 1, height: 1))
+    }
+    ctx.fill(seat, with: .color(sc.opacity(0.55)))
+    ctx.stroke(seat, with: .color(sc), lineWidth: 1)
+    // 椅背
+    ctx.stroke(
+        Path { p in
+            p.move(to: CGPoint(x: centerX - 24, y: seatY))
+            p.addQuadCurve(to: CGPoint(x: centerX - 30, y: 132),
+                           control: CGPoint(x: centerX - 38, y: 180))
+        },
+        with: .color(sc), lineWidth: 1.5
+    )
+    // 升降柱
+    ctx.stroke(
+        Path { p in
+            p.move(to: CGPoint(x: centerX + 4, y: seatY + 4))
+            p.addLine(to: CGPoint(x: centerX + 4, y: 286))
+        },
+        with: .color(sc), lineWidth: 1.6
+    )
+    // 五星脚 (用 3 条腿表意)
+    for (ex, ey) in [(-22.0, 308.0), (4.0, 312.0), (28.0, 308.0)] {
+        ctx.stroke(
+            Path { p in
+                p.move(to: CGPoint(x: centerX + 4, y: 286))
+                p.addLine(to: CGPoint(x: centerX + ex, y: ey))
+            },
+            with: .color(sc), lineWidth: 1.3
+        )
+        ctx.fill(
+            Path(ellipseIn: CGRect(x: centerX + ex - 2.4, y: ey - 2.4, width: 5, height: 5)),
+            with: .color(sc.opacity(0.85))
+        )
+    }
+}
+
+private func drawFar(ctx: inout GraphicsContext, color: Color, base: CGFloat, peak: CGFloat, ground: CGFloat) {
+    let path = Path { p in
+        p.move(to: CGPoint(x: base, y: ground))
+        p.addLine(to: CGPoint(x: base + peak, y: ground - 24))
+        p.addLine(to: CGPoint(x: base + peak * 2, y: ground))
+        p.closeSubpath()
+    }
+    ctx.fill(path, with: .color(color))
+}
+
+// MARK: - Figure
+
+private func drawFigure(ctx: inout GraphicsContext, pose: Pose, accent: Color, line: Color) {
+    var gc = ctx
+    let w: CGFloat = 2.6
+
+    // 头 (旋转用 transform)
+    let hc = pose.head
+    let headRect = CGRect(x: hc.x - 18, y: hc.y - 24, width: 36, height: 48)
+    let saved = gc.transform
+    if pose.headRot != 0 {
+        gc.transform = saved
+            .translatedBy(x: hc.x, y: hc.y)
+            .rotated(by: Angle.degrees(pose.headRot).radians)
+            .translatedBy(x: -hc.x, y: -hc.y)
+    }
+    let headPath = Path(ellipseIn: headRect)
+    gc.fill(headPath, with: .color(.black))
+    gc.stroke(headPath, with: .color(line), lineWidth: w)
+    gc.transform = saved
+    // 耳点
+    drawDot(ctx: &gc, at: CGPoint(x: hc.x - 14, y: hc.y + 2), r: 1.8, color: line, filled: true)
+
+    // 颈
+    strokeCurve(ctx: &gc, from: pose.head, to: pose.neck,
+                control: CGPoint(x: (pose.head.x + pose.neck.x) / 2, y: (pose.head.y + pose.neck.y) / 2),
+                color: line, width: w)
+
+    // 肩
+    drawDot(ctx: &gc, at: pose.shoulder, r: 4, color: accent, filled: true)
+
+    // 躯干
+    strokeLine(ctx: &gc, from: pose.shoulder, to: pose.hip, color: line, width: w + 0.4)
+    // 胸前虚线
+    strokeCurve(ctx: &gc, from: pose.shoulder,
+                to: CGPoint(x: pose.hip.x + 18, y: pose.hip.y),
+                control: CGPoint(x: pose.shoulder.x + 22, y: (pose.shoulder.y + pose.hip.y) / 2),
+                color: line.opacity(0.5), width: 1.3, dashed: true)
+
+    // 髋点 + 髋骨
+    drawDot(ctx: &gc, at: pose.hip, r: 4, color: accent, filled: true)
+    let hipL = CGPoint(x: pose.hip.x - 12, y: pose.hip.y)
+    let hipR = CGPoint(x: pose.hip.x + 14, y: pose.hip.y)
+    strokeLine(ctx: &gc, from: hipL, to: hipR, color: line, width: 1.8)
+
+    // 左臂
+    strokeLine(ctx: &gc, from: pose.shoulder, to: pose.lElbow, color: line, width: w)
+    drawDot(ctx: &gc, at: pose.lElbow, r: 3, color: accent, filled: true)
+    strokeLine(ctx: &gc, from: pose.lElbow, to: pose.lHand, color: line, width: w)
+    drawHand(ctx: &gc, at: pose.lHand, color: line)
+
+    // 右臂
+    strokeLine(ctx: &gc, from: pose.shoulder, to: pose.rElbow, color: line, width: w)
+    drawDot(ctx: &gc, at: pose.rElbow, r: 3, color: accent, filled: true)
+    strokeLine(ctx: &gc, from: pose.rElbow, to: pose.rHand, color: line, width: w)
+    drawHand(ctx: &gc, at: pose.rHand, color: line)
+
+    // 左腿
+    strokeLine(ctx: &gc, from: hipL, to: pose.lKnee, color: line, width: w + 0.4)
+    drawDot(ctx: &gc, at: pose.lKnee, r: 4, color: accent, filled: true)
+    strokeLine(ctx: &gc, from: pose.lKnee, to: pose.lAnkle, color: line, width: w + 0.4)
+    drawFoot(ctx: &gc, at: pose.lAnkle, color: line)
+
+    // 右腿
+    strokeLine(ctx: &gc, from: hipR, to: pose.rKnee, color: line, width: w + 0.4)
+    drawDot(ctx: &gc, at: pose.rKnee, r: 4, color: accent, filled: true)
+    strokeLine(ctx: &gc, from: pose.rKnee, to: pose.rAnkle, color: line, width: w + 0.4)
+    drawFoot(ctx: &gc, at: pose.rAnkle, color: line)
+}
+
+private func drawHand(ctx: inout GraphicsContext, at p: CGPoint, color: Color) {
+    let rect = CGRect(x: p.x - 6, y: p.y - 3, width: 12, height: 6)
+    let path = Path(ellipseIn: rect)
+    ctx.fill(path, with: .color(.black))
+    ctx.stroke(path, with: .color(color), lineWidth: 1.6)
+}
+
+private func drawFoot(ctx: inout GraphicsContext, at p: CGPoint, color: Color) {
+    let path = Path { pa in
+        pa.move(to: CGPoint(x: p.x - 4, y: p.y - 2))
+        pa.addLine(to: CGPoint(x: p.x + 16, y: p.y - 2))
+        pa.addQuadCurve(to: CGPoint(x: p.x + 18, y: p.y + 4), control: CGPoint(x: p.x + 18, y: p.y - 2))
+        pa.addLine(to: CGPoint(x: p.x - 2, y: p.y + 4))
+        pa.closeSubpath()
+    }
+    ctx.fill(path, with: .color(.black))
+    ctx.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: 1.6, lineJoin: .round))
+}
+
+private func strokeLine(ctx: inout GraphicsContext, from a: CGPoint, to b: CGPoint, color: Color, width: CGFloat) {
+    var p = Path()
+    p.move(to: a)
+    p.addLine(to: b)
+    ctx.stroke(p, with: .color(color), style: StrokeStyle(lineWidth: width, lineCap: .round))
+}
+
+private func strokeCurve(ctx: inout GraphicsContext, from a: CGPoint, to b: CGPoint, control: CGPoint,
+                         color: Color, width: CGFloat, dashed: Bool = false) {
+    var p = Path()
+    p.move(to: a)
+    p.addQuadCurve(to: b, control: control)
+    let style = StrokeStyle(lineWidth: width, lineCap: .round, dash: dashed ? [3, 4] : [])
+    ctx.stroke(p, with: .color(color), style: style)
+}
+
+private func drawDot(ctx: inout GraphicsContext, at p: CGPoint, r: CGFloat, color: Color, filled: Bool = false) {
+    let rect = CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)
+    let path = Path(ellipseIn: rect)
+    if filled {
+        ctx.fill(path, with: .color(color))
+    } else {
+        ctx.stroke(path, with: .color(color), lineWidth: 1.4)
+    }
+}
+
+#Preview {
+    ZStack {
+        Color.black.ignoresSafeArea()
+        MiniFilmView()
+            .frame(height: 420)
+            .padding()
+    }
+}
+
+// MARK: - 分享 Sheet 容器
+
+/// 极简：浅色背景 + 顶部 X / 分享按钮 + 火柴人短片 + 进度条。
+/// 最后 1s 短片内部会叠出"今日"统计。
+struct MiniFilmShareSheet: View {
+    @Binding var isPresented: Bool
+    @State private var filmID: UUID = UUID()
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            // 浅色背景
+            LinearGradient(
+                colors: [Color(red: 0.97, green: 0.96, blue: 0.92), Color(red: 0.92, green: 0.92, blue: 0.88)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                HStack(spacing: 8) {
+                    Spacer()
+                    shareButton
+                    closeButton
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 10)
+
+                Spacer(minLength: 0)
+
+                MiniFilmView()
+                    .id(filmID)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.horizontal, 18)
+                    .onTapGesture { filmID = UUID() }
+
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private var closeButton: some View {
+        Button {
+            isPresented = false
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(.black.opacity(0.6))
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(Color.black.opacity(0.06)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var shareButton: some View {
+        Button {
+            shareFilm()
+        } label: {
+            Image(systemName: "square.and.arrow.up")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(.black.opacity(0.6))
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(Color.black.opacity(0.06)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func shareFilm() {
+        let text = "我的一天 · 10 秒\n起床 → 走到办公桌 → 敲键盘 → 下班回家\n今日：工作 8h00m · 休息 9h00m · 走动 7h00m\n— 用 Stick 记录"
+        let act = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let root = scene.keyWindow?.rootViewController {
+            var top: UIViewController = root
+            while let presented = top.presentedViewController { top = presented }
+            top.present(act, animated: true)
+        }
+    }
+}

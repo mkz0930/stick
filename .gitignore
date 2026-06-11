@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Xcode — user-specific data (scheme bookmarks, breakpoints, etc.)
+**/xcuserdata/
+**/xcuserstate
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+build/
+DerivedData/
+
+# Swift Package Manager
+.swiftpm/
+.build/
+Package.resolved
+
+# CocoaPods (none used here, but safe to keep)
+Pods/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+ehthumbs.db
+Thumbs.db
