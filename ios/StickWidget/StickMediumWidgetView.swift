@@ -235,6 +235,48 @@ private struct AlertLine: View {
 
 // MARK: - 简易稳定随机（按 seed 可复现）
 
+struct MiniFigure: View {
+    let stateRaw: String
+    let accent: Color
+
+    var body: some View {
+        Canvas { ctx, size in
+            let midX = size.width / 2
+            let stroke = Color.white.opacity(0.9)
+            let w: CGFloat = 2
+            let headR: CGFloat = min(size.width, size.height) * 0.12
+            let headY = size.height * 0.25
+            ctx.stroke(Path(ellipseIn: CGRect(x: midX - headR, y: headY - headR, width: headR * 2, height: headR * 2)),
+                       with: .color(stroke), lineWidth: w)
+            let bodyTop = CGPoint(x: midX, y: headY + headR)
+            let bodyBot = CGPoint(x: midX, y: headY + headR + size.height * 0.35)
+            var p = Path(); p.move(to: bodyTop); p.addLine(to: bodyBot)
+            ctx.stroke(p, with: .color(stroke), lineWidth: w)
+            var a = Path()
+            a.move(to: CGPoint(x: midX - headR * 1.5, y: bodyTop.y + size.height * 0.1))
+            a.addLine(to: CGPoint(x: midX + headR * 1.5, y: bodyTop.y + size.height * 0.1))
+            ctx.stroke(a, with: .color(stroke), lineWidth: w)
+            var l = Path(); var r = Path()
+            switch stateRaw {
+            case "walk":
+                l.move(to: bodyBot); l.addLine(to: CGPoint(x: midX - size.width * 0.12, y: bodyBot.y + size.height * 0.25))
+                r.move(to: bodyBot); r.addLine(to: CGPoint(x: midX + size.width * 0.12, y: bodyBot.y + size.height * 0.25))
+            case "sit":
+                l.move(to: bodyBot); l.addLine(to: CGPoint(x: midX - size.width * 0.18, y: bodyBot.y + size.height * 0.18))
+                r.move(to: bodyBot); r.addLine(to: CGPoint(x: midX, y: bodyBot.y + size.height * 0.25))
+            case "sleep":
+                l.move(to: bodyBot); l.addLine(to: CGPoint(x: midX - size.width * 0.15, y: bodyBot.y + size.height * 0.25))
+                r.move(to: bodyBot); r.addLine(to: CGPoint(x: midX + size.width * 0.15, y: bodyBot.y + size.height * 0.25))
+            default:
+                l.move(to: bodyBot); l.addLine(to: CGPoint(x: midX - size.width * 0.10, y: bodyBot.y + size.height * 0.30))
+                r.move(to: bodyBot); r.addLine(to: CGPoint(x: midX + size.width * 0.10, y: bodyBot.y + size.height * 0.30))
+            }
+            ctx.stroke(l, with: .color(stroke), lineWidth: w)
+            ctx.stroke(r, with: .color(stroke), lineWidth: w)
+        }
+    }
+}
+
 private struct SeededRandom {
     var state: UInt64
     init(seed: Int) { self.state = UInt64(bitPattern: Int64(seed)) &* 6364136223846793005 &+ 1442695040888963407 }

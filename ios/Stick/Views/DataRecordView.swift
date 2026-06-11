@@ -1,6 +1,6 @@
 //
 //  DataRecordView.swift
-//  数据记录 — 展示今日健康快照 + 时间分析
+//  数据记录 — 消费 HealthStore.shared.today 真实数据
 //
 
 import SwiftUI
@@ -11,14 +11,28 @@ final class DataRecordViewModel: ObservableObject {
     @Published var today: [HealthSnapshot] = []
     @Published var insights: [HealthInsight] = []
 
+    private var cancellables: Set<AnyCancellable> = []
+
     init() {
+        // 初次拉一次
         refresh()
+
+        // 订阅 HealthStore.shared.$today, 一旦有变化自动重算
+        HealthStore.shared.$today
+            .receive(on: RunLoop.main)
+            .sink { [weak self] snaps in
+                guard let self else { return }
+                self.today = snaps
+                self.insights = HealthAnalyzer.shared.analyze(snapshots: snaps)
+            }
+            .store(in: &cancellables)
     }
 
     func refresh() {
         HealthStore.shared.refreshToday()
-        today = HealthStore.shared.today
-        insights = HealthAnalyzer.shared.analyze(snapshots: today)
+        let snaps = HealthStore.shared.today
+        today = snaps
+        insights = HealthAnalyzer.shared.analyze(snapshots: snaps)
     }
 
     // MARK: - 聚合
@@ -28,34 +42,33 @@ final class DataRecordViewModel: ObservableObject {
         today.compactMap { $0.stepCount }.reduce(0, +)
     }
 
-    /// 当日平均心率 (排除 nil)
-    var avgHeartRate: Double? {
+    /// 当日平均心率 (排除 nil, 取整)
+    var avgHeartRate: Int? {
         let hrs = today.compactMap { $0.heartRate }
         guard !hrs.isEmpty else { return nil }
-        return hrs.reduce(0, +) / Double(hrs.count)
+        return Int((hrs.reduce(0, +) / Double(hrs.count)).rounded())
     }
 
     /// 当日最高心率
-    var maxHeartRate: Double? {
-        today.compactMap { $0.heartRate }.max()
+    var maxHeartRate: Int? {
+        guard let v = today.compactMap({ $0.heartRate }).max() else { return nil }
+        return Int(v.rounded())
     }
 
-    /// 当日总活动能量 (千卡)
-    var totalEnergy: Double {
-        today.compactMap { $0.activeEnergy }.reduce(0, +)
+    /// 当日总活动能量 (千卡, 取整)
+    var totalEnergy: Int {
+        Int(today.compactMap { $0.activeEnergy }.reduce(0, +).rounded())
     }
 
-    /// 久坐累计分钟
+    /// 久坐累计分钟 (用 StateInference.inferSingle 对每条快照, 数 .sit 的数量, 粗估分钟数)
     var sedentaryMinutes: Int {
-        let sorted = today.sorted { $0.timestamp < $1.timestamp }
-        var runMin = 0; var total = 0
-        for s in sorted {
-            let moving = (s.stepCount ?? 0) > 0
-            let isSit = (s.bodyState == "sit") && !moving
-            if isSit { runMin += 1; total = max(total, runMin) }
-            else { runMin = 0 }
+        var count = 0
+        for s in today {
+            if StateInference.inferSingle(s).state == .sit {
+                count += 1
+            }
         }
-        return total
+        return count
     }
 
     /// 活跃累计分钟 (walk 或有步数)
@@ -90,15 +103,27 @@ final class DataRecordViewModel: ObservableObject {
         }
     }
 
-    /// 24 小时的状态色块 (sit = 橙, walk = 绿, sleep = 蓝)
+    /// 24 小时的状态色块 (walk / sit / sleep)
+    /// 简单规则: stepCount > 30 → walk, stepCount == 0 且时段在睡眠窗口 22-07 → sleep, 否则 sit
     var hourlyStates: [Int: String] {
-        var map: [Int: String] = [:]
+        var buckets: [Int: [String]] = [:]   // hour -> [state]
         for s in today {
             let h = Calendar.current.component(.hour, from: s.timestamp)
-            // 取该小时最常见的状态
-            if map[h] == nil { map[h] = s.bodyState }
+            buckets[h, default: []].append(s.bodyState)
         }
-        return map
+        var out: [Int: String] = [:]
+        for h in 0..<24 {
+            let snaps = buckets[h] ?? []
+            if snaps.isEmpty {
+                // 没有任何快照, 按时段默认
+                out[h] = (h >= 22 || h < 7) ? "sleep" : "sit"
+                continue
+            }
+            // 取该小时最常见的状态
+            let counts = snaps.reduce(into: [String: Int]()) { $0[$1, default: 0] += 1 }
+            out[h] = counts.max(by: { $0.value < $1.value })?.key ?? "sit"
+        }
+        return out
     }
 }
 
@@ -113,6 +138,7 @@ struct HourlyBar: Identifiable {
 
 struct DataRecordView: View {
     var onClose: () -> Void
+    var deviceSet: Set<DeviceID> = []
     @StateObject private var vm = DataRecordViewModel()
 
     var body: some View {
@@ -125,17 +151,21 @@ struct DataRecordView: View {
                     .padding(.top, 16)
                     .padding(.bottom, 12)
 
-                ScrollView {
-                    VStack(spacing: 18) {
-                        summaryCards
-                        hourlyChart
-                        insightsSection
-                        snapshotCount
+                if vm.today.isEmpty {
+                    emptyState
+                } else {
+                    ScrollView {
+                        VStack(spacing: 18) {
+                            summaryCards
+                            hourlyChart
+                            insightsSection
+                            snapshotCount
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 24)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 24)
+                    .refreshable { vm.refresh() }
                 }
-                .refreshable { vm.refresh() }
             }
         }
         .preferredColorScheme(.light)
@@ -165,27 +195,51 @@ struct DataRecordView: View {
         }
     }
 
-    // MARK: - 4 张汇总卡
+    // MARK: - 空状态
+
+    private var emptyState: some View {
+        VStack(spacing: 14) {
+            Spacer()
+            Image(systemName: "tray")
+                .font(.system(size: 44, weight: .light))
+                .foregroundColor(Theme.mist)
+            Text("今日暂无数据")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(Theme.navy)
+            Text("等待 HealthKit 抓取…")
+                .font(.system(size: 12))
+                .foregroundColor(Theme.slate)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - 4 张汇总卡 (按设备能力灰显)
 
     private var summaryCards: some View {
         let cols = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
         return LazyVGrid(columns: cols, spacing: 10) {
             SummaryCard(
                 icon: "figure.walk", iconColor: Color(red: 0.30, green: 0.85, blue: 0.50),
-                label: "今日步数", value: "\(vm.totalSteps)", unit: "步"
+                label: "今日步数", value: "\(vm.totalSteps)", unit: "步",
+                metricID: .steps, deviceSet: deviceSet
             )
             SummaryCard(
                 icon: "heart.fill", iconColor: Color(red: 0.92, green: 0.34, blue: 0.34),
-                label: "平均心率", value: vm.avgHeartRate.map { String(format: "%.0f", $0) } ?? "—",
-                unit: vm.avgHeartRate != nil ? "bpm" : ""
+                label: "平均心率",
+                value: vm.avgHeartRate.map { "\($0)" } ?? "—",
+                unit: vm.avgHeartRate != nil ? "bpm" : "",
+                metricID: .heartRate, deviceSet: deviceSet
             )
             SummaryCard(
                 icon: "flame.fill", iconColor: Color(red: 0.96, green: 0.62, blue: 0.10),
-                label: "活动能量", value: String(format: "%.0f", vm.totalEnergy), unit: "千卡"
+                label: "活动能量", value: "\(vm.totalEnergy)", unit: "千卡",
+                metricID: .activeEnergy, deviceSet: deviceSet
             )
             SummaryCard(
                 icon: "figure.seated.side", iconColor: Color(red: 0.55, green: 0.50, blue: 0.85),
-                label: "久坐最长", value: "\(vm.sedentaryMinutes)", unit: "分钟"
+                label: "久坐累计", value: "\(vm.sedentaryMinutes)", unit: "分钟",
+                metricID: .standHours, deviceSet: deviceSet
             )
         }
     }
@@ -333,37 +387,66 @@ private struct SummaryCard: View {
     let label: String
     let value: String
     let unit: String
+    let metricID: MetricID?
+    let deviceSet: Set<DeviceID>
+
+    /// 该卡是否被当前设备锁住
+    private var isLocked: Bool {
+        guard let id = metricID else { return false }
+        return !DeviceCapabilities.unlocked(id, deviceSet: deviceSet)
+    }
+
+    /// 推荐解锁设备
+    private var unlockDevice: DeviceID? {
+        metricID?.required.first
+    }
 
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
+            // 图标 (灰显时变灰)
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(iconColor.opacity(0.15))
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(iconColor)
+                    .fill(isLocked ? Theme.mist.opacity(0.10) : iconColor.opacity(0.15))
+                Image(systemName: isLocked ? "lock.fill" : icon)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(isLocked ? Theme.mist : iconColor)
             }
             .frame(width: 38, height: 38)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
                     .font(.system(size: 10))
-                    .foregroundColor(Theme.slate)
+                    .foregroundColor(isLocked ? Theme.mist : Theme.slate)
                 HStack(alignment: .lastTextBaseline, spacing: 2) {
-                    Text(value)
+                    Text(isLocked ? "—" : value)
                         .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundColor(Theme.navy)
-                    if !unit.isEmpty {
+                        .foregroundColor(isLocked ? Theme.mist : Theme.navy)
+                    if !unit.isEmpty && !isLocked {
                         Text(unit)
                             .font(.system(size: 10))
                             .foregroundColor(Theme.slate)
                     }
                 }
+                // 灰显时的解锁提示
+                if isLocked, let dev = unlockDevice {
+                    Text("需 \(dev.displayName)")
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .foregroundColor(Theme.mist)
+                        .lineLimit(1)
+                }
             }
             Spacer()
         }
         .padding(10)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.card).overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.border, lineWidth: 1)))
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isLocked ? Theme.mist.opacity(0.04) : Theme.card)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isLocked ? Theme.mist.opacity(0.25) : Theme.border, lineWidth: 1)
+        )
+        .opacity(isLocked ? 0.65 : 1.0)
     }
 }
 

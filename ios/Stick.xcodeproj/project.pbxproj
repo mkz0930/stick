@@ -16,8 +16,10 @@
 		B29900000000000000000A01 /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A01 /* HealthKitService.swift */; };
 		B29900000000000000000A02 /* HealthStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A02 /* HealthStore.swift */; };
 		B29900000000000000000A03 /* HealthAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A03 /* HealthAnalyzer.swift */; };
+		B29900000000000000000A06 /* SleepAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A06 /* SleepAnalyzer.swift */; };
 		B29900000000000000000A05 /* StateInference.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A05 /* StateInference.swift */; };
 		B29900000000000000000A04 /* DataRecordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A04 /* DataRecordView.swift */; };
+		B29900000000000000000A07 /* DeviceCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A07 /* DeviceCapabilities.swift */; };
 
 		B19900000000000000000099 /* PersonalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19900000000000000000099 /* PersonalView.swift */; };
 		B10000000000000000000012 /* FeatureRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000E /* FeatureRow.swift */; };
@@ -34,6 +36,7 @@
 		B40000000000000000000003 /* StickMediumWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000005 /* StickMediumWidgetView.swift */; };
 		B50000000000000000000002 /* StickWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000004 /* StickWidgetView.swift */; };
 		B50000000000000000000003 /* StickMediumWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000005 /* StickMediumWidgetView.swift */; };
+		B50000000000000000000004 /* SleepReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000005 /* SleepReportView.swift */; };
 		B40000000000000000000010 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
 		B40000000000000000000011 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
 		B40000000000000000000020 /* StickWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F40000000000000000000020 /* StickWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -50,6 +53,8 @@
 		F29900000000000000000A01 /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
 		F29900000000000000000A02 /* HealthStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthStore.swift; sourceTree = "<group>"; };
 		F29900000000000000000A03 /* HealthAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthAnalyzer.swift; sourceTree = "<group>"; };
+		F29900000000000000000A06 /* SleepAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepAnalyzer.swift; sourceTree = "<group>"; };
+		F29900000000000000000A07 /* DeviceCapabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceCapabilities.swift; sourceTree = "<group>"; };
 		F29900000000000000000A05 /* StateInference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateInference.swift; sourceTree = "<group>"; };
 		F29900000000000000000A04 /* DataRecordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataRecordView.swift; sourceTree = "<group>"; };
 		F29900000000000000000B01 /* Stick.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Stick.entitlements; sourceTree = "<group>"; };
@@ -62,6 +67,7 @@
 		F10000000000000000000013 /* SleepAlertChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SleepAlertChip.swift; sourceTree = "<group>"; };
 		F20000000000000000000002 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		F50000000000000000000001 /* WidgetPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetPreviewView.swift; sourceTree = "<group>"; };
+		F50000000000000000000005 /* SleepReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepReportView.swift; sourceTree = "<group>"; };
 		F10000000000000000000010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F10000000000000000000011 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		F40000000000000000000001 /* StickWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickWidget.swift; sourceTree = "<group>"; };
@@ -146,6 +152,7 @@
 				F10000000000000000000012 /* MiniFilmView.swift */,
 				F20000000000000000000002 /* ChatView.swift */,
 				F50000000000000000000001 /* WidgetPreviewView.swift */,
+				F50000000000000000000005 /* SleepReportView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -157,7 +164,9 @@
 				F29900000000000000000A01 /* HealthKitService.swift */,
 				F29900000000000000000A02 /* HealthStore.swift */,
 				F29900000000000000000A03 /* HealthAnalyzer.swift */,
+				F29900000000000000000A06 /* SleepAnalyzer.swift */,
 				F29900000000000000000A05 /* StateInference.swift */,
+				F29900000000000000000A07 /* DeviceCapabilities.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -320,7 +329,9 @@
 				B29900000000000000000A01 /* HealthKitService.swift in Sources */,
 				B29900000000000000000A02 /* HealthStore.swift in Sources */,
 				B29900000000000000000A03 /* HealthAnalyzer.swift in Sources */,
+				B29900000000000000000A06 /* SleepAnalyzer.swift in Sources */,
 				B29900000000000000000A05 /* StateInference.swift in Sources */,
+				B29900000000000000000A07 /* DeviceCapabilities.swift in Sources */,
 				B29900000000000000000A04 /* DataRecordView.swift in Sources */,
 				B40000000000000000000010 /* SharedState.swift in Sources */,
 
@@ -334,6 +345,7 @@
 				B50000000000000000000001 /* WidgetPreviewView.swift in Sources */,
 				B50000000000000000000002 /* StickWidgetView.swift in Sources */,
 				B50000000000000000000003 /* StickMediumWidgetView.swift in Sources */,
+				B50000000000000000000004 /* SleepReportView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

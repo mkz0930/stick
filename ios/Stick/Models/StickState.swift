@@ -73,27 +73,27 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
     /// 关键指标（卡片 1）
     var primaryMetric: Metric {
         switch self {
-        case .walk:  return Metric(label: "HEART RATE", value: "92 bpm", status: "ACTIVE",  statusKind: .ok,   desc: "心率 · 正常",   hint: "有氧区间")
-        case .sit:   return Metric(label: "SEDENTARY",  value: "47:23", status: "WARN",    statusKind: .warn, desc: "持续久坐",       hint: "建议起身活动")
-        case .sleep: return Metric(label: "SLEEP",      value: "82",    status: "GOOD",    statusKind: .ok,   desc: "睡眠质量评分",   hint: "较 7 日均值 +4")
+        case .walk:  return Metric(label: "HEART RATE", value: "92 bpm", status: "ACTIVE",  statusKind: .ok,   desc: "心率 · 正常",   hint: "有氧区间",      metricID: .heartRate)
+        case .sit:   return Metric(label: "SEDENTARY",  value: "47:23", status: "WARN",    statusKind: .warn, desc: "持续久坐",       hint: "建议起身活动",  metricID: nil)
+        case .sleep: return Metric(label: "SLEEP",      value: "82",    status: "GOOD",    statusKind: .ok,   desc: "睡眠质量评分",   hint: "较 7 日均值 +4", metricID: .sleepStage)
         }
     }
 
     /// 次要指标（卡片 2）
     var secondaryMetric: Metric {
         switch self {
-        case .walk:  return Metric(label: "MOOD",       value: "良好",   status: "GOOD",    statusKind: .ok,   desc: "心情 · 愉悦",   hint: "压力偏低")
-        case .sit:   return Metric(label: "POSTURE",    value: "POOR",    status: "WARN",    statusKind: .warn, desc: "姿态 · 前倾",   hint: "颈角异常 +18°")
-        case .sleep: return Metric(label: "HEART RATE", value: "56 bpm",  status: "DEEP",    statusKind: .info, desc: "心率 · 深睡区", hint: "HRV 68 ms")
+        case .walk:  return Metric(label: "MOOD",       value: "良好",   status: "GOOD",    statusKind: .ok,   desc: "心情 · 愉悦",   hint: "压力偏低",     metricID: nil)
+        case .sit:   return Metric(label: "POSTURE",    value: "POOR",    status: "WARN",    statusKind: .warn, desc: "姿态 · 前倾",   hint: "颈角异常 +18°", metricID: .posture)
+        case .sleep: return Metric(label: "HEART RATE", value: "56 bpm",  status: "DEEP",    statusKind: .info, desc: "心率 · 深睡区", hint: "HRV 68 ms",    metricID: .heartRate)
         }
     }
 
     /// 第三指标（卡片 3）
     var tertiaryMetric: Metric {
         switch self {
-        case .walk:  return Metric(label: "DURATION",   value: "18 min", status: "STABLE",  statusKind: .info, desc: "行走 · 累计",   hint: "接近目标")
-        case .sit:   return Metric(label: "HEART RATE", value: "78 bpm", status: "STABLE",  statusKind: .info, desc: "心率 · 静息",   hint: "专注态偏低")
-        case .sleep: return Metric(label: "TURNS",      value: "4",     status: "CALM",    statusKind: .ok,   desc: "翻身次数",       hint: "无久压点")
+        case .walk:  return Metric(label: "DURATION",   value: "18 min", status: "STABLE",  statusKind: .info, desc: "行走 · 累计",   hint: "接近目标",     metricID: .exerciseMinutes)
+        case .sit:   return Metric(label: "HEART RATE", value: "78 bpm", status: "STABLE",  statusKind: .info, desc: "心率 · 静息",   hint: "专注态偏低",   metricID: .heartRate)
+        case .sleep: return Metric(label: "TURNS",      value: "4",     status: "CALM",    statusKind: .ok,   desc: "翻身次数",       hint: "无久压点",     metricID: nil)
         }
     }
 
@@ -129,6 +129,8 @@ struct Metric {
     let statusKind: Kind
     let desc: String
     let hint: String
+    /// 关联到真实可呈现的指标；nil = 仅装饰文字 (不参与设备能力检查)
+    let metricID: MetricID?
 }
 // MARK: - 全局主题色已迁移到 SharedKit/SharedState.swift（主 app + Widget 共享）
 

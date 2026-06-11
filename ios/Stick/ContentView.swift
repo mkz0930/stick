@@ -10,6 +10,7 @@ import SwiftUI
 /// 状态来源：`StickState.current(at: now)`。
 /// 拖动时间线时 `scrubOffset` 临时覆盖，UI 全程跟着更新。
 struct ContentView: View {
+    @StateObject private var hk = HealthKitService.shared
     @State private var now: Date = Date()
     @State private var scrubOffset: Int? = nil   // 0 = 现在；>0 表示过去多少分钟（窗口起点 = now - 24h）
     @State private var showFilm: Bool = false
@@ -18,6 +19,11 @@ struct ContentView: View {
     @State private var openSpecialists: Bool = false
     @State private var openDataRecord: Bool = false
     @State private var openWidgetPreview: Bool = false
+    @State private var showDevicePicker: Bool = false
+    @State private var deviceSet: Set<DeviceID> = []
+
+    // HealthKit 状态推断（30s 重算一次）
+    @State private var inference: StateInference.Result? = nil
 
     // Chat
     @State private var showChat: Bool = false
@@ -50,9 +56,32 @@ struct ContentView: View {
         return displayState == .walk && m >= 360 && m < 720
     }
 
+    /// 上午工作（08:30–12:00）坐 = 平稳 / 专注。
+    private var isMorningCalm: Bool {
+        let m = StickState.minutesOfDay(displayDate)
+        return displayState == .sit && m >= 510 && m < 720
+    }
+
+    /// 下午工作（13:30–18:00）坐 = 越坐越累。返回 0..1 强度。
+    private var afternoonTiredness: Double {
+        let m = StickState.minutesOfDay(displayDate)
+        guard displayState == .sit, m >= 810, m < 1080 else { return 0 }
+        return Double(m - 810) / 270.0
+    }
+
+    private var isAfternoonTired: Bool { afternoonTiredness > 0.05 }
+
     /// 给当前展示状态派生火柴人心情覆盖。
     private var figureMood: StickFigureMood {
-        isMorningEnergetic ? .excited : .normal
+        if isMorningEnergetic { return .excited }
+        if isMorningCalm      { return .calm }
+        if isAfternoonTired   { return .tired }
+        return .normal
+    }
+
+    /// 疲惫强度（仅 .tired 用，0..1）。
+    private var figureTiredness: Double {
+        isAfternoonTired ? afternoonTiredness : 0
     }
 
     // MARK: - 给 Widget 用的派生值
@@ -96,7 +125,8 @@ struct ContentView: View {
                     onClose: { withAnimation(.easeInOut(duration: 0.32)) { showPersonal = false } },
                     openSpecialists: $openSpecialists,
                     openDataRecord: $openDataRecord,
-                    openWidgetPreview: $openWidgetPreview
+                    openWidgetPreview: $openWidgetPreview,
+                    deviceSet: $deviceSet
                 )
                 .frame(width: panelWidth)
                 .offset(x: showPersonal ? 0 : -panelWidth)
@@ -117,6 +147,11 @@ struct ContentView: View {
         .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
             // 30s 校准一次实际时间
             now = Date()
+            // 30s 重新跑一次 HealthKit 抓取 + 状态推断（.today 持续增长）
+            Task {
+                _ = await HealthKitService.shared.captureSnapshot()
+                inference = HealthKitService.shared.currentInference
+            }
         }
         .onChange(of: displayState) { _ in
             // 状态切换时把当前快照写给 Widget
@@ -137,7 +172,7 @@ struct ContentView: View {
                 .presentationBackground(Color.black)
         }
         .sheet(isPresented: $showSleepReport) {
-            SleepReportView(onClose: { showSleepReport = false })
+            SleepAnomalyReportView(onClose: { showSleepReport = false })
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
@@ -146,6 +181,8 @@ struct ContentView: View {
             Task {
                 await HealthKitService.shared.requestAuthorization()
                 HealthKitService.shared.startAutoCapture(interval: 60)
+                // 首屏立刻算一次 inference，让徽章副标有内容
+                inference = HealthKitService.shared.currentInference
             }
         }
     }
@@ -163,7 +200,7 @@ struct ContentView: View {
                     .padding(.bottom, 4)
 
                 // 三行数据：左上角，top bar 下方
-                FeatureRow(state: displayState)
+                FeatureRow(state: displayState, deviceSet: deviceSet)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 6)
 
@@ -172,7 +209,9 @@ struct ContentView: View {
                 StageHeroView(
                     state: displayState,
                     mood: figureMood,
+                    tiredness: figureTiredness,
                     isScrubbing: isScrubbing,
+                    inference: inference,
                     onPreview: { showFilm = true },
                     onSleepAlert: { showSleepReport = true }
                 )
@@ -185,7 +224,8 @@ struct ContentView: View {
                 DayTimelineView(
                     schedule: StickState.daySchedule,
                     now: now,
-                    scrubOffset: $scrubOffset
+                    scrubOffset: $scrubOffset,
+                    showDevicePicker: $showDevicePicker
                 )
                 .padding(.horizontal, 16)
                 .padding(.bottom, 14)
@@ -268,15 +308,25 @@ struct ContentView: View {
 private struct StageHeroView: View {
     let state: StickState
     let mood: StickFigureMood
+    let tiredness: Double
     let isScrubbing: Bool
+    let inference: StateInference.Result?
     var onPreview: () -> Void
     var onSleepAlert: () -> Void
+
+    /// 把 inference 副标拼成单行 mono 文本：CONF xx% · <first reason>
+    private var inferenceSubline: String {
+        guard let inf = inference else { return "INFERRING…" }
+        let pct = Int((inf.confidence * 100).rounded())
+        let reason = inf.reasons.first ?? "无数据"
+        return "CONF \(pct)% · \(reason)"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // 舞台区（火柴人 + 透明背景，跟整页一个底色）
             ZStack {
-                StickFigureView(state: state, mood: mood)
+                StickFigureView(state: state, mood: mood, tiredness: tiredness)
                     .padding(.horizontal, 32)
                     .padding(.top, 8)
                     .padding(.bottom, 8)
@@ -284,14 +334,21 @@ private struct StageHeroView: View {
                     .transition(.opacity)
 
                 // 状态名（画布右上）— 点击弹出 10s 短片预览
-                VStack {
+                VStack(alignment: .trailing, spacing: 2) {
                     HStack(spacing: 6) {
                         if state == .sleep {
-                            SleepAlertChip(count: 3, onTap: onSleepAlert)
+                            SleepAlertChip(count: 2, onTap: onSleepAlert)
                                 .transition(.scale.combined(with: .opacity))
                         }
                         stateBadge
                     }
+                    Text(inferenceSubline)
+                        .font(.system(size: 8, weight: .medium, design: .monospaced))
+                        .tracking(0.4)
+                        .foregroundColor(Theme.slate)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: 220, alignment: .trailing)
                     Spacer()
                 }
                 .padding(12)

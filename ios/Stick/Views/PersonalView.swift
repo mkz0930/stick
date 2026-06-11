@@ -2,6 +2,11 @@
 //  PersonalView.swift
 //  个人面板 (浅色) — 跟主页一致的极浅色主题
 //
+//  新增：数据能力矩阵 (设备划分)
+//  - 已连接的设备亮，对应 metric 解锁
+//  - 未连接的设备灰，旁边提示"连接 XX 解锁 N 项"
+//  - 点击设备行可切换 connected / disconnected（模拟连接）
+//
 
 import SwiftUI
 
@@ -10,6 +15,8 @@ struct PersonalView: View {
     @Binding var openSpecialists: Bool
     @Binding var openDataRecord: Bool
     @Binding var openWidgetPreview: Bool
+    @Binding var deviceSet: Set<DeviceID>
+
     @State private var showSpecialists: Bool = false
     @State private var showDataRecord: Bool = false
     @State private var showWidgetPreview: Bool = false
@@ -20,13 +27,18 @@ struct PersonalView: View {
         MenuItem(icon: "macwindow",  title: "Widget 预览"),
     ]
 
-    // 智能设备 (假数据 — 后续接 HealthKit / Bluetooth)
-    private let devices: [Device] = [
-        Device(icon: "applewatch",   name: "Apple Watch",  status: .connected,  meta: "电量 78%"),
-        Device(icon: "earbuds",      name: "AirPods Pro",  status: .connected,  meta: "电量 56%"),
-        Device(icon: "figure.mind.and.body", name: "智能护腰", status: .disconnected, meta: "未连接"),
-        Device(icon: "shoeprints.fill", name: "智能运动鞋", status: .disconnected, meta: "未连接"),
-    ]
+    // 已配置的设备 (iPhone 永远在线) — 可点击切换连接状态
+    private var allDevices: [Device] {
+        DeviceID.allCases.map { id in
+            Device(
+                id: id.rawValue,
+                icon: id.icon,
+                name: id.displayName,
+                isConnected: deviceSet.contains(id),
+                color: id.color
+            )
+        }
+    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -39,7 +51,12 @@ struct PersonalView: View {
 
                 devicesSection
                     .padding(.horizontal, 20)
-                    .padding(.top, 28)
+                    .padding(.top, 24)
+
+                // 数据能力矩阵 (新增)
+                capabilitySection
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
 
                 VStack(spacing: 0) {
                     ForEach(menus) { item in
@@ -59,13 +76,13 @@ struct PersonalView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.top, 28)
+                .padding(.top, 24)
 
                 Rectangle()
                     .fill(Theme.borderSoft)
                     .frame(height: 0.5)
                     .padding(.horizontal, 20)
-                    .padding(.top, 28)
+                    .padding(.top, 24)
 
                 taskSection
                     .padding(.horizontal, 20)
@@ -80,7 +97,7 @@ struct PersonalView: View {
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showDataRecord) {
-            DataRecordView(onClose: { showDataRecord = false })
+            DataRecordView(onClose: { showDataRecord = false }, deviceSet: deviceSet)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
@@ -150,22 +167,18 @@ struct PersonalView: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(Theme.navy)
                 Spacer()
-                Button {} label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 11, weight: .semibold))
-                        Text("添加")
-                            .font(.system(size: 12))
-                    }
-                    .foregroundColor(StickState.walk.accent)
-                }
+                Text("\(deviceSet.count) / \(DeviceID.allCases.count) 在线")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(0.4)
+                    .foregroundColor(Theme.slate)
             }
 
-            // 设备列表
             VStack(spacing: 0) {
-                ForEach(Array(devices.enumerated()), id: \.offset) { idx, dev in
-                    DeviceRow(device: dev)
-                    if idx < devices.count - 1 {
+                ForEach(Array(allDevices.enumerated()), id: \.offset) { idx, dev in
+                    DeviceRow(device: dev) {
+                        toggleDevice(dev.idEnum)
+                    }
+                    if idx < allDevices.count - 1 {
                         Rectangle()
                             .fill(Theme.borderSoft)
                             .frame(height: 0.5)
@@ -174,6 +187,152 @@ struct PersonalView: View {
                 }
             }
         }
+    }
+
+    /// 切换设备连接状态 (iPhone 永远在)
+    private func toggleDevice(_ id: DeviceID) {
+        if id == .iPhone { return }   // iPhone 不可断开
+        withAnimation(.easeInOut(duration: 0.25)) {
+            if deviceSet.contains(id) {
+                deviceSet.remove(id)
+            } else {
+                deviceSet.insert(id)
+            }
+        }
+    }
+
+    // MARK: - 数据能力矩阵 (新增)
+
+    private var capabilitySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("数据能力")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(Theme.navy)
+                Spacer()
+                Text(capabilityStatusText)
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(0.4)
+                    .foregroundColor(capabilityStatusColor)
+            }
+
+            // 已解锁 / 已锁定两组
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(MetricCategory.allCases.sorted { $0.order < $1.order }) { cat in
+                    capabilityRow(for: cat)
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Theme.card)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(Theme.border, lineWidth: 1)
+            )
+
+            // 推荐解锁
+            if !DeviceCapabilities.unlockSuggestions(deviceSet).isEmpty {
+                unlockHint
+            }
+        }
+    }
+
+    private func capabilityRow(for cat: MetricCategory) -> some View {
+        let metricsInCat = MetricID.allCases.filter { $0.category == cat }
+        let unlockedCount = metricsInCat.filter { DeviceCapabilities.unlocked($0, deviceSet: deviceSet) }.count
+        let total = metricsInCat.count
+        return VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(cat.rawValue)
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(0.6)
+                    .foregroundColor(Theme.slate)
+                Spacer()
+                Text("\(unlockedCount)/\(total)")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundColor(unlockedCount == total ? StickState.walk.accent : Theme.mist)
+            }
+            // 类别下的所有 metric
+            HStack(spacing: 6) {
+                ForEach(metricsInCat) { m in
+                    let on = DeviceCapabilities.unlocked(m, deviceSet: deviceSet)
+                    CapabilityChip(metric: m, unlocked: on)
+                }
+            }
+        }
+    }
+
+    private var unlockHint: some View {
+        let suggestions = DeviceCapabilities.unlockSuggestions(deviceSet)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(StickState.walk.accent)
+                Text("连接更多设备解锁")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .tracking(0.4)
+                    .foregroundColor(Theme.navy)
+            }
+            ForEach(Array(suggestions.keys), id: \.self) { dev in
+                let metrics = suggestions[dev] ?? []
+                Button {
+                    toggleDevice(dev)
+                } label: {
+                    HStack(spacing: 8) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(dev.color.opacity(0.14))
+                            Image(systemName: dev.icon)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(dev.color)
+                        }
+                        .frame(width: 24, height: 24)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(dev.displayName)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(Theme.navy)
+                            Text(metrics.map { $0.rawValue }.joined(separator: " · "))
+                                .font(.system(size: 9, design: .monospaced))
+                                .foregroundColor(Theme.slate)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Text("+ \(metrics.count) 项")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundColor(dev.color)
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(dev.color)
+                    }
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(dev.color.opacity(0.06))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var capabilityStatusText: String {
+        let summary = DeviceCapabilities.summary(deviceSet: deviceSet)
+        let totalOn = summary.reduce(0) { $0 + $1.unlocked }
+        let totalAll = summary.reduce(0) { $0 + $1.total }
+        return "\(totalOn) / \(totalAll) 项数据"
+    }
+
+    private var capabilityStatusColor: Color {
+        let summary = DeviceCapabilities.summary(deviceSet: deviceSet)
+        let totalOn = summary.reduce(0) { $0 + $1.unlocked }
+        let totalAll = summary.reduce(0) { $0 + $1.total }
+        if totalOn == totalAll { return StickState.walk.accent }
+        if totalOn < totalAll / 2 { return StickState.sleep.accent }
+        return StickState.sit.accent
     }
 
     // MARK: - 健康建议
@@ -260,67 +419,97 @@ struct MenuRow: View {
 // MARK: - 智能设备
 
 struct Device: Identifiable {
-    enum Status { case connected, disconnected }
-
-    let id = UUID()
+    let id: String
     let icon: String
     let name: String
-    let status: Status
-    let meta: String
+    let isConnected: Bool
+    let color: Color
+
+    var idEnum: DeviceID {
+        DeviceID(rawValue: name) ?? .iPhone
+    }
 }
 
 struct DeviceRow: View {
     let device: Device
+    let onTap: () -> Void
 
     var body: some View {
-        Button {} label: {
+        Button(action: onTap) {
             HStack(spacing: 16) {
                 // 图标
-                Image(systemName: device.icon)
-                    .font(.system(size: 22, weight: .light))
-                    .foregroundColor(Theme.navy)
-                    .frame(width: 32)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(device.color.opacity(device.isConnected ? 0.14 : 0.05))
+                    Image(systemName: device.icon)
+                        .font(.system(size: 18, weight: .light))
+                        .foregroundColor(device.isConnected ? device.color : Theme.mist)
+                }
+                .frame(width: 32, height: 32)
 
                 // 名称
                 Text(device.name)
                     .font(.system(size: 16))
-                    .foregroundColor(Theme.navy)
+                    .foregroundColor(device.isConnected ? Theme.navy : Theme.mist)
 
                 Spacer()
 
-                // 状态指示
+                // 状态指示 (灰显时还显示 "未连接")
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(statusColor)
+                        .fill(device.isConnected ? device.color : Theme.mist)
                         .frame(width: 6, height: 6)
-                    Text(device.meta)
+                    Text(device.isConnected ? "已连接" : "未连接")
                         .font(.system(size: 12))
-                        .foregroundColor(statusMetaColor)
+                        .foregroundColor(device.isConnected ? Theme.slate : Theme.mist)
                 }
             }
             .frame(minHeight: 48)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(device.name == DeviceID.iPhone.rawValue)   // iPhone 不可断开
+        .opacity(device.name == DeviceID.iPhone.rawValue ? 0.6 : 1.0)
     }
+}
 
-    private var statusColor: Color {
-        switch device.status {
-        case .connected:    return Color(red: 0.30, green: 0.85, blue: 0.50)
-        case .disconnected: return Theme.mist
-        }
-    }
+// MARK: - 能力矩阵 chip
 
-    private var statusMetaColor: Color {
-        switch device.status {
-        case .connected:    return Theme.slate
-        case .disconnected: return Theme.mist
+private struct CapabilityChip: View {
+    let metric: MetricID
+    let unlocked: Bool
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: unlocked ? metric.icon : "lock.fill")
+                .font(.system(size: 8, weight: .semibold))
+            Text(metric.rawValue)
+                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .lineLimit(1)
         }
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .background(
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(unlocked ? StickState.walk.accentSoft : Theme.mist.opacity(0.12))
+        )
+        .foregroundColor(unlocked ? Theme.navy : Theme.mist)
+        .overlay(
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .stroke(unlocked ? Color.clear : Theme.mist.opacity(0.35),
+                        style: StrokeStyle(lineWidth: 0.5, dash: [2, 2]))
+        )
     }
 }
 
 #Preview {
-    PersonalView(onClose: {}, openSpecialists: .constant(false), openDataRecord: .constant(false), openWidgetPreview: .constant(false))
+    PersonalView(
+        onClose: {},
+        openSpecialists: .constant(false),
+        openDataRecord: .constant(false),
+        openWidgetPreview: .constant(false),
+        deviceSet: .constant([.iPhone])
+    )
 }
 
 // MARK: - 专科专家列表

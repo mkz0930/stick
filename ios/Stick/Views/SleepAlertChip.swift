@@ -49,19 +49,31 @@ struct SleepAlertChip: View {
     }
 }
 
-// MARK: - 睡眠异常报告 sheet
+// MARK: - 睡眠异常报告 sheet (告警弹窗 — 由 SleepAlertChip 触发)
 
-struct SleepReportView: View {
+struct SleepAnomalyReportView: View {
     var onClose: () -> Void
 
     private let issues: [SleepIssue] = [
         SleepIssue(time: "02:34", title: "心率过缓", detail: "最低 47 bpm · 持续 8 秒 · 已自行恢复",
                   severity: .moderate, icon: "heart.fill"),
-        SleepIssue(time: "03:12", title: "翻身频繁", detail: "1 分钟内翻身 3 次 · 处于浅睡 N1 期",
-                  severity: .mild, icon: "arrow.left.arrow.right"),
-        SleepIssue(time: "04:05", title: "疑似呼吸暂停", detail: "检测到 1 次 · 时长 12 秒 · SpO₂ 一过性 92%",
+        SleepIssue(time: "04:05", title: "疑似呼吸暂停", detail: "本次 1 次 · 12 秒 · SpO₂ 一过性 92%；近 7 日累计 3 次类似事件，最低 SpO₂ 87% (8 天前)",
                   severity: .moderate, icon: "lungs.fill"),
     ]
+
+    private let aiAnalysis = AIAnalysis(
+        riskLevel: .moderate,
+        title: "AI 综合分析",
+        summary: "结合本次 + 近 7 日数据，AI 模型评估您存在中等程度的 OSA 倾向。",
+        findings: [
+            "本次记录 1 次疑似呼吸暂停 (12 秒, SpO₂ 92%)",
+            "近 7 日累计 3 次类似事件，最低 SpO₂ 87% (8 天前凌晨 3:42)",
+            "单次最长暂停 18 秒；AHI 估算约 5–15 次/小时 (轻度–中度区间)",
+            "事件多发生在 REM 仰卧期，符合 OSA 典型特征",
+        ],
+        osaIndicator: "提示存在 OSA (阻塞性睡眠呼吸暂停) 倾向",
+        recommendation: "建议尽快预约睡眠专科门诊，必要时安排 PSG 多导睡眠图监测以明确诊断。近期可尝试侧卧睡姿、避免酒精与安眠药、控制体重；若症状加重（白天嗜睡、夜间憋醒）请立即就诊。"
+    )
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -83,14 +95,20 @@ struct SleepReportView: View {
                         summaryCard
                             .padding(.horizontal, 20)
                             .padding(.top, 16)
-                            .padding(.bottom, 20)
+                            .padding(.bottom, 16)
 
                         Rectangle()
                             .fill(Theme.borderSoft)
                             .frame(height: 0.5)
                             .padding(.horizontal, 20)
 
+                        // 异常事件 — 顶部最显眼
                         VStack(spacing: 0) {
+                            sectionHeader("异常事件")
+                                .padding(.horizontal, 20)
+                                .padding(.top, 16)
+                                .padding(.bottom, 8)
+
                             ForEach(Array(issues.enumerated()), id: \.offset) { idx, issue in
                                 SleepIssueRow(issue: issue)
                                 if idx < issues.count - 1 {
@@ -101,8 +119,18 @@ struct SleepReportView: View {
                                 }
                             }
                         }
-                        .padding(.top, 4)
-                        .padding(.bottom, 28)
+                        .padding(.bottom, 20)
+
+                        Rectangle()
+                            .fill(Theme.borderSoft)
+                            .frame(height: 0.5)
+                            .padding(.horizontal, 20)
+
+                        // AI 综合分析 — 下方解读
+                        aiCard
+                            .padding(.horizontal, 20)
+                            .padding(.top, 16)
+                            .padding(.bottom, 28)
                     }
                 }
             }
@@ -140,7 +168,6 @@ struct SleepReportView: View {
 
     private var summaryCard: some View {
         HStack(spacing: 18) {
-            // 大数字
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(issues.count)")
                     .font(.system(size: 48, weight: .black, design: .rounded))
@@ -159,7 +186,6 @@ struct SleepReportView: View {
             VStack(alignment: .trailing, spacing: 5) {
                 stat("心率过缓", "1")
                 stat("呼吸暂停", "1")
-                stat("翻身频繁", "1")
             }
         }
         .padding(.horizontal, 18)
@@ -174,6 +200,131 @@ struct SleepReportView: View {
         )
     }
 
+    /// AI 综合分析卡片
+    private var aiCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // 头部：AI 标 + 风险 chip
+            HStack(spacing: 8) {
+                HStack(spacing: 4) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 10, weight: .bold))
+                    Text("AI")
+                        .font(.system(size: 11, weight: .black, design: .monospaced))
+                        .tracking(0.6)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(
+                    Capsule().fill(aiColor)
+                )
+
+                Text(aiAnalysis.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Theme.navy)
+
+                Spacer()
+
+                riskChip
+            }
+
+            // 一句话总结
+            Text(aiAnalysis.summary)
+                .font(.system(size: 13, weight: .regular))
+                .foregroundColor(Theme.navy)
+                .lineSpacing(3)
+
+            // 关键发现
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(aiAnalysis.findings.enumerated()), id: \.offset) { idx, finding in
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("\(idx + 1).")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundColor(aiColor.opacity(0.7))
+                            .frame(width: 14, alignment: .leading)
+                        Text(finding)
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundColor(Theme.slate)
+                            .lineSpacing(2)
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+
+            // OSA 提示（高亮警告行）
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.red)
+                Text(aiAnalysis.osaIndicator)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.red)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.red.opacity(0.08))
+            )
+
+            // 建议
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(StickState.walk.accent)
+                    .padding(.top, 2)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("建议")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(Theme.slate)
+                        .tracking(0.4)
+                    Text(aiAnalysis.recommendation)
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundColor(Theme.navy)
+                        .lineSpacing(3)
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Theme.card)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(aiColor.opacity(0.35), lineWidth: 0.8)
+        )
+        .shadow(color: aiColor.opacity(0.08), radius: 12, y: 2)
+    }
+
+    private var riskChip: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(riskColor)
+                .frame(width: 6, height: 6)
+            Text(riskLabel)
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .tracking(0.5)
+                .foregroundColor(riskColor)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3.5)
+        .background(
+            Capsule().fill(riskColor.opacity(0.12))
+        )
+    }
+
+    private func sectionHeader(_ text: String) -> some View {
+        HStack {
+            Text(text)
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .tracking(1.5)
+                .foregroundColor(Theme.slate)
+            Spacer()
+        }
+    }
+
     private func stat(_ label: String, _ value: String) -> some View {
         HStack(spacing: 8) {
             Text(label)
@@ -182,6 +333,27 @@ struct SleepReportView: View {
             Text(value)
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 .foregroundColor(Theme.navy)
+        }
+    }
+
+    // AI 配色
+    private var aiColor: Color {
+        Color(red: 0.39, green: 0.40, blue: 0.95)  // 靛紫
+    }
+
+    private var riskColor: Color {
+        switch aiAnalysis.riskLevel {
+        case .low:     return Color(red: 0.20, green: 0.78, blue: 0.55)  // 绿
+        case .moderate: return Color(red: 0.95, green: 0.65, blue: 0.10)  // 琥珀
+        case .high:   return Color(red: 0.95, green: 0.30, blue: 0.20)  // 红
+        }
+    }
+
+    private var riskLabel: String {
+        switch aiAnalysis.riskLevel {
+        case .low:     return "低度风险"
+        case .moderate: return "中度风险"
+        case .high:   return "高度风险"
         }
     }
 }
@@ -204,13 +376,11 @@ struct SleepIssueRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // 时间
             Text(issue.time)
                 .font(.system(size: 12, weight: .semibold, design: .monospaced))
                 .foregroundColor(Theme.slate)
                 .frame(width: 46, alignment: .leading)
 
-            // 图标
             ZStack {
                 Circle()
                     .fill(severityColor.opacity(0.14))
@@ -220,7 +390,6 @@ struct SleepIssueRow: View {
             }
             .frame(width: 38, height: 38)
 
-            // 文字
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(issue.title)
@@ -239,7 +408,7 @@ struct SleepIssueRow: View {
                 Text(issue.detail)
                     .font(.system(size: 12))
                     .foregroundColor(Theme.slate)
-                    .lineLimit(2)
+                    .lineLimit(3)
             }
 
             Spacer()
@@ -267,4 +436,17 @@ struct SleepIssueRow: View {
         case .moderate: return "中度"
         }
     }
+}
+
+// MARK: - AI 分析
+
+struct AIAnalysis {
+    enum RiskLevel { case low, moderate, high }
+
+    let riskLevel: RiskLevel
+    let title: String
+    let summary: String
+    let findings: [String]
+    let osaIndicator: String
+    let recommendation: String
 }

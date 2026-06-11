@@ -3,14 +3,18 @@ import SwiftUI
 /// 主页 3 行紧凑指标（左上角）：
 ///  - 心率那一行额外带一个 48×18 的 ECG 动画波形（图形 + 数据）
 ///  - 其他行：状态色点 + mono 标签 + 数值 + 副标
+///
+/// 设备能力：每个 metric 关联一个 MetricID。`deviceSet` 没有命中该 metric 的 required 设备时，
+/// 整行置灰 + 锁图标 + 单击展示解锁提示。
 struct FeatureRow: View {
     let state: StickState
+    let deviceSet: Set<DeviceID>
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            FeatureLine(metric: state.primaryMetric,   accent: state.accent)
-            FeatureLine(metric: state.secondaryMetric, accent: state.accent)
-            FeatureLine(metric: state.tertiaryMetric,  accent: state.accent)
+            FeatureLine(metric: state.primaryMetric,   accent: state.accent, deviceSet: deviceSet)
+            FeatureLine(metric: state.secondaryMetric, accent: state.accent, deviceSet: deviceSet)
+            FeatureLine(metric: state.tertiaryMetric,  accent: state.accent, deviceSet: deviceSet)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -19,42 +23,112 @@ struct FeatureRow: View {
 private struct FeatureLine: View {
     let metric: Metric
     let accent: Color
+    let deviceSet: Set<DeviceID>
+
+    @State private var showLockHint: Bool = false
 
     private var isHeartRate: Bool { metric.label == "HEART RATE" }
 
+    /// 是否被当前设备锁住
+    private var isLocked: Bool {
+        guard let id = metric.metricID else { return false }
+        return !DeviceCapabilities.unlocked(id, deviceSet: deviceSet)
+    }
+
+    /// 推荐解锁设备 (从 required 集合里挑一个)
+    private var unlockDevice: DeviceID? {
+        metric.metricID?.required.first
+    }
+
     var body: some View {
         HStack(spacing: 8) {
-            // 状态色小点
+            // 状态色小点 (灰显时变灰)
             Circle()
-                .fill(accent)
+                .fill(isLocked ? Theme.mist.opacity(0.5) : accent)
                 .frame(width: 5, height: 5)
 
             // mono 标签（等宽对齐）
             Text(metric.label)
                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                 .tracking(0.8)
-                .foregroundColor(Theme.slate)
+                .foregroundColor(isLocked ? Theme.mist : Theme.slate)
                 .lineLimit(1)
                 .frame(width: 68, alignment: .leading)
 
-            // 心率专属：ECG 动画波形
-            if isHeartRate {
+            // 心率专属：ECG 动画波形 (锁定时不再画)
+            if isHeartRate && !isLocked {
                 HeartRateSparkline(color: Color(red: 0.86, green: 0.21, blue: 0.27))
                     .frame(width: 52, height: 18)
             }
 
-            // 数值
-            Text(metric.value)
-                .font(.system(size: 13, weight: .heavy, design: .rounded))
-                .foregroundColor(Theme.navy)
-                .lineLimit(1)
+            // 数值 / 锁图标
+            if isLocked {
+                HStack(spacing: 3) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 9, weight: .semibold))
+                    Text("—")
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                }
+                .foregroundColor(Theme.mist)
+            } else {
+                Text(metric.value)
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .foregroundColor(Theme.navy)
+                    .lineLimit(1)
+            }
 
             // 副标
-            Text(metric.desc)
+            Text(isLocked ? (unlockDevice.map { "需 \($0.displayName)" } ?? "设备不支持") : metric.desc)
                 .font(.system(size: 10, weight: .medium, design: .serif))
                 .foregroundColor(Theme.mist)
                 .lineLimit(1)
         }
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if isLocked { showLockHint = true }
+        }
+        .popover(isPresented: $showLockHint, arrowEdge: .top) {
+            LockHintPopover(metric: metric, unlockDevice: unlockDevice)
+                .presentationCompactAdaptation(.popover)
+        }
+    }
+}
+
+// MARK: - 解锁提示弹层
+
+private struct LockHintPopover: View {
+    let metric: Metric
+    let unlockDevice: DeviceID?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Theme.slate)
+                Text(metric.metricID?.englishName ?? metric.label)
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .tracking(0.5)
+                    .foregroundColor(Theme.navy)
+            }
+            Text("当前设备无法呈现此数据")
+                .font(.system(size: 11))
+                .foregroundColor(Theme.slate)
+            if let dev = unlockDevice {
+                HStack(spacing: 5) {
+                    Image(systemName: dev.icon)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(dev.color)
+                    Text("连接 \(dev.displayName) 解锁")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Theme.navy)
+                }
+                .padding(.top, 2)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: 240, alignment: .leading)
     }
 }
 
