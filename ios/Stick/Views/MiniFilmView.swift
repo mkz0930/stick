@@ -844,6 +844,93 @@ private func drawDot(ctx: inout GraphicsContext, at p: CGPoint, r: CGFloat, colo
     }
 }
 
+// MARK: - 心跳图标 (脉冲)
+
+private struct HeartPulseIcon: View {
+    @State private var scale: CGFloat = 1.0
+
+    var body: some View {
+        Image(systemName: "heart.fill")
+            .font(.system(size: 12, weight: .bold))
+            .foregroundColor(Color(red: 0.92, green: 0.22, blue: 0.30))
+            .scaleEffect(scale)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
+                    scale = 1.25
+                }
+            }
+    }
+}
+
+// MARK: - 心情曲线 (1 天 0-10s 的心情得分 0-1)
+
+private struct MoodCurveView: View {
+    let currentTime: Double
+    let duration: Double
+
+    private let n = 30
+
+    private func moodValue(at t: Double) -> Double {
+        // 0 = 低落, 1 = 兴奋
+        if t < 1.0 { return 0.55 + 0.40 * t }              // 起床：快速上扬
+        if t < 3.0 { return 0.95 - 0.04 * (t - 1.0) / 2 }  // 通勤：高位小幅
+        if t < 4.0 { return 0.91 - 0.08 * (t - 3.0) }      // 坐下：略降
+        if t < 7.5 { return 0.83 - 0.45 * (t - 4.0) / 3.5 } // 工作：稳步下滑
+        if t < 8.5 { return 0.38 - 0.05 * (t - 7.5) }      // 起身：低谷
+        return max(0.18, 0.33 - 0.10 * (t - 8.5) / 1.5)    // 下班：低位
+    }
+
+    var body: some View {
+        GeometryReader { g in
+            let w = g.size.width
+            let h = g.size.height
+            let points: [CGPoint] = (0..<n).map { i in
+                let t = duration * Double(i) / Double(n - 1)
+                let v = moodValue(at: t)
+                return CGPoint(x: w * CGFloat(i) / CGFloat(n - 1),
+                               y: h * (1 - CGFloat(v)))
+            }
+
+            ZStack(alignment: .leading) {
+                // 渐变填充
+                Path { p in
+                    p.move(to: CGPoint(x: 0, y: h))
+                    for pt in points { p.addLine(to: pt) }
+                    p.addLine(to: CGPoint(x: w, y: h))
+                    p.closeSubpath()
+                }
+                .fill(LinearGradient(
+                    colors: [Color.black.opacity(0.25), Color.black.opacity(0.04)],
+                    startPoint: .top, endPoint: .bottom
+                ))
+
+                // 折线
+                Path { p in
+                    p.move(to: points[0])
+                    for pt in points.dropFirst() { p.addLine(to: pt) }
+                }
+                .stroke(Color.black.opacity(0.75), style: StrokeStyle(lineWidth: 1.4, lineJoin: .round))
+
+                // 当前时间竖线
+                let cx = w * CGFloat(min(1, currentTime / duration))
+                Path { p in
+                    p.move(to: CGPoint(x: cx, y: 0))
+                    p.addLine(to: CGPoint(x: cx, y: h))
+                }
+                .stroke(Color(red: 0.92, green: 0.22, blue: 0.30), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+
+                // 当前点
+                let cy = h * (1 - CGFloat(moodValue(at: currentTime)))
+                Circle()
+                    .fill(Color(red: 0.92, green: 0.22, blue: 0.30))
+                    .frame(width: 6, height: 6)
+                    .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
+                    .position(x: cx, y: cy)
+            }
+        }
+    }
+}
+
 // MARK: - 分享 Sheet 容器
 
 /// 极简：浅色背景 + 顶部状态条 / X / 分享按钮 + 火柴人短片 + 进度条。
@@ -873,6 +960,11 @@ struct MiniFilmShareSheet: View {
                 .padding(.horizontal, 18)
                 .padding(.top, 10)
 
+                // 心率 + 心情曲线
+                vitalsRow
+                    .padding(.horizontal, 18)
+                    .padding(.top, 6)
+
                 Spacer(minLength: 0)
 
                 MiniFilmView { currentTime = $0 }
@@ -884,6 +976,74 @@ struct MiniFilmShareSheet: View {
                 Spacer(minLength: 0)
             }
         }
+    }
+
+    // MARK: - 心率 + 心情曲线
+
+    private var vitalsRow: some View {
+        HStack(spacing: 12) {
+            heartRateView
+            moodCurveView
+        }
+    }
+
+    private var heartRateView: some View {
+        HStack(spacing: 5) {
+            HeartPulseIcon()
+            VStack(alignment: .leading, spacing: 0) {
+                Text("\(currentHeartRate)")
+                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundColor(.black)
+                    .contentTransition(.numericText())
+                Text("bpm")
+                    .font(.system(size: 8, weight: .medium, design: .monospaced))
+                    .foregroundColor(.black.opacity(0.45))
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            Capsule().fill(Color.black.opacity(0.05))
+        )
+        .overlay(
+            Capsule().stroke(Color.black.opacity(0.08), lineWidth: 0.5)
+        )
+        .animation(.easeInOut(duration: 0.3), value: currentHeartRate)
+    }
+
+    private var currentHeartRate: Int {
+        let m = FilmTimeline.mood(at: currentTime)
+        let base: Double
+        switch m {
+        case .excited: base = 92
+        case .focused: base = 78
+        case .tired:   base = 64
+        }
+        // 起床 / 起身段心率额外 +6
+        let isTransition = currentTime < 1.0 || (currentTime > 7.5 && currentTime < 8.5)
+        return Int(base + (isTransition ? 6 : 0))
+    }
+
+    private var moodCurveView: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("今日心情")
+                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .tracking(0.5)
+                .foregroundColor(.black.opacity(0.45))
+            MoodCurveView(currentTime: currentTime, duration: 10)
+                .frame(height: 28)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.black.opacity(0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.black.opacity(0.08), lineWidth: 0.5)
+        )
     }
 
     /// 左上状态条：时段 + 身体状态 + 心情（随 currentTime 变）

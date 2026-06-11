@@ -189,7 +189,7 @@ struct PersonalView: View {
                     Image(systemName: "plus")
                         .font(.system(size: 16, weight: .regular))
                         .foregroundColor(Color(white: 0.55))
-                    Text("新建建议")
+                    Text("新建任务")
                         .font(.system(size: 15))
                         .foregroundColor(Color(white: 0.55))
                 }

@@ -86,6 +86,9 @@ struct ContentView: View {
             MiniFilmShareSheet(isPresented: $showFilm)
                 .presentationBackground(Color.black)
         }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { showFilm = true }
+        }
     }
 
     // MARK: - 首页内容 (抽出来便于在 ZStack 中复用)
