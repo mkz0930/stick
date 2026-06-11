@@ -8,14 +8,16 @@ import SwiftUI
 ///  - 底部 dark action panel
 ///
 /// 状态来源：`StickState.current(at: now)`。
-/// 拖动时间线时 `scrubMinute` 临时覆盖，UI 全程跟着更新。
+/// 拖动时间线时 `scrubOffset` 临时覆盖，UI 全程跟着更新。
 struct ContentView: View {
     @State private var now: Date = Date()
-    @State private var scrubMinute: Int? = nil
+    @State private var scrubOffset: Int? = nil   // 0 = 现在；>0 表示过去多少分钟（窗口起点 = now - 24h）
     @State private var showFilm: Bool = false
+    @State private var showSleepReport: Bool = false
     @State private var showPersonal: Bool = false
     @State private var openSpecialists: Bool = false
     @State private var openDataRecord: Bool = false
+    @State private var openWidgetPreview: Bool = false
 
     // Chat
     @State private var showChat: Bool = false
@@ -23,17 +25,34 @@ struct ContentView: View {
     @State private var chatKey: Int = 0
     @State private var inputDraft: String = ""
 
-    private var displayMinute: Int {
-        scrubMinute ?? StickState.minutesOfDay(now)
+    private var displayOffset: Int {
+        scrubOffset ?? 0
+    }
+
+    private var displayDate: Date {
+        now.addingTimeInterval(-Double(displayOffset) * 60)
     }
 
     private var displayState: StickState {
-        StickState.currentSegment(at: minutesToDate(displayMinute))?.state ?? .walk
+        StickState.currentSegment(at: displayDate)?.state ?? .walk
     }
 
     private var isScrubbing: Bool {
-        guard let s = scrubMinute else { return false }
-        return s != StickState.minutesOfDay(now)
+        guard let s = scrubOffset else { return false }
+        return s > 0
+    }
+
+    /// 上午 + 状态好 = 兴奋 UI。
+    /// 上午 06:00–12:00 之内只有 .walk（07:00–08:30 通勤）是真正"好"的状态，
+    /// 其余时段（睡 / 坐）状态不健康，不应触发兴奋装饰。
+    private var isMorningEnergetic: Bool {
+        let m = StickState.minutesOfDay(displayDate)
+        return displayState == .walk && m >= 360 && m < 720
+    }
+
+    /// 给当前展示状态派生火柴人心情覆盖。
+    private var figureMood: StickFigureMood {
+        isMorningEnergetic ? .excited : .normal
     }
 
     // MARK: - 给 Widget 用的派生值
@@ -76,7 +95,8 @@ struct ContentView: View {
                 PersonalView(
                     onClose: { withAnimation(.easeInOut(duration: 0.32)) { showPersonal = false } },
                     openSpecialists: $openSpecialists,
-                    openDataRecord: $openDataRecord
+                    openDataRecord: $openDataRecord,
+                    openWidgetPreview: $openWidgetPreview
                 )
                 .frame(width: panelWidth)
                 .offset(x: showPersonal ? 0 : -panelWidth)
@@ -116,6 +136,11 @@ struct ContentView: View {
             MiniFilmShareSheet(isPresented: $showFilm)
                 .presentationBackground(Color.black)
         }
+        .sheet(isPresented: $showSleepReport) {
+            SleepReportView(onClose: { showSleepReport = false })
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
         .onAppear {
             // 启动 HealthKit 抓取 (1 分钟一次, 写到本地)
             Task {
@@ -144,9 +169,13 @@ struct ContentView: View {
 
                 Spacer(minLength: 0)
 
-                StageHeroView(state: displayState, isScrubbing: isScrubbing) {
-                    showFilm = true
-                }
+                StageHeroView(
+                    state: displayState,
+                    mood: figureMood,
+                    isScrubbing: isScrubbing,
+                    onPreview: { showFilm = true },
+                    onSleepAlert: { showSleepReport = true }
+                )
                     .frame(maxWidth: .infinity)
                     .frame(height: 340)
                     .padding(.horizontal, 16)
@@ -156,7 +185,7 @@ struct ContentView: View {
                 DayTimelineView(
                     schedule: StickState.daySchedule,
                     now: now,
-                    scrubMinute: $scrubMinute
+                    scrubOffset: $scrubOffset
                 )
                 .padding(.horizontal, 16)
                 .padding(.bottom, 14)
@@ -238,14 +267,16 @@ struct ContentView: View {
 
 private struct StageHeroView: View {
     let state: StickState
+    let mood: StickFigureMood
     let isScrubbing: Bool
     var onPreview: () -> Void
+    var onSleepAlert: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // 舞台区（火柴人 + 透明背景，跟整页一个底色）
             ZStack {
-                StickFigureView(state: state)
+                StickFigureView(state: state, mood: mood)
                     .padding(.horizontal, 32)
                     .padding(.top, 8)
                     .padding(.bottom, 8)
@@ -254,8 +285,11 @@ private struct StageHeroView: View {
 
                 // 状态名（画布右上）— 点击弹出 10s 短片预览
                 VStack {
-                    HStack {
-                        Spacer()
+                    HStack(spacing: 6) {
+                        if state == .sleep {
+                            SleepAlertChip(count: 3, onTap: onSleepAlert)
+                                .transition(.scale.combined(with: .opacity))
+                        }
                         stateBadge
                     }
                     Spacer()
@@ -279,7 +313,7 @@ private struct StageHeroView: View {
                     .tracking(1.8)
                     .foregroundColor(Theme.navy)
                 Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 11, weight: .black))
+                    .font(.system(size: 12, weight: .black))
                     .foregroundColor(state.accent)
             }
             .padding(.horizontal, 7)

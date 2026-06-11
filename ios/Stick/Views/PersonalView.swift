@@ -9,6 +9,7 @@ struct PersonalView: View {
     var onClose: () -> Void
     @Binding var openSpecialists: Bool
     @Binding var openDataRecord: Bool
+    @Binding var openWidgetPreview: Bool
     @State private var showSpecialists: Bool = false
     @State private var showDataRecord: Bool = false
     @State private var showWidgetPreview: Bool = false
@@ -93,6 +94,9 @@ struct PersonalView: View {
         }
         .onChange(of: openDataRecord) { _, newValue in
             if newValue { showDataRecord = true; openDataRecord = false }
+        }
+        .onChange(of: openWidgetPreview) { _, newValue in
+            if newValue { showWidgetPreview = true; openWidgetPreview = false }
         }
     }
 
@@ -316,7 +320,7 @@ struct DeviceRow: View {
 }
 
 #Preview {
-    PersonalView(onClose: {}, openSpecialists: .constant(false), openDataRecord: .constant(false))
+    PersonalView(onClose: {}, openSpecialists: .constant(false), openDataRecord: .constant(false), openWidgetPreview: .constant(false))
 }
 
 // MARK: - 专科专家列表

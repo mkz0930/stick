@@ -1,5 +1,13 @@
 import SwiftUI
 
+/// 火柴人心情/姿态覆盖层。在基础状态之上叠加"有活力"等情绪效果。
+///   - .normal   默认，无额外装饰
+///   - .excited  兴奋（微笑 + 闪光 + ♪ + 更欢的颠步），用于"上午通勤 / 状态好"
+enum StickFigureMood: Hashable {
+    case normal
+    case excited
+}
+
 /// 火柴人主页的核心视图。
 /// 3 状态（走/坐/睡）侧视线框火柴人，参考 ATLAS 项目风格：
 ///  - 关节处小圆点
@@ -10,6 +18,7 @@ import SwiftUI
 /// 坐标系固定 240×320，调用方决定实际尺寸，Canvas 内自动等比缩放。
 struct StickFigureView: View {
     let state: StickState
+    var mood: StickFigureMood = .normal             // 心情覆盖：.excited = 兴奋 UI
     var lineColor: Color = Theme.figureStroke       // navy
     var fillColor: Color = Theme.figureFill          // 米白
     var jointColor: Color? = nil                    // nil = 用 state.accent
@@ -35,7 +44,7 @@ struct StickFigureView: View {
                 ctx.scaleBy(x: scale, y: scale)
 
                 drawScene(ctx: &ctx, state: state, accent: accent, t: t, show: showScene)
-                drawFigure(ctx: &ctx, state: state, stroke: lineColor, fill: fillColor, joint: joint, w: lineWidth, t: t)
+                drawFigure(ctx: &ctx, state: state, mood: mood, stroke: lineColor, fill: fillColor, joint: joint, w: lineWidth, t: t)
             }
             .drawingGroup()  // 离屏渲染保持线条锐利
         }
@@ -202,12 +211,15 @@ private func drawScene(ctx: inout GraphicsContext, state: StickState, accent: Co
 
 // MARK: - 走
 
-private func drawWalk(ctx: inout GraphicsContext, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double) {
+private func drawWalk(ctx: inout GraphicsContext, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double, mood: StickFigureMood = .normal) {
+    let isExcited = mood == .excited
+
     // 步态相位：~0.7 Hz 一周期
     let phase = t * 4.5
-    let armSwing: CGFloat = CGFloat(sin(phase) * 0.30)            // ±17° 摆臂
-    let legSwing: CGFloat = CGFloat(sin(phase + .pi) * 0.24)      // 腿与臂反相
-    let bob: CGFloat = CGFloat(abs(sin(phase * 2)) * 2.0)         // 上下颠 0~2px
+    let armSwing: CGFloat = CGFloat(sin(phase) * (isExcited ? 0.36 : 0.30))        // 兴奋时摆臂更大
+    let legSwing: CGFloat = CGFloat(sin(phase + .pi) * (isExcited ? 0.28 : 0.24)) // 腿与臂反相
+    let bobAmp: CGFloat = isExcited ? 2.8 : 2.0                                    // 兴奋时颠得更欢
+    let bob: CGFloat = CGFloat(abs(sin(phase * 2)) * Double(bobAmp))               // 上下颠 0~bobAmp px
     let rFootLift: CGFloat = CGFloat(max(0, sin(phase + .pi / 2)) * 4)  // 右脚抬起
 
     // 整体上抬
@@ -225,6 +237,14 @@ private func drawWalk(ctx: inout GraphicsContext, stroke: Color, fill: Color, jo
     drawEllipse(ctx: &ctx, rect: head, fill: fill, stroke: stroke, width: w)
     ctx.transform = saved
     drawDot(ctx: &ctx, at: CGPoint(x: 100, y: 78), r: 2, color: stroke)
+    if isExcited {
+        // 微笑：眼下一条小弧线
+        strokeCurve(ctx: &ctx,
+                    from: CGPoint(x: 100, y: 91),
+                    to: CGPoint(x: 114, y: 91),
+                    control: CGPoint(x: 107, y: 96),
+                    color: stroke, width: 1.4)
+    }
 
     // 颈椎
     strokeCurve(ctx: &ctx, from: CGPoint(x: 113, y: 105), to: CGPoint(x: 111, y: 128),
@@ -324,8 +344,18 @@ private func drawWalk(ctx: inout GraphicsContext, stroke: Color, fill: Color, jo
     ctx.fill(lFoot, with: .color(fill))
     ctx.transform = lBase2
 
+    // 兴奋装饰：4 个十字闪光（与身体一起轻微颠簸，更贴合"身上"）
+    if isExcited {
+        drawExcitedSparkles(ctx: &ctx, color: joint, t: t)
+    }
+
     // 还原整体平移
     ctx.transform = savedTop
+
+    // 兴奋装饰：飘动的 ♪ 音符（独立于身体颠簸，"附近"飘升）
+    if isExcited {
+        drawExcitedNote(ctx: &ctx, color: joint, t: t)
+    }
 }
 
 // MARK: - 坐
@@ -512,9 +542,9 @@ private func drawSleep(ctx: inout GraphicsContext, stroke: Color, fill: Color, j
 
 // MARK: - 路由
 
-private func drawFigure(ctx: inout GraphicsContext, state: StickState, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double) {
+private func drawFigure(ctx: inout GraphicsContext, state: StickState, mood: StickFigureMood, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double) {
     switch state {
-    case .walk:  drawWalk(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t)
+    case .walk:  drawWalk(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood)
     case .sit:   drawSit(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t)
     case .sleep: drawSleep(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t)
     }
@@ -561,6 +591,63 @@ private func drawEllipse(ctx: inout GraphicsContext, rect: CGRect, fill: Color, 
 private func drawZ(ctx: inout GraphicsContext, at p: CGPoint, size: CGFloat, color: Color) {
     let t = Text("Z")
         .font(.system(size: size, weight: .heavy, design: .serif))
+        .foregroundColor(color)
+    ctx.draw(t, at: p, anchor: .center)
+}
+
+// MARK: - 兴奋装饰：闪光（身上）
+
+/// 4 个十字形闪光包围火柴人。三角波 0→1→0 驱动 size/alpha，错相 0.4s。
+private func drawExcitedSparkles(ctx: inout GraphicsContext, color: Color, t: Double) {
+    let period: Double = 1.6
+    let positions: [CGPoint] = [
+        CGPoint(x: 55,  y: 72),    // 左上（头顶左上）
+        CGPoint(x: 188, y: 58),    // 右上（头顶右上）
+        CGPoint(x: 215, y: 175),   // 右中（手臂外）
+        CGPoint(x: 35,  y: 205)    // 左中（手臂外）
+    ]
+    for i in 0..<positions.count {
+        let p = positions[i]
+        let phase = ((t + Double(i) * 0.4).truncatingRemainder(dividingBy: period)) / period
+        // 三角波：0→1→0 over [0, 1)
+        let wave = CGFloat(1.0 - abs(phase * 2.0 - 1.0))
+        let size: CGFloat = 2.5 + 3.5 * wave   // 2.5..6
+        let alpha: CGFloat = 0.45 + 0.55 * wave
+        // 十字（竖 + 横）+ 中心小亮点
+        strokeLine(ctx: &ctx,
+                   from: CGPoint(x: p.x, y: p.y - size),
+                   to: CGPoint(x: p.x, y: p.y + size),
+                   color: color.opacity(alpha), width: 1.3)
+        strokeLine(ctx: &ctx,
+                   from: CGPoint(x: p.x - size, y: p.y),
+                   to: CGPoint(x: p.x + size, y: p.y),
+                   color: color.opacity(alpha), width: 1.3)
+        drawDot(ctx: &ctx, at: p, r: 1.2, color: color.opacity(alpha), filled: true)
+    }
+}
+
+// MARK: - 兴奋装饰：♪ 音符（附近）
+
+/// 单个 ♪ 音符从右中飘到右上方，4s 一周期，含淡入/淡出 + 横向 sin 摇摆。
+private func drawExcitedNote(ctx: inout GraphicsContext, color: Color, t: Double) {
+    let period: Double = 4.0
+    let p = t.truncatingRemainder(dividingBy: period) / period
+    let alpha: CGFloat
+    if p < 0.12 { alpha = p / 0.12 }
+    else if p > 0.88 { alpha = (1 - p) / 0.12 }
+    else { alpha = 1.0 }
+    let prog = CGFloat(p)
+    let wobble = CGFloat(sin(t * 1.8) * 3) * prog
+    let xStart: CGFloat = 195, xEnd: CGFloat = 218
+    let yStart: CGFloat = 130, yEnd: CGFloat = 30
+    let x = xStart + (xEnd - xStart) * prog + wobble
+    let y = yStart + (yEnd - yStart) * prog
+    drawNote(ctx: &ctx, at: CGPoint(x: x, y: y), size: 18, color: color.opacity(alpha))
+}
+
+private func drawNote(ctx: inout GraphicsContext, at p: CGPoint, size: CGFloat, color: Color) {
+    let t = Text("♪")
+        .font(.system(size: size, weight: .bold, design: .serif))
         .foregroundColor(color)
     ctx.draw(t, at: p, anchor: .center)
 }

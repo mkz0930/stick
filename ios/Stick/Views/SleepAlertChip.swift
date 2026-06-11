@@ -55,11 +55,11 @@ struct SleepReportView: View {
     var onClose: () -> Void
 
     private let issues: [SleepIssue] = [
-        SleepIssue(time: "02:34", title: "心率过缓", detail: "52 bpm · 持续 8 秒 · 已恢复",
+        SleepIssue(time: "02:34", title: "心率过缓", detail: "最低 47 bpm · 持续 8 秒 · 已自行恢复",
                   severity: .moderate, icon: "heart.fill"),
-        SleepIssue(time: "03:12", title: "翻身频繁", detail: "1 分钟内翻身 3 次 · 浅睡期",
+        SleepIssue(time: "03:12", title: "翻身频繁", detail: "1 分钟内翻身 3 次 · 处于浅睡 N1 期",
                   severity: .mild, icon: "arrow.left.arrow.right"),
-        SleepIssue(time: "04:05", title: "疑似呼吸暂停", detail: "检测到 1 次 · 时长 12s · SpO₂ 一过性 92%",
+        SleepIssue(time: "04:05", title: "疑似呼吸暂停", detail: "检测到 1 次 · 时长 12 秒 · SpO₂ 一过性 92%",
                   severity: .moderate, icon: "lungs.fill"),
     ]
 

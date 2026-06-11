@@ -61,26 +61,32 @@ struct WidgetPreviewView: View {
 
                 ScrollView {
                     VStack(spacing: 22) {
-                        // 真实 2x2 widget
+                        // 2x2 widget
+                        widgetLabel("2x2 · 小", subtitle: "状态 + 火柴人 + 心率")
                         StickWidgetView(entry: StickEntry(date: Date(), state: state))
                             .frame(width: 158, height: 158)
-                            .scaleEffect(1.0)
                             .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
-                            .padding(.top, 24)
+
+                        // 4x2 widget（心情 + 告警）
+                        widgetLabel("4x2 · 中", subtitle: "心情趋势 + 状态告警（久坐 / 浅睡）")
+                        StickMediumWidgetView(entry: StickEntry(date: Date(), state: state))
+                            .frame(width: 338, height: 158)
+                            .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
 
                         // 状态切换
                         statePicker
-                            .padding(.top, 18)
+                            .padding(.top, 8)
                             .padding(.horizontal, 20)
 
                         // 数据详情
                         dataDump
-                            .padding(.top, 14)
+                            .padding(.top, 6)
                             .padding(.horizontal, 20)
 
                         Spacer(minLength: 24)
                     }
                     .frame(maxWidth: .infinity)
+                    .padding(.top, 16)
                 }
             }
         }
@@ -121,6 +127,20 @@ struct WidgetPreviewView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    private func widgetLabel(_ title: String, subtitle: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(title)
+                .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                .tracking(1.5)
+                .foregroundColor(Theme.navy)
+            Text(subtitle)
+                .font(.system(size: 10, weight: .regular))
+                .foregroundColor(Theme.slate)
+            Spacer()
+        }
+        .padding(.horizontal, 20)
     }
 
     private var statePicker: some View {

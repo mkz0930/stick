@@ -100,7 +100,7 @@ struct StickWidgetView: View {
 
 // MARK: - 迷你火柴人
 
-private struct MiniFigure: View {
+struct MiniFigure: View {
     let stateRaw: String
     let accent: Color
 

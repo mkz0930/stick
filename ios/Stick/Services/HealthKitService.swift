@@ -187,15 +187,19 @@ final class HealthKitService: ObservableObject {
 
     // MARK: - 推断身体状态 (来自加速度 + 心率)
 
-    /// 当前身体状态 (综合)
+    /// 当前身体状态 (多信号融合推断)
     var currentState: String {
-        // 这里先用简化规则 (之后接加速度计会更准)
-        let now = Date()
-        let cal = Calendar.current
-        let h = cal.component(.hour, from: now)
-        if h >= 22 || h < 7 { return "sleep" }
-        // 后续可以叠加: 步数>0 → walk, 否则 sit
-        return "sit"
+        let rhr = HealthStore.shared.all
+            .compactMap { $0.restingHeartRate }.last
+        let result = StateInference.infer(snapshots: HealthStore.shared.today, restingHR: rhr)
+        return result.state.rawValue
+    }
+
+    /// 当前状态 + 置信度 + 解释 (供 UI 副标展示)
+    var currentInference: StateInference.Result {
+        let rhr = HealthStore.shared.all
+            .compactMap { $0.restingHeartRate }.last
+        return StateInference.infer(snapshots: HealthStore.shared.today, restingHR: rhr)
     }
 
     // MARK: - 定时抓取 (1 分钟一次)
