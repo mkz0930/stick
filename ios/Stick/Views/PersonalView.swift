@@ -8,7 +8,6 @@ import SwiftUI
 struct PersonalView: View {
     var onClose: () -> Void
     @Binding var openSpecialists: Bool
-    @State private var tasks: [String] = []
     @State private var showSpecialists: Bool = false
 
     private let menus: [MenuItem] = [
@@ -149,12 +148,18 @@ struct PersonalView: View {
         }
     }
 
-    // MARK: - 任务区
+    // MARK: - 健康建议
+
+    private let suggestions: [Suggestion] = [
+        Suggestion(icon: "figure.walk",     color: Color(red: 0.30, green: 0.85, blue: 0.50), title: "起身活动",   desc: "已连续坐 2 小时, 建议站起走动 5 分钟"),
+        Suggestion(icon: "drop.fill",       color: Color(red: 0.40, green: 0.65, blue: 0.95), title: "补充水分",   desc: "今日饮水量不足 1L, 目标 2L"),
+        Suggestion(icon: "moon.zzz.fill",   color: Color(red: 0.55, green: 0.50, blue: 0.85), title: "早睡",       desc: "最佳入睡时间为 22:30"),
+    ]
 
     private var taskSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("任务")
+                Text("健康建议")
                     .font(.system(size: 14))
                     .foregroundColor(Color(white: 0.45))
                 Spacer()
@@ -166,28 +171,30 @@ struct PersonalView: View {
             }
             .padding(.bottom, 18)
 
+            VStack(spacing: 0) {
+                ForEach(Array(suggestions.enumerated()), id: \.offset) { idx, s in
+                    SuggestionRow(suggestion: s)
+                    if idx < suggestions.count - 1 {
+                        Rectangle()
+                            .fill(Color(white: 0.10))
+                            .frame(height: 0.5)
+                            .padding(.leading, 50)
+                    }
+                }
+            }
+
+            // 新建
             Button {} label: {
                 HStack(spacing: 12) {
                     Image(systemName: "plus")
-                        .font(.system(size: 18, weight: .regular))
-                        .foregroundColor(.white)
-                    Text("新建任务")
-                        .font(.system(size: 17))
-                        .foregroundColor(.white)
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundColor(Color(white: 0.55))
+                    Text("新建建议")
+                        .font(.system(size: 15))
+                        .foregroundColor(Color(white: 0.55))
                 }
             }
-            .padding(.bottom, 32)
-
-            if tasks.isEmpty {
-                HStack {
-                    Spacer()
-                    Text("暂无云端任务")
-                        .font(.system(size: 14))
-                        .foregroundColor(Color(white: 0.35))
-                    Spacer()
-                }
-                .padding(.top, 8)
-            }
+            .padding(.top, 18)
         }
     }
 }
@@ -410,6 +417,53 @@ struct SpecialistRow: View {
             }
             .frame(minHeight: 72)
             .padding(.horizontal, 20)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - 健康建议
+
+struct Suggestion: Identifiable {
+    let id = UUID()
+    let icon: String
+    let color: Color
+    let title: String
+    let desc: String
+}
+
+struct SuggestionRow: View {
+    let suggestion: Suggestion
+
+    var body: some View {
+        Button {} label: {
+            HStack(spacing: 14) {
+                // 图标 (圆角方块 + 彩色)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(suggestion.color.opacity(0.18))
+                    Image(systemName: suggestion.icon)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(suggestion.color)
+                }
+                .frame(width: 38, height: 38)
+
+                // 文字
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(suggestion.title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.white)
+                    Text(suggestion.desc)
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(white: 0.50))
+                        .lineLimit(2)
+                }
+
+                Spacer()
+            }
+            .frame(minHeight: 56)
+            .padding(.vertical, 6)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

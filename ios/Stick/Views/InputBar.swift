@@ -30,10 +30,19 @@ struct InputBar: View {
                 Button {
                     onOpenChat("")
                 } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 18, weight: .regular))
-                        .foregroundColor(Theme.navy.opacity(0.7))
-                        .frame(width: 32, height: 32)
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("新建任务")
+                            .font(.system(size: 12, weight: .regular))
+                            .lineLimit(1)
+                    }
+                    .foregroundColor(Theme.navy.opacity(0.75))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule().fill(Theme.mist.opacity(0.18))
+                    )
                 }
                 .buttonStyle(.plain)
 

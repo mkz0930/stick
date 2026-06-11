@@ -73,7 +73,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
     /// 关键指标（卡片 1）
     var primaryMetric: Metric {
         switch self {
-        case .walk:  return Metric(label: "STEPS",      value: "6,242", status: "ACTIVE",  statusKind: .ok,   desc: "今日步数",       hint: "较昨日 +8%")
+        case .walk:  return Metric(label: "HEART RATE", value: "92 bpm", status: "ACTIVE",  statusKind: .ok,   desc: "心率 · 正常",   hint: "有氧区间")
         case .sit:   return Metric(label: "SEDENTARY",  value: "47:23", status: "WARN",    statusKind: .warn, desc: "持续久坐",       hint: "建议起身活动")
         case .sleep: return Metric(label: "SLEEP",      value: "82",    status: "GOOD",    statusKind: .ok,   desc: "睡眠质量评分",   hint: "较 7 日均值 +4")
         }
@@ -82,7 +82,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
     /// 次要指标（卡片 2）
     var secondaryMetric: Metric {
         switch self {
-        case .walk:  return Metric(label: "CADENCE",    value: "118 spm", status: "OPTIMAL", statusKind: .ok,   desc: "步频 · 稳定",   hint: "高强度区间")
+        case .walk:  return Metric(label: "MOOD",       value: "良好",   status: "GOOD",    statusKind: .ok,   desc: "心情 · 愉悦",   hint: "压力偏低")
         case .sit:   return Metric(label: "POSTURE",    value: "POOR",    status: "WARN",    statusKind: .warn, desc: "姿态 · 前倾",   hint: "颈角异常 +18°")
         case .sleep: return Metric(label: "HEART RATE", value: "56 bpm",  status: "DEEP",    statusKind: .info, desc: "心率 · 深睡区", hint: "HRV 68 ms")
         }
@@ -91,7 +91,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
     /// 第三指标（卡片 3）
     var tertiaryMetric: Metric {
         switch self {
-        case .walk:  return Metric(label: "HEART RATE", value: "92 bpm", status: "ACTIVE",  statusKind: .ok,   desc: "心率 · 正常",   hint: "有氧区间")
+        case .walk:  return Metric(label: "DURATION",   value: "18 min", status: "STABLE",  statusKind: .info, desc: "行走 · 累计",   hint: "接近目标")
         case .sit:   return Metric(label: "HEART RATE", value: "78 bpm", status: "STABLE",  statusKind: .info, desc: "心率 · 静息",   hint: "专注态偏低")
         case .sleep: return Metric(label: "TURNS",      value: "4",     status: "CALM",    statusKind: .ok,   desc: "翻身次数",       hint: "无久压点")
         }
@@ -134,35 +134,35 @@ struct Metric {
 // MARK: - 全局主题色（v6 调色板）
 
 enum Theme {
-    /// 页面渐变背景
-    static let bgTop    = Color(red: 0.96, green: 0.94, blue: 0.91)  // #F5F0E8
-    static let bgBottom = Color(red: 0.93, green: 0.91, blue: 0.86)  // #EDE7DC
+    /// 页面渐变背景（白到极浅冷灰）
+    static let bgTop    = Color(red: 1.00,  green: 1.00,  blue: 1.00)   // #FFFFFF
+    static let bgBottom = Color(red: 0.97,  green: 0.98,  blue: 0.99)   // #F7FAFC
 
-    /// 卡片
+    /// 卡片（纯白 / 极弱描边）
     static let card       = Color.white
-    static let cardBorder = Color.black.opacity(0.10)
+    static let cardBorder = Color.black.opacity(0.04)
 
-    /// 文字
-    static let navy  = Color(red: 0.10, green: 0.14, blue: 0.20)  // #1A2332
-    static let slate = Color(red: 0.36, green: 0.41, blue: 0.47)  // #5C6878
-    static let mist  = Color(red: 0.58, green: 0.64, blue: 0.72)  // #94A3B8
+    /// 文字（柔和的深灰，不接近黑）
+    static let navy  = Color(red: 0.30, green: 0.36, blue: 0.44)  // #4D5C70
+    static let slate = Color(red: 0.50, green: 0.56, blue: 0.62)  // #7F8E9E
+    static let mist  = Color(red: 0.68, green: 0.73, blue: 0.78)  // #AEBAC7
 
-    /// 网格 / 分割
-    static let grid       = Color.black.opacity(0.04)
-    static let gridStrong = Color.black.opacity(0.06)
-    static let border     = Color.black.opacity(0.10)
-    static let borderSoft = Color.black.opacity(0.06)
-    static let divider    = Color.black.opacity(0.10)
+    /// 网格 / 分割（极弱）
+    static let grid       = Color.black.opacity(0.015)
+    static let gridStrong = Color.black.opacity(0.025)
+    static let border     = Color.black.opacity(0.04)
+    static let borderSoft = Color.black.opacity(0.025)
+    static let divider    = Color.black.opacity(0.04)
 
     /// 深色面板（actions / 底部）
-    static let darkPanel = Color(red: 0.10, green: 0.14, blue: 0.20)  // #1A2332
-    static let darkText  = Color(red: 0.97, green: 0.96, blue: 0.93)  // #F7F4ED
-    static let darkMuted = Color(red: 0.58, green: 0.64, blue: 0.72)  // #94A3B8
+    static let darkPanel = Color(red: 0.30, green: 0.36, blue: 0.44)  // #4D5C70
+    static let darkText  = Color(red: 1.00, green: 1.00, blue: 1.00)
+    static let darkMuted = Color(red: 0.68, green: 0.73, blue: 0.78)  // #AEBAC7
 
     /// 火柴人描边默认色
-    static let figureStroke = navy
-    /// 火柴人内部填充（头/手/脚）默认色：米白
-    static let figureFill   = Color(red: 0.97, green: 0.96, blue: 0.93)  // #F7F4ED
+    static let figureStroke = Color(red: 0.30, green: 0.36, blue: 0.44)  // #4D5C70（柔和深灰）
+    /// 火柴人内部填充（头/手/脚）默认色：纯白
+    static let figureFill   = Color.white
 }
 
 // MARK: - 24h 时刻表

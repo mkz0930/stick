@@ -12,6 +12,8 @@ struct MiniFilmView: View {
     var lineColor: Color = Color(red: 0.10, green: 0.14, blue: 0.20)
     /// 场景（桌/椅/地面）的线色。
     var sceneColor: Color = Color(red: 0.45, green: 0.50, blue: 0.58)
+    /// 进度回调（用来给 share sheet 显示当前状态文字）
+    var onTimeUpdate: ((Double) -> Void)? = nil
 
     @State private var time: Double = 0
     @State private var isPlaying: Bool = true
@@ -45,6 +47,7 @@ struct MiniFilmView: View {
                 isPlaying = false
             }
         }
+        .onChange(of: time) { _, new in onTimeUpdate?(new) }
     }
 
     // MARK: - 进度条
@@ -92,10 +95,40 @@ struct MiniFilmView: View {
 
 // MARK: - 阶段定义
 
+/// 表情 / 状态
+enum FilmMood: String {
+    case excited  // 早上精力充沛、兴奋
+    case focused  // 上午到下午专注
+    case tired    // 下午傍晚疲惫
+
+    var bodyState: String {
+        switch self {
+        case .excited: return "精力充沛"
+        case .focused: return "专注"
+        case .tired:   return "疲惫"
+        }
+    }
+    var moodWord: String {
+        switch self {
+        case .excited: return "兴奋"
+        case .focused: return "平静"
+        case .tired:   return "低落"
+        }
+    }
+    var period: String {
+        switch self {
+        case .excited: return "上午"
+        case .focused: return "下午"
+        case .tired:   return "傍晚"
+        }
+    }
+}
+
 struct FilmPhase: Equatable {
     var englishTag: String
     var caption: String
     var accent: Color
+    var mood: FilmMood
 }
 
 private enum FilmTimeline {
@@ -115,19 +148,27 @@ private enum FilmTimeline {
     static let wakeColor = Color(red: 0.62, green: 0.82, blue: 0.98)
     static let leaveColor = Color(red: 0.62, green: 0.55, blue: 0.98)
 
+    /// 当前时间点的 mood (早上兴奋 → 下午疲惫)
+    static func mood(at t: Double) -> FilmMood {
+        if t < 3.0        { return .excited }   // 起床 + 通勤
+        if t < 7.5        { return .focused }   // 上午工作 + 下午工作
+        return .tired                            // 起身 + 下班
+    }
+
     static func phase(at t: Double) -> FilmPhase {
+        let m = mood(at: t)
         if t < wakeEnd {
-            return .init(englishTag: "WAKE",  caption: "起床·伸个懒腰",   accent: wakeColor)
+            return .init(englishTag: "WAKE",  caption: "起床·伸个懒腰",   accent: wakeColor, mood: m)
         } else if t < walkEnd {
-            return .init(englishTag: "WALK",  caption: "走到办公桌",     accent: walkColor)
+            return .init(englishTag: "WALK",  caption: "走到办公桌",     accent: walkColor, mood: m)
         } else if t < sitEnd {
-            return .init(englishTag: "SIT",   caption: "坐下",           accent: sitColor)
+            return .init(englishTag: "SIT",   caption: "坐下",           accent: sitColor, mood: m)
         } else if t < typeEnd {
-            return .init(englishTag: "TYPE",  caption: "敲键盘·点鼠标",   accent: sitColor)
+            return .init(englishTag: "TYPE",  caption: "敲键盘·点鼠标",   accent: sitColor, mood: m)
         } else if t < standEnd {
-            return .init(englishTag: "STAND", caption: "起身",           accent: sitColor)
+            return .init(englishTag: "STAND", caption: "起身",           accent: sitColor, mood: m)
         } else {
-            return .init(englishTag: "LEAVE", caption: "下班·回家",      accent: leaveColor)
+            return .init(englishTag: "LEAVE", caption: "下班·回家",      accent: leaveColor, mood: m)
         }
     }
 }
@@ -167,7 +208,7 @@ private extension MiniFilmView {
         drawScene(ctx: &gc, t: t, phase: phase)
 
         let pose = poseFor(t: t)
-        drawFigure(ctx: &gc, pose: pose, accent: phase.accent, line: lineColor)
+        drawFigure(ctx: &gc, pose: pose, accent: phase.accent, line: lineColor, mood: phase.mood)
 
         // 最后 1s：叠一层今日统计
         let summaryStart: Double = durationSec - 1.0
@@ -608,7 +649,7 @@ private func drawFar(ctx: inout GraphicsContext, color: Color, base: CGFloat, pe
 
 // MARK: - Figure
 
-private func drawFigure(ctx: inout GraphicsContext, pose: Pose, accent: Color, line: Color) {
+private func drawFigure(ctx: inout GraphicsContext, pose: Pose, accent: Color, line: Color, mood: FilmMood) {
     var gc = ctx
     let w: CGFloat = 2.6
 
@@ -628,6 +669,9 @@ private func drawFigure(ctx: inout GraphicsContext, pose: Pose, accent: Color, l
     gc.transform = saved
     // 耳点
     drawDot(ctx: &gc, at: CGPoint(x: hc.x - 14, y: hc.y + 2), r: 1.8, color: line, filled: true)
+
+    // 表情：眉 + 眼 + 嘴（不会随头旋转；放在 head 旋转外）
+    drawFace(ctx: &gc, head: hc, mood: mood, line: line)
 
     // 颈
     strokeCurve(ctx: &gc, from: pose.head, to: pose.neck,
@@ -674,6 +718,76 @@ private func drawFigure(ctx: inout GraphicsContext, pose: Pose, accent: Color, l
     drawDot(ctx: &gc, at: pose.rKnee, r: 4, color: accent, filled: true)
     strokeLine(ctx: &gc, from: pose.rKnee, to: pose.rAnkle, color: line, width: w + 0.4)
     drawFoot(ctx: &gc, at: pose.rAnkle, color: line)
+}
+
+// MARK: - 脸 (眉 / 眼 / 嘴)
+
+private func drawFace(ctx: inout GraphicsContext, head: CGPoint, mood: FilmMood, line: Color) {
+    let cx = head.x
+    let cy = head.y
+    let eyeY = cy - 5
+    let eyeOffset: CGFloat = 4.5
+    let mouthY = cy + 9
+    let browY = cy - 11
+
+    switch mood {
+    case .excited:
+        // 眉：短弧上扬
+        drawArcBrow(ctx: &ctx, center: CGPoint(x: cx - eyeOffset, y: browY + 1), radius: 4, startDeg: 200, endDeg: 340, color: line, width: 1.6)
+        drawArcBrow(ctx: &ctx, center: CGPoint(x: cx + eyeOffset, y: browY + 1), radius: 4, startDeg: 200, endDeg: 340, color: line, width: 1.6)
+        // 眼：大圆
+        drawDot(ctx: &ctx, at: CGPoint(x: cx - eyeOffset, y: eyeY), r: 1.8, color: line, filled: true)
+        drawDot(ctx: &ctx, at: CGPoint(x: cx + eyeOffset, y: eyeY), r: 1.8, color: line, filled: true)
+        // 嘴：上扬曲线（笑）
+        strokeCurve(ctx: &ctx, from: CGPoint(x: cx - 4, y: mouthY),
+                    to: CGPoint(x: cx + 4, y: mouthY),
+                    control: CGPoint(x: cx, y: mouthY + 3),
+                    color: line, width: 1.6)
+    case .focused:
+        // 眉：水平短直
+        strokeLine(ctx: &ctx, from: CGPoint(x: cx - eyeOffset - 3, y: browY),
+                    to: CGPoint(x: cx - eyeOffset + 3, y: browY), color: line, width: 1.6)
+        strokeLine(ctx: &ctx, from: CGPoint(x: cx + eyeOffset - 3, y: browY),
+                    to: CGPoint(x: cx + eyeOffset + 3, y: browY), color: line, width: 1.6)
+        // 眼：实心小点
+        drawDot(ctx: &ctx, at: CGPoint(x: cx - eyeOffset, y: eyeY), r: 1.3, color: line, filled: true)
+        drawDot(ctx: &ctx, at: CGPoint(x: cx + eyeOffset, y: eyeY), r: 1.3, color: line, filled: true)
+        // 嘴：平直
+        strokeLine(ctx: &ctx, from: CGPoint(x: cx - 3, y: mouthY),
+                    to: CGPoint(x: cx + 3, y: mouthY), color: line, width: 1.6)
+    case .tired:
+        // 眉：内侧高 / 外侧低（愁容）
+        strokeLine(ctx: &ctx, from: CGPoint(x: cx - eyeOffset - 3, y: browY - 1.5),
+                    to: CGPoint(x: cx - eyeOffset + 3, y: browY + 1.5), color: line, width: 1.6)
+        strokeLine(ctx: &ctx, from: CGPoint(x: cx + eyeOffset - 3, y: browY + 1.5),
+                    to: CGPoint(x: cx + eyeOffset + 3, y: browY - 1.5), color: line, width: 1.6)
+        // 眼：眯成横线（闭眼疲态）
+        strokeLine(ctx: &ctx, from: CGPoint(x: cx - eyeOffset - 2.5, y: eyeY),
+                    to: CGPoint(x: cx - eyeOffset + 2.5, y: eyeY), color: line, width: 1.6)
+        strokeLine(ctx: &ctx, from: CGPoint(x: cx + eyeOffset - 2.5, y: eyeY),
+                    to: CGPoint(x: cx + eyeOffset + 2.5, y: eyeY), color: line, width: 1.6)
+        // 嘴：下垂曲线
+        strokeCurve(ctx: &ctx, from: CGPoint(x: cx - 4, y: mouthY),
+                    to: CGPoint(x: cx + 4, y: mouthY),
+                    control: CGPoint(x: cx, y: mouthY - 3),
+                    color: line, width: 1.6)
+    }
+}
+
+/// 画一段圆弧（用于眉毛上扬）
+private func drawArcBrow(ctx: inout GraphicsContext, center: CGPoint, radius: CGFloat,
+                        startDeg: Double, endDeg: Double, color: Color, width: CGFloat) {
+    var p = Path()
+    let startRad = startDeg * .pi / 180
+    let endRad = endDeg * .pi / 180
+    p.addArc(
+        center: center,
+        radius: radius,
+        startAngle: .radians(startRad),
+        endAngle: .radians(endRad),
+        clockwise: false
+    )
+    ctx.stroke(p, with: .color(color), style: StrokeStyle(lineWidth: width, lineCap: .round))
 }
 
 private func drawHand(ctx: inout GraphicsContext, at p: CGPoint, color: Color) {
@@ -732,11 +846,12 @@ private func drawDot(ctx: inout GraphicsContext, at p: CGPoint, r: CGFloat, colo
 
 // MARK: - 分享 Sheet 容器
 
-/// 极简：浅色背景 + 顶部 X / 分享按钮 + 火柴人短片 + 进度条。
-/// 最后 1s 短片内部会叠出"今日"统计。
+/// 极简：浅色背景 + 顶部状态条 / X / 分享按钮 + 火柴人短片 + 进度条。
+/// 状态条随当前播放进度刷新（早上→兴奋 / 下午→疲惫）。
 struct MiniFilmShareSheet: View {
     @Binding var isPresented: Bool
     @State private var filmID: UUID = UUID()
+    @State private var currentTime: Double = 0
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -750,6 +865,7 @@ struct MiniFilmShareSheet: View {
 
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
+                    statusPill
                     Spacer()
                     shareButton
                     closeButton
@@ -759,7 +875,7 @@ struct MiniFilmShareSheet: View {
 
                 Spacer(minLength: 0)
 
-                MiniFilmView()
+                MiniFilmView { currentTime = $0 }
                     .id(filmID)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.horizontal, 18)
@@ -768,6 +884,49 @@ struct MiniFilmShareSheet: View {
                 Spacer(minLength: 0)
             }
         }
+    }
+
+    /// 左上状态条：时段 + 身体状态 + 心情（随 currentTime 变）
+    private var statusPill: some View {
+        let mood = FilmTimeline.mood(at: currentTime)
+        let periodText = "\(mood.period)"
+        let stateText = mood.bodyState
+        let moodText = mood.moodWord
+        let dotColor: Color = {
+            switch mood {
+            case .excited: return Color(red: 0.96, green: 0.62, blue: 0.10)
+            case .focused: return Color(red: 0.20, green: 0.78, blue: 0.55)
+            case .tired:   return Color(red: 0.42, green: 0.50, blue: 0.78)
+            }
+        }()
+        return HStack(spacing: 6) {
+            Circle()
+                .fill(dotColor)
+                .frame(width: 6, height: 6)
+                .shadow(color: dotColor, radius: 3)
+            Text(periodText)
+                .font(.system(size: 11, weight: .heavy))
+                .foregroundColor(.black.opacity(0.85))
+            Text("·")
+                .foregroundColor(.black.opacity(0.3))
+            Text(stateText)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.black.opacity(0.55))
+            Text("·")
+                .foregroundColor(.black.opacity(0.3))
+            Text(moodText)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.black.opacity(0.55))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            Capsule().fill(Color.black.opacity(0.05))
+        )
+        .overlay(
+            Capsule().stroke(Color.black.opacity(0.08), lineWidth: 0.5)
+        )
+        .animation(.easeInOut(duration: 0.3), value: mood)
     }
 
     private var closeButton: some View {
@@ -797,7 +956,14 @@ struct MiniFilmShareSheet: View {
     }
 
     private func shareFilm() {
-        let text = "我的一天 · 10 秒\n起床 → 走到办公桌 → 敲键盘 → 下班回家\n今日：工作 8h00m · 休息 9h00m · 走动 7h00m\n— 用 Stick 记录"
+        let mood = FilmTimeline.mood(at: currentTime)
+        let text = """
+        我的一天 · 10 秒
+        \(mood.period) · \(mood.bodyState) · \(mood.moodWord)
+        起床 → 走到办公桌 → 敲键盘 → 下班回家
+        今日：工作 8h00m · 休息 9h00m · 走动 7h00m
+        — 用 Stick 记录
+        """
         let act = UIActivityViewController(activityItems: [text], applicationActivities: nil)
         if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let root = scene.keyWindow?.rootViewController {
