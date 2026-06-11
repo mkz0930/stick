@@ -28,12 +28,12 @@ struct InputBar: View {
             // 底部 row
             HStack(spacing: 6) {
                 Button {
-                    onOpenChat("")
+                    onOpenChat("分析身体状态")
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "plus")
                             .font(.system(size: 13, weight: .semibold))
-                        Text("新建任务")
+                        Text("分析身体状态")
                             .font(.system(size: 12, weight: .regular))
                             .lineLimit(1)
                     }

@@ -440,24 +440,28 @@ private func midStandPose(x: Double) -> Pose {
     )
 }
 
-/// 趴桌午休：身体趴伏在桌面上，头朝右（左臂抱住头作枕），腿垂下椅子
+/// 趴桌午休：身体在桌面上，头朝右，脸朝下；双臂在头下作枕；腿从桌沿垂下
 /// z: 进入午休后的时间，用于 Z 浮动
 private func napPose(z: Double) -> Pose {
     Pose(
-        head:     CGPoint(x: 188, y: 174),
-        neck:     CGPoint(x: 196, y: 176),
-        shoulder: CGPoint(x: 205, y: 178),
-        hip:      CGPoint(x: 245, y: 180),
-        // 双臂在头两侧作枕
-        lElbow:   CGPoint(x: 200, y: 180),
-        lHand:    CGPoint(x: 184, y: 184),
-        rElbow:   CGPoint(x: 208, y: 180),
-        rHand:    CGPoint(x: 200, y: 186),
-        // 腿在桌子右下方垂到椅子
-        lKnee:    CGPoint(x: 250, y: 200),
-        lAnkle:   CGPoint(x: 252, y: 240),
-        rKnee:    CGPoint(x: 250, y: 210),
-        rAnkle:   CGPoint(x: 252, y: 250),
+        // 头：圆心 y=152 → 椭圆底 y=176 刚好压在桌面上
+        head:     CGPoint(x: 170, y: 152),
+        // 颈在头右下
+        neck:     CGPoint(x: 188, y: 172),
+        // 肩在桌沿
+        shoulder: CGPoint(x: 200, y: 178),
+        // 髋在桌面右段（带点下垂）
+        hip:      CGPoint(x: 232, y: 184),
+        // 臂折叠在头下，左手垫头，右手略外
+        lElbow:   CGPoint(x: 192, y: 180),
+        lHand:    CGPoint(x: 172, y: 184),
+        rElbow:   CGPoint(x: 200, y: 180),
+        rHand:    CGPoint(x: 180, y: 186),
+        // 大腿沿桌延展到桌沿，膝略弯
+        lKnee:    CGPoint(x: 244, y: 188),
+        lAnkle:   CGPoint(x: 256, y: 224),
+        rKnee:    CGPoint(x: 246, y: 192),
+        rAnkle:   CGPoint(x: 258, y: 232),
         headRot: 0
     )
 }
