@@ -3,7 +3,7 @@ import UIKit
 
 /// 10 秒火柴人短片（播一遍后停在统计页，进度条可拖）：
 ///   起床伸懒腰 → 走到办公桌 → 坐下 → 敲键盘点鼠标 → 起身 → 离开工位
-///   最后 1s 叠一行"今日工作/休息/走动"统计。
+///   最后 1s 叠一行"今日工作/休息/活动"统计。
 ///
 /// 不依赖 StickState — 自己跑一条时间线，骨骼化 Pose + 阶段间插值。
 struct MiniFilmView: View {
@@ -132,26 +132,33 @@ struct FilmPhase: Equatable {
 }
 
 private enum FilmTimeline {
-    // 6 段 / 10s
-    static let wakeEnd: Double  = 1.0   // 0.0  – 1.0  起床伸懒腰
-    static let walkEnd: Double  = 3.0   // 1.0  – 3.0  走到办公桌
-    static let sitEnd: Double   = 4.0   // 3.0  – 4.0  坐下 (过渡，1s)
-    static let typeEnd: Double  = 7.5   // 4.0  – 7.5  敲键盘点鼠标 (3.5s)
-    static let standEnd: Double = 8.5   // 7.5  – 8.5 起身 (过渡，1s)
+    // 9 段 / 10s
+    static let wakeEnd:   Double = 1.0   // 0.0  – 1.0  起床伸懒腰
+    static let walkEnd:   Double = 3.0   // 1.0  – 3.0  走到办公桌
+    static let sitEnd:    Double = 4.0   // 3.0  – 4.0  坐下 (过渡，1s)
+    static let typeEnd:   Double = 5.0   // 4.0  – 5.0  敲键盘·上午 (1s)
+    static let lieEnd:    Double = 5.5   // 5.0  – 5.5  趴到桌上 (过渡，0.5s)
+    static let napEnd:    Double = 6.5   // 5.5  – 6.5  趴桌午休 (1s)
+    static let wakeUpEnd: Double = 7.0   // 6.5  – 7.0  坐起 (过渡，0.5s)
+    // 7.0  – 7.5  下午工作 (0.5s)
+    static let standEnd:  Double = 8.5   // 7.5  – 8.5 起身 (过渡，1s)
     // 8.5  – 10.0  离开工位 (1.5s) — 期间 9.0–10.0 显示总结
 
     /// 进度条上的阶段刻度（去掉首尾）
-    static let breakpoints: [Double] = [wakeEnd, walkEnd, sitEnd, typeEnd, standEnd]
+    static let breakpoints: [Double] = [wakeEnd, walkEnd, sitEnd, typeEnd, lieEnd, napEnd, wakeUpEnd, standEnd]
 
     static let walkColor = Color(red: 0.20, green: 0.78, blue: 0.55)
     static let sitColor  = Color(red: 0.96, green: 0.62, blue: 0.10)
     static let wakeColor = Color(red: 0.62, green: 0.82, blue: 0.98)
     static let leaveColor = Color(red: 0.62, green: 0.55, blue: 0.98)
+    static let napColor  = Color(red: 0.62, green: 0.55, blue: 0.98)
 
-    /// 当前时间点的 mood (早上兴奋 → 下午疲惫)
+    /// 当前时间点的 mood (早上兴奋 → 下午疲惫，含午休低谷)
     static func mood(at t: Double) -> FilmMood {
         if t < 3.0        { return .excited }   // 起床 + 通勤
-        if t < 7.5        { return .focused }   // 上午工作 + 下午工作
+        if t < 5.0        { return .focused }   // 上午工作
+        if t < 7.0        { return .tired }     // 趴下 + 午休 + 起身
+        if t < 7.5        { return .focused }   // 下午工作刚开始
         return .tired                            // 起身 + 下班
     }
 
@@ -164,8 +171,16 @@ private enum FilmTimeline {
         } else if t < sitEnd {
             return .init(englishTag: "SIT",   caption: "坐下",           accent: sitColor, mood: m)
         } else if t < typeEnd {
-            return .init(englishTag: "TYPE",  caption: "敲键盘·点鼠标",   accent: sitColor, mood: m)
+            return .init(englishTag: "TYPE",  caption: "敲键盘·上午",    accent: sitColor, mood: m)
+        } else if t < lieEnd {
+            return .init(englishTag: "LIE",   caption: "趴桌午休",       accent: napColor, mood: m)
+        } else if t < napEnd {
+            return .init(englishTag: "NAP",   caption: "Zzz...",         accent: napColor, mood: m)
+        } else if t < wakeUpEnd {
+            return .init(englishTag: "UP",    caption: "坐起",           accent: sitColor, mood: m)
         } else if t < standEnd {
+            return .init(englishTag: "TYPE",  caption: "敲键盘·下午",    accent: sitColor, mood: m)
+        } else if t < 8.5 {
             return .init(englishTag: "STAND", caption: "起身",           accent: sitColor, mood: m)
         } else {
             return .init(englishTag: "LEAVE", caption: "下班·回家",      accent: leaveColor, mood: m)
@@ -210,6 +225,12 @@ private extension MiniFilmView {
         let pose = poseFor(t: t)
         drawFigure(ctx: &gc, pose: pose, accent: phase.accent, line: lineColor, mood: phase.mood)
 
+        // 趴桌午休期：Z 浮起
+        if t >= FilmTimeline.lieEnd && t < FilmTimeline.napEnd {
+            let zT = (t - FilmTimeline.lieEnd) / (FilmTimeline.napEnd - FilmTimeline.lieEnd)
+            drawZzz(ctx: &gc, t: zT)
+        }
+
         // 最后 1s：叠一层今日统计
         let summaryStart: Double = durationSec - 1.0
         if t >= summaryStart {
@@ -228,7 +249,7 @@ private extension MiniFilmView {
             let cycle = (t - FilmTimeline.wakeEnd) * 1.5
             return walkPose(x: x, cycle: fract(cycle), facing: 1)
         } else if t < FilmTimeline.sitEnd {
-            // 坐下分两段：站→半蹲→坐 (感受更明显)
+            // 坐下分两段：站→半蹲→坐
             let p = (t - FilmTimeline.walkEnd) / (FilmTimeline.sitEnd - FilmTimeline.walkEnd)
             let standing = walkPose(x: 140, cycle: 0, facing: 1)
             let mid = midSitPose(x: 140)
@@ -239,11 +260,31 @@ private extension MiniFilmView {
                 return blendPose(mid, sitting, t: easeInOut((p - 0.5) * 2))
             }
         } else if t < FilmTimeline.typeEnd {
+            // 上午敲键盘 (1s)
             let local = t - FilmTimeline.sitEnd
             return sitPose(x: 140, typeT: local * 4.0, mouseT: local * 2.3)
+        } else if t < FilmTimeline.lieEnd {
+            // 趴下：坐 → 趴桌 (0.5s)
+            let p = (t - FilmTimeline.typeEnd) / (FilmTimeline.lieEnd - FilmTimeline.typeEnd)
+            let sitting = sitPose(x: 140, typeT: 0, mouseT: 0)
+            let lying = napPose(z: 0)
+            return blendPose(sitting, lying, t: easeInOut(p))
+        } else if t < FilmTimeline.napEnd {
+            // 趴桌午休 (1s, Zzz 动画在里面)
+            return napPose(z: t - FilmTimeline.lieEnd)
+        } else if t < FilmTimeline.wakeUpEnd {
+            // 坐起：趴桌 → 坐 (0.5s)
+            let p = (t - FilmTimeline.napEnd) / (FilmTimeline.wakeUpEnd - FilmTimeline.napEnd)
+            let lying = napPose(z: 0)
+            let sitting = sitPose(x: 140, typeT: 0, mouseT: 0)
+            return blendPose(lying, sitting, t: easeInOut(p))
+        } else if t < 7.5 {
+            // 下午敲键盘 (0.5s)
+            let local = t - FilmTimeline.wakeUpEnd
+            return sitPose(x: 140, typeT: local * 4.0, mouseT: local * 2.3)
         } else if t < FilmTimeline.standEnd {
-            // 起身分两段：坐→半蹲→站 (手撑椅子 + 推起)
-            let p = (t - FilmTimeline.typeEnd) / (FilmTimeline.standEnd - FilmTimeline.typeEnd)
+            // 起身分两段：坐→半蹲→站
+            let p = (t - 7.5) / (FilmTimeline.standEnd - 7.5)
             let sitting = sitPose(x: 140, typeT: 0, mouseT: 0)
             let mid = midStandPose(x: 140)
             let standing = walkPose(x: 140, cycle: 0, facing: 1)
@@ -253,7 +294,8 @@ private extension MiniFilmView {
                 return blendPose(mid, standing, t: easeInOut((p - 0.5) * 2))
             }
         } else {
-            let p = (t - FilmTimeline.standEnd) / (15.0 - FilmTimeline.standEnd)
+            // 下班走
+            let p = (t - FilmTimeline.standEnd) / (10.0 - FilmTimeline.standEnd)
             let x = 140 + easeInOut(p) * 150
             let cycle = (t - FilmTimeline.standEnd) * 1.5
             return walkPose(x: x, cycle: fract(cycle), facing: 1)
@@ -398,6 +440,28 @@ private func midStandPose(x: Double) -> Pose {
     )
 }
 
+/// 趴桌午休：身体趴伏在桌面上，头朝右（左臂抱住头作枕），腿垂下椅子
+/// z: 进入午休后的时间，用于 Z 浮动
+private func napPose(z: Double) -> Pose {
+    Pose(
+        head:     CGPoint(x: 188, y: 174),
+        neck:     CGPoint(x: 196, y: 176),
+        shoulder: CGPoint(x: 205, y: 178),
+        hip:      CGPoint(x: 245, y: 180),
+        // 双臂在头两侧作枕
+        lElbow:   CGPoint(x: 200, y: 180),
+        lHand:    CGPoint(x: 184, y: 184),
+        rElbow:   CGPoint(x: 208, y: 180),
+        rHand:    CGPoint(x: 200, y: 186),
+        // 腿在桌子右下方垂到椅子
+        lKnee:    CGPoint(x: 250, y: 200),
+        lAnkle:   CGPoint(x: 252, y: 240),
+        rKnee:    CGPoint(x: 250, y: 210),
+        rAnkle:   CGPoint(x: 252, y: 250),
+        headRot: 0
+    )
+}
+
 private func blendPose(_ a: Pose, _ b: Pose, t: Double) -> Pose {
     let s = max(0, min(1, t))
     func l(_ p: CGPoint, _ q: CGPoint) -> CGPoint {
@@ -451,6 +515,29 @@ private enum FilmStats {
     }
 }
 
+/// 3 个 Z 浮起
+private func drawZzz(ctx: inout GraphicsContext, t: Double) {
+    // 头部位置：napPose.head 在 (188, 174)。Z 从头部飘到左上方
+    let headY: CGFloat = 174
+    let headX: CGFloat = 188
+    let zConfigs: [(fontSize: CGFloat, delay: Double, drift: CGFloat)] = [
+        (24, 0.0,  20),
+        (18, 0.35, 16),
+        (12, 0.7,  12),
+    ]
+    for (i, z) in zConfigs.enumerated() {
+        let local = max(0, t - z.delay) * 1.6
+        if local > 1 { continue }
+        let fade = min(1, local) * (1 - max(0, local - 0.85) / 0.15)
+        let y = headY - 14 - CGFloat(local) * z.drift
+        let x = headX - 18 - CGFloat(i) * 7
+        let txt = Text("Z")
+            .font(.system(size: z.fontSize, weight: .heavy, design: .serif))
+            .foregroundColor(.white.opacity(fade))
+        ctx.draw(txt, at: CGPoint(x: x, y: y), anchor: .center)
+    }
+}
+
 /// 叠在画面上：暗色背景 + 3 行统计
 private func drawSummary(ctx: inout GraphicsContext, alpha: Double) {
     // 半透明遮罩
@@ -470,7 +557,7 @@ private func drawSummary(ctx: inout GraphicsContext, alpha: Double) {
     let rows: [(String, String, String, Color)] = [
         ("work", "工作", FilmStats.work, Color(red: 0.96, green: 0.62, blue: 0.10)),
         ("rest", "休息", FilmStats.rest, Color(red: 0.62, green: 0.55, blue: 0.98)),
-        ("move", "走动", FilmStats.move, Color(red: 0.20, green: 0.78, blue: 0.55)),
+        ("move", "活动", FilmStats.move, Color(red: 0.20, green: 0.78, blue: 0.55)),
     ]
     let baseY: CGFloat = 122
     let gap: CGFloat = 58
@@ -872,12 +959,15 @@ private struct MoodCurveView: View {
 
     private func moodValue(at t: Double) -> Double {
         // 0 = 低落, 1 = 兴奋
-        if t < 1.0 { return 0.55 + 0.40 * t }              // 起床：快速上扬
-        if t < 3.0 { return 0.95 - 0.04 * (t - 1.0) / 2 }  // 通勤：高位小幅
-        if t < 4.0 { return 0.91 - 0.08 * (t - 3.0) }      // 坐下：略降
-        if t < 7.5 { return 0.83 - 0.45 * (t - 4.0) / 3.5 } // 工作：稳步下滑
-        if t < 8.5 { return 0.38 - 0.05 * (t - 7.5) }      // 起身：低谷
-        return max(0.18, 0.33 - 0.10 * (t - 8.5) / 1.5)    // 下班：低位
+        if t < 1.0  { return 0.55 + 0.40 * t }              // 起床：快速上扬到 0.95
+        if t < 3.0  { return 0.95 - 0.03 * (t - 1.0) / 2 }  // 通勤：高位小幅
+        if t < 4.0  { return 0.92 - 0.10 * (t - 3.0) }      // 坐下：略降到 0.82
+        if t < 5.6  { return 0.82 - 0.12 * (t - 4.0) / 1.6 } // 上午工作：缓降到 0.70
+        if t < 6.1  { return 0.70 - 0.45 * (t - 5.6) / 0.5 } // 午饭开始：急降到 0.25 (低谷)
+        if t < 6.7  { return 0.25 + 0.50 * (t - 6.1) / 0.6 } // 午休结束：急升到 0.75
+        if t < 7.5  { return 0.75 - 0.08 * (t - 6.7) }      // 下午工作：缓降到 0.67
+        if t < 8.5  { return 0.67 - 0.32 * (t - 7.5) }      // 起身：低谷
+        return max(0.18, 0.35 - 0.10 * (t - 8.5) / 1.5)     // 下班：低位
     }
 
     var body: some View {
@@ -1121,7 +1211,7 @@ struct MiniFilmShareSheet: View {
         我的一天 · 10 秒
         \(mood.period) · \(mood.bodyState) · \(mood.moodWord)
         起床 → 走到办公桌 → 敲键盘 → 下班回家
-        今日：工作 8h00m · 休息 9h00m · 走动 7h00m
+        今日：工作 8h00m · 休息 9h00m · 活动 7h00m
         — 用 Stick 记录
         """
         let act = UIActivityViewController(activityItems: [text], applicationActivities: nil)

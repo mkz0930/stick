@@ -1,6 +1,6 @@
 //
 //  PersonalView.swift
-//  个人面板 (深色) — 复刻参考图
+//  个人面板 (浅色) — 跟主页一致的极浅色主题
 //
 
 import SwiftUI
@@ -19,13 +19,13 @@ struct PersonalView: View {
     private let devices: [Device] = [
         Device(icon: "applewatch",   name: "Apple Watch",  status: .connected,  meta: "电量 78%"),
         Device(icon: "earbuds",      name: "AirPods Pro",  status: .connected,  meta: "电量 56%"),
-        Device(icon: "scalemass",    name: "小米体重秤",   status: .disconnected, meta: "未连接"),
-        Device(icon: "circle.dotted", name: "Oura Ring",  status: .disconnected, meta: "未连接"),
+        Device(icon: "figure.mind.and.body", name: "智能护腰", status: .disconnected, meta: "未连接"),
+        Device(icon: "shoeprints.fill", name: "智能运动鞋", status: .disconnected, meta: "未连接"),
     ]
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            Color(red: 0.07, green: 0.07, blue: 0.08).ignoresSafeArea()
+            Theme.bgTop.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
                 topUserBar
@@ -51,7 +51,7 @@ struct PersonalView: View {
                 .padding(.top, 28)
 
                 Rectangle()
-                    .fill(Color(white: 0.15))
+                    .fill(Theme.borderSoft)
                     .frame(height: 0.5)
                     .padding(.horizontal, 20)
                     .padding(.top, 28)
@@ -63,7 +63,6 @@ struct PersonalView: View {
                 Spacer()
             }
         }
-        .preferredColorScheme(.dark)
         .sheet(isPresented: $showSpecialists) {
             SpecialistsView(onClose: { showSpecialists = false })
                 .presentationDetents([.large])
@@ -79,16 +78,18 @@ struct PersonalView: View {
     private var topUserBar: some View {
         HStack(spacing: 14) {
             ZStack {
-                Circle().fill(Color(white: 0.13))
+                Circle()
+                    .fill(Theme.card)
+                    .overlay(Circle().stroke(Theme.borderSoft, lineWidth: 1))
                 Text("马")
                     .font(.system(size: 22, weight: .semibold, design: .rounded))
-                    .foregroundColor(Color(red: 0.30, green: 0.85, blue: 0.50))
+                    .foregroundColor(StickState.walk.accent)
             }
             .frame(width: 48, height: 48)
 
             Text("马振坤")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundColor(Theme.navy)
 
             Spacer()
 
@@ -96,18 +97,18 @@ struct PersonalView: View {
             Button {} label: {
                 Image(systemName: "hexagon")
                     .font(.system(size: 20, weight: .light))
-                    .foregroundColor(.white)
+                    .foregroundColor(Theme.navy)
                     .frame(width: 48, height: 48)
-                    .overlay(Circle().strokeBorder(Color(white: 0.25), lineWidth: 1))
+                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
             }
 
             // 三横线 (关闭)
             Button(action: onClose) {
                 Image(systemName: "line.3.horizontal")
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(Theme.navy)
                     .frame(width: 48, height: 48)
-                    .overlay(Circle().strokeBorder(Color(white: 0.25), lineWidth: 1))
+                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
             }
         }
     }
@@ -120,7 +121,7 @@ struct PersonalView: View {
             HStack {
                 Text("连接智能设备")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(Theme.navy)
                 Spacer()
                 Button {} label: {
                     HStack(spacing: 4) {
@@ -129,7 +130,7 @@ struct PersonalView: View {
                         Text("添加")
                             .font(.system(size: 12))
                     }
-                    .foregroundColor(Color(red: 0.30, green: 0.85, blue: 0.50))
+                    .foregroundColor(StickState.walk.accent)
                 }
             }
 
@@ -139,7 +140,7 @@ struct PersonalView: View {
                     DeviceRow(device: dev)
                     if idx < devices.count - 1 {
                         Rectangle()
-                            .fill(Color(white: 0.10))
+                            .fill(Theme.borderSoft)
                             .frame(height: 0.5)
                             .padding(.leading, 54)
                     }
@@ -161,12 +162,12 @@ struct PersonalView: View {
             HStack {
                 Text("健康建议")
                     .font(.system(size: 14))
-                    .foregroundColor(Color(white: 0.45))
+                    .foregroundColor(Theme.slate)
                 Spacer()
                 Button {} label: {
                     Text("编辑")
                         .font(.system(size: 14))
-                        .foregroundColor(Color(red: 0.30, green: 0.85, blue: 0.50))
+                        .foregroundColor(StickState.walk.accent)
                 }
             }
             .padding(.bottom, 18)
@@ -176,7 +177,7 @@ struct PersonalView: View {
                     SuggestionRow(suggestion: s)
                     if idx < suggestions.count - 1 {
                         Rectangle()
-                            .fill(Color(white: 0.10))
+                            .fill(Theme.borderSoft)
                             .frame(height: 0.5)
                             .padding(.leading, 50)
                     }
@@ -188,10 +189,10 @@ struct PersonalView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "plus")
                         .font(.system(size: 16, weight: .regular))
-                        .foregroundColor(Color(white: 0.55))
+                        .foregroundColor(Theme.slate)
                     Text("新建任务")
                         .font(.system(size: 15))
-                        .foregroundColor(Color(white: 0.55))
+                        .foregroundColor(Theme.slate)
                 }
             }
             .padding(.top, 18)
@@ -214,15 +215,15 @@ struct MenuRow: View {
         HStack(spacing: 18) {
             Image(systemName: item.icon)
                 .font(.system(size: 22, weight: .light))
-                .foregroundColor(.white)
+                .foregroundColor(Theme.navy)
                 .frame(width: 32)
             Text(item.title)
                 .font(.system(size: 17))
-                .foregroundColor(.white)
+                .foregroundColor(Theme.navy)
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.system(size: 13, weight: .regular))
-                .foregroundColor(Color(white: 0.35))
+                .foregroundColor(Theme.mist)
         }
         .frame(minHeight: 56)
         .contentShape(Rectangle())
@@ -250,13 +251,13 @@ struct DeviceRow: View {
                 // 图标
                 Image(systemName: device.icon)
                     .font(.system(size: 22, weight: .light))
-                    .foregroundColor(.white)
+                    .foregroundColor(Theme.navy)
                     .frame(width: 32)
 
                 // 名称
                 Text(device.name)
                     .font(.system(size: 16))
-                    .foregroundColor(.white)
+                    .foregroundColor(Theme.navy)
 
                 Spacer()
 
@@ -279,14 +280,14 @@ struct DeviceRow: View {
     private var statusColor: Color {
         switch device.status {
         case .connected:    return Color(red: 0.30, green: 0.85, blue: 0.50)
-        case .disconnected: return Color(white: 0.35)
+        case .disconnected: return Theme.mist
         }
     }
 
     private var statusMetaColor: Color {
         switch device.status {
-        case .connected:    return Color(white: 0.55)
-        case .disconnected: return Color(white: 0.40)
+        case .connected:    return Theme.slate
+        case .disconnected: return Theme.mist
         }
     }
 }
@@ -322,7 +323,7 @@ struct SpecialistsView: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            Color(red: 0.07, green: 0.07, blue: 0.08).ignoresSafeArea()
+            Theme.bgTop.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
                 header
@@ -331,7 +332,7 @@ struct SpecialistsView: View {
                     .padding(.bottom, 8)
 
                 Rectangle()
-                    .fill(Color(white: 0.15))
+                    .fill(Theme.borderSoft)
                     .frame(height: 0.5)
                     .padding(.horizontal, 20)
 
@@ -340,7 +341,7 @@ struct SpecialistsView: View {
                         ForEach(specialists) { s in
                             SpecialistRow(specialist: s)
                             Rectangle()
-                                .fill(Color(white: 0.10))
+                                .fill(Theme.borderSoft)
                                 .frame(height: 0.5)
                                 .padding(.leading, 76)
                         }
@@ -349,7 +350,6 @@ struct SpecialistsView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     private var header: some View {
@@ -357,18 +357,19 @@ struct SpecialistsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("专科专家")
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(Theme.navy)
                 Text("\(specialists.count) 位名医 · 点击查看详情")
                     .font(.system(size: 12))
-                    .foregroundColor(Color(white: 0.45))
+                    .foregroundColor(Theme.slate)
             }
             Spacer()
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(Theme.navy)
                     .frame(width: 32, height: 32)
-                    .background(Circle().fill(Color(white: 0.15)))
+                    .background(Circle().fill(Theme.card))
+                    .overlay(Circle().stroke(Theme.borderSoft, lineWidth: 1))
             }
         }
     }
@@ -394,26 +395,26 @@ struct SpecialistRow: View {
                     HStack(spacing: 6) {
                         Text(specialist.name + "医生")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(Theme.navy)
                         Text("·")
-                            .foregroundColor(Color(white: 0.35))
+                            .foregroundColor(Theme.mist)
                         Text(specialist.title)
                             .font(.system(size: 13))
-                            .foregroundColor(Color(white: 0.55))
+                            .foregroundColor(Theme.slate)
                     }
                     Text(specialist.dept)
                         .font(.system(size: 14))
-                        .foregroundColor(Color(red: 0.30, green: 0.85, blue: 0.50))
+                        .foregroundColor(StickState.walk.accent)
                     Text(specialist.hospital)
                         .font(.system(size: 12))
-                        .foregroundColor(Color(white: 0.45))
+                        .foregroundColor(Theme.slate)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(Color(white: 0.35))
+                    .foregroundColor(Theme.mist)
             }
             .frame(minHeight: 72)
             .padding(.horizontal, 20)
@@ -439,10 +440,10 @@ struct SuggestionRow: View {
     var body: some View {
         Button {} label: {
             HStack(spacing: 14) {
-                // 图标 (圆角方块 + 彩色)
+                // 图标 (圆角方块 + 彩色淡底)
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(suggestion.color.opacity(0.18))
+                        .fill(suggestion.color.opacity(0.12))
                     Image(systemName: suggestion.icon)
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(suggestion.color)
@@ -453,10 +454,10 @@ struct SuggestionRow: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(suggestion.title)
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(Theme.navy)
                     Text(suggestion.desc)
                         .font(.system(size: 12))
-                        .foregroundColor(Color(white: 0.50))
+                        .foregroundColor(Theme.slate)
                         .lineLimit(2)
                 }
 

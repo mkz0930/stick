@@ -103,11 +103,16 @@ struct ContentView: View {
                     .padding(.top, 10)
                     .padding(.bottom, 4)
 
+                // 三行数据：左上角，top bar 下方
+                FeatureRow(state: displayState)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 6)
+
                 Spacer(minLength: 0)
 
                 StageHeroView(state: displayState, isScrubbing: isScrubbing)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 360)
+                    .frame(height: 340)
                     .padding(.horizontal, 16)
                     .contentShape(Rectangle())
                     .onTapGesture { showFilm = true }
@@ -121,10 +126,6 @@ struct ContentView: View {
                 )
                 .padding(.horizontal, 16)
                 .padding(.bottom, 14)
-
-                FeatureRow(state: displayState)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 14)
 
                 InputBar(
                     state: displayState,
