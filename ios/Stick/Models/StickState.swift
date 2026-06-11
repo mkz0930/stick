@@ -130,40 +130,7 @@ struct Metric {
     let desc: String
     let hint: String
 }
-
-// MARK: - 全局主题色（v6 调色板）
-
-enum Theme {
-    /// 页面渐变背景（白到极浅冷灰）
-    static let bgTop    = Color(red: 1.00,  green: 1.00,  blue: 1.00)   // #FFFFFF
-    static let bgBottom = Color(red: 0.97,  green: 0.98,  blue: 0.99)   // #F7FAFC
-
-    /// 卡片（纯白 / 极弱描边）
-    static let card       = Color.white
-    static let cardBorder = Color.black.opacity(0.04)
-
-    /// 文字（柔和的深灰，不接近黑）
-    static let navy  = Color(red: 0.30, green: 0.36, blue: 0.44)  // #4D5C70
-    static let slate = Color(red: 0.50, green: 0.56, blue: 0.62)  // #7F8E9E
-    static let mist  = Color(red: 0.68, green: 0.73, blue: 0.78)  // #AEBAC7
-
-    /// 网格 / 分割（极弱）
-    static let grid       = Color.black.opacity(0.015)
-    static let gridStrong = Color.black.opacity(0.025)
-    static let border     = Color.black.opacity(0.04)
-    static let borderSoft = Color.black.opacity(0.025)
-    static let divider    = Color.black.opacity(0.04)
-
-    /// 深色面板（actions / 底部）
-    static let darkPanel = Color(red: 0.30, green: 0.36, blue: 0.44)  // #4D5C70
-    static let darkText  = Color(red: 1.00, green: 1.00, blue: 1.00)
-    static let darkMuted = Color(red: 0.68, green: 0.73, blue: 0.78)  // #AEBAC7
-
-    /// 火柴人描边默认色
-    static let figureStroke = Color(red: 0.30, green: 0.36, blue: 0.44)  // #4D5C70（柔和深灰）
-    /// 火柴人内部填充（头/手/脚）默认色：纯白
-    static let figureFill   = Color.white
-}
+// MARK: - 全局主题色已迁移到 SharedKit/SharedState.swift（主 app + Widget 共享）
 
 // MARK: - 24h 时刻表
 

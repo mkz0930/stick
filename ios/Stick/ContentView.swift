@@ -15,6 +15,7 @@ struct ContentView: View {
     @State private var showFilm: Bool = false
     @State private var showPersonal: Bool = false
     @State private var openSpecialists: Bool = false
+    @State private var openDataRecord: Bool = false
 
     // Chat
     @State private var showChat: Bool = false
@@ -33,6 +34,20 @@ struct ContentView: View {
     private var isScrubbing: Bool {
         guard let s = scrubMinute else { return false }
         return s != StickState.minutesOfDay(now)
+    }
+
+    // MARK: - 给 Widget 用的派生值
+
+    private var primaryHeartRate: Int {
+        // HEART RATE 行（walk）值形如 "92 bpm" → 92
+        let v = displayState.primaryMetric.value
+        return Int(v.split(separator: " ").first ?? "72") ?? 72
+    }
+
+    private var primaryDurationMinutes: Int {
+        // DURATION 行（walk）值形如 "18 min" → 18
+        let v = displayState.tertiaryMetric.value
+        return Int(v.split(separator: " ").first ?? "0") ?? 0
     }
 
     var body: some View {
@@ -60,7 +75,8 @@ struct ContentView: View {
                 // 3. 左侧滑出的个人面板 (78% 宽)
                 PersonalView(
                     onClose: { withAnimation(.easeInOut(duration: 0.32)) { showPersonal = false } },
-                    openSpecialists: $openSpecialists
+                    openSpecialists: $openSpecialists,
+                    openDataRecord: $openDataRecord
                 )
                 .frame(width: panelWidth)
                 .offset(x: showPersonal ? 0 : -panelWidth)
@@ -82,12 +98,30 @@ struct ContentView: View {
             // 30s 校准一次实际时间
             now = Date()
         }
+        .onChange(of: displayState) { _ in
+            // 状态切换时把当前快照写给 Widget
+            let snap = SharedStickState(
+                stateRaw: displayState.rawValue,
+                englishName: displayState.englishName,
+                actionPhrase: displayState.actionPhrase,
+                heartRate: primaryHeartRate,
+                mood: displayState.secondaryMetric.value,
+                durationMinutes: primaryDurationMinutes,
+                subLine: displayState.subLine,
+                updatedAt: Date()
+            )
+            SharedStateStore.write(snap)
+        }
         .sheet(isPresented: $showFilm) {
             MiniFilmShareSheet(isPresented: $showFilm)
                 .presentationBackground(Color.black)
         }
         .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { showFilm = true }
+            // 启动 HealthKit 抓取 (1 分钟一次, 写到本地)
+            Task {
+                await HealthKitService.shared.requestAuthorization()
+                HealthKitService.shared.startAutoCapture(interval: 60)
+            }
         }
     }
 
@@ -110,12 +144,12 @@ struct ContentView: View {
 
                 Spacer(minLength: 0)
 
-                StageHeroView(state: displayState, isScrubbing: isScrubbing)
+                StageHeroView(state: displayState, isScrubbing: isScrubbing) {
+                    showFilm = true
+                }
                     .frame(maxWidth: .infinity)
                     .frame(height: 340)
                     .padding(.horizontal, 16)
-                    .contentShape(Rectangle())
-                    .onTapGesture { showFilm = true }
 
                 Spacer(minLength: 0)
 
@@ -205,6 +239,7 @@ struct ContentView: View {
 private struct StageHeroView: View {
     let state: StickState
     let isScrubbing: Bool
+    var onPreview: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -217,7 +252,7 @@ private struct StageHeroView: View {
                     .id(state)
                     .transition(.opacity)
 
-                // 状态名（画布右上）
+                // 状态名（画布右上）— 点击弹出 10s 短片预览
                 VStack {
                     HStack {
                         Spacer()
@@ -234,25 +269,31 @@ private struct StageHeroView: View {
     }
 
     private var stateBadge: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(state.accent)
-                .frame(width: 7, height: 7)
-            Text(state.englishName)
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                .tracking(1.8)
-                .foregroundColor(Theme.navy)
+        Button(action: onPreview) {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(state.accent)
+                    .frame(width: 7, height: 7)
+                Text(state.englishName)
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(1.8)
+                    .foregroundColor(Theme.navy)
+                Image(systemName: "play.fill")
+                    .font(.system(size: 7, weight: .black))
+                    .foregroundColor(state.accent)
+            }
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(state.accentSoft.opacity(0.7))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 2)
+                    .stroke(state.accent, lineWidth: 1)
+            )
         }
-        .padding(.horizontal, 7)
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 2)
-                .fill(state.accentSoft.opacity(0.7))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 2)
-                .stroke(state.accent, lineWidth: 1)
-        )
+        .buttonStyle(.plain)
     }
 }
 

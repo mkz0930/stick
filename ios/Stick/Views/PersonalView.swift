@@ -8,7 +8,9 @@ import SwiftUI
 struct PersonalView: View {
     var onClose: () -> Void
     @Binding var openSpecialists: Bool
+    @Binding var openDataRecord: Bool
     @State private var showSpecialists: Bool = false
+    @State private var showDataRecord: Bool = false
 
     private let menus: [MenuItem] = [
         MenuItem(icon: "clock.arrow.circlepath", title: "数据记录"),
@@ -39,8 +41,12 @@ struct PersonalView: View {
                 VStack(spacing: 0) {
                     ForEach(menus) { item in
                         Button {
-                            if item.title == "专科专家" {
+                            switch item.title {
+                            case "专科专家":
                                 withAnimation(.easeInOut(duration: 0.25)) { showSpecialists = true }
+                            case "数据记录":
+                                withAnimation(.easeInOut(duration: 0.25)) { showDataRecord = true }
+                            default: break
                             }
                         } label: {
                             MenuRow(item: item)
@@ -68,8 +74,16 @@ struct PersonalView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showDataRecord) {
+            DataRecordView(onClose: { showDataRecord = false })
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
         .onChange(of: openSpecialists) { _, newValue in
             if newValue { showSpecialists = true; openSpecialists = false }
+        }
+        .onChange(of: openDataRecord) { _, newValue in
+            if newValue { showDataRecord = true; openDataRecord = false }
         }
     }
 
@@ -293,7 +307,7 @@ struct DeviceRow: View {
 }
 
 #Preview {
-    PersonalView(onClose: {}, openSpecialists: .constant(false))
+    PersonalView(onClose: {}, openSpecialists: .constant(false), openDataRecord: .constant(false))
 }
 
 // MARK: - 专科专家列表

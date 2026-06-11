@@ -1,0 +1,98 @@
+import Foundation
+import SwiftUI
+
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
+
+/// 主 app ↔ Widget 共享状态。App Group: `group.com.stick.app`
+struct SharedStickState: Codable, Equatable {
+    /// 状态名（walk / sit / sleep），也用作 widget 路由
+    var stateRaw: String
+    /// 英文名（WALKING / SITTING / SLEEPING）
+    var englishName: String
+    /// 动作短语（"能量输出" / "深度专注" / "深度修复"）
+    var actionPhrase: String
+    /// 心率 (bpm)
+    var heartRate: Int
+    /// 心情 (良好 / 一般 / 疲惫)
+    var mood: String
+    /// 行走 / 久坐 / 入睡 累计分钟（用于 widget 第三指标）
+    var durationMinutes: Int
+    /// 副标题描述
+    var subLine: String
+    /// 最后更新时间（用于 widget 显示 "X 分钟前更新"）
+    var updatedAt: Date
+
+    static let placeholder = SharedStickState(
+        stateRaw: "walk",
+        englishName: "WALKING",
+        actionPhrase: "能量输出",
+        heartRate: 92,
+        mood: "良好",
+        durationMinutes: 18,
+        subLine: "步态稳定 · 心率 92 bpm",
+        updatedAt: Date()
+    )
+}
+
+/// 读写 App Group UserDefaults 的薄封装
+enum SharedStateStore {
+    static let appGroupID = "group.com.stick.app"
+    private static let key = "stick.currentState.v1"
+
+    static var defaults: UserDefaults? {
+        UserDefaults(suiteName: appGroupID)
+    }
+
+    static func read() -> SharedStickState {
+        guard let data = defaults?.data(forKey: key),
+              let state = try? JSONDecoder().decode(SharedStickState.self, from: data)
+        else { return .placeholder }
+        return state
+    }
+
+    static func write(_ state: SharedStickState) {
+        guard let defaults = defaults else { return }
+        if let data = try? JSONEncoder().encode(state) {
+            defaults.set(data, forKey: key)
+        }
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
+    }
+}
+
+// MARK: - Theme（主 app + Widget 共享，避免重复定义）
+
+enum Theme {
+    /// 页面渐变背景（白到极浅冷灰）
+    static let bgTop    = Color(red: 1.00,  green: 1.00,  blue: 1.00)
+    static let bgBottom = Color(red: 0.97,  green: 0.98,  blue: 0.99)
+
+    /// 卡片
+    static let card       = Color.white
+    static let cardBorder = Color.black.opacity(0.04)
+
+    /// 文字
+    static let navy  = Color(red: 0.30, green: 0.36, blue: 0.44)  // #4D5C70
+    static let slate = Color(red: 0.50, green: 0.56, blue: 0.62)  // #7F8E9E
+    static let mist  = Color(red: 0.68, green: 0.73, blue: 0.78)  // #AEBAC7
+
+    /// 网格 / 分割
+    static let grid       = Color.black.opacity(0.015)
+    static let gridStrong = Color.black.opacity(0.025)
+    static let border     = Color.black.opacity(0.04)
+    static let borderSoft = Color.black.opacity(0.025)
+    static let divider    = Color.black.opacity(0.04)
+
+    /// 深色面板
+    static let darkPanel = navy
+    static let darkText  = Color.white
+    static let darkMuted = mist
+
+    /// 火柴人描边默认色（柔和深灰）
+    static let figureStroke = navy
+    /// 火柴人内部填充（头/手/脚）默认色：纯白
+    static let figureFill   = Color.white
+}
