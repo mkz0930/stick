@@ -23,10 +23,14 @@
 		B10000000000000000000013 /* InputBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000F /* InputBar.swift */; };
 		B10000000000000000000016 /* MiniFilmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000012 /* MiniFilmView.swift */; };
 		B20000000000000000000001 /* LLMService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* LLMService.swift */; };
+		B10000000000000000000017 /* SleepAlertChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000013 /* SleepAlertChip.swift */; };
 		B20000000000000000000002 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* ChatView.swift */; };
+		B50000000000000000000001 /* WidgetPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000001 /* WidgetPreviewView.swift */; };
 		B10000000000000000000014 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000010 /* Assets.xcassets */; };
 		B10000000000000000000015 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000011 /* Preview Assets.xcassets */; };
 		B40000000000000000000001 /* StickWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000001 /* StickWidget.swift */; };
+		B40000000000000000000002 /* StickWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000004 /* StickWidgetView.swift */; };
+		B50000000000000000000002 /* StickWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000004 /* StickWidgetView.swift */; };
 		B40000000000000000000010 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
 		B40000000000000000000011 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
 		B40000000000000000000020 /* StickWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F40000000000000000000020 /* StickWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -51,10 +55,13 @@
 		F1000000000000000000000F /* InputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputBar.swift; sourceTree = "<group>"; };
 		F10000000000000000000012 /* MiniFilmView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniFilmView.swift; sourceTree = "<group>"; };
 		F20000000000000000000001 /* LLMService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMService.swift; sourceTree = "<group>"; };
+		F10000000000000000000013 /* SleepAlertChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepAlertChip.swift; sourceTree = "<group>"; };
 		F20000000000000000000002 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		F50000000000000000000001 /* WidgetPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetPreviewView.swift; sourceTree = "<group>"; };
 		F10000000000000000000010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F10000000000000000000011 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		F40000000000000000000001 /* StickWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickWidget.swift; sourceTree = "<group>"; };
+		F40000000000000000000004 /* StickWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickWidgetView.swift; sourceTree = "<group>"; };
 		F40000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F40000000000000000000003 /* StickWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StickWidget.entitlements; sourceTree = "<group>"; };
 		F40000000000000000000010 /* SharedState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedState.swift; sourceTree = "<group>"; };
@@ -132,6 +139,7 @@
 				F1000000000000000000000F /* InputBar.swift */,
 				F10000000000000000000012 /* MiniFilmView.swift */,
 				F20000000000000000000002 /* ChatView.swift */,
+				F50000000000000000000001 /* WidgetPreviewView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -159,6 +167,7 @@
 			isa = PBXGroup;
 			children = (
 				F40000000000000000000001 /* StickWidget.swift */,
+				F40000000000000000000004 /* StickWidgetView.swift */,
 				F40000000000000000000002 /* Info.plist */,
 				F40000000000000000000003 /* StickWidget.entitlements */,
 			);
@@ -312,6 +321,8 @@
 				B10000000000000000000016 /* MiniFilmView.swift in Sources */,
 				B20000000000000000000001 /* LLMService.swift in Sources */,
 				B20000000000000000000002 /* ChatView.swift in Sources */,
+				B50000000000000000000001 /* WidgetPreviewView.swift in Sources */,
+				B50000000000000000000002 /* StickWidgetView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -320,6 +331,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B40000000000000000000001 /* StickWidget.swift in Sources */,
+				B40000000000000000000002 /* StickWidgetView.swift in Sources */,
 				B40000000000000000000011 /* SharedState.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

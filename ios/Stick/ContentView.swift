@@ -278,8 +278,8 @@ private struct StageHeroView: View {
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
                     .tracking(1.8)
                     .foregroundColor(Theme.navy)
-                Image(systemName: "play.fill")
-                    .font(.system(size: 7, weight: .black))
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 11, weight: .black))
                     .foregroundColor(state.accent)
             }
             .padding(.horizontal, 7)

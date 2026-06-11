@@ -11,10 +11,12 @@ struct PersonalView: View {
     @Binding var openDataRecord: Bool
     @State private var showSpecialists: Bool = false
     @State private var showDataRecord: Bool = false
+    @State private var showWidgetPreview: Bool = false
 
     private let menus: [MenuItem] = [
         MenuItem(icon: "clock.arrow.circlepath", title: "数据记录"),
         MenuItem(icon: "person.2",  title: "专科专家"),
+        MenuItem(icon: "macwindow",  title: "Widget 预览"),
     ]
 
     // 智能设备 (假数据 — 后续接 HealthKit / Bluetooth)
@@ -46,6 +48,8 @@ struct PersonalView: View {
                                 withAnimation(.easeInOut(duration: 0.25)) { showSpecialists = true }
                             case "数据记录":
                                 withAnimation(.easeInOut(duration: 0.25)) { showDataRecord = true }
+                            case "Widget 预览":
+                                withAnimation(.easeInOut(duration: 0.25)) { showWidgetPreview = true }
                             default: break
                             }
                         } label: {
@@ -79,6 +83,11 @@ struct PersonalView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showWidgetPreview) {
+            WidgetPreviewView(onClose: { showWidgetPreview = false })
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
         .onChange(of: openSpecialists) { _, newValue in
             if newValue { showSpecialists = true; openSpecialists = false }
         }
@@ -101,7 +110,7 @@ struct PersonalView: View {
             }
             .frame(width: 48, height: 48)
 
-            Text("马振坤")
+            Text("xxx")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(Theme.navy)
 
