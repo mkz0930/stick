@@ -13,8 +13,7 @@ struct ChatOverlay: View {
     @State private var input: String = ""
     @State private var isStreaming: Bool = false
     @State private var streamTask: Task<Void, Never>?
-    /// 是否展开全屏 (默认底部小对话框, 点击 → 全屏)
-    @State private var isExpanded: Bool = false
+    @ObservedObject private var history = ChatHistoryStore.shared
 
     private let suggestedQuestions: [String] = [
         "我刚坐了一上午，怎么办？",
@@ -63,18 +62,39 @@ struct ChatOverlay: View {
                 )
                 .stroke(Theme.border, lineWidth: 1)
             )
-            .shadow(color: .black.opacity(isExpanded ? 0.20 : 0.10), radius: isExpanded ? 0 : 10, y: -2)
+            .shadow(color: .black.opacity(0.10), radius: 0, y: 0)
             .padding(.horizontal, 12)         // 水平留白
             .padding(.top, 8)                  // 顶部留白（让 card 浮起来）
+            .frame(height: geo.size.height * 0.95, alignment: .bottom)
             .onAppear {
+                // 从持久化 store 恢复历史 messages
+                if !history.messages.isEmpty {
+                    messages = history.messages.map { m in
+                        ChatMessage(
+                            id: m.id,
+                            role: m.role == "user" ? .user : .assistant,
+                            content: m.content
+                        )
+                    }
+                }
                 input = initialText
                 if !initialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     send()
                 }
             }
-            .onDisappear { streamTask?.cancel() }
+            .onDisappear {
+                streamTask?.cancel()
+                // 把当前 messages 写回 store
+                let newHistory = messages.map { m in
+                    PersistedChatMessage(
+                        id: m.id,
+                        role: m.role == .user ? "user" : "assistant",
+                        content: m.content
+                    )
+                }
+                history.replaceAll(with: newHistory)
+            }
         }   // GeometryReader
-        .frame(height: isExpanded ? geo.size.height * 0.95 : nil, alignment: .bottom)
     }
 
     // MARK: - Header（紧凑版）
@@ -90,65 +110,19 @@ struct ChatOverlay: View {
                 Rectangle().fill(Theme.navy).frame(width: 1.4, height: 8)
             }
 
-            VStack(alignment: .leading, spacing: 0) {
-                Text("ATLAS · 健康助手")
-                    .font(.system(size: 12, weight: .black))
-                    .tracking(0.08)
-                    .foregroundColor(Theme.navy)
-                Text("OFFICE WORKER · 小建议")
-                    .font(.system(size: 8, weight: .regular, design: .monospaced))
-                    .tracking(0.2)
-                    .foregroundColor(Theme.slate)
-            }
+            Text("ATLAS · 健康助手")
+                .font(.system(size: 15, weight: .black))
+                .tracking(0.08)
+                .foregroundColor(Theme.navy)
 
             Spacer()
-
-            // 状态色 tag
-            HStack(spacing: 3) {
-                Circle().fill(state.accent).frame(width: 5, height: 5)
-                Text(state.englishName)
-                    .font(.system(size: 8.5, weight: .heavy, design: .monospaced))
-                    .tracking(0.2)
-                    .foregroundColor(state.accent)
-            }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background(
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(state.accentSoft.opacity(0.7))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 2)
-                    .stroke(state.accent, lineWidth: 1)
-            )
-
-            // 展开/收起
-            Button {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
-                    isExpanded.toggle()
-                }
-            } label: {
-                Image(systemName: isExpanded ? "chevron.down" : "chevron.up")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(Theme.navy)
-                    .frame(width: 28, height: 28)
-                    .background(
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Theme.bgTop)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 2)
-                            .stroke(Theme.border, lineWidth: 1)
-                    )
-            }
-            .buttonStyle(.plain)
 
             // 关闭
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundColor(Theme.navy)
-                    .frame(width: 28, height: 28)
+                    .frame(width: 44, height: 44)
                     .background(
                         RoundedRectangle(cornerRadius: 2)
                             .fill(Theme.bgTop)
@@ -157,6 +131,7 @@ struct ChatOverlay: View {
                         RoundedRectangle(cornerRadius: 2)
                             .stroke(Theme.border, lineWidth: 1)
                     )
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
@@ -169,30 +144,31 @@ struct ChatOverlay: View {
     @ViewBuilder
     private var messageArea: some View {
         if messages.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("SUGGESTED")
-                    .font(.system(size: 8.5, weight: .heavy, design: .monospaced))
+                    .font(.system(size: 12, weight: .heavy, design: .monospaced))
                     .tracking(2)
                     .foregroundColor(Theme.slate)
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         ForEach(suggestedQuestions, id: \.self) { q in
                             Button {
                                 input = q
                                 send()
                             } label: {
                                 Text(q)
-                                    .font(.system(size: 11, weight: .medium))
+                                    .font(.system(size: 15, weight: .medium))
                                     .foregroundColor(Theme.navy)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
+                                    .lineLimit(2)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 9)
                                     .background(
-                                        RoundedRectangle(cornerRadius: 12)
+                                        RoundedRectangle(cornerRadius: 14)
                                             .fill(Theme.bgTop)
                                     )
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
+                                        RoundedRectangle(cornerRadius: 14)
                                             .stroke(Theme.border, lineWidth: 0.5)
                                     )
                             }
@@ -206,7 +182,7 @@ struct ChatOverlay: View {
         } else {
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 8) {
+                    LazyVStack(alignment: .leading, spacing: 10) {
                         ForEach(messages) { msg in
                             MessageRow(message: msg, state: state)
                                 .id(msg.id)
@@ -217,7 +193,7 @@ struct ChatOverlay: View {
                                     .controlSize(.small)
                                     .tint(state.accent)
                                 Text("正在生成建议…")
-                                    .font(.system(size: 10, weight: .regular, design: .monospaced))
+                                    .font(.system(size: 14, weight: .regular))
                                     .foregroundColor(Theme.slate)
                             }
                             .padding(.leading, 4)
@@ -247,11 +223,11 @@ struct ChatOverlay: View {
                     .tint(Theme.navy)
                     .foregroundColor(Theme.navy)
                     .accentColor(Theme.navy)
-                    .font(.system(size: 13))
+                    .font(.system(size: 16, weight: .medium))
                     .disabled(isStreaming)
             }
-            .frame(minHeight: 36)
-            .padding(.horizontal, 10)
+            .frame(minHeight: 44)
+            .padding(.horizontal, 12)
             .background(
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Theme.bgTop)
@@ -265,9 +241,9 @@ struct ChatOverlay: View {
                 send()
             } label: {
                 Image(systemName: isStreaming ? "stop.fill" : "arrow.up")
-                    .font(.system(size: 13, weight: .heavy))
+                    .font(.system(size: 16, weight: .heavy))
                     .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
                     .background(
                         RoundedRectangle(cornerRadius: 4)
                             .fill(isStreaming ? Theme.mist : state.accent)
@@ -364,30 +340,31 @@ struct MessageRow: View {
             HStack {
                 Spacer(minLength: 32)
                 Text(message.content)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
+                    .lineSpacing(4)
                     .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
                     .background(
-                        RoundedRectangle(cornerRadius: 4)
+                        RoundedRectangle(cornerRadius: 6)
                             .fill(Theme.navy)
                     )
             }
         case .assistant:
             HStack(alignment: .top, spacing: 0) {
-                Rectangle().fill(state.accent).frame(width: 2.5)
+                Rectangle().fill(state.accent).frame(width: 3)
                 VStack(alignment: .leading, spacing: 4) {
                     AssistantText(text: message.content, accent: state.accent)
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 7)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
-                    RoundedRectangle(cornerRadius: 4)
+                    RoundedRectangle(cornerRadius: 6)
                         .fill(Theme.card)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 4)
+                    RoundedRectangle(cornerRadius: 6)
                         .stroke(Theme.border, lineWidth: 0.5)
                 )
                 Spacer(minLength: 16)
@@ -412,24 +389,26 @@ private struct AssistantText: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 5) {
             ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
                 if line.isEmpty {
-                    Color.clear.frame(height: 2)
+                    Color.clear.frame(height: 4)
                 } else if let body = stripBullet(line) {
-                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text("·")
-                            .font(.system(size: 12, weight: .heavy))
+                            .font(.system(size: 16, weight: .heavy))
                             .foregroundColor(accent)
                         Text(body)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: 16, weight: .medium))
+                            .lineSpacing(4)
                             .foregroundColor(Theme.navy)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 } else {
                     Text(line)
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundColor(Theme.slate)
+                        .font(.system(size: 15, weight: .regular))
+                        .lineSpacing(4)
+                        .foregroundColor(Theme.navy)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }

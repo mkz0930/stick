@@ -42,11 +42,12 @@ struct AlertDetailView: View {
             Spacer()
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundColor(Theme.navy)
-                    .frame(width: 32, height: 32)
+                    .frame(width: 44, height: 44)
                     .background(Circle().fill(Theme.card))
                     .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
