@@ -493,10 +493,15 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
 
     ctx.transform = saved
 
-    // 疲惫装饰（Z + 汗滴）— tiredness 越大越明显；画在头之上
+    // 疲惫装饰（Z + 汗滴 + 💢 烦躁爆点）— tiredness 越大越明显；画在头之上
     if isTired {
         drawTiredZ(ctx: &ctx, color: joint, t: t, level: tiredness)
         drawTiredSweat(ctx: &ctx, color: joint, t: t, level: tiredness)
+        // 💢 跟着头走：tired 时头会下沉右移（shift 35,95），💢 同步到头左上角
+        let headCenterScreenX = headCenter.x + headShiftX
+        let headCenterScreenY = headCenter.y + headShiftY
+        drawTiredVein(ctx: &ctx, t: t, level: tiredness,
+                      headCenterX: headCenterScreenX, headCenterY: headCenterScreenY)
     }
 }
 
@@ -887,4 +892,23 @@ private func drawOneSweat(ctx: inout GraphicsContext, color: Color, t: Double, l
         path.closeSubpath()
     }
     ctx.fill(path, with: .color(color.opacity(alpha * level)))
+}
+
+// MARK: - 疲惫装饰：💢 烦躁爆点（下午 sit，强度 0..1）
+
+/// 系统原生 💢 emoji（红/橙爆点），位置跟着头的中心走，固定在头左上角**外侧**
+/// （offset -48, -40，离头远一点不贴在一起）。5Hz 脉冲让 emoji 轻微"鼓"动。
+/// 用 Text 画 emoji 比自己拼 + 线条更准确（系统自带红/橙渐变 + 4 个粗臂）。
+private func drawTiredVein(ctx: inout GraphicsContext, t: Double, level: Double, headCenterX: CGFloat, headCenterY: CGFloat) {
+    guard level > 0.4 else { return }
+    let levelC = CGFloat(level)
+    // 位置：头左上角外侧 48×40（拉开距离，不跟头贴一起）
+    let p = CGPoint(x: headCenterX - 48, y: headCenterY - 40)
+    // 大小：14→28 随 level 增长
+    let pulse = 1.0 + 0.08 * CGFloat(sin(t * 30.0))
+    let size: CGFloat = (14 + 14 * levelC) * pulse
+    // 系统原生 💢 emoji（自带红/橙爆点形状）
+    let vein = Text("💢")
+        .font(.system(size: size))
+    ctx.draw(vein, at: p, anchor: .center)
 }

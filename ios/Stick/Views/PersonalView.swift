@@ -200,10 +200,16 @@ struct PersonalView: View {
                         healthStatuses: healthAuth.statuses,
                         deviceSet: deviceSet
                     ) {
-                        // iPhone + 未授权 → 触发 HealthKit 授权弹窗
+                        // iPhone + 未授权 → 真实授权 + 注入 demo 数据 + 抓取 + 刷新
                         if dev.idEnum == .iPhone && !dev.isAuthorized {
                             Task {
                                 await HealthKitService.shared.requestAuthorization()
+                                HealthKitService.shared.startAutoCapture(interval: 60)
+                                // 模拟器上没数据时, 自动注入过去 7 天样本 (用户首次 demo 体验)
+                                await HealthKitDemoData.shared.injectIfNeeded()
+                                healthAuth.refresh()
+                                // 1.5s 后再 refresh 一次 (HKHealthStore.save 写入完成需要时间)
+                                try? await Task.sleep(nanoseconds: 1_500_000_000)
                                 healthAuth.refresh()
                             }
                         } else {
@@ -413,17 +419,15 @@ struct DeviceRow: View {
             .disabled(device.idEnum == .iPhone && device.isAuthorized)
 
             // 设备下方小字: 该设备能提供的数据项 (亮/灰)
+            // 4 列网格 — 7 个 tag 自动排成 2 行 (4+3), 1 个 tag 占 1 行
             if !capabilities.isEmpty {
                 HStack(alignment: .top, spacing: 0) {
                     // 缩进跟图标对齐 (16 + 32 = 48)
                     Spacer().frame(width: 48)
                     LazyVGrid(
-                        columns: [GridItem(.flexible(), spacing: 4),
-                                  GridItem(.flexible(), spacing: 4),
-                                  GridItem(.flexible(), spacing: 4),
-                                  GridItem(.flexible(), spacing: 4)],
+                        columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 4),
                         alignment: .leading,
-                        spacing: 4
+                        spacing: 3
                     ) {
                         ForEach(capabilities) { m in
                             CapabilityTag(metric: m, availability: availability(of: m))
@@ -431,8 +435,8 @@ struct DeviceRow: View {
                     }
                     Spacer(minLength: 0)
                 }
-                .padding(.top, 4)
-                .padding(.bottom, 10)
+                .padding(.top, 2)
+                .padding(.bottom, 8)
             } else {
                 Spacer().frame(height: 4)
             }
@@ -442,49 +446,28 @@ struct DeviceRow: View {
 
 // MARK: - 设备下方的能力 tag (小字)
 
-/// tag 两行: 第 1 行 = 锁图标 + 名字; 第 2 行 = hint (具体呈现什么)
+/// tag 单行: 小点 + 名字; 灰色字体 (不论锁/不锁)
 private struct CapabilityTag: View {
     let metric: MetricID
     let availability: MetricAvailability
 
     private var isOn: Bool { availability.kind == .available }
-    private var isEmpty: Bool { availability.kind == .availableEmpty }
-    private var isLocked: Bool { availability.kind == .locked }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            // 第 1 行: 锁图标 / 真实图标 + 名字
-            HStack(spacing: 3) {
-                Image(systemName: isOn ? metric.icon : "lock.fill")
-                    .font(.system(size: 7.5, weight: .semibold))
-                Text(metric.rawValue)
-                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-            }
-            // 第 2 行: 具体呈现什么 (不论锁/不锁, 统一显示 metric 实际含义)
-            Text(metric.hint)
-                .font(.system(size: 7.5, weight: .medium, design: .monospaced))
-                .foregroundColor(isLocked ? Theme.mist : Theme.slate)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
+        HStack(spacing: 3) {
+            // 小点 (小圆点, 不用 SF Symbol)
+            Circle()
+                .fill(isOn ? metric.required.first?.color ?? Theme.slate : Theme.mist.opacity(0.5))
+                .frame(width: 4, height: 4)
+            Text(metric.rawValue)
+                .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+                .foregroundColor(Theme.mist)   // 灰色字体
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
         }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 3)
+        .padding(.horizontal, 2)
+        .padding(.vertical, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .fill(isOn
-                      ? (metric.required.first?.color.opacity(0.10) ?? Theme.mist.opacity(0.10))
-                      : Theme.mist.opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .stroke(isOn ? Color.clear : Theme.mist.opacity(0.30),
-                        style: StrokeStyle(lineWidth: 0.5, dash: [1.5, 1.5]))
-        )
-        .opacity(isEmpty ? 0.6 : 1.0)
     }
 }
 

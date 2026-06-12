@@ -17,10 +17,13 @@ struct DayTimelineView: View {
     @State private var autoResetWorkItem: DispatchWorkItem? = nil  // 10s 无操作自动回 now
 
     private let dayMinutes: CGFloat = 1440
-    private let trackHeight: CGFloat = 14
-    private let thumbSize: CGFloat = 22
-    private let segmentGap: CGFloat = 1.5
+    private let trackWidth: CGFloat = 4        // 极细线（竖线宽度）
+    private let trackLength: CGFloat = 200     // 竖线总长
+    private let thumbSize: CGFloat = 14        // 圆环缩小
+    private let segmentGap: CGFloat = 0.8
     private let snapStep: Int = 5          // 5 分钟一格
+    private let lineAlpha: Double = 0.5        // 竖线半透明
+    private let thumbAlpha: Double = 0.65      // 圆环半透明
 
     // MARK: - 派生
 
@@ -55,18 +58,18 @@ struct DayTimelineView: View {
     // MARK: - body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            header
+        VStack(spacing: 6) {
             track
-            hourLabels
-            dragHint
-            if isScrubbing {
-                backToNowButton
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
+                .frame(width: thumbSize, height: trackLength)
+            // 竖线下方：短时间灰色显示
+            Text(formatClockOnly(displayDate))
+                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                .tracking(0.4)
+                .foregroundColor(Theme.slate.opacity(0.55))
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .animation(.easeInOut(duration: 0.2), value: displayDate)
         }
-        .padding(16)
-        .background(cardBackground)
         .animation(.easeInOut(duration: 0.25), value: isScrubbing)
         .animation(.easeInOut(duration: 0.4), value: hasInteracted)
         .onAppear {
@@ -94,52 +97,26 @@ struct DayTimelineView: View {
     // MARK: - 子视图
 
     private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(isScrubbing ? "SCRUBBING · 拖动以查看" : "今日 · 24H 滑动窗口")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .tracking(1.5)
-                    .foregroundColor(Theme.slate)
-                HStack(alignment: .lastTextBaseline, spacing: 6) {
-                    Text(formatDisplayClock(displayDate))
-                        .font(.system(size: 30, weight: .heavy, design: .rounded))
-                        .foregroundColor(isScrubbing ? displayState.accent : Theme.navy)
-                        .monospacedDigit()
-                        .contentTransition(.numericText())
-                        .animation(.easeInOut(duration: 0.2), value: displayDate)
-                    if isScrubbing {
-                        Text("(- \(displayOffset / 60)h\(displayOffset % 60)m)")
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundColor(Theme.slate)
-                    }
-                }
-            }
+        HStack(alignment: .center) {
             Spacer()
-            // 右上角 "NOW" — 整块可点，弹出连接设备弹窗
+            // 右上：状态色点 + + 按钮 (纯图标，无文字)
             Button {
                 showDevicePicker = true
             } label: {
-                VStack(alignment: .trailing, spacing: 3) {
-                    Text("NOW")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .tracking(1.5)
-                        .foregroundColor(Theme.slate)
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(displayState.accent)
-                            .frame(width: 8, height: 8)
-                        Text(displayState.rawValue)
-                            .font(.system(size: 26, weight: .black, design: .serif))
-                            .foregroundColor(displayState.accent)
-                    }
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 9, weight: .bold))
-                        Text("连接设备")
-                            .font(.system(size: 9, weight: .medium, design: .monospaced))
-                    }
-                    .foregroundColor(Theme.slate.opacity(0.55))
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(displayState.accent)
+                        .frame(width: 7, height: 7)
+                    Image(systemName: "plus")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(Theme.slate.opacity(0.6))
                 }
+                .padding(.horizontal, 5)
+                .padding(.vertical, 3)
+                .background(
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Theme.slate.opacity(0.06))
+                )
             }
             .buttonStyle(.plain)
         }
@@ -147,28 +124,28 @@ struct DayTimelineView: View {
 
     private var track: some View {
         GeometryReader { geo in
-            let width = geo.size.width
+            let height = geo.size.height
             ZStack(alignment: .topLeading) {
-                // 色条（按"过去 24h"重新映射）
+                // 色条（按"过去 24h"重新映射，竖向）
                 ForEach(schedule) { seg in
-                    rotatedSegment(seg, in: width)
+                    rotatedSegment(seg, in: height)
                 }
 
-                // thumb
-                let xPos = xPosition(forOffset: displayOffset, in: width)
+                // thumb (圆环) — 圆心落在竖线中心
+                let yPos = yPosition(forOffset: displayOffset, in: height)
                 thumb
-                    .position(x: xPos, y: trackHeight / 2)
+                    .position(x: trackWidth / 2, y: yPos)
+                    .opacity(thumbAlpha)
                     .animation(.interactiveSpring(response: 0.18, dampingFraction: 0.85),
                                value: displayOffset)
             }
-            .frame(height: trackHeight + thumbSize)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
-                        let x = max(0, min(value.location.x, width))
-                        // x=width → offset=0 (现在); x=0 → offset=1440 (24h 前)
-                        let raw = Int((1 - x / width) * dayMinutes)
+                        let y = max(0, min(value.location.y, height))
+                        // y=height → offset=0 (现在, 底); y=0 → offset=1440 (24h 前, 顶)
+                        let raw = Int((1 - y / height) * dayMinutes)
                         let snapped = (raw / snapStep) * snapStep
                         scrubOffset = max(0, min(snapped, 1440))
                         if !hasInteracted && scrubOffset != nil {
@@ -181,49 +158,50 @@ struct DayTimelineView: View {
                     }
             )
         }
-        .frame(height: trackHeight + thumbSize)
     }
 
-    /// 7 个刻度，按窗口相对位置 (0h 在右、24h 在左)，与 track 同公式
-    private var hourLabels: some View {
+    /// 7 个刻度短线（无数字）+ thumb 旁边的"可拖动"提示
+    private var hourLabelsColumn: some View {
         GeometryReader { geo in
-            let width = geo.size.width
+            let height = geo.size.height
             ZStack(alignment: .topLeading) {
                 ForEach(0..<7, id: \.self) { i in
-                    let offMin = (6 - i) * 4 * 60          // 0, 4h, ..., 24h 前
-                    let xPos = CGFloat(1440 - offMin) / 1440 * width
-                    let labelDate = now.addingTimeInterval(-Double(offMin) * 60)
-                    VStack(spacing: 2) {
-                        // 竖刻线 (与 track 对齐)
-                        Rectangle()
-                            .fill(offMin == 0 ? displayState.accent : Theme.slate.opacity(0.25))
-                            .frame(width: offMin == 0 ? 1.5 : 0.5, height: 4)
-                        // 文字 (居中于 xPos)
-                        Text(formatHourLabel(labelDate))
-                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                            .foregroundColor(offMin == 0 ? displayState.accent : Theme.slate.opacity(0.7))
-                            .fixedSize()
-                            .position(x: xPos, y: 11)
-                    }
+                    let offMin = i * 4 * 60
+                    let isNow = offMin == 0
+                    let yPos = yPosition(forOffset: offMin, in: height)
+                    // 短刻线 (无数字)
+                    Rectangle()
+                        .fill(isNow ? displayState.accent : Theme.slate.opacity(0.3))
+                        .frame(width: isNow ? 5 : 3, height: 0.5)
+                        .position(x: 6, y: yPos)
                 }
             }
-            .frame(height: 16)
         }
-        .frame(height: 16)
+        .frame(height: trackLength)
     }
 
-    /// 24h 拖动提示行（仅在未拖动时显示，拖一次后永久隐藏）
-    private var dragHint: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "arrow.left")
-            Text("拖动以回看 24h")
-            Image(systemName: "arrow.right")
+    /// 拖动提示：thumb 旁的 "可拖动" 小标 (仅未交互时显示)
+    @ViewBuilder
+    private var thumbHint: some View {
+        if !isScrubbing && !hasInteracted {
+            VStack(spacing: 2) {
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 7, weight: .bold))
+                Text("拖动")
+                    .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                    .tracking(0.4)
+                Image(systemName: "arrow.down")
+                    .font(.system(size: 7, weight: .bold))
+            }
+            .foregroundColor(Theme.slate.opacity(0.6))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Theme.card)
+                    .shadow(color: Theme.navy.opacity(0.12), radius: 2, y: 1)
+            )
         }
-        .font(.system(size: 9, weight: .medium, design: .monospaced))
-        .foregroundColor(Theme.slate.opacity(0.45))
-        .opacity((isScrubbing || hasInteracted) ? 0 : 0.85)
-        .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.top, 2)
     }
 
     private var backToNowButton: some View {
@@ -280,12 +258,12 @@ struct DayTimelineView: View {
 
     // MARK: - 组件
 
-    /// 把原 schedule 时段按"过去 24h 窗口"重新映射
-    /// 窗口坐标系：左 = 24h 前 (offset 0)，右 = 现在 (offset 1440)
+    /// 把原 schedule 时段按"过去 24h 窗口"重新映射（竖向）
+    /// 窗口坐标系：顶 = 24h 前 (offset 1440)，底 = 现在 (offset 0)
     /// 段位置 = 该段在窗口里的窗口坐标 offset / 1440
-    /// 跨过右边界（startWin > endWin）的段拆成两段画
+    /// 跨过底边界（startWin > endWin）的段拆成两段画
     @ViewBuilder
-    private func rotatedSegment(_ seg: StickState.DaySegment, in width: CGFloat) -> some View {
+    private func rotatedSegment(_ seg: StickState.DaySegment, in height: CGFloat) -> some View {
         let totalMin = Int(dayMinutes)
         let startWin = ((seg.startMinute - nowMinute) + totalMin) % totalMin
         let endWin   = ((seg.endMinute   - nowMinute) + totalMin) % totalMin
@@ -296,58 +274,58 @@ struct DayTimelineView: View {
 
         if startWin <= endWin {
             // 普通段（不跨边）
-            let xStart = CGFloat(startWin) / total * width
-            let segW   = CGFloat(endWin - startWin) / total * width
+            let yTop = CGFloat(totalMin - endWin) / total * height
+            let segH = CGFloat(endWin - startWin) / total * height
             let isActive = (startWin...endWin).contains(thumbWin)
             singlePiece(
-                xStart: xStart, segW: segW,
-                fillX: xStart + gap / 2, fillW: max(0, segW - gap),
+                yTop: yTop, segH: segH,
+                fillY: yTop + gap / 2, fillH: max(0, segH - gap),
                 isActive: isActive, accent: accent
             )
         } else {
-            // 跨右边界：拆成两段
-            // 右半段：startWin → totalMin (右端)
-            let rX = CGFloat(startWin) / total * width
-            let rW = CGFloat(totalMin - startWin) / total * width
-            // 左半段：0 → endWin (左端)
-            let lX = CGFloat(0)
-            let lW = CGFloat(endWin) / total * width
-            let rightActive = thumbWin >= startWin && thumbWin < totalMin
-            let leftActive  = thumbWin >= 0 && thumbWin < endWin
+            // 跨底边界：拆成两段
+            // 上半段：0 → endWin (顶)
+            let uY = CGFloat(totalMin - endWin) / total * height
+            let uH = CGFloat(endWin) / total * height
+            // 下半段：startWin → totalMin (底)
+            let lY = CGFloat(0)
+            let lH = CGFloat(totalMin - startWin) / total * height
+            let upActive = thumbWin >= 0 && thumbWin < endWin
+            let downActive = thumbWin >= startWin && thumbWin < totalMin
             ZStack {
                 singlePiece(
-                    xStart: rX, segW: rW,
-                    fillX: rX + gap / 2, fillW: max(0, rW - gap / 2),
-                    isActive: rightActive, accent: accent
+                    yTop: uY, segH: uH,
+                    fillY: uY + gap / 2, fillH: max(0, uH - gap / 2),
+                    isActive: upActive, accent: accent
                 )
                 singlePiece(
-                    xStart: lX, segW: lW,
-                    fillX: lX + gap / 2, fillW: max(0, lW - gap / 2),
-                    isActive: leftActive, accent: accent
+                    yTop: lY, segH: lH,
+                    fillY: lY + gap / 2, fillH: max(0, lH - gap / 2),
+                    isActive: downActive, accent: accent
                 )
             }
         }
     }
 
-    /// 一段矩形（带可选 active 描边）
+    /// 一段矩形（带可选 active 描边）— 竖向
     @ViewBuilder
     private func singlePiece(
-        xStart: CGFloat, segW: CGFloat,
-        fillX: CGFloat, fillW: CGFloat,
+        yTop: CGFloat, segH: CGFloat,
+        fillY: CGFloat, fillH: CGFloat,
         isActive: Bool, accent: Color
     ) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 3)
-                .fill(accent)
-                .frame(width: max(0, fillW), height: trackHeight)
-                .offset(x: fillX, y: 0)
+                .fill(accent.opacity(lineAlpha))
+                .frame(width: trackWidth, height: max(0, fillH))
+                .offset(x: 0, y: fillY)
             if isActive {
-                let pulseAlpha = 0.45 + 0.45 * pulse  // 0.45..0.90
+                let pulseAlpha = 0.25 + 0.25 * pulse
                 RoundedRectangle(cornerRadius: 3)
-                    .stroke(accent.opacity(0.85), lineWidth: 2.2)
-                    .frame(width: max(0, fillW), height: trackHeight)
-                    .offset(x: fillX, y: -1.8)
-                    .shadow(color: accent.opacity(pulseAlpha), radius: 4 + 2 * pulse, y: 0)
+                    .stroke(accent.opacity(0.7), lineWidth: 2)
+                    .frame(width: trackWidth, height: max(0, fillH))
+                    .offset(x: -1.5, y: fillY)
+                    .shadow(color: accent.opacity(pulseAlpha), radius: 4 + 2 * pulse, x: 0, y: 0)
             }
         }
     }
@@ -378,32 +356,17 @@ struct DayTimelineView: View {
 
     // MARK: - 几何
 
-    private func xPosition(forOffset m: Int, in width: CGFloat) -> CGFloat {
-        // offset 0 → 右边；1440 → 左边
-        CGFloat(1440 - m) / dayMinutes * width
+    private func yPosition(forOffset m: Int, in height: CGFloat) -> CGFloat {
+        // offset 0 → 底 (现在); 1440 → 顶 (24h 前)
+        CGFloat(1440 - m) / dayMinutes * height
     }
 
-    private func formatDisplayClock(_ date: Date) -> String {
-        // 显示日期 + 时分 (如 "周一 21:00" 或 "今 21:00")
+    private func formatClockOnly(_ date: Date) -> String {
+        // 只显示 HH:MM (去掉 "今" / "周X" 前缀)
         let c = Calendar.current
-        let isToday = c.isDateInToday(date)
-        let prefix = isToday ? "今" : weekdayShort(date) // 周一/二/...
         let h = c.component(.hour, from: date)
         let m = c.component(.minute, from: date)
-        return String(format: "%@ %02d:%02d", prefix, h, m)
-    }
-
-    private func formatHourLabel(_ date: Date) -> String {
-        let c = Calendar.current
-        let h = c.component(.hour, from: date)
-        return String(format: "%02d", h)
-    }
-
-    private func weekdayShort(_ date: Date) -> String {
-        let c = Calendar.current
-        let weekday = c.component(.weekday, from: date) // 1=Sun ... 7=Sat
-        let names = ["日", "一", "二", "三", "四", "五", "六"]
-        return "周" + names[weekday - 1]
+        return String(format: "%02d:%02d", h, m)
     }
 }
 

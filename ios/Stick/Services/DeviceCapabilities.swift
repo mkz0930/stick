@@ -76,9 +76,10 @@ enum MetricID: String, CaseIterable, Hashable, Identifiable {
     case sleepStage        = "睡眠分期"
     case sleepApnea        = "睡眠呼吸暂停"
 
-    // 姿态 (需要护腰/鞋)
+    // 姿态 (需要护腰/鞋/AirPods 加速计)
     case posture           = "坐姿前倾角"
     case stride            = "步频步态"
+    case neckAngle         = "颈椎角度"
 
     var id: String { rawValue }
 
@@ -100,6 +101,7 @@ enum MetricID: String, CaseIterable, Hashable, Identifiable {
         case .sleepApnea:       return "SLEEP APNEA"
         case .posture:          return "POSTURE"
         case .stride:           return "STRIDE"
+        case .neckAngle:        return "NECK ANGLE"
         }
     }
 
@@ -129,6 +131,8 @@ enum MetricID: String, CaseIterable, Hashable, Identifiable {
             return "figure.mind.and.body"
         case .stride:
             return "shoeprints.fill"
+        case .neckAngle:
+            return "head.side"
         }
     }
 
@@ -148,6 +152,7 @@ enum MetricID: String, CaseIterable, Hashable, Identifiable {
         case .sleepApnea:                       return "次"
         case .posture:                          return "°"
         case .stride:                           return "spm"
+        case .neckAngle:                        return "°"
         }
     }
 
@@ -168,6 +173,9 @@ enum MetricID: String, CaseIterable, Hashable, Identifiable {
 
         case .stride:
             return [.smartShoe]
+
+        case .neckAngle:
+            return [.airpods]  // AirPods 加速计检测头部倾斜
         }
     }
 
@@ -179,7 +187,7 @@ enum MetricID: String, CaseIterable, Hashable, Identifiable {
             return .activity
         case .sleepStage, .sleepApnea:
             return .sleep
-        case .posture:
+        case .posture, .neckAngle:
             return .posture
         }
     }
@@ -203,6 +211,7 @@ enum MetricID: String, CaseIterable, Hashable, Identifiable {
         case .sleepApnea:       return "呼吸暂停事件"
         case .posture:          return "前倾角 · 久坐"
         case .stride:           return "步频 · 步态"
+        case .neckAngle:        return "头部倾斜角"
         }
     }
 
@@ -217,9 +226,7 @@ enum MetricID: String, CaseIterable, Hashable, Identifiable {
         case .heartRate, .restingHeartRate, .hrv, .bloodOxygen,
              .respiratoryRate, .sleepApnea:
             return .watchRequired
-        case .posture:
-            return .peripheralRequired
-        case .stride:
+        case .posture, .stride, .neckAngle:
             return .peripheralRequired
         }
     }
@@ -239,8 +246,8 @@ enum MetricID: String, CaseIterable, Hashable, Identifiable {
         case .hrv:              return HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)
         case .respiratoryRate:  return HKObjectType.quantityType(forIdentifier: .respiratoryRate)
         case .sleepStage:       return HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
-        case .bloodOxygen, .sleepApnea, .posture, .stride:
-            return nil   // iPhone 内置 HealthKit 不支持
+        case .bloodOxygen, .sleepApnea, .posture, .stride, .neckAngle:
+            return nil   // iPhone 内置 HealthKit 不支持 (posture/stride/neckAngle 走外设)
         }
     }
 }

@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// 主页 3-4 行紧凑指标（左上角）：
+/// 主页 3-5 行紧凑指标（左上角）：
 ///  - 心率那一行额外带一个 48×18 的 ECG 动画波形（图形 + 数据）
 ///  - 心情那一行（白天）额外带一个 48×18 的心情曲线（图形 + 数据）
+///  - 异常那一行（≥1 项时显示）以单行紧凑形式提示最严重的异常
 ///  - 其他行：状态色点 + mono 标签 + 数值 + 副标
 ///
 /// 设备能力：每个 metric 关联一个 MetricID。`deviceSet` 没有命中该 metric 的 required 设备时，
@@ -12,6 +13,8 @@ struct FeatureRow: View {
     let deviceSet: Set<DeviceID>
     let healthStatuses: [MetricID: MetricDataStatus]
     let moodLine: MoodLineInfo?
+    let unifiedAlerts: [UnifiedAlert]
+    var onAlertTap: (UnifiedAlert) -> Void = { _ in }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -21,9 +24,53 @@ struct FeatureRow: View {
             if let m = moodLine {
                 MoodLine(info: m, accent: state.accent)
             }
+            if let top = unifiedAlerts.first {
+                AlertsLine(top: top, totalCount: unifiedAlerts.count) { onAlertTap(top) }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.easeInOut(duration: 0.35), value: moodLine)
+        .animation(.easeInOut(duration: 0.3), value: unifiedAlerts.count)
+    }
+}
+
+// MARK: - 异常提示行（单行紧凑，不展开）
+
+/// 单行异常提示：色点 + 标签 + 计数 + 最严重项标题。
+/// 点击整行 → onAlertTap，由调用方决定弹什么详情。
+private struct AlertsLine: View {
+    let top: UnifiedAlert
+    let totalCount: Int
+    var onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(top.severity.color)
+                    .frame(width: 5, height: 5)
+
+                Text("ALERTS")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(0.8)
+                    .foregroundColor(Theme.slate)
+                    .lineLimit(1)
+                    .frame(width: 68, alignment: .leading)
+
+                Text("\(totalCount) 项")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(0.3)
+                    .foregroundColor(top.severity.color)
+
+                Text(top.title)
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .foregroundColor(Theme.navy)
+                    .lineLimit(1)
+            }
+            .padding(.vertical, 2)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 

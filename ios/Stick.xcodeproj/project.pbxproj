@@ -19,6 +19,9 @@
 		B10000000000000000000015 /* Preview Content/Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000011 /* Preview Content/Preview Assets.xcassets */; };
 		B10000000000000000000016 /* MiniFilmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000012 /* MiniFilmView.swift */; };
 		B10000000000000000000017 /* Views/SleepAlertChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000013 /* Views/SleepAlertChip.swift */; };
+		B10000000000000000000018 /* AIAnalysisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000014 /* AIAnalysisView.swift */; };
+		B10000000000000000000019 /* AlertsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000015 /* AlertsPanel.swift */; };
+		B10000000000000000000020 /* AlertDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000016 /* AlertDetailView.swift */; };
 		B19900000000000000000099 /* PersonalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19900000000000000000099 /* PersonalView.swift */; };
 		B20000000000000000000001 /* LLMService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* LLMService.swift */; };
 		B20000000000000000000002 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* ChatView.swift */; };
@@ -31,34 +34,20 @@
 		B29900000000000000000A07 /* DeviceCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A07 /* DeviceCapabilities.swift */; };
 		B29900000000000000000A08 /* HealthAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A08 /* HealthAuthService.swift */; };
 		B29900000000000000000A09 /* AIRiskAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A09 /* AIRiskAnalyzer.swift */; };
-		B10000000000000000000018 /* AIAnalysisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000014 /* AIAnalysisView.swift */; };
+		B29900000000000000000A0A /* AlertAggregator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A0A /* AlertAggregator.swift */; };
+		B29900000000000000000A10 /* HealthKitDemoData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A10 /* HealthKitDemoData.swift */; };
 		B40000000000000000000001 /* StickWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000001 /* StickWidget.swift */; };
 		B40000000000000000000002 /* StickWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000004 /* StickWidgetView.swift */; };
 		B40000000000000000000003 /* StickMediumWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000005 /* StickMediumWidgetView.swift */; };
 		B40000000000000000000010 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
 		B40000000000000000000011 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
-		/* REMOVED: B40000000000000000000020 StickWidget.appex embed (widget 屏蔽) */
 		B40000000000000000000030 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000030 /* Assets.xcassets */; };
 		B50000000000000000000001 /* WidgetPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000001 /* WidgetPreviewView.swift */; };
 		B50000000000000000000002 /* StickWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000004 /* StickWidgetView.swift */; };
 		B50000000000000000000003 /* StickMediumWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000005 /* StickMediumWidgetView.swift */; };
-		B50000000000000000000006 /* ChatOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000004 /* ChatOverlay.swift */; };
 		B50000000000000000000004 /* SleepReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000005 /* SleepReportView.swift */; };
+		B50000000000000000000006 /* ChatOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000004 /* ChatOverlay.swift */; };
 /* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-		B40000000000000000000022 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = R10000000000000000000001 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = T40000000000000000000001;
-			remoteInfo = StickWidget;
-		};
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-/* REMOVED: P40000000000000000000004 Embed Foundation Extensions phase (widget 屏蔽) */
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		F10000000000000000000001 /* Stick.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Stick.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -74,6 +63,9 @@
 		F10000000000000000000011 /* Preview Content/Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Content/Preview Assets.xcassets"; sourceTree = "<group>"; };
 		F10000000000000000000012 /* MiniFilmView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniFilmView.swift; sourceTree = "<group>"; };
 		F10000000000000000000013 /* Views/SleepAlertChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SleepAlertChip.swift; sourceTree = "<group>"; };
+		F10000000000000000000014 /* AIAnalysisView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAnalysisView.swift; sourceTree = "<group>"; };
+		F10000000000000000000015 /* AlertsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsPanel.swift; sourceTree = "<group>"; };
+		F10000000000000000000016 /* AlertDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertDetailView.swift; sourceTree = "<group>"; };
 		F19900000000000000000099 /* PersonalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalView.swift; sourceTree = "<group>"; };
 		F20000000000000000000001 /* LLMService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMService.swift; sourceTree = "<group>"; };
 		F20000000000000000000002 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
@@ -86,7 +78,8 @@
 		F29900000000000000000A07 /* DeviceCapabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceCapabilities.swift; sourceTree = "<group>"; };
 		F29900000000000000000A08 /* HealthAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthAuthService.swift; sourceTree = "<group>"; };
 		F29900000000000000000A09 /* AIRiskAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRiskAnalyzer.swift; sourceTree = "<group>"; };
-		F10000000000000000000014 /* AIAnalysisView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAnalysisView.swift; sourceTree = "<group>"; };
+		F29900000000000000000A0A /* AlertAggregator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertAggregator.swift; sourceTree = "<group>"; };
+		F29900000000000000000A10 /* HealthKitDemoData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitDemoData.swift; sourceTree = "<group>"; };
 		F40000000000000000000001 /* StickWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickWidget.swift; sourceTree = "<group>"; };
 		F40000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F40000000000000000000003 /* StickWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StickWidget.entitlements; sourceTree = "<group>"; };
@@ -96,8 +89,8 @@
 		F40000000000000000000020 /* StickWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StickWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		F40000000000000000000030 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F50000000000000000000001 /* WidgetPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetPreviewView.swift; sourceTree = "<group>"; };
-		F50000000000000000000005 /* SleepReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepReportView.swift; sourceTree = "<group>"; };
 		F50000000000000000000004 /* ChatOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOverlay.swift; sourceTree = "<group>"; };
+		F50000000000000000000005 /* SleepReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepReportView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -176,6 +169,8 @@
 				F50000000000000000000004 /* ChatOverlay.swift */,
 				F50000000000000000000005 /* SleepReportView.swift */,
 				F10000000000000000000014 /* AIAnalysisView.swift */,
+				F10000000000000000000015 /* AlertsPanel.swift */,
+				F10000000000000000000016 /* AlertDetailView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -192,6 +187,8 @@
 				F29900000000000000000A07 /* DeviceCapabilities.swift */,
 				F29900000000000000000A08 /* HealthAuthService.swift */,
 				F29900000000000000000A09 /* AIRiskAnalyzer.swift */,
+				F29900000000000000000A10 /* HealthKitDemoData.swift */,
+				F29900000000000000000A0A /* AlertAggregator.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -227,12 +224,10 @@
 				P10000000000000000000003 /* Sources */,
 				P10000000000000000000002 /* Frameworks */,
 				P10000000000000000000004 /* Resources */,
-/* REMOVED: P40000000000000000000004 Embed Foundation Extensions (widget 屏蔽) */
 			);
 			buildRules = (
 			);
 			dependencies = (
-/* REMOVED: B40000000000000000000021 target dependency on widget (widget 屏蔽) */
 			);
 			name = Stick;
 			productName = Stick;
@@ -343,7 +338,11 @@
 				B50000000000000000000006 /* ChatOverlay.swift in Sources */,
 				B50000000000000000000004 /* SleepReportView.swift in Sources */,
 				B29900000000000000000A09 /* AIRiskAnalyzer.swift in Sources */,
+				B29900000000000000000A10 /* HealthKitDemoData.swift in Sources */,
 				B10000000000000000000018 /* AIAnalysisView.swift in Sources */,
+				B29900000000000000000A0A /* AlertAggregator.swift in Sources */,
+				B10000000000000000000019 /* AlertsPanel.swift in Sources */,
+				B10000000000000000000020 /* AlertDetailView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -359,14 +358,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		B40000000000000000000021 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = T40000000000000000000001 /* StickWidget */;
-			targetProxy = B40000000000000000000022 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		C10000000000000000000001 /* Debug */ = {
@@ -497,13 +488,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Stick/Stick.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Stick/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "读取健康数据用于展示你的身体状态";
 				INFOPLIST_KEY_LLM_API_KEY = "$(STICK_LLM_API_KEY)";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "读取健康数据用于展示你的身体状态";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -514,7 +506,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.stick;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.stick.vn;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -527,13 +519,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Stick/Stick.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Stick/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "读取健康数据用于展示你的身体状态";
 				INFOPLIST_KEY_LLM_API_KEY = "$(STICK_LLM_API_KEY)";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "读取健康数据用于展示你的身体状态";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -567,7 +560,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.stick.StickWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.stick.vn.StickWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -591,7 +584,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.stick.StickWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.stick.vn.StickWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;

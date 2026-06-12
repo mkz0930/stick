@@ -24,54 +24,57 @@ struct ChatOverlay: View {
     ]
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            DashedDivider()
-            messageArea
-            Spacer(minLength: 0)
-            DashedDivider()
-            inputBar
-            // 底色 footer：与 card 同色，延伸到屏幕最底（覆盖 home indicator 区域）
-            Theme.card
-                .frame(height: 60)
-                .ignoresSafeArea(edges: .bottom)
-        }
-        .background(
-            // 只圆顶部两角，底部贴边 (展开后全圆)
-            UnevenRoundedRectangle(
-                cornerRadii: .init(
-                    topLeading: 14,
-                    bottomLeading: 0,
-                    bottomTrailing: 0,
-                    topTrailing: 14
-                ),
-                style: .continuous
-            )
-            .fill(Theme.card)
-        )
-        .overlay(
-            UnevenRoundedRectangle(
-                cornerRadii: .init(
-                    topLeading: 14,
-                    bottomLeading: 0,
-                    bottomTrailing: 0,
-                    topTrailing: 14
-                ),
-                style: .continuous
-            )
-            .stroke(Theme.border, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(isExpanded ? 0.20 : 0.10), radius: isExpanded ? 0 : 10, y: -2)
-        .padding(.horizontal, 12)         // 水平留白
-        .padding(.top, 8)                  // 顶部留白（让 card 浮起来）
-        .frame(maxHeight: isExpanded ? .infinity : 320)
-        .onAppear {
-            input = initialText
-            if !initialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                send()
+        // 用 GeometryReader 读父高度, 展开时撑满 90%+
+        GeometryReader { geo in
+            VStack(spacing: 0) {
+                header
+                DashedDivider()
+                messageArea
+                Spacer(minLength: 0)
+                DashedDivider()
+                inputBar
+                // 底色 footer：与 card 同色，延伸到屏幕最底（覆盖 home indicator 区域）
+                Theme.card
+                    .frame(height: 60)
+                    .ignoresSafeArea(edges: .bottom)
             }
-        }
-        .onDisappear { streamTask?.cancel() }
+            .background(
+                // 只圆顶部两角，底部贴边 (展开后全圆)
+                UnevenRoundedRectangle(
+                    cornerRadii: .init(
+                        topLeading: 14,
+                        bottomLeading: 0,
+                        bottomTrailing: 0,
+                        topTrailing: 14
+                    ),
+                    style: .continuous
+                )
+                .fill(Theme.card)
+            )
+            .overlay(
+                UnevenRoundedRectangle(
+                    cornerRadii: .init(
+                        topLeading: 14,
+                        bottomLeading: 0,
+                        bottomTrailing: 0,
+                        topTrailing: 14
+                    ),
+                    style: .continuous
+                )
+                .stroke(Theme.border, lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(isExpanded ? 0.20 : 0.10), radius: isExpanded ? 0 : 10, y: -2)
+            .padding(.horizontal, 12)         // 水平留白
+            .padding(.top, 8)                  // 顶部留白（让 card 浮起来）
+            .onAppear {
+                input = initialText
+                if !initialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    send()
+                }
+            }
+            .onDisappear { streamTask?.cancel() }
+        }   // GeometryReader
+        .frame(height: isExpanded ? geo.size.height * 0.95 : nil, alignment: .bottom)
     }
 
     // MARK: - Header（紧凑版）

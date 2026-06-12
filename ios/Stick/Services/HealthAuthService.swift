@@ -55,6 +55,13 @@ final class HealthAuthService: ObservableObject {
         guard let type = metric.hkType, let sampleType = type as? HKSampleType else {
             return .notSupported
         }
+
+        // 0. 优先查本地 HealthStore.shared (HealthKitDemoData 降级写入) — 7d 内有数据 → hasData
+        if hasLocalData(for: metric) {
+            return .hasData
+        }
+
+        // 1. 真 query HealthKit
         let now = Date()
         let from = now.addingTimeInterval(-7 * 24 * 3600)
         let pred = HKQuery.predicateForSamples(withStart: from, end: now, options: .strictStartDate)
@@ -81,6 +88,22 @@ final class HealthAuthService: ObservableObject {
                 }
             }
             self.store.execute(q)
+        }
+    }
+
+    /// 本地 HealthStore.shared 过去 7d 是否有该 metric 的样本 (任何字段非 nil 即算)
+    private func hasLocalData(for metric: MetricID) -> Bool {
+        let cutoff = Date().addingTimeInterval(-7 * 24 * 3600)
+        let snapshots = HealthStore.shared.today.filter { $0.timestamp >= cutoff }
+        guard !snapshots.isEmpty else { return false }
+        switch metric {
+        case .steps:           return snapshots.contains { $0.stepCount != nil }
+        case .distance:        return snapshots.contains { $0.distance != nil }
+        case .activeEnergy:    return snapshots.contains { $0.activeEnergy != nil }
+        case .standHours:      return snapshots.contains { $0.standHours != nil }
+        case .exerciseMinutes: return snapshots.contains { $0.exerciseMinutes != nil }
+        case .flightsClimbed:   return snapshots.contains { $0.flightsClimbed != nil }
+        default: return false
         }
     }
 

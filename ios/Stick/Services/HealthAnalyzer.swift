@@ -52,6 +52,9 @@ final class HealthAnalyzer {
         // 8) 睡眠窗口
         insights.append(contentsOf: detectSleep(snapshots))
 
+        // 8b) 睡眠异常 (vs. 参考 7-9h)
+        insights.append(contentsOf: detectSleepAbnormality(snapshots))
+
         // 9) 距离 / 楼层
         insights.append(contentsOf: detectDistance(snapshots))
 
@@ -180,6 +183,46 @@ final class HealthAnalyzer {
                 title: "睡眠窗口", detail: "记录到的睡眠时长",
                 timestampRange: "\(hhmm(start))–\(hhmm(end))",
                 numericValue: "\(mins / 60)h \(mins % 60)m"
+            )]
+        }
+        return []
+    }
+
+    // MARK: - 睡眠质量 (vs. 参考 7-9h)
+
+    /// 对比「参考睡眠区间 7-9h」评估最近一次睡眠
+    private func detectSleepAbnormality(_ snaps: [HealthSnapshot]) -> [HealthInsight] {
+        let sleeps = snaps.filter { $0.bodyState == "sleep" }
+        guard !sleeps.isEmpty else { return [] }
+        let start = sleeps.first!.timestamp
+        let end = sleeps.last!.timestamp
+        let mins = max(1, Int(end.timeIntervalSince(start) / 60))
+        let hours = Double(mins) / 60.0
+
+        if hours < 6.0 {
+            return [HealthInsight(
+                kind: .sleepWindow, severity: .alert,
+                title: "睡眠严重不足",
+                detail: String(format: "参考 7-9h，差 %.1fh，建议提前入睡 + 减少晚间屏幕",
+                               7.0 - hours),
+                timestampRange: "\(hhmm(start))–\(hhmm(end))",
+                numericValue: String(format: "%.1fh", hours)
+            )]
+        } else if hours < 7.0 {
+            return [HealthInsight(
+                kind: .sleepWindow, severity: .warn,
+                title: "睡眠不足",
+                detail: "参考 7-9h，建议今晚提前 30 分钟入睡",
+                timestampRange: "\(hhmm(start))–\(hhmm(end))",
+                numericValue: String(format: "%.1fh", hours)
+            )]
+        } else if hours > 9.5 {
+            return [HealthInsight(
+                kind: .sleepWindow, severity: .info,
+                title: "睡眠偏长",
+                detail: "参考 7-9h，可能处于恢复期",
+                timestampRange: "\(hhmm(start))–\(hhmm(end))",
+                numericValue: String(format: "%.1fh", hours)
             )]
         }
         return []

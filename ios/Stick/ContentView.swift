@@ -144,6 +144,27 @@ struct ContentView: View {
         }
     }
 
+    /// 情绪数值 0..100。基于 mood 文字（"兴奋/良好/专注/疲倦/平稳"）映射。
+    private var moodScore: Double {
+        // walk: 兴奋 92, 良好 75, 愉悦 80
+        // sit: 专注 82, 疲倦 30, 平稳 65
+        // sleep: 25
+        switch displayState {
+        case .walk:
+            if isMorningEnergetic { return 92 }
+            let m = StickState.minutesOfDay(displayDate)
+            if m >= 720 && m < 810 { return 78 }   // 午餐后轻松
+            if m >= 1080            { return 80 }   // 晚间愉悦
+            return 75                              // 普通 walk
+        case .sit:
+            if isMorningCalm      { return 82 }
+            if isAfternoonTired   { return max(20, 50 - 30 * figureTiredness) }  // 50→20
+            return 65
+        case .sleep:
+            return 25
+        }
+    }
+
     /// 能量条颜色：>75 绿 / >50 黄绿 / >30 橙 / ≤30 红
     private var energyColor: Color {
         let e = bodyEnergy
@@ -152,6 +173,9 @@ struct ContentView: View {
         if e >= 30 { return Color(red: 0.92, green: 0.55, blue: 0.06) }
         return Color(red: 0.93, green: 0.20, blue: 0.20)
     }
+
+    /// Mood 颜色：跟 energyColor 同一套 4 档
+    private var moodColor: Color { energyColor }
 
     // MARK: - 给 Widget 用的派生值
 
@@ -388,7 +412,7 @@ struct ContentView: View {
                         .padding(.top, 10)
                         .padding(.bottom, 4)
 
-                    // 能量徽章（顶部右上方 — 跟 FeatureRow 卡片同一行）
+                    // 徽章组（顶部右上方 — 跟 FeatureRow 卡片同一行）
                     HStack {
                         Spacer(minLength: 0)
                         EnergyBadge(
@@ -397,6 +421,7 @@ struct ContentView: View {
                             color: energyColor,
                             onTap: { showFilm = true }
                         )
+                        MoodBadge(score: moodScore, color: moodColor)
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 4)
@@ -439,10 +464,11 @@ struct ContentView: View {
                             scrubOffset: $scrubOffset,
                             showDevicePicker: $showDevicePicker
                         )
-                        .frame(width: 96)
+                        .frame(width: 22)
                         .frame(height: 400)
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.leading, 16)
+                    .padding(.trailing, 4)
 
                     InputBar(
                         state: displayState,
@@ -858,15 +884,7 @@ private struct StageHeroView: View {
                                 noDataBadge
                             }
                         }
-                        if !hasNoData {
-                            Text(inferenceSubline)
-                                .font(.system(size: 8, weight: .medium, design: .monospaced))
-                                .tracking(0.4)
-                                .foregroundColor(Theme.slate)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                .frame(maxWidth: 220, alignment: .trailing)
-                        }
+                        // CONF xx% · 无数据 副标已去掉
                     }
                 }
                 .padding(4)
@@ -1094,6 +1112,30 @@ private struct EnergyBadge: View {
             .padding(.vertical, 2)
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - 心情数值徽章
+
+/// 简单数字徽章：MOOD 标签 + 0-100 数字。无电池图标、无框 — 跟 BODY ENERGY 并列。
+/// 颜色跟 bodyEnergy 同一套 4 档（绿/黄绿/橙/红）。
+private struct MoodBadge: View {
+    let score: Double      // 0..100
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("MOOD")
+                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .tracking(1.4)
+                .foregroundColor(Theme.slate)
+            Text("\(Int(score))")
+                .font(.system(size: 14, weight: .heavy, design: .monospaced))
+                .foregroundColor(color)
+                .monospacedDigit()
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
     }
 }
 
