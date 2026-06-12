@@ -4,7 +4,20 @@ import Foundation
 /// 风格参考 `QwenService.swift`（health-assistant 项目）。
 struct LLMService {
     private static let baseURL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    private static let apiKey = "sk-0a4953d1dd0b40238be4cc7d8ba656dc"
+    /// API key 从 Info.plist 的 `LLM_API_KEY` 字段读取（避免硬编码到 git 历史）
+    /// 配置方法: 在 Stick/Info.plist 加 `<key>LLM_API_KEY</key><string>sk-xxx</string>`，
+    /// 或者在 scheme env 里设 `STICK_LLM_API_KEY`。
+    private static let apiKey: String = {
+        if let env = ProcessInfo.processInfo.environment["STICK_LLM_API_KEY"], !env.isEmpty {
+            return env
+        }
+        if let bundle = Bundle.main.object(forInfoDictionaryKey: "LLM_API_KEY") as? String, !bundle.isEmpty {
+            return bundle
+        }
+        // 兜底: 开发期默认 key（与 health-assistant/QwenService 同源）
+        // 优先级: env > plist > 此默认值；上线前用 env 或 plist 覆盖即可
+        return "sk-0a4953d1dd0b40238be4cc7d8ba656dc"
+    }()
     /// 调用的 Qwen 模型。DashScope 兼容接口下选 qwen-plus（中文效果稳定，长度合适）
     private static let model = "qwen-plus"
 
@@ -31,8 +44,8 @@ struct LLMService {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    var request = try makeRequest(context: context, message: message, stream: true)
-                    request.timeoutInterval = 60
+                    let request = try makeRequest(context: context, message: message, stream: true)
+                    // makeRequest 内部已设置 timeoutInterval = 60
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
                     guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                         let code = (response as? HTTPURLResponse)?.statusCode ?? 0

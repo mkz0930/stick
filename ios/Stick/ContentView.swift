@@ -168,6 +168,10 @@ struct ContentView: View {
                 updatedAt: Date()
             )
             SharedStateStore.write(snap)
+            // 通知 WidgetKit 立刻刷新 widget timeline (不等到 5min 后)
+            #if canImport(WidgetKit)
+            WidgetCenter.shared.reloadAllTimelines()
+            #endif
         }
         .onOpenURL { url in
             // widget tap 深链：stick://open?state=walk|sit|sleep
@@ -233,6 +237,7 @@ struct ContentView: View {
                         tiredness: figureTiredness,
                         isScrubbing: isScrubbing,
                         inference: inference,
+                        showDevicePicker: $showDevicePicker,
                         onPreview: { showFilm = true },
                         onSleepAlert: { showSleepReport = true }
                     )
@@ -332,6 +337,7 @@ private struct StageHeroView: View {
     let tiredness: Double
     let isScrubbing: Bool
     let inference: StateInference.Result?
+    @Binding var showDevicePicker: Bool
     var onPreview: () -> Void
     var onSleepAlert: () -> Void
 
@@ -343,16 +349,27 @@ private struct StageHeroView: View {
         return "CONF \(pct)% · \(reason)"
     }
 
+    /// 缺数据：inference 没跑出来，或跑出来但 reason 是 "无数据"
+    private var hasNoData: Bool {
+        guard let inf = inference else { return true }
+        return inf.reasons.first == "无数据"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // 舞台区（火柴人 + 透明背景，跟整页一个底色）
             ZStack {
-                StickFigureView(state: state, mood: mood, tiredness: tiredness)
-                    .padding(.horizontal, 32)
-                    .padding(.top, 8)
-                    .padding(.bottom, 8)
-                    .id(state)
-                    .transition(.opacity)
+                if hasNoData {
+                    noDataStage
+                        .transition(.opacity)
+                } else {
+                    StickFigureView(state: state, mood: mood, tiredness: tiredness)
+                        .padding(.horizontal, 32)
+                        .padding(.top, 8)
+                        .padding(.bottom, 8)
+                        .id(state)
+                        .transition(.opacity)
+                }
 
                 // 状态名（画布右上）— 点击弹出 10s 短片预览
                 VStack(alignment: .trailing, spacing: 2) {
@@ -361,15 +378,21 @@ private struct StageHeroView: View {
                             SleepAlertChip(count: 2, onTap: onSleepAlert)
                                 .transition(.scale.combined(with: .opacity))
                         }
-                        stateBadge
+                        if hasNoData {
+                            noDataBadge
+                        } else {
+                            stateBadge
+                        }
                     }
-                    Text(inferenceSubline)
-                        .font(.system(size: 8, weight: .medium, design: .monospaced))
-                        .tracking(0.4)
-                        .foregroundColor(Theme.slate)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .frame(maxWidth: 220, alignment: .trailing)
+                    if !hasNoData {
+                        Text(inferenceSubline)
+                            .font(.system(size: 8, weight: .medium, design: .monospaced))
+                            .tracking(0.4)
+                            .foregroundColor(Theme.slate)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(maxWidth: 220, alignment: .trailing)
+                    }
                     Spacer()
                 }
                 .padding(12)
@@ -377,7 +400,83 @@ private struct StageHeroView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.top, 6)
             .animation(.easeInOut(duration: 0.45), value: state)
+            .animation(.easeInOut(duration: 0.35), value: hasNoData)
         }
+    }
+
+    // MARK: - 缺数据状态（柔色，提示连接设备）
+
+    private var noDataStage: some View {
+        Button {
+            showDevicePicker = true
+        } label: {
+            VStack(spacing: 10) {
+                // 虚线小火柴人占位
+                ZStack {
+                    Circle()
+                        .stroke(Theme.slate.opacity(0.25), style: StrokeStyle(lineWidth: 1.2, dash: [3, 3]))
+                        .frame(width: 56, height: 56)
+                    Image(systemName: "iphone.badge.plus")
+                        .font(.system(size: 22, weight: .light))
+                        .foregroundColor(Theme.slate.opacity(0.35))
+                }
+                Text("暂无数据")
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .tracking(0.8)
+                    .foregroundColor(Theme.slate.opacity(0.55))
+                Text("连接智能设备以开始记录")
+                    .font(.system(size: 10, weight: .regular, design: .monospaced))
+                    .tracking(0.4)
+                    .foregroundColor(Theme.slate.opacity(0.4))
+                HStack(spacing: 4) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 8, weight: .bold))
+                    Text("连接设备")
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .tracking(0.6)
+                }
+                .foregroundColor(Theme.slate.opacity(0.6))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .overlay(
+                    Capsule()
+                        .stroke(Theme.slate.opacity(0.25), lineWidth: 0.8)
+                )
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Theme.slate.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(Theme.slate.opacity(0.12), style: StrokeStyle(lineWidth: 0.8, dash: [4, 3]))
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var noDataBadge: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "antenna.radiowaves.left.and.right.slash")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(Theme.slate.opacity(0.4))
+            Text("NO DATA")
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .tracking(1.8)
+                .foregroundColor(Theme.slate.opacity(0.5))
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Theme.slate.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 2)
+                .stroke(Theme.slate.opacity(0.18), lineWidth: 0.8)
+        )
     }
 
     private var stateBadge: some View {

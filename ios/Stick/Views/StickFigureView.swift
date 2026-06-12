@@ -381,8 +381,8 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
     // （稍后在函数内追加调用）
 
     // 头/颈参数（声明提前，后面 right arm 之后再画头，让头画在手臂之上）
-    let headTiltExtra: Double = isTired ? tiredness * 55.0 : 0
-    let headShiftY: CGFloat = isTired ? CGFloat(tiredness) * 95 : 0   // 头往下沉 95px（peak 时贴到手臂 y=170-200 区）
+    let headTiltExtra: Double = isTired ? tiredness * 130.0 : 0  // peak 时 20°+130°=150°（头翻过去）
+    let headShiftY: CGFloat = isTired ? CGFloat(tiredness) * 95 : 0   // 头往下沉 95px
     let headShiftX: CGFloat = isTired ? CGFloat(tiredness) * 35 : 0   // 头往屏幕方向靠 35px
     let headCenter = CGPoint(x: 108, y: 75)
     let head = CGRect(x: headCenter.x - 24, y: headCenter.y - 30, width: 48, height: 60)
@@ -462,12 +462,27 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
         .rotated(by: tiltAngle)
         .translatedBy(x: -headCenter.x, y: -headCenter.y)
     drawEllipse(ctx: &ctx, rect: head, fill: fill, stroke: stroke, width: w, alpha: lineAlpha)
+
+    // 颈椎：画在 head 的本地坐标系里，跟头一起转。
+    // 头底本地坐标：(0, 30) 相对头中心 → 屏幕 (headCenter.x, headCenter.y + 30)
+    // 肩 (100, 128) 要投到头本地：先减 (headCenter + headShift)，再绕头中心逆旋 tiltAngle，再加 headCenter
+    let shoulderOffsetX: CGFloat = 100 - headCenter.x - headShiftX
+    let shoulderOffsetY: CGFloat = 128 - headCenter.y - headShiftY
+    let cosInv = CGFloat(cos(-tiltAngle))
+    let sinInv = CGFloat(sin(-tiltAngle))
+    let neckShoulderLocalX = headCenter.x + shoulderOffsetX * cosInv - shoulderOffsetY * sinInv
+    let neckShoulderLocalY = headCenter.y + shoulderOffsetX * sinInv + shoulderOffsetY * cosInv
+    let neckTopLocal = CGPoint(x: headCenter.x, y: headCenter.y + 30)
+    let neckBotLocal = CGPoint(x: neckShoulderLocalX, y: neckShoulderLocalY)
+    // 控制点：起点和终点中点略偏左，让颈线有自然弧度
+    let neckControlLocal = CGPoint(
+        x: (neckTopLocal.x + neckBotLocal.x) / 2 - 5,
+        y: (neckTopLocal.y + neckBotLocal.y) / 2
+    )
+    strokeCurve(ctx: &ctx, from: neckTopLocal, to: neckBotLocal,
+                control: neckControlLocal, color: stroke, width: w + 0.4, alpha: lineAlpha)
+
     ctx.transform = saved
-    // 颈椎：从 shoulder 接到 head 实际底部（随 tiredness 跟随头位）
-    let neckHeadX = headCenter.x + 30 * CGFloat(sin(tiltAngle)) + headShiftX
-    let neckHeadY = headCenter.y + 30 * CGFloat(cos(tiltAngle)) + headShiftY
-    strokeCurve(ctx: &ctx, from: CGPoint(x: neckHeadX, y: neckHeadY), to: CGPoint(x: 100, y: 128),
-                control: CGPoint(x: 100, y: 118), color: stroke, width: w + 0.4, alpha: lineAlpha)
 
     // 疲惫装饰（Z + 汗滴）— tiredness 越大越明显；画在头之上
     if isTired {
