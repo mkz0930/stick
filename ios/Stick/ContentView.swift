@@ -167,6 +167,11 @@ struct ContentView: View {
             )
             SharedStateStore.write(snap)
         }
+        .onOpenURL { url in
+            // widget tap 深链：stick://open?state=walk|sit|sleep
+            // （.widgetURL 已经把状态带回来，这里只是占位接收）
+            _ = url
+        }
         .sheet(isPresented: $showFilm) {
             MiniFilmShareSheet(isPresented: $showFilm)
                 .presentationBackground(Color.black)

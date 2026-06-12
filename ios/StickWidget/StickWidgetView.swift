@@ -88,8 +88,8 @@ struct StickWidgetView: View {
                         .minimumScaleFactor(0.6)
                 }
 
-                // 底 row：心跳 + 微文案
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                // 底 row：心跳 + 心情 + 鼓励微文案
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
                     BeatingHeart(bpm: s.heartRate, t: tl.date.timeIntervalSinceReferenceDate)
                         .frame(width: 11, height: 11)
                     Text("\(s.heartRate)")
@@ -104,9 +104,18 @@ struct StickWidgetView: View {
                         .lineLimit(1)
                     Spacer(minLength: 0)
                 }
+
+                // 鼓励微文案（每次刷新换一句）
+                Text(microCopy(t: tl.date))
+                    .font(.system(size: 9, weight: .medium))
+                    .italic()
+                    .foregroundColor(accent.opacity(0.85))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
             .padding(10)
         }
+        .widgetURL(URL(string: "stick://open?state=\(s.stateRaw)"))
         .containerBackground(for: .widget) {
             LinearGradient(
                 colors: [Theme.bgTop, ambientTint(t: entry.date)],
@@ -134,6 +143,65 @@ struct StickWidgetView: View {
         case "sleep": return "\(prefix)·休息"
         default:      return prefix
         }
+    }
+
+    // MARK: - 鼓励微文案（按 state × 时段 × 时长 派发，每次刷新换一句）
+
+    private func microCopy(t: Date) -> String {
+        let h = Calendar.current.component(.hour, from: t)
+        let period: String
+        switch h {
+        case 5..<11:  period = "morning"
+        case 11..<14: period = "noon"
+        case 14..<18: period = "afternoon"
+        case 18..<22: period = "evening"
+        default:      period = "night"
+        }
+
+        // 按时段分桶（每 5 分钟换一次文案）让用户感到"活着的"
+        let bucket = Int(t.timeIntervalSinceReferenceDate / 300)
+        let seed = bucket ^ abs(s.stateRaw.hashValue) ^ abs(s.mood.hashValue)
+
+        let candidates: [String]
+        switch (s.stateRaw, period) {
+        case ("walk", "morning"):
+            candidates = ["出门晒晒太阳", "晨光正好，继续", "心率在好区间", "今天已走 \(s.durationMinutes) 分"]
+        case ("walk", "noon"):
+            candidates = ["饭后走一走", "步数破 6k 了", "阳光正好", "走走消食"]
+        case ("walk", "afternoon"):
+            candidates = ["活动量够赞", "继续刷新记录", "散步灵感多", "保持节奏"]
+        case ("walk", "evening"):
+            candidates = ["夜风正好", "今日步数快到目标", "睡前走一走", "安静一下"]
+        case ("walk", "night"):
+            candidates = ["该回去休息了", "深夜散步小心", "准备睡觉吧", "别走太远"]
+
+        case ("sit", "morning"):
+            candidates = ["坐久了，伸个腰", "站一站接杯水", "久坐 30 分钟就起身", "颈椎前倾 +18°"]
+        case ("sit", "noon"):
+            candidates = ["别光盯着屏幕", "饭后站 10 分钟", "起来走两步", "腰背有点僵"]
+        case ("sit", "afternoon"):
+            candidates = ["🪑 久坐 \(s.durationMinutes) 分", "起身活动 5 分钟", "后仰拉伸 30s", "做个颈肩操"]
+        case ("sit", "evening"):
+            candidates = ["今天已坐了 N 小时", "睡前不要久坐", "拉一下腰", "明早多走点"]
+        case ("sit", "night"):
+            candidates = ["夜深该睡了", "久坐伤腰，躺一躺", "别熬太晚", "明天再战"]
+
+        case ("sleep", "morning"):
+            candidates = ["🛌 深睡 1h32m", "睡眠质量评分 82", "今早元气满满", "续睡一会也无妨"]
+        case ("sleep", "noon"):
+            candidates = ["不要午睡太久", "小憩 20 分钟即可", "午后易困，起身走", "开窗透透气"]
+        case ("sleep", "afternoon"):
+            candidates = ["💤 入睡 \(s.durationMinutes) 分", "今日睡眠健康", "枕边光线调暗", "晚安"]
+        case ("sleep", "evening"):
+            candidates = ["🌙 入睡中", "呼吸节律平稳", "祝你做个好梦", "放下手机"]
+        case ("sleep", "night"):
+            candidates = ["深睡中 · 状态平稳", "呼吸 13/分", "枕头该换了？", "夜深安静"]
+
+        default:
+            candidates = ["保持节奏", "状态平稳", "一切正常"]
+        }
+
+        return candidates[abs(seed) % candidates.count]
     }
 
     // MARK: - 时段色调（米色 → 暖黄/冷蓝）

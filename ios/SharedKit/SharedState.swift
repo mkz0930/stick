@@ -5,7 +5,7 @@ import SwiftUI
 import WidgetKit
 #endif
 
-/// 主 app ↔ Widget 共享状态。App Group: `group.com.stick.app`
+/// 主 app ↔ Widget 共享状态。App Group: `group.com.example.stick`
 struct SharedStickState: Codable, Equatable {
     /// 状态名（walk / sit / sleep），也用作 widget 路由
     var stateRaw: String
@@ -38,7 +38,7 @@ struct SharedStickState: Codable, Equatable {
 
 /// 读写 App Group UserDefaults 的薄封装
 enum SharedStateStore {
-    static let appGroupID = "group.com.stick.app"
+    static let appGroupID = "group.com.example.stick"
     private static let key = "stick.currentState.v1"
 
     static var defaults: UserDefaults? {
