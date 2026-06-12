@@ -11,6 +11,7 @@ import SwiftUI
 /// 拖动时间线时 `scrubOffset` 临时覆盖，UI 全程跟着更新。
 struct ContentView: View {
     @StateObject private var hk = HealthKitService.shared
+    @StateObject private var healthAuth = HealthAuthService.shared
     @State private var now: Date = Date()
     @State private var scrubOffset: Int? = nil   // 0 = 现在；>0 表示过去多少分钟（窗口起点 = now - 24h）
     @State private var showFilm: Bool = false
@@ -126,7 +127,8 @@ struct ContentView: View {
                     openSpecialists: $openSpecialists,
                     openDataRecord: $openDataRecord,
                     openWidgetPreview: $openWidgetPreview,
-                    deviceSet: $deviceSet
+                    deviceSet: $deviceSet,
+                    healthAuth: healthAuth
                 )
                 .frame(width: panelWidth)
                 .offset(x: showPersonal ? 0 : -panelWidth)
@@ -176,18 +178,19 @@ struct ContentView: View {
             MiniFilmShareSheet(isPresented: $showFilm)
                 .presentationBackground(Color.black)
         }
-        .sheet(isPresented: $showChat) {
-            ChatView(
-                state: displayState,
-                initialText: chatSeed,
-                onClose: { showChat = false }
-            )
-            .id(chatKey)
-            // 小底栏：默认 35% 高度贴底（≈ 300pt），可上滑全屏
-            // 键盘弹出时 iOS 自动让出键盘高度，把它顶到键盘上方
-            .presentationDetents([.fraction(0.35), .large])
-            .presentationDragIndicator(.visible)
+        // Chat 改成主页底栏 ZStack 叠加（不是 sheet）— 真正贴底
+        .overlay(alignment: .bottom) {
+            if showChat {
+                ChatOverlay(
+                    state: displayState,
+                    initialText: chatSeed,
+                    onClose: { showChat = false }
+                )
+                .id(chatKey)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(.easeInOut(duration: 0.28), value: showChat)
         .sheet(isPresented: $showSleepReport) {
             SleepReportView(onClose: { showSleepReport = false })
                 .presentationDetents([.large])
@@ -201,6 +204,8 @@ struct ContentView: View {
                 // 首屏立刻算一次 inference，让徽章副标有内容
                 inference = HealthKitService.shared.currentInference
             }
+            // 检查各 metric 真实授权状态 (有/无/拒绝)
+            healthAuth.refresh()
         }
     }
 
@@ -218,7 +223,7 @@ struct ContentView: View {
                         .padding(.bottom, 4)
 
                     // 三行数据：左上角，top bar 下方
-                    FeatureRow(state: displayState, deviceSet: deviceSet)
+                    FeatureRow(state: displayState, deviceSet: deviceSet, healthStatuses: healthAuth.statuses)
                         .padding(.horizontal, 20)
                         .padding(.bottom, 6)
 

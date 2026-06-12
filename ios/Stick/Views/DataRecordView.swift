@@ -140,6 +140,7 @@ struct DataRecordView: View {
     var onClose: () -> Void
     var deviceSet: Set<DeviceID> = []
     @StateObject private var vm = DataRecordViewModel()
+    @StateObject private var healthAuth = HealthAuthService.shared
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -222,24 +223,24 @@ struct DataRecordView: View {
             SummaryCard(
                 icon: "figure.walk", iconColor: Color(red: 0.30, green: 0.85, blue: 0.50),
                 label: "今日步数", value: "\(vm.totalSteps)", unit: "步",
-                metricID: .steps, deviceSet: deviceSet
+                metricID: .steps, deviceSet: deviceSet, healthStatuses: healthAuth.statuses
             )
             SummaryCard(
                 icon: "heart.fill", iconColor: Color(red: 0.92, green: 0.34, blue: 0.34),
                 label: "平均心率",
                 value: vm.avgHeartRate.map { "\($0)" } ?? "—",
                 unit: vm.avgHeartRate != nil ? "bpm" : "",
-                metricID: .heartRate, deviceSet: deviceSet
+                metricID: .heartRate, deviceSet: deviceSet, healthStatuses: healthAuth.statuses
             )
             SummaryCard(
                 icon: "flame.fill", iconColor: Color(red: 0.96, green: 0.62, blue: 0.10),
                 label: "活动能量", value: "\(vm.totalEnergy)", unit: "千卡",
-                metricID: .activeEnergy, deviceSet: deviceSet
+                metricID: .activeEnergy, deviceSet: deviceSet, healthStatuses: healthAuth.statuses
             )
             SummaryCard(
                 icon: "figure.seated.side", iconColor: Color(red: 0.55, green: 0.50, blue: 0.85),
                 label: "久坐累计", value: "\(vm.sedentaryMinutes)", unit: "分钟",
-                metricID: .standHours, deviceSet: deviceSet
+                metricID: .standHours, deviceSet: deviceSet, healthStatuses: healthAuth.statuses
             )
         }
     }
@@ -389,17 +390,16 @@ private struct SummaryCard: View {
     let unit: String
     let metricID: MetricID?
     let deviceSet: Set<DeviceID>
+    let healthStatuses: [MetricID: MetricDataStatus]
 
-    /// 该卡是否被当前设备锁住
-    private var isLocked: Bool {
-        guard let id = metricID else { return false }
-        return !DeviceCapabilities.unlocked(id, deviceSet: deviceSet)
+    /// 该 metric 在当前 UI 下的呈现
+    private var availability: MetricAvailability {
+        guard let id = metricID else { return .available }
+        let status = healthStatuses[id] ?? .unknown
+        return DeviceCapabilities.effective(id, status: status, deviceSet: deviceSet)
     }
 
-    /// 推荐解锁设备
-    private var unlockDevice: DeviceID? {
-        metricID?.required.first
-    }
+    private var isLocked: Bool { availability.kind == .locked }
 
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
@@ -428,8 +428,8 @@ private struct SummaryCard: View {
                     }
                 }
                 // 灰显时的解锁提示
-                if isLocked, let dev = unlockDevice {
-                    Text("需 \(dev.displayName)")
+                if isLocked {
+                    Text(availability.hint)
                         .font(.system(size: 9, weight: .medium, design: .monospaced))
                         .foregroundColor(Theme.mist)
                         .lineLimit(1)

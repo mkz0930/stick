@@ -380,28 +380,13 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
     // 疲惫装饰（浮 Z + 汗滴）— 强度随 tiredness 增长；放在 head 之后避免被遮挡
     // （稍后在函数内追加调用）
 
-    // 头（前倾 20°；tired 时再下俯 40° + 整体下沉靠向屏幕，像趴到显示器上）
-    let headTiltExtra: Double = isTired ? tiredness * 40.0 : 0
-    let headShiftY: CGFloat = isTired ? CGFloat(tiredness) * 22 : 0   // 头往下沉
-    let headShiftX: CGFloat = isTired ? CGFloat(tiredness) * 14 : 0   // 头略往屏幕方向靠
+    // 头/颈参数（声明提前，后面 right arm 之后再画头，让头画在手臂之上）
+    let headTiltExtra: Double = isTired ? tiredness * 55.0 : 0
+    let headShiftY: CGFloat = isTired ? CGFloat(tiredness) * 95 : 0   // 头往下沉 95px（peak 时贴到手臂 y=170-200 区）
+    let headShiftX: CGFloat = isTired ? CGFloat(tiredness) * 35 : 0   // 头往屏幕方向靠 35px
     let headCenter = CGPoint(x: 108, y: 75)
     let head = CGRect(x: headCenter.x - 24, y: headCenter.y - 30, width: 48, height: 60)
-    let saved = ctx.transform
     let tiltAngle = Angle.degrees(20 + headTiltExtra).radians
-    ctx.transform = saved
-        .translatedBy(x: headShiftX, y: headShiftY)
-        .translatedBy(x: headCenter.x, y: headCenter.y)
-        .rotated(by: tiltAngle)
-        .translatedBy(x: -headCenter.x, y: -headCenter.y)
-    drawEllipse(ctx: &ctx, rect: head, fill: fill, stroke: stroke, width: w, alpha: lineAlpha)
-    ctx.transform = saved
-
-    // 颈椎：从 shoulder 接到 head 实际底部（随 tiredness 跟随头位）
-    // 头底在本地坐标 (0, 30) 相对中心；旋转 + 平移后映射到屏幕
-    let neckHeadX = headCenter.x + 30 * CGFloat(sin(tiltAngle)) + headShiftX
-    let neckHeadY = headCenter.y + 30 * CGFloat(cos(tiltAngle)) + headShiftY
-    strokeCurve(ctx: &ctx, from: CGPoint(x: neckHeadX, y: neckHeadY), to: CGPoint(x: 100, y: 128),
-                control: CGPoint(x: 100, y: 118), color: stroke, width: w + 0.4, alpha: lineAlpha)
 
     // 肩
     drawDot(ctx: &ctx, at: CGPoint(x: 100, y: 130), r: 4, color: joint, filled: true, alpha: jointAlpha)
@@ -469,7 +454,22 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
     ctx.stroke(foot, with: .color(stroke.opacity(lineAlpha)), style: StrokeStyle(lineWidth: 1.8, lineJoin: .round))
     ctx.fill(foot, with: .color(fill.opacity(lineAlpha)))
 
-    // 疲惫装饰（Z + 汗滴）— tiredness 越大越明显
+    // 头 + 颈椎（放在 right arm 之后，让 tired 时的头画在手臂之上，z-order 正确）
+    let saved = ctx.transform
+    ctx.transform = saved
+        .translatedBy(x: headShiftX, y: headShiftY)
+        .translatedBy(x: headCenter.x, y: headCenter.y)
+        .rotated(by: tiltAngle)
+        .translatedBy(x: -headCenter.x, y: -headCenter.y)
+    drawEllipse(ctx: &ctx, rect: head, fill: fill, stroke: stroke, width: w, alpha: lineAlpha)
+    ctx.transform = saved
+    // 颈椎：从 shoulder 接到 head 实际底部（随 tiredness 跟随头位）
+    let neckHeadX = headCenter.x + 30 * CGFloat(sin(tiltAngle)) + headShiftX
+    let neckHeadY = headCenter.y + 30 * CGFloat(cos(tiltAngle)) + headShiftY
+    strokeCurve(ctx: &ctx, from: CGPoint(x: neckHeadX, y: neckHeadY), to: CGPoint(x: 100, y: 128),
+                control: CGPoint(x: 100, y: 118), color: stroke, width: w + 0.4, alpha: lineAlpha)
+
+    // 疲惫装饰（Z + 汗滴）— tiredness 越大越明显；画在头之上
     if isTired {
         drawTiredZ(ctx: &ctx, color: joint, t: t, level: tiredness)
         drawTiredSweat(ctx: &ctx, color: joint, t: t, level: tiredness)

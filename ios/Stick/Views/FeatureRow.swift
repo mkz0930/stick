@@ -9,12 +9,13 @@ import SwiftUI
 struct FeatureRow: View {
     let state: StickState
     let deviceSet: Set<DeviceID>
+    let healthStatuses: [MetricID: MetricDataStatus]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            FeatureLine(metric: state.primaryMetric,   accent: state.accent, deviceSet: deviceSet)
-            FeatureLine(metric: state.secondaryMetric, accent: state.accent, deviceSet: deviceSet)
-            FeatureLine(metric: state.tertiaryMetric,  accent: state.accent, deviceSet: deviceSet)
+            FeatureLine(metric: state.primaryMetric,   accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses)
+            FeatureLine(metric: state.secondaryMetric, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses)
+            FeatureLine(metric: state.tertiaryMetric,  accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -24,21 +25,21 @@ private struct FeatureLine: View {
     let metric: Metric
     let accent: Color
     let deviceSet: Set<DeviceID>
+    let healthStatuses: [MetricID: MetricDataStatus]
 
     @State private var showLockHint: Bool = false
 
     private var isHeartRate: Bool { metric.label == "HEART RATE" }
 
-    /// 是否被当前设备锁住
-    private var isLocked: Bool {
-        guard let id = metric.metricID else { return false }
-        return !DeviceCapabilities.unlocked(id, deviceSet: deviceSet)
+    /// 该 metric 在当前 UI 下的呈现状态
+    private var availability: MetricAvailability {
+        guard let id = metric.metricID else { return .available }
+        let status = healthStatuses[id] ?? .unknown
+        return DeviceCapabilities.effective(id, status: status, deviceSet: deviceSet)
     }
 
-    /// 推荐解锁设备 (从 required 集合里挑一个)
-    private var unlockDevice: DeviceID? {
-        metric.metricID?.required.first
-    }
+    private var isLocked: Bool { availability.kind == .locked }
+    private var isEmpty: Bool { availability.kind == .availableEmpty }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -73,12 +74,12 @@ private struct FeatureLine: View {
             } else {
                 Text(metric.value)
                     .font(.system(size: 13, weight: .heavy, design: .rounded))
-                    .foregroundColor(Theme.navy)
+                    .foregroundColor(isEmpty ? Theme.mist : Theme.navy)
                     .lineLimit(1)
             }
 
-            // 副标
-            Text(isLocked ? (unlockDevice.map { "需 \($0.displayName)" } ?? "设备不支持") : metric.desc)
+            // 副标 (灰显时用 availability.hint; 正常时用 metric.desc)
+            Text(isLocked ? availability.hint : metric.desc)
                 .font(.system(size: 10, weight: .medium, design: .serif))
                 .foregroundColor(Theme.mist)
                 .lineLimit(1)
@@ -89,7 +90,7 @@ private struct FeatureLine: View {
             if isLocked { showLockHint = true }
         }
         .popover(isPresented: $showLockHint, arrowEdge: .top) {
-            LockHintPopover(metric: metric, unlockDevice: unlockDevice)
+            LockHintPopover(metric: metric, availability: availability)
                 .presentationCompactAdaptation(.popover)
         }
     }
@@ -99,7 +100,7 @@ private struct FeatureLine: View {
 
 private struct LockHintPopover: View {
     let metric: Metric
-    let unlockDevice: DeviceID?
+    let availability: MetricAvailability
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -112,19 +113,15 @@ private struct LockHintPopover: View {
                     .tracking(0.5)
                     .foregroundColor(Theme.navy)
             }
-            Text("当前设备无法呈现此数据")
-                .font(.system(size: 11))
-                .foregroundColor(Theme.slate)
-            if let dev = unlockDevice {
-                HStack(spacing: 5) {
-                    Image(systemName: dev.icon)
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(dev.color)
-                    Text("连接 \(dev.displayName) 解锁")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(Theme.navy)
-                }
-                .padding(.top, 2)
+            if let hint = availability.unlockHint {
+                Text(hint)
+                    .font(.system(size: 11))
+                    .foregroundColor(Theme.slate)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("当前设备无法呈现此数据")
+                    .font(.system(size: 11))
+                    .foregroundColor(Theme.slate)
             }
         }
         .padding(12)

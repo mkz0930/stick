@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import HealthKit
 
 // MARK: - 设备枚举
 
@@ -44,6 +45,11 @@ enum DeviceID: String, CaseIterable, Hashable, Identifiable {
     /// 哪些 metric 在缺这个设备时会被锁住 (用于"推荐解锁"提示)
     var enables: Set<MetricID> {
         MetricID.allCases.filter { $0.required.contains(self) }.reduce(into: Set<MetricID>()) { $0.insert($1) }
+    }
+
+    /// 这个设备能提供的 metric 列表 (用于设备行下方小字)
+    var capabilities: [MetricID] {
+        MetricID.allCases.filter { $0.required.contains(self) }
     }
 }
 
@@ -199,6 +205,52 @@ enum MetricID: String, CaseIterable, Hashable, Identifiable {
         case .stride:           return "步频 · 步态"
         }
     }
+
+    /// 数据源类型 — 决定点亮/灰的逻辑
+    var dataSource: MetricDataSource {
+        switch self {
+        case .steps, .distance, .flightsClimbed, .activeEnergy,
+             .standHours, .exerciseMinutes, .mindfulMinutes:
+            return .iPhoneNative
+        case .sleepStage:
+            return .iPhoneManual
+        case .heartRate, .restingHeartRate, .hrv, .bloodOxygen,
+             .respiratoryRate, .sleepApnea:
+            return .watchRequired
+        case .posture:
+            return .peripheralRequired
+        case .stride:
+            return .peripheralRequired
+        }
+    }
+
+    /// 对应的 HealthKit type (用于真实 query 授权状态)
+    var hkType: HKObjectType? {
+        switch self {
+        case .steps:            return HKObjectType.quantityType(forIdentifier: .stepCount)
+        case .distance:         return HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)
+        case .flightsClimbed:   return HKObjectType.quantityType(forIdentifier: .flightsClimbed)
+        case .activeEnergy:     return HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)
+        case .standHours:       return HKObjectType.quantityType(forIdentifier: .appleStandTime)
+        case .exerciseMinutes:  return HKObjectType.quantityType(forIdentifier: .appleExerciseTime)
+        case .mindfulMinutes:   return HKObjectType.categoryType(forIdentifier: .mindfulSession)
+        case .heartRate:        return HKObjectType.quantityType(forIdentifier: .heartRate)
+        case .restingHeartRate: return HKObjectType.quantityType(forIdentifier: .restingHeartRate)
+        case .hrv:              return HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)
+        case .respiratoryRate:  return HKObjectType.quantityType(forIdentifier: .respiratoryRate)
+        case .sleepStage:       return HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
+        case .bloodOxygen, .sleepApnea, .posture, .stride:
+            return nil   // iPhone 内置 HealthKit 不支持
+        }
+    }
+}
+
+/// 数据源类型
+enum MetricDataSource: String, CaseIterable {
+    case iPhoneNative        // iPhone 自身传感器直接出数
+    case iPhoneManual        // iPhone 上只能手动 (睡眠 / 正念)
+    case watchRequired       // 需要 Apple Watch 才有真实数据
+    case peripheralRequired  // 需要智能护腰/鞋/...
 }
 
 enum MetricCategory: String, CaseIterable, Hashable, Identifiable {
@@ -273,6 +325,94 @@ enum DeviceCapabilities {
         case .smartShoe:  return "智能运动鞋"
         case .airpods:    return "AirPods"
         case .iPhone:     return "iPhone"
+        }
+    }
+}
+
+// MARK: - 数据真实状态 (HealthKit query 结果)
+
+/// 一次 query 的结果
+enum MetricDataStatus: Equatable {
+    /// iPhone 没硬件 (永远拿不到 — e.g. 心率/HRV/SpO₂)
+    case notSupported
+    /// 用户拒绝授权 HealthKit 读权限
+    case notAuthorized
+    /// 已授权 + 过去 7d 有数据
+    case hasData
+    /// 已授权 + 过去 7d 没数据
+    case noData
+    /// 还没查完
+    case unknown
+}
+
+/// 该 metric 在当前 UI 中如何呈现
+struct MetricAvailability: Equatable {
+    enum Kind: Equatable { case available, availableEmpty, locked }
+    let kind: Kind
+    /// 灰显时显示的副标 (短)
+    let hint: String
+    /// 解锁建议 (点开后弹)
+    let unlockHint: String?
+
+    static let available = MetricAvailability(kind: .available, hint: "", unlockHint: nil)
+    static let availableEmpty = MetricAvailability(kind: .availableEmpty, hint: "", unlockHint: nil)
+
+    static func == (lhs: MetricAvailability, rhs: MetricAvailability) -> Bool {
+        lhs.kind == rhs.kind && lhs.hint == rhs.hint && lhs.unlockHint == rhs.unlockHint
+    }
+}
+
+extension DeviceCapabilities {
+
+    /// 把"数据真实状态 + 当前模拟连接"组合 → UI 呈现
+    static func effective(
+        _ metric: MetricID,
+        status: MetricDataStatus,
+        deviceSet: Set<DeviceID>
+    ) -> MetricAvailability {
+        switch metric.dataSource {
+        case .iPhoneNative, .iPhoneManual:
+            // iPhone 能拿 — 看真实 query 结果
+            switch status {
+            case .notAuthorized:
+                return MetricAvailability(
+                    kind: .locked,
+                    hint: "未授权",
+                    unlockHint: "去 设置 → 健康 → 数据访问与设备 → Stick 授权"
+                )
+            case .notSupported:
+                return MetricAvailability(
+                    kind: .locked,
+                    hint: "硬件不支持",
+                    unlockHint: nil
+                )
+            case .hasData:
+                return .available
+            case .noData, .unknown:
+                return .availableEmpty
+            }
+
+        case .watchRequired:
+            // 真实硬件不支持，但 deviceSet 模拟可解锁
+            if deviceSet.contains(.appleWatch) {
+                return .available
+            }
+            return MetricAvailability(
+                kind: .locked,
+                hint: "需 Apple Watch",
+                unlockHint: "连接 Apple Watch 后可呈现心率 / 静息 / HRV / 血氧 / 呼吸"
+            )
+
+        case .peripheralRequired:
+            if let dev = metric.required.first, deviceSet.contains(dev) {
+                return .available
+            }
+            let devName = metric.required.first?.displayName ?? "外设"
+            return MetricAvailability(
+                kind: .locked,
+                hint: "需 \(devName)",
+                unlockHint: "连接 \(devName) 后可呈现"
+            )
         }
     }
 }
