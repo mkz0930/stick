@@ -493,9 +493,8 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
 
     ctx.transform = saved
 
-    // 疲惫装饰（Z + 汗滴 + 💢 烦躁爆点）— tiredness 越大越明显；画在头之上
+    // 疲惫装饰（汗滴 + 💢 烦躁爆点）— 下午工作时不再显示打呼的 Z
     if isTired {
-        drawTiredZ(ctx: &ctx, color: joint, t: t, level: tiredness)
         drawTiredSweat(ctx: &ctx, color: joint, t: t, level: tiredness)
         // 💢 跟着头走：tired 时头会下沉右移（shift 35,95），💢 同步到头左上角
         let headCenterScreenX = headCenter.x + headShiftX
@@ -825,41 +824,10 @@ private func drawCalmDots(ctx: inout GraphicsContext, color: Color, t: Double) {
     }
 }
 
-// MARK: - 疲惫装饰：浮 Z（下午 sit，强度 0..1）
+// MARK: - 疲惫装饰：浮 Z（已移除 — 下午工作不再打呼的 Z）
 
-/// 借鉴 sleep 的 Z 飘动，但 alpha 和 size 按 level 缩放；最多 3 个错相。
-/// level = 0 → 完全不可见；level = 1 → 与 sleep 状态相当。
-private func drawTiredZ(ctx: inout GraphicsContext, color: Color, t: Double, level: Double) {
-    guard level > 0.05 else { return }
-    let zPeriod = 2.6
-    let zCount = 3
-    let baseSizes: [CGFloat] = [15, 20, 26]
-    let levelC = CGFloat(level)
-    for i in 0..<zCount {
-        let localT = t - Double(i) * 1.0
-        let raw = localT.truncatingRemainder(dividingBy: zPeriod * 2) / zPeriod
-        let p = max(0, min(1, raw))
-        if p < 0.05 || p > 0.95 { continue }
-        let alpha: CGFloat
-        if p < 0.15 { alpha = p / 0.15 * 0.85 * levelC }
-        else if p > 0.75 { alpha = (1 - p) / 0.25 * 0.85 * levelC }
-        else { alpha = 0.85 * levelC }
-        let scale = 0.55 + p * 0.55
-        let wobble = CGFloat(sin(t * 2.0 + Double(i) * 1.3) * 4) * p
-        // 起点：头右上方 (185, 75)；终点：(205, 20)
-        let xPos: CGFloat = 185 + (205 - 185) * p + wobble
-        let yPos: CGFloat = 75 + (20 - 75) * p
-        let size = baseSizes[i] * scale
-        let zPoint = CGPoint(x: xPos, y: yPos)
-        let saved = ctx.transform
-        ctx.transform = saved
-            .translatedBy(x: zPoint.x, y: zPoint.y)
-            .scaledBy(x: scale, y: scale)
-            .translatedBy(x: -zPoint.x, y: -zPoint.y)
-        drawZ(ctx: &ctx, at: zPoint, size: size, color: color.opacity(alpha))
-        ctx.transform = saved
-    }
-}
+// drawTiredZ 已删除：下午 tired-sit 不再显示打呼 Z 动效。
+// 保留 drawZ 是因为 drawSleep 还在用。
 
 // MARK: - 疲惫装饰：汗滴（下午 sit，强度 0..1）
 
