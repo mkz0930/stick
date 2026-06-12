@@ -30,19 +30,19 @@ struct ChatOverlay: View {
             DashedDivider()
             inputBar
         }
-        .padding(.bottom, 8)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            // 只圆顶部两角，底部贴边
+            UnevenRoundedRectangle(cornerRadii: .init(topLeading: 14, topTrailing: 14), style: .continuous)
                 .fill(Theme.card)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            UnevenRoundedRectangle(cornerRadii: .init(topLeading: 14, topTrailing: 14), style: .continuous)
                 .stroke(Theme.border, lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.10), radius: 10, y: -2)
-        .padding(.horizontal, 12)
-        .padding(.bottom, 8)  // 离屏幕底边 8pt
-        .frame(maxHeight: 320)  // 限制最大高度
+        .padding(.horizontal, 12)         // 水平留白
+        .padding(.top, 8)                  // 顶部留白（让 card 浮起来）
+        .frame(maxHeight: 320)             // 限制最大高度
         .onAppear {
             input = initialText
             if !initialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

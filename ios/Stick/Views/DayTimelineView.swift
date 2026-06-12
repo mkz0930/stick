@@ -14,6 +14,7 @@ struct DayTimelineView: View {
 
     @State private var hasInteracted: Bool = false   // 用户拖动后永久隐藏 hint
     @State private var pulse: Double = 0             // 0..1 循环，驱动 active 段脉冲
+    @State private var autoResetWorkItem: DispatchWorkItem? = nil  // 10s 无操作自动回 now
 
     private let dayMinutes: CGFloat = 1440
     private let trackHeight: CGFloat = 14
@@ -72,6 +73,14 @@ struct DayTimelineView: View {
             // 0..1 循环驱动 active 段的呼吸
             withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
                 pulse = 1
+            }
+        }
+        .onChange(of: scrubOffset) { newValue in
+            // 外部 (例如 "连接设备" 按钮) 把 scrubOffset 改回 nil/0 时，
+            // 取消还没触发的 10s 自动回 now 任务
+            if (newValue ?? 0) == 0 {
+                autoResetWorkItem?.cancel()
+                autoResetWorkItem = nil
             }
         }
         .sheet(isPresented: $showDevicePicker) {
@@ -165,6 +174,10 @@ struct DayTimelineView: View {
                         if !hasInteracted && scrubOffset != nil {
                             hasInteracted = true
                         }
+                        scheduleAutoReset()
+                    }
+                    .onEnded { _ in
+                        scheduleAutoReset()
                     }
             )
         }
@@ -247,6 +260,22 @@ struct DayTimelineView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    // MARK: - 自动回 now
+
+    /// 10s 内没有拖动 → scrubOffset 归零 (时间轴滑回最新)
+    private func scheduleAutoReset() {
+        autoResetWorkItem?.cancel()
+        guard isScrubbing else { return }
+        let item = DispatchWorkItem {
+            withAnimation(.easeInOut(duration: 0.45)) {
+                scrubOffset = nil
+            }
+            autoResetWorkItem = nil
+        }
+        autoResetWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10, execute: item)
     }
 
     // MARK: - 组件

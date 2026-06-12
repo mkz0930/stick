@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 /// 首页：火柴人主舞台。视觉参考 ATLAS v6-dashboard-sleeping：
 ///  - 顶栏（品牌 mark + 名称 + session + LIVE）
@@ -83,6 +86,14 @@ struct ContentView: View {
     /// 疲惫强度（仅 .tired 用，0..1）。
     private var figureTiredness: Double {
         isAfternoonTired ? afternoonTiredness : 0
+    }
+
+    /// 颈椎压力过大提醒的可见度（0..1）。弯角 > 98° 开始出现，> 130° 完全显示。
+    private var neckWarningOpacity: Double {
+        let t = figureTiredness
+        if t <= 0.6 { return 0 }
+        if t >= 0.8 { return 1 }
+        return (t - 0.6) / 0.2
     }
 
     // MARK: - 给 Widget 用的派生值
@@ -235,6 +246,7 @@ struct ContentView: View {
                         state: displayState,
                         mood: figureMood,
                         tiredness: figureTiredness,
+                        neckWarningOpacity: neckWarningOpacity,
                         isScrubbing: isScrubbing,
                         inference: inference,
                         showDevicePicker: $showDevicePicker,
@@ -335,6 +347,7 @@ private struct StageHeroView: View {
     let state: StickState
     let mood: StickFigureMood
     let tiredness: Double
+    let neckWarningOpacity: Double
     let isScrubbing: Bool
     let inference: StateInference.Result?
     @Binding var showDevicePicker: Bool
@@ -369,6 +382,34 @@ private struct StageHeroView: View {
                         .padding(.bottom, 8)
                         .id(state)
                         .transition(.opacity)
+                }
+
+                // 颈椎压力过大提醒（左上角；tiredness > 0.6 开始淡入）
+                if neckWarningOpacity > 0.01 {
+                    VStack {
+                        HStack {
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 10, weight: .heavy))
+                                Text("颈椎压力过大")
+                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                    .tracking(0.4)
+                            }
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule().fill(Color(red: 0.92, green: 0.34, blue: 0.05).opacity(0.92))
+                            )
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.15), radius: 3, x: 0, y: 1)
+                            Spacer()
+                        }
+                        Spacer()
+                    }
+                    .padding(12)
+                    .opacity(neckWarningOpacity)
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.35), value: neckWarningOpacity)
                 }
 
                 // 状态名（画布右上）— 点击弹出 10s 短片预览
