@@ -59,12 +59,12 @@ struct StickWidgetView: View {
                     Text(s.englishName)
                         .font(.system(size: 9, weight: .heavy, design: .monospaced))
                         .tracking(1.5)
-                        .foregroundColor(Theme.navy)
+                        .foregroundColor(Color(red: 0.10, green: 0.15, blue: 0.25))
                     Spacer(minLength: 0)
                     Text(greeting(t: tl.date))
                         .font(.system(size: 9, weight: .regular, design: .monospaced))
                         .tracking(0.5)
-                        .foregroundColor(Theme.slate)
+                        .foregroundColor(Color(red: 0.42, green: 0.45, blue: 0.52))
                         .lineLimit(1)
                 }
 
@@ -83,7 +83,7 @@ struct StickWidgetView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 3) {
                     Text(s.actionPhrase)
                         .font(.system(size: 13, weight: .black, design: .serif))
-                        .foregroundColor(Theme.navy)
+                        .foregroundColor(Color(red: 0.10, green: 0.15, blue: 0.25))
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                 }
@@ -94,13 +94,13 @@ struct StickWidgetView: View {
                         .frame(width: 11, height: 11)
                     Text("\(s.heartRate)")
                         .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        .foregroundColor(Theme.navy)
+                        .foregroundColor(Color(red: 0.10, green: 0.15, blue: 0.25))
                     Text("·")
                         .font(.system(size: 10, weight: .heavy))
-                        .foregroundColor(Theme.mist)
+                        .foregroundColor(Color(red: 0.62, green: 0.65, blue: 0.72))
                     Text(s.mood)
                         .font(.system(size: 10, weight: .medium, design: .serif))
-                        .foregroundColor(Theme.slate)
+                        .foregroundColor(Color(red: 0.42, green: 0.45, blue: 0.52))
                         .lineLimit(1)
                     Spacer(minLength: 0)
                 }
@@ -282,7 +282,8 @@ struct AnimatedMiniFigure: View {
 
     var body: some View {
         Canvas { ctx, size in
-            let stroke = Theme.navy
+            // widget 内部 Theme.navy 在 runtime 解析为透明 — 用 hardcode navy
+            let stroke = Color(red: 0.10, green: 0.15, blue: 0.25)
             let w: CGFloat = 1.6
             let midX = size.width / 2
 

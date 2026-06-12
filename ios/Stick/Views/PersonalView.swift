@@ -44,51 +44,52 @@ struct PersonalView: View {
         ZStack(alignment: .topLeading) {
             Theme.bgTop.ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 0) {
-                topUserBar
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    topUserBar
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
 
-                devicesSection
-                    .padding(.horizontal, 20)
-                    .padding(.top, 24)
+                    devicesSection
+                        .padding(.horizontal, 20)
+                        .padding(.top, 24)
 
-                // 数据能力矩阵 (新增)
-                capabilitySection
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
+                    // 数据能力矩阵 (新增)
+                    capabilitySection
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
 
-                VStack(spacing: 0) {
-                    ForEach(menus) { item in
-                        Button {
-                            switch item.title {
-                            case "专科专家":
-                                withAnimation(.easeInOut(duration: 0.25)) { showSpecialists = true }
-                            case "数据记录":
-                                withAnimation(.easeInOut(duration: 0.25)) { showDataRecord = true }
-                            case "Widget 预览":
-                                withAnimation(.easeInOut(duration: 0.25)) { showWidgetPreview = true }
-                            default: break
+                    VStack(spacing: 0) {
+                        ForEach(menus) { item in
+                            Button {
+                                switch item.title {
+                                case "专科专家":
+                                    withAnimation(.easeInOut(duration: 0.25)) { showSpecialists = true }
+                                case "数据记录":
+                                    withAnimation(.easeInOut(duration: 0.25)) { showDataRecord = true }
+                                case "Widget 预览":
+                                    withAnimation(.easeInOut(duration: 0.25)) { showWidgetPreview = true }
+                                default: break
+                                }
+                            } label: {
+                                MenuRow(item: item)
                             }
-                        } label: {
-                            MenuRow(item: item)
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
-                }
-                .padding(.top, 24)
-
-                Rectangle()
-                    .fill(Theme.borderSoft)
-                    .frame(height: 0.5)
-                    .padding(.horizontal, 20)
                     .padding(.top, 24)
 
-                taskSection
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
+                    Rectangle()
+                        .fill(Theme.borderSoft)
+                        .frame(height: 0.5)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 24)
 
-                Spacer()
+                    taskSection
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
+                        .padding(.bottom, 32)
+                }
             }
         }
         .sheet(isPresented: $showSpecialists) {
@@ -115,6 +116,12 @@ struct PersonalView: View {
         .onChange(of: openWidgetPreview) { _, newValue in
             if newValue { showWidgetPreview = true; openWidgetPreview = false }
         }
+        .task {
+            #if DEBUG
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            showWidgetPreview = true
+            #endif
+        }
     }
 
     // MARK: - 顶部用户栏
@@ -125,7 +132,7 @@ struct PersonalView: View {
                 Circle()
                     .fill(Theme.card)
                     .overlay(Circle().stroke(Theme.borderSoft, lineWidth: 1))
-                Text("马")
+                Text("X")
                     .font(.system(size: 22, weight: .semibold, design: .rounded))
                     .foregroundColor(StickState.walk.accent)
             }

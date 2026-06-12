@@ -242,8 +242,9 @@ struct MiniFigure: View {
     var body: some View {
         Canvas { ctx, size in
             let midX = size.width / 2
-            let stroke = Color.white.opacity(0.9)
-            let w: CGFloat = 2
+            // preview (米色 sheet) 和主屏 widget 都能看清: 用 navy 描边
+            let stroke = Color(red: 0.10, green: 0.15, blue: 0.25)
+            let w: CGFloat = 1.8
             let headR: CGFloat = min(size.width, size.height) * 0.12
             let headY = size.height * 0.25
             ctx.stroke(Path(ellipseIn: CGRect(x: midX - headR, y: headY - headR, width: headR * 2, height: headR * 2)),

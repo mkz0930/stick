@@ -15,7 +15,7 @@ struct ContentView: View {
     @State private var scrubOffset: Int? = nil   // 0 = 现在；>0 表示过去多少分钟（窗口起点 = now - 24h）
     @State private var showFilm: Bool = false
     @State private var showSleepReport: Bool = false
-    @State private var showPersonal: Bool = false
+    @State private var showPersonal: Bool = true
     @State private var openSpecialists: Bool = false
     @State private var openDataRecord: Bool = false
     @State private var openWidgetPreview: Bool = false
@@ -99,8 +99,10 @@ struct ContentView: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
-            let panelWidth = geo.size.width * 0.78
+        ZStack {
+            Color.red  // DEBUG
+            GeometryReader { geo in
+                let panelWidth = geo.size.width * 0.78
 
             ZStack(alignment: .leading) {
                 // 1. 首页 (永远在底层, 面板打开时露在右侧 22%)
@@ -121,6 +123,9 @@ struct ContentView: View {
                 }
 
                 // 3. 左侧滑出的个人面板 (78% 宽)
+                Color.green  // DEBUG: 应该看到 78% 宽的绿条
+                    .frame(width: panelWidth)
+                    .offset(x: showPersonal ? 0 : -panelWidth)
                 PersonalView(
                     onClose: { withAnimation(.easeInOut(duration: 0.32)) { showPersonal = false } },
                     openSpecialists: $openSpecialists,
@@ -143,6 +148,7 @@ struct ContentView: View {
                         }
                     }
             )
+            }
         }
         .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
             // 30s 校准一次实际时间
@@ -176,6 +182,17 @@ struct ContentView: View {
             MiniFilmShareSheet(isPresented: $showFilm)
                 .presentationBackground(Color.black)
         }
+        .sheet(isPresented: $showChat) {
+            ChatView(
+                state: displayState,
+                initialText: chatSeed,
+                onClose: { showChat = false }
+            )
+            .id(chatKey)
+            // 比例底栏：默认 55% 高度，主界面看得到；可上滑至全屏
+            .presentationDetents([.fraction(0.55), .large])
+            .presentationDragIndicator(.visible)
+        }
         .sheet(isPresented: $showSleepReport) {
             SleepReportView(onClose: { showSleepReport = false })
                 .presentationDetents([.large])
@@ -189,6 +206,14 @@ struct ContentView: View {
                 // 首屏立刻算一次 inference，让徽章副标有内容
                 inference = HealthKitService.shared.currentInference
             }
+            #if DEBUG
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                showPersonal = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                openWidgetPreview = true
+            }
+            #endif
         }
     }
 

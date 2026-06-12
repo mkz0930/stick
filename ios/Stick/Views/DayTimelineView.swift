@@ -76,8 +76,9 @@ struct DayTimelineView: View {
         }
         .sheet(isPresented: $showDevicePicker) {
             DevicePickerSheet()
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.height(420), .medium, .large])
                 .presentationDragIndicator(.visible)
+                .presentationBackgroundInteraction(.disabled)
         }
     }
 
