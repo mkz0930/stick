@@ -223,14 +223,18 @@ struct DayTimelineView: View {
             }
             Spacer()
             Button {
+                // 回到现在的同时弹设备连接
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.72)) {
                     scrubOffset = nil
                 }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    showDevicePicker = true
+                }
             } label: {
                 HStack(spacing: 4) {
-                    Image(systemName: "arrow.uturn.right")
-                        .font(.system(size: 10, weight: .bold))
-                    Text("回到现在")
+                    Image(systemName: "iphone.badge.plus")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("连接设备")
                         .font(.system(size: 12, weight: .semibold))
                 }
                 .foregroundColor(Theme.darkText)

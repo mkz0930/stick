@@ -99,10 +99,8 @@ struct ContentView: View {
     }
 
     var body: some View {
-        ZStack {
-            Color.red  // DEBUG
-            GeometryReader { geo in
-                let panelWidth = geo.size.width * 0.78
+        GeometryReader { geo in
+            let panelWidth = geo.size.width * 0.78
 
             ZStack(alignment: .leading) {
                 // 1. 首页 (永远在底层, 面板打开时露在右侧 22%)
@@ -123,9 +121,6 @@ struct ContentView: View {
                 }
 
                 // 3. 左侧滑出的个人面板 (78% 宽)
-                Color.green  // DEBUG: 应该看到 78% 宽的绿条
-                    .frame(width: panelWidth)
-                    .offset(x: showPersonal ? 0 : -panelWidth)
                 PersonalView(
                     onClose: { withAnimation(.easeInOut(duration: 0.32)) { showPersonal = false } },
                     openSpecialists: $openSpecialists,
@@ -148,7 +143,6 @@ struct ContentView: View {
                         }
                     }
             )
-            }
         }
         .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
             // 30s 校准一次实际时间
@@ -189,8 +183,9 @@ struct ContentView: View {
                 onClose: { showChat = false }
             )
             .id(chatKey)
-            // 比例底栏：默认 55% 高度，主界面看得到；可上滑至全屏
-            .presentationDetents([.fraction(0.55), .large])
+            // 小底栏：默认 35% 高度贴底（≈ 300pt），可上滑全屏
+            // 键盘弹出时 iOS 自动让出键盘高度，把它顶到键盘上方
+            .presentationDetents([.fraction(0.35), .large])
             .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showSleepReport) {
@@ -206,14 +201,9 @@ struct ContentView: View {
                 // 首屏立刻算一次 inference，让徽章副标有内容
                 inference = HealthKitService.shared.currentInference
             }
-            #if DEBUG
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                showPersonal = true
+                showPersonal = false
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                openWidgetPreview = true
-            }
-            #endif
         }
     }
 

@@ -380,20 +380,27 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
     // 疲惫装饰（浮 Z + 汗滴）— 强度随 tiredness 增长；放在 head 之后避免被遮挡
     // （稍后在函数内追加调用）
 
-    // 头（前倾 20°；tired 时再下俯 6°，更"瘫"）
-    let headTiltExtra: Double = isTired ? tiredness * 6.0 : 0
+    // 头（前倾 20°；tired 时再下俯 40° + 整体下沉靠向屏幕，像趴到显示器上）
+    let headTiltExtra: Double = isTired ? tiredness * 40.0 : 0
+    let headShiftY: CGFloat = isTired ? CGFloat(tiredness) * 22 : 0   // 头往下沉
+    let headShiftX: CGFloat = isTired ? CGFloat(tiredness) * 14 : 0   // 头略往屏幕方向靠
     let headCenter = CGPoint(x: 108, y: 75)
     let head = CGRect(x: headCenter.x - 24, y: headCenter.y - 30, width: 48, height: 60)
     let saved = ctx.transform
+    let tiltAngle = Angle.degrees(20 + headTiltExtra).radians
     ctx.transform = saved
+        .translatedBy(x: headShiftX, y: headShiftY)
         .translatedBy(x: headCenter.x, y: headCenter.y)
-        .rotated(by: Angle.degrees(20 + headTiltExtra).radians)
+        .rotated(by: tiltAngle)
         .translatedBy(x: -headCenter.x, y: -headCenter.y)
     drawEllipse(ctx: &ctx, rect: head, fill: fill, stroke: stroke, width: w, alpha: lineAlpha)
     ctx.transform = saved
 
-    // 颈椎（明显前倾）
-    strokeCurve(ctx: &ctx, from: CGPoint(x: 105, y: 105), to: CGPoint(x: 100, y: 128),
+    // 颈椎：从 shoulder 接到 head 实际底部（随 tiredness 跟随头位）
+    // 头底在本地坐标 (0, 30) 相对中心；旋转 + 平移后映射到屏幕
+    let neckHeadX = headCenter.x + 30 * CGFloat(sin(tiltAngle)) + headShiftX
+    let neckHeadY = headCenter.y + 30 * CGFloat(cos(tiltAngle)) + headShiftY
+    strokeCurve(ctx: &ctx, from: CGPoint(x: neckHeadX, y: neckHeadY), to: CGPoint(x: 100, y: 128),
                 control: CGPoint(x: 100, y: 118), color: stroke, width: w + 0.4, alpha: lineAlpha)
 
     // 肩
@@ -417,8 +424,9 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
     let rHand  = CGPoint(x: 175, y: 200)
     strokeLine(ctx: &ctx, from: shoulder, to: rElbow, color: stroke, width: w, alpha: lineAlpha)
     drawDot(ctx: &ctx, at: rElbow, r: 3, color: joint, filled: true, alpha: jointAlpha)
-    // 敲击节奏：~3 Hz 主拍 + 快速抖动叠加
-    let tapPhase = t * 8.0
+    // 敲击节奏：~3 Hz 主拍 + 快速抖动叠加；tired 时变慢（peak 时 ~40% 速度）
+    let tapSpeed: Double = isTired ? 8.0 * (1.0 - tiredness * 0.6) : 8.0
+    let tapPhase = t * tapSpeed
     let tapBump: CGFloat = CGFloat(max(0, sin(tapPhase)) * pow(sin(tapPhase * 0.5) * 0.5 + 0.5, 2) * 3.5)
     let rBase = ctx.transform
     ctx.transform = rBase
@@ -794,9 +802,9 @@ private func drawCalmDots(ctx: inout GraphicsContext, color: Color, t: Double) {
 /// level = 0 → 完全不可见；level = 1 → 与 sleep 状态相当。
 private func drawTiredZ(ctx: inout GraphicsContext, color: Color, t: Double, level: Double) {
     guard level > 0.05 else { return }
-    let zPeriod = 3.0
+    let zPeriod = 2.6
     let zCount = 3
-    let baseSizes: [CGFloat] = [11, 15, 19]
+    let baseSizes: [CGFloat] = [15, 20, 26]
     let levelC = CGFloat(level)
     for i in 0..<zCount {
         let localT = t - Double(i) * 1.0
@@ -826,18 +834,26 @@ private func drawTiredZ(ctx: inout GraphicsContext, color: Color, t: Double, lev
 
 // MARK: - 疲惫装饰：汗滴（下午 sit，强度 0..1）
 
-/// 头右侧 1 颗泪滴/汗滴：位置微抖 + alpha 按 level 渐显 + size 微缩放。
-/// 随 level 增长，从看不见到明显。
+/// 头右侧最多 2 颗泪滴/汗滴：位置微抖 + alpha 按 level 渐显 + size 微缩放。
+/// 第 1 颗从 level 0.05 起；第 2 颗从 level 0.5 起，越来越"汗流浃背"。
 private func drawTiredSweat(ctx: inout GraphicsContext, color: Color, t: Double, level: Double) {
     guard level > 0.05 else { return }
     let levelC = CGFloat(level)
-    let baseX: CGFloat = 158
-    let baseY: CGFloat = 70
+    // 滴 1：太阳穴处，常驻
+    drawOneSweat(ctx: &ctx, color: color, t: t, level: levelC, baseX: 162, baseY: 72, size: 3.5 + 2.0 * levelC, alpha: 0.6)
+    // 滴 2：脸颊下方，level > 0.5 才出现
+    if levelC > 0.5 {
+        let sub = (levelC - 0.5) * 2  // 0..1
+        drawOneSweat(ctx: &ctx, color: color, t: t, level: sub, baseX: 170, baseY: 92, size: 2.8 + 1.5 * sub, alpha: 0.55)
+    }
+}
+
+private func drawOneSweat(ctx: inout GraphicsContext, color: Color, t: Double, level: CGFloat,
+                          baseX: CGFloat, baseY: CGFloat, size: CGFloat, alpha: CGFloat) {
     let wobble = CGFloat(sin(t * 1.5) * 1.5)
-    let drift = CGFloat(sin(t * 0.6) * 1.0) * levelC
+    let drift = CGFloat(sin(t * 0.6 + Double(baseX)) * 1.0) * level
     let p = CGPoint(x: baseX + wobble, y: baseY + drift)
-    let size: CGFloat = 3.0 + 1.5 * levelC
-    // 描边泪滴（尖朝下，圆头朝上）
+    // 泪滴（尖朝下，圆头朝上）
     let path = Path { path in
         path.move(to: CGPoint(x: p.x, y: p.y - size))
         path.addQuadCurve(to: CGPoint(x: p.x, y: p.y + size * 0.6),
@@ -846,6 +862,5 @@ private func drawTiredSweat(ctx: inout GraphicsContext, color: Color, t: Double,
                           control: CGPoint(x: p.x - size * 0.85, y: p.y - size * 0.2))
         path.closeSubpath()
     }
-    let alpha: CGFloat = 0.55 * levelC
-    ctx.fill(path, with: .color(color.opacity(alpha)))
+    ctx.fill(path, with: .color(color.opacity(alpha * level)))
 }

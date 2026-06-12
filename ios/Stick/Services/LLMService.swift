@@ -1,40 +1,23 @@
 import Foundation
 
-/// LLM 服务（DashScope 兼容 OpenAI 接口），用于 ATLAS · STICK 内置健康问答。
-/// 风格参考 `QwenService.swift`（health-assistant 项目），但精简为单轮上下文。
+/// LLM 服务（DashScope 兼容 OpenAI 接口 · Qwen 系列），用于 ATLAS · STICK 内置健康问答。
+/// 风格参考 `QwenService.swift`（health-assistant 项目）。
 struct LLMService {
     private static let baseURL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     private static let apiKey = "sk-0a4953d1dd0b40238be4cc7d8ba656dc"
+    /// 调用的 Qwen 模型。DashScope 兼容接口下选 qwen-plus（中文效果稳定，长度合适）
+    private static let model = "qwen-plus"
 
     /// 一次性问答（非流式）
     static func sendMessage(_ message: String, context: String) async throws -> String {
-        guard let url = URL(string: "\(baseURL)/chat/completions") else {
-            throw LLMError.invalidURL
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let body: [String: Any] = [
-            "model": "kimi-k2.6",
-            "messages": [
-                ["role": "system", "content": systemPrompt(context: context)],
-                ["role": "user",   "content": message]
-            ],
-            "max_tokens": 800,
-            "temperature": 0.7
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
+        let request = try makeRequest(context: context, message: message, stream: false)
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             let code = (response as? HTTPURLResponse)?.statusCode ?? 0
             throw LLMError.httpError(statusCode: code)
         }
-
         let r = try JSONDecoder().decode(LLMResponse.self, from: data)
-        guard let content = r.choices.first?.message.content else {
+        guard let content = r.choices.first?.message.content, !content.isEmpty else {
             throw LLMError.noContent
         }
         return content
@@ -46,44 +29,37 @@ struct LLMService {
         context: String
     ) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
-            Task {
+            let task = Task {
                 do {
-                    guard let url = URL(string: "\(baseURL)/chat/completions") else {
-                        throw LLMError.invalidURL
-                    }
-                    var request = URLRequest(url: url)
-                    request.httpMethod = "POST"
-                    request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-                    let body: [String: Any] = [
-                        "model": "kimi-k2.6",
-                        "stream": true,
-                        "messages": [
-                            ["role": "system", "content": systemPrompt(context: context)],
-                            ["role": "user",   "content": message]
-                        ],
-                        "max_tokens": 800,
-                        "temperature": 0.7
-                    ]
-                    request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
+                    var request = try makeRequest(context: context, message: message, stream: true)
+                    request.timeoutInterval = 60
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
                     guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                        throw LLMError.invalidResponse
+                        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+                        throw LLMError.httpError(statusCode: code)
                     }
 
+                    var gotAnyChunk = false
                     for try await line in bytes.lines {
+                        if Task.isCancelled { break }
                         guard line.hasPrefix("data: ") else { continue }
                         let jsonStr = String(line.dropFirst(6))
                         if jsonStr == "[DONE]" {
-                            continuation.finish()
-                            return
+                            break
                         }
                         if let data = jsonStr.data(using: .utf8),
                            let chunk = try? JSONDecoder().decode(StreamResponse.self, from: data),
-                           let content = chunk.choices.first?.delta.content {
+                           let content = chunk.choices.first?.delta.content,
+                           !content.isEmpty {
+                            gotAnyChunk = true
                             continuation.yield(content)
+                        }
+                    }
+                    if !gotAnyChunk {
+                        // 某些 Qwen 部署返回非标准 SSE；尝试一次性补发
+                        let fallback = try await sendMessage(message, context: context)
+                        if !fallback.isEmpty {
+                            continuation.yield(fallback)
                         }
                     }
                     continuation.finish()
@@ -91,7 +67,34 @@ struct LLMService {
                     continuation.finish(throwing: error)
                 }
             }
+            continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    // MARK: - 请求构造
+
+    private static func makeRequest(context: String, message: String, stream: Bool) throws -> URLRequest {
+        guard let url = URL(string: "\(baseURL)/chat/completions") else {
+            throw LLMError.invalidURL
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60
+        let body: [String: Any] = [
+            "model": model,
+            "stream": stream,
+            "messages": [
+                ["role": "system", "content": systemPrompt(context: context)],
+                ["role": "user",   "content": message]
+            ],
+            "max_tokens": 600,
+            "temperature": 0.75,
+            "top_p": 0.8
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        return request
     }
 
     // MARK: - System Prompt
