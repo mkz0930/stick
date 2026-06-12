@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 /// 首页：火柴人主舞台。视觉参考 ATLAS v6-dashboard-sleeping：
 ///  - 顶栏（品牌 mark + 名称 + session + LIVE）
@@ -30,7 +33,7 @@ struct ContentView: View {
     @State private var inference: StateInference.Result? = nil
 
     // Chat
-    @State private var showChat: Bool = false
+    @State private var showChat: Bool = true
     @State private var chatSeed: String = ""
     @State private var chatKey: Int = 0
     @State private var inputDraft: String = ""
@@ -332,11 +335,10 @@ struct ContentView: View {
                 updatedAt: Date()
             )
             SharedStateStore.write(snap)
-            // 通知 WidgetKit 立刻刷新 widget timeline (不等到 5min 后)
-            // widget 暂时屏蔽；恢复后再启用
-            // #if canImport(WidgetKit)
-            // WidgetCenter.shared.reloadAllTimelines()
-            // #endif
+            // 通知 WidgetKit 立刻刷新 widget timeline（不等到 5min 后）
+            #if canImport(WidgetKit)
+            WidgetCenter.shared.reloadAllTimelines()
+            #endif
         }
         .onOpenURL { url in
             // widget tap 深链：stick://open?state=walk|sit|sleep
@@ -373,6 +375,7 @@ struct ContentView: View {
             .presentationDragIndicator(.visible)
         }
         .onAppear {
+            // showChat = true  // 暂时关闭，方便看主页 InputBar 位置
             // 启动 HealthKit 抓取 (1 分钟一次, 写到本地)
             Task {
                 #if targetEnvironment(simulator)
@@ -402,81 +405,89 @@ struct ContentView: View {
     // MARK: - 首页内容 (抽出来便于在 ZStack 中复用)
 
     private var homeBody: some View {
-        ZStack {
-            background
+        GeometryReader { geo in
+            ZStack(alignment: .top) {
+                background
 
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 0) {
-                    TopBarView(onMenuTap: { showPersonal = true })
+                // 滚动内容（不含 InputBar）
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        // TopBar + BODY ENERGY（**同一水平行**：左 menu 按键 + 右电池徽章）
+                        HStack(alignment: .center, spacing: 0) {
+                            TopBarView(onMenuTap: { showPersonal = true })
+                            Spacer(minLength: 0)
+                            EnergyBadge(
+                                state: displayState,
+                                level: bodyEnergy,
+                                color: energyColor,
+                                onTap: { showFilm = true }
+                            )
+                        }
                         .padding(.horizontal, 20)
                         .padding(.top, 10)
                         .padding(.bottom, 4)
 
-                    // 徽章组（顶部右上方 — 跟 FeatureRow 卡片同一行）
-                    HStack {
-                        Spacer(minLength: 0)
-                        EnergyBadge(
+                        // 3 行数据 + 心情
+                        FeatureRow(
                             state: displayState,
-                            level: bodyEnergy,
-                            color: energyColor,
-                            onTap: { showFilm = true }
+                            deviceSet: deviceSet,
+                            healthStatuses: healthAuth.statuses,
+                            moodLine: displayMoodLine,
+                            moodScore: moodScore,
+                            unifiedAlerts: unifiedAlerts,
+                            onAlertTap: handleAlertTap
                         )
-                        MoodBadge(score: moodScore, color: moodColor)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 6)
+
+                        // 主舞台 + 24h 竖向时间轴
+                        HStack(alignment: .top, spacing: 10) {
+                            StageHeroView(
+                                state: displayState,
+                                mood: figureMood,
+                                tiredness: figureTiredness,
+                                neckWarningOpacity: neckWarningOpacity,
+                                bodyEnergy: 0.6,
+                                energyColor: Color.orange,
+                                isScrubbing: isScrubbing,
+                                inference: inference,
+                                showDevicePicker: $showDevicePicker,
+                                scrubOffset: $scrubOffset,
+                                onPreview: { showFilm = true },
+                                onSleepAlert: { showSleepReport = true },
+                                onNeckWarningTap: { showNeckReport = true }
+                            )
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 400)
+
+                            DayTimelineView(
+                                schedule: StickState.daySchedule,
+                                now: now,
+                                scrubOffset: $scrubOffset,
+                                showDevicePicker: $showDevicePicker
+                            )
+                            .frame(width: 22)
+                            .frame(height: 400)
+                        }
+                        .padding(.leading, 16)
+                        .padding(.trailing, 4)
+
+                        // 给 InputBar 预留滚动空间 (88pt ≈ InputBar 高度)
+                        Spacer()
+                            .frame(height: 96)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 4)
+                }
 
-                    // 3 行数据 + 心情 + 异常提示 (单行，不展开)
-                    FeatureRow(
-                        state: displayState,
-                        deviceSet: deviceSet,
-                        healthStatuses: healthAuth.statuses,
-                        moodLine: displayMoodLine,
-                        unifiedAlerts: unifiedAlerts,
-                        onAlertTap: handleAlertTap
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 6)
-
-                    // 主舞台 + 24h 竖向时间轴 (小人 + 右侧时间轴 侧边栏)
-                    HStack(alignment: .top, spacing: 10) {
-                        StageHeroView(
-                            state: displayState,
-                            mood: figureMood,
-                            tiredness: figureTiredness,
-                            neckWarningOpacity: neckWarningOpacity,
-                            bodyEnergy: 0.6,
-                            energyColor: Color.orange,
-                            isScrubbing: isScrubbing,
-                            inference: inference,
-                            showDevicePicker: $showDevicePicker,
-                            scrubOffset: $scrubOffset,
-                            onPreview: { showFilm = true },
-                            onSleepAlert: { showSleepReport = true },
-                            onNeckWarningTap: { showNeckReport = true }
-                        )
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 400)
-
-                        DayTimelineView(
-                            schedule: StickState.daySchedule,
-                            now: now,
-                            scrubOffset: $scrubOffset,
-                            showDevicePicker: $showDevicePicker
-                        )
-                        .frame(width: 22)
-                        .frame(height: 400)
-                    }
-                    .padding(.leading, 16)
-                    .padding(.trailing, 4)
-
+                // InputBar 钉在屏幕 0.9 位置 (中心 = 0.9 * height)
+                VStack(spacing: 0) {
+                    Spacer()
+                        .frame(height: geo.size.height * 0.9 - 44)
                     InputBar(
                         state: displayState,
                         text: $inputDraft,
                         onOpenChat: openChat
                     )
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 10)
                 }
             }
         }
