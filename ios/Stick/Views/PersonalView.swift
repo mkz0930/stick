@@ -44,12 +44,11 @@ struct PersonalView: View {
         ZStack(alignment: .topLeading) {
             Theme.bgTop.ignoresSafeArea()
 
-            ScrollViewReader { proxy in
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        topUserBar
-                            .padding(.horizontal, 20)
-                            .padding(.top, 12)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    topUserBar
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
 
                     devicesSection
                         .padding(.horizontal, 20)
@@ -90,13 +89,6 @@ struct PersonalView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 20)
                         .padding(.bottom, 32)
-                        .id("bottom")
-                    }
-                }
-                .onAppear {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
-                    }
                 }
             }
         }

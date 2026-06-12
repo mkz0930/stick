@@ -43,6 +43,12 @@ struct ChatView: View {
                     messageList
                 }
 
+                // Spacer 把输入栏推到底；键盘弹出时 iOS 会自动让位
+                Spacer(minLength: 0)
+
+                DashedDivider()
+                    .padding(.horizontal, 20)
+
                 inputBar
                     .padding(.horizontal, 20)
                     .padding(.top, 8)

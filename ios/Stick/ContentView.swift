@@ -15,7 +15,7 @@ struct ContentView: View {
     @State private var scrubOffset: Int? = nil   // 0 = 现在；>0 表示过去多少分钟（窗口起点 = now - 24h）
     @State private var showFilm: Bool = false
     @State private var showSleepReport: Bool = false
-    @State private var showPersonal: Bool = true
+    @State private var showPersonal: Bool = false
     @State private var openSpecialists: Bool = false
     @State private var openDataRecord: Bool = false
     @State private var openWidgetPreview: Bool = false
@@ -200,9 +200,6 @@ struct ContentView: View {
                 HealthKitService.shared.startAutoCapture(interval: 60)
                 // 首屏立刻算一次 inference，让徽章副标有内容
                 inference = HealthKitService.shared.currentInference
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                showPersonal = false
             }
         }
     }
