@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 60;
+	objectVersion = 56;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -13,34 +13,57 @@
 		B1000000000000000000000F /* StickFigureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000B /* StickFigureView.swift */; };
 		B10000000000000000000010 /* DayTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000C /* DayTimelineView.swift */; };
 		B10000000000000000000011 /* TopBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000D /* TopBarView.swift */; };
+		B10000000000000000000012 /* FeatureRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000E /* FeatureRow.swift */; };
+		B10000000000000000000013 /* InputBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000F /* InputBar.swift */; };
+		B10000000000000000000014 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000010 /* Assets.xcassets */; };
+		B10000000000000000000015 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000011 /* Preview Assets.xcassets */; };
+		B10000000000000000000016 /* MiniFilmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000012 /* MiniFilmView.swift */; };
+		B10000000000000000000017 /* Views/SleepAlertChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000013 /* Views/SleepAlertChip.swift */; };
+		B19900000000000000000099 /* PersonalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19900000000000000000099 /* PersonalView.swift */; };
+		B20000000000000000000001 /* LLMService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* LLMService.swift */; };
+		B20000000000000000000002 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* ChatView.swift */; };
 		B29900000000000000000A01 /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A01 /* HealthKitService.swift */; };
 		B29900000000000000000A02 /* HealthStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A02 /* HealthStore.swift */; };
 		B29900000000000000000A03 /* HealthAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A03 /* HealthAnalyzer.swift */; };
-		B29900000000000000000A06 /* SleepAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A06 /* SleepAnalyzer.swift */; };
-		B29900000000000000000A05 /* StateInference.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A05 /* StateInference.swift */; };
 		B29900000000000000000A04 /* DataRecordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A04 /* DataRecordView.swift */; };
+		B29900000000000000000A05 /* StateInference.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A05 /* StateInference.swift */; };
+		B29900000000000000000A06 /* SleepAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A06 /* SleepAnalyzer.swift */; };
 		B29900000000000000000A07 /* DeviceCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A07 /* DeviceCapabilities.swift */; };
-
-		B19900000000000000000099 /* PersonalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19900000000000000000099 /* PersonalView.swift */; };
-		B10000000000000000000012 /* FeatureRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000E /* FeatureRow.swift */; };
-		B10000000000000000000013 /* InputBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000F /* InputBar.swift */; };
-		B10000000000000000000016 /* MiniFilmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000012 /* MiniFilmView.swift */; };
-		B20000000000000000000001 /* LLMService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* LLMService.swift */; };
-		B10000000000000000000017 /* SleepAlertChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000013 /* SleepAlertChip.swift */; };
-		B20000000000000000000002 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* ChatView.swift */; };
-		B50000000000000000000001 /* WidgetPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000001 /* WidgetPreviewView.swift */; };
-		B10000000000000000000014 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000010 /* Assets.xcassets */; };
-		B10000000000000000000015 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000011 /* Preview Assets.xcassets */; };
 		B40000000000000000000001 /* StickWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000001 /* StickWidget.swift */; };
 		B40000000000000000000002 /* StickWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000004 /* StickWidgetView.swift */; };
 		B40000000000000000000003 /* StickMediumWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000005 /* StickMediumWidgetView.swift */; };
-		B50000000000000000000002 /* StickWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000004 /* StickWidgetView.swift */; };
-		B50000000000000000000003 /* StickMediumWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000005 /* StickMediumWidgetView.swift */; };
-		B50000000000000000000004 /* SleepReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000005 /* SleepReportView.swift */; };
 		B40000000000000000000010 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
 		B40000000000000000000011 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
 		B40000000000000000000020 /* StickWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F40000000000000000000020 /* StickWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B50000000000000000000001 /* WidgetPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000001 /* WidgetPreviewView.swift */; };
+		B50000000000000000000002 /* StickWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000004 /* StickWidgetView.swift */; };
+		B50000000000000000000003 /* StickMediumWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000005 /* StickMediumWidgetView.swift */; };
+		B50000000000000000000004 /* SleepReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000005 /* SleepReportView.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		B40000000000000000000022 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = R10000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = T40000000000000000000001;
+			remoteInfo = StickWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		P40000000000000000000004 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B40000000000000000000020 /* StickWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		F10000000000000000000001 /* Stick.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Stick.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -50,33 +73,31 @@
 		F1000000000000000000000B /* StickFigureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickFigureView.swift; sourceTree = "<group>"; };
 		F1000000000000000000000C /* DayTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayTimelineView.swift; sourceTree = "<group>"; };
 		F1000000000000000000000D /* TopBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopBarView.swift; sourceTree = "<group>"; };
+		F1000000000000000000000E /* FeatureRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureRow.swift; sourceTree = "<group>"; };
+		F1000000000000000000000F /* InputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputBar.swift; sourceTree = "<group>"; };
+		F10000000000000000000010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F10000000000000000000011 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		F10000000000000000000012 /* MiniFilmView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniFilmView.swift; sourceTree = "<group>"; };
+		F10000000000000000000013 /* Views/SleepAlertChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SleepAlertChip.swift; sourceTree = "<group>"; };
+		F19900000000000000000099 /* PersonalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalView.swift; sourceTree = "<group>"; };
+		F20000000000000000000001 /* LLMService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMService.swift; sourceTree = "<group>"; };
+		F20000000000000000000002 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		F29900000000000000000A01 /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
 		F29900000000000000000A02 /* HealthStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthStore.swift; sourceTree = "<group>"; };
 		F29900000000000000000A03 /* HealthAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthAnalyzer.swift; sourceTree = "<group>"; };
+		F29900000000000000000A04 /* DataRecordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataRecordView.swift; sourceTree = "<group>"; };
+		F29900000000000000000A05 /* StateInference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateInference.swift; sourceTree = "<group>"; };
 		F29900000000000000000A06 /* SleepAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepAnalyzer.swift; sourceTree = "<group>"; };
 		F29900000000000000000A07 /* DeviceCapabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceCapabilities.swift; sourceTree = "<group>"; };
-		F29900000000000000000A05 /* StateInference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateInference.swift; sourceTree = "<group>"; };
-		F29900000000000000000A04 /* DataRecordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataRecordView.swift; sourceTree = "<group>"; };
-		F29900000000000000000B01 /* Stick.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Stick.entitlements; sourceTree = "<group>"; };
-
-		F19900000000000000000099 /* PersonalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalView.swift; sourceTree = "<group>"; };
-		F1000000000000000000000E /* FeatureRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureRow.swift; sourceTree = "<group>"; };
-		F1000000000000000000000F /* InputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputBar.swift; sourceTree = "<group>"; };
-		F10000000000000000000012 /* MiniFilmView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniFilmView.swift; sourceTree = "<group>"; };
-		F20000000000000000000001 /* LLMService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMService.swift; sourceTree = "<group>"; };
-		F10000000000000000000013 /* SleepAlertChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SleepAlertChip.swift; sourceTree = "<group>"; };
-		F20000000000000000000002 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
-		F50000000000000000000001 /* WidgetPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetPreviewView.swift; sourceTree = "<group>"; };
-		F50000000000000000000005 /* SleepReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepReportView.swift; sourceTree = "<group>"; };
-		F10000000000000000000010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		F10000000000000000000011 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		F40000000000000000000001 /* StickWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickWidget.swift; sourceTree = "<group>"; };
-		F40000000000000000000004 /* StickWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickWidgetView.swift; sourceTree = "<group>"; };
-		F40000000000000000000005 /* StickMediumWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickMediumWidgetView.swift; sourceTree = "<group>"; };
 		F40000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F40000000000000000000003 /* StickWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StickWidget.entitlements; sourceTree = "<group>"; };
+		F40000000000000000000004 /* StickWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickWidgetView.swift; sourceTree = "<group>"; };
+		F40000000000000000000005 /* StickMediumWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickMediumWidgetView.swift; sourceTree = "<group>"; };
 		F40000000000000000000010 /* SharedState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedState.swift; sourceTree = "<group>"; };
 		F40000000000000000000020 /* StickWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StickWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F50000000000000000000001 /* WidgetPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetPreviewView.swift; sourceTree = "<group>"; };
+		F50000000000000000000005 /* SleepReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepReportView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -117,7 +138,7 @@
 				G20000000000000000000006 /* Services */,
 				F10000000000000000000010 /* Assets.xcassets */,
 				F10000000000000000000011 /* Preview Assets.xcassets */,
-				F10000000000000000000013 /* SleepAlertChip.swift */,
+				F10000000000000000000013 /* Views/SleepAlertChip.swift */,
 			);
 			path = Stick;
 			sourceTree = "<group>";
@@ -171,14 +192,6 @@
 			path = Services;
 			sourceTree = "<group>";
 		};
-		G40000000000000000000002 /* SharedKit */ = {
-			isa = PBXGroup;
-			children = (
-				F40000000000000000000010 /* SharedState.swift */,
-			);
-			path = SharedKit;
-			sourceTree = "<group>";
-		};
 		G40000000000000000000001 /* StickWidget */ = {
 			isa = PBXGroup;
 			children = (
@@ -189,6 +202,14 @@
 				F40000000000000000000003 /* StickWidget.entitlements */,
 			);
 			path = StickWidget;
+			sourceTree = "<group>";
+		};
+		G40000000000000000000002 /* SharedKit */ = {
+			isa = PBXGroup;
+			children = (
+				F40000000000000000000010 /* SharedState.swift */,
+			);
+			path = SharedKit;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -264,24 +285,6 @@
 		};
 /* End PBXProject section */
 
-/* Begin PBXContainerItemProxy section */
-		B40000000000000000000022 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = R10000000000000000000001 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = T40000000000000000000001;
-			remoteInfo = StickWidget;
-		};
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXTargetDependency section */
-		B40000000000000000000021 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = T40000000000000000000001 /* StickWidget */;
-			targetProxy = B40000000000000000000022 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
-
 /* Begin PBXResourcesBuildPhase section */
 		P10000000000000000000004 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
@@ -301,20 +304,6 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
-/* Begin PBXCopyFilesBuildPhase section */
-		P40000000000000000000004 /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				B40000000000000000000020 /* StickWidget.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXSourcesBuildPhase section */
 		P10000000000000000000003 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -323,8 +312,8 @@
 				B1000000000000000000000C /* StickApp.swift in Sources */,
 				B1000000000000000000000D /* ContentView.swift in Sources */,
 				B1000000000000000000000E /* StickState.swift in Sources */,
-				B1000000000000000000000F /* StickFigure.swift in Sources */,
-				B10000000000000000000010 /* SegmentedControl.swift in Sources */,
+				B1000000000000000000000F /* StickFigureView.swift in Sources */,
+				B10000000000000000000010 /* DayTimelineView.swift in Sources */,
 				B10000000000000000000011 /* TopBarView.swift in Sources */,
 				B29900000000000000000A01 /* HealthKitService.swift in Sources */,
 				B29900000000000000000A02 /* HealthStore.swift in Sources */,
@@ -334,14 +323,13 @@
 				B29900000000000000000A07 /* DeviceCapabilities.swift in Sources */,
 				B29900000000000000000A04 /* DataRecordView.swift in Sources */,
 				B40000000000000000000010 /* SharedState.swift in Sources */,
-
 				B19900000000000000000099 /* PersonalView.swift in Sources */,
 				B10000000000000000000012 /* FeatureRow.swift in Sources */,
 				B10000000000000000000013 /* InputBar.swift in Sources */,
 				B10000000000000000000016 /* MiniFilmView.swift in Sources */,
 				B20000000000000000000001 /* LLMService.swift in Sources */,
 				B20000000000000000000002 /* ChatView.swift in Sources */,
-				B10000000000000000000017 /* SleepAlertChip.swift in Sources */,
+				B10000000000000000000017 /* Views/SleepAlertChip.swift in Sources */,
 				B50000000000000000000001 /* WidgetPreviewView.swift in Sources */,
 				B50000000000000000000002 /* StickWidgetView.swift in Sources */,
 				B50000000000000000000003 /* StickMediumWidgetView.swift in Sources */,
@@ -361,6 +349,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B40000000000000000000021 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = T40000000000000000000001 /* StickWidget */;
+			targetProxy = B40000000000000000000022 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		C10000000000000000000001 /* Debug */ = {
@@ -485,17 +481,18 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Stick/Stick.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Stick/Preview Content\"";
+				DEVELOPMENT_TEAM = M5Z3QG8NBS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "读取健康数据用于展示你的身体状态";
-				CODE_SIGN_ENTITLEMENTS = Stick/Stick.entitlements;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -515,17 +512,18 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Stick/Stick.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Stick/Preview Content\"";
+				DEVELOPMENT_TEAM = M5Z3QG8NBS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "读取健康数据用于展示你的身体状态";
-				CODE_SIGN_ENTITLEMENTS = Stick/Stick.entitlements;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -543,8 +541,10 @@
 		C40000000000000000000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = StickWidget/StickWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M5Z3QG8NBS;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = StickWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = StickWidget;
@@ -560,15 +560,16 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				CODE_SIGN_ENTITLEMENTS = StickWidget/StickWidget.entitlements;
 			};
 			name = Debug;
 		};
 		C40000000000000000000002 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = StickWidget/StickWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M5Z3QG8NBS;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = StickWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = StickWidget;
@@ -584,7 +585,6 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				CODE_SIGN_ENTITLEMENTS = StickWidget/StickWidget.entitlements;
 			};
 			name = Release;
 		};

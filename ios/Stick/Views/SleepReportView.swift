@@ -121,6 +121,14 @@ final class SleepReportViewModel: ObservableObject {
 
     func load() async {
         state = .loading
+        #if DEBUG
+        // DEBUG: 模拟器无 HealthKit 数据, 注入一段 mock 睡眠会话用于演示
+        if ProcessInfo.processInfo.environment["STICK_MOCK_SLEEP"] != "0" {
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            state = .loaded(Self.mockSession())
+            return
+        }
+        #endif
         let session = await SleepAnalyzer.shared.fetchLastNight()
         if let session {
             state = .loaded(session)
@@ -128,6 +136,41 @@ final class SleepReportViewModel: ObservableObject {
             state = .empty
         }
     }
+
+    #if DEBUG
+    /// 演示用 mock: 昨晚 23:42 → 今早 06:18, 6h36m
+    private static func mockSession() -> SleepSession {
+        let cal = Calendar.current
+        let today2am = cal.startOfDay(for: Date()).addingTimeInterval(2 * 3600)
+        let yesterday23 = today2am.addingTimeInterval(-3 * 3600 + 12 * 60)  // 23:12
+        // 简化为: 23:42 → 06:18
+        let start = today2am.addingTimeInterval(-3 * 3600 - 18 * 60)      // 22:42
+        let end   = today2am.addingTimeInterval(4 * 3600 + 18 * 60)        // 06:18
+        // 6 段, 总 6h36m = 396 min
+        let segs: [(SleepStage, Int)] = [
+            (.inBed, 8),     // 22:42-22:50 准备
+            (.asleep, 25),   // 22:50-23:15 浅睡
+            (.core, 60),     // 23:15-00:15 核心
+            (.deep, 90),     // 00:15-01:45 深睡
+            (.core, 75),     // 01:45-03:00 核心
+            (.rem, 60),      // 03:00-04:00 REM
+            (.awake, 6),     // 04:00-04:06 醒
+            (.core, 45),     // 04:06-04:51 核心
+            (.rem, 15),      // 04:51-05:06 REM
+            (.deep, 30),     // 05:06-05:36 深睡
+            (.awake, 12),    // 05:36-05:48 醒
+        ]
+        var cursor = start
+        var segments: [SleepSegment] = []
+        for (stage, mins) in segs {
+            let s = cursor
+            let e = cursor.addingTimeInterval(TimeInterval(mins * 60))
+            segments.append(SleepSegment(stage: stage, start: s, end: e))
+            cursor = e
+        }
+        return SleepSession(start: start, end: end, segments: segments)
+    }
+    #endif
 }
 
 // MARK: - 主视图

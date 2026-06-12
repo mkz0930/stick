@@ -12,6 +12,9 @@ struct DayTimelineView: View {
     @Binding var scrubOffset: Int?         // 0 = 现在；>0 表示过去多少分钟
     @Binding var showDevicePicker: Bool    // 点击 "+ 连接设备" 时弹出
 
+    @State private var hasInteracted: Bool = false   // 用户拖动后永久隐藏 hint
+    @State private var pulse: Double = 0             // 0..1 循环，驱动 active 段脉冲
+
     private let dayMinutes: CGFloat = 1440
     private let trackHeight: CGFloat = 14
     private let thumbSize: CGFloat = 22
@@ -51,10 +54,11 @@ struct DayTimelineView: View {
     // MARK: - body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             header
             track
             hourLabels
+            dragHint
             if isScrubbing {
                 backToNowButton
                     .transition(.opacity.combined(with: .move(edge: .top)))
@@ -63,6 +67,13 @@ struct DayTimelineView: View {
         .padding(16)
         .background(cardBackground)
         .animation(.easeInOut(duration: 0.25), value: isScrubbing)
+        .animation(.easeInOut(duration: 0.4), value: hasInteracted)
+        .onAppear {
+            // 0..1 循环驱动 active 段的呼吸
+            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+                pulse = 1
+            }
+        }
         .sheet(isPresented: $showDevicePicker) {
             DevicePickerSheet()
                 .presentationDetents([.medium, .large])
@@ -150,6 +161,9 @@ struct DayTimelineView: View {
                         let raw = Int((1 - x / width) * dayMinutes)
                         let snapped = (raw / snapStep) * snapStep
                         scrubOffset = max(0, min(snapped, 1440))
+                        if !hasInteracted && scrubOffset != nil {
+                            hasInteracted = true
+                        }
                     }
             )
         }
@@ -182,6 +196,20 @@ struct DayTimelineView: View {
             .frame(height: 16)
         }
         .frame(height: 16)
+    }
+
+    /// 24h 拖动提示行（仅在未拖动时显示，拖一次后永久隐藏）
+    private var dragHint: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "arrow.left")
+            Text("拖动以回看 24h")
+            Image(systemName: "arrow.right")
+        }
+        .font(.system(size: 9, weight: .medium, design: .monospaced))
+        .foregroundColor(Theme.slate.opacity(0.45))
+        .opacity((isScrubbing || hasInteracted) ? 0 : 0.85)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.top, 2)
     }
 
     private var backToNowButton: some View {
@@ -280,10 +308,12 @@ struct DayTimelineView: View {
                 .frame(width: max(0, fillW), height: trackHeight)
                 .offset(x: fillX, y: 0)
             if isActive {
+                let pulseAlpha = 0.45 + 0.45 * pulse  // 0.45..0.90
                 RoundedRectangle(cornerRadius: 3)
-                    .stroke(accent.opacity(0.55), lineWidth: 2.2)
+                    .stroke(accent.opacity(0.85), lineWidth: 2.2)
                     .frame(width: max(0, fillW), height: trackHeight)
                     .offset(x: fillX, y: -1.8)
+                    .shadow(color: accent.opacity(pulseAlpha), radius: 4 + 2 * pulse, y: 0)
             }
         }
     }

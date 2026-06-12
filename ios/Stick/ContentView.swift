@@ -20,7 +20,7 @@ struct ContentView: View {
     @State private var openDataRecord: Bool = false
     @State private var openWidgetPreview: Bool = false
     @State private var showDevicePicker: Bool = false
-    @State private var deviceSet: Set<DeviceID> = []
+    @State private var deviceSet: Set<DeviceID> = [.iPhone]
 
     // HealthKit 状态推断（30s 重算一次）
     @State private var inference: StateInference.Result? = nil
@@ -172,7 +172,7 @@ struct ContentView: View {
                 .presentationBackground(Color.black)
         }
         .sheet(isPresented: $showSleepReport) {
-            SleepAnomalyReportView(onClose: { showSleepReport = false })
+            SleepReportView(onClose: { showSleepReport = false })
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
@@ -193,50 +193,49 @@ struct ContentView: View {
         ZStack {
             background
 
-            VStack(spacing: 0) {
-                TopBarView(onMenuTap: { showPersonal = true })
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
-                    .padding(.bottom, 4)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 0) {
+                    TopBarView(onMenuTap: { showPersonal = true })
+                        .padding(.horizontal, 20)
+                        .padding(.top, 10)
+                        .padding(.bottom, 4)
 
-                // 三行数据：左上角，top bar 下方
-                FeatureRow(state: displayState, deviceSet: deviceSet)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 6)
+                    // 三行数据：左上角，top bar 下方
+                    FeatureRow(state: displayState, deviceSet: deviceSet)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 6)
 
-                Spacer(minLength: 0)
-
-                StageHeroView(
-                    state: displayState,
-                    mood: figureMood,
-                    tiredness: figureTiredness,
-                    isScrubbing: isScrubbing,
-                    inference: inference,
-                    onPreview: { showFilm = true },
-                    onSleepAlert: { showSleepReport = true }
-                )
+                    StageHeroView(
+                        state: displayState,
+                        mood: figureMood,
+                        tiredness: figureTiredness,
+                        isScrubbing: isScrubbing,
+                        inference: inference,
+                        onPreview: { showFilm = true },
+                        onSleepAlert: { showSleepReport = true }
+                    )
                     .frame(maxWidth: .infinity)
-                    .frame(height: 340)
+                    .frame(height: 240)
                     .padding(.horizontal, 16)
 
-                Spacer(minLength: 0)
+                    DayTimelineView(
+                        schedule: StickState.daySchedule,
+                        now: now,
+                        scrubOffset: $scrubOffset,
+                        showDevicePicker: $showDevicePicker
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
 
-                DayTimelineView(
-                    schedule: StickState.daySchedule,
-                    now: now,
-                    scrubOffset: $scrubOffset,
-                    showDevicePicker: $showDevicePicker
-                )
-                .padding(.horizontal, 16)
-                .padding(.bottom, 14)
-
-                InputBar(
-                    state: displayState,
-                    text: $inputDraft,
-                    onOpenChat: openChat
-                )
-                .padding(.horizontal, 16)
-                .padding(.bottom, 10)
+                    InputBar(
+                        state: displayState,
+                        text: $inputDraft,
+                        onOpenChat: openChat
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 10)
+                }
             }
         }
     }
