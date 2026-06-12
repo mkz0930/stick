@@ -30,14 +30,12 @@
 		B29900000000000000000A06 /* SleepAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A06 /* SleepAnalyzer.swift */; };
 		B29900000000000000000A07 /* DeviceCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A07 /* DeviceCapabilities.swift */; };
 		B29900000000000000000A08 /* HealthAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A08 /* HealthAuthService.swift */; };
-		B29900000000000000000A09 /* AIRiskAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A09 /* AIRiskAnalyzer.swift */; };
-		B10000000000000000000018 /* AIAnalysisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000014 /* AIAnalysisView.swift */; };
 		B40000000000000000000001 /* StickWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000001 /* StickWidget.swift */; };
 		B40000000000000000000002 /* StickWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000004 /* StickWidgetView.swift */; };
 		B40000000000000000000003 /* StickMediumWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000005 /* StickMediumWidgetView.swift */; };
 		B40000000000000000000010 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
 		B40000000000000000000011 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
-		/* REMOVED: B40000000000000000000020 StickWidget.appex embed (widget 屏蔽) */
+		B40000000000000000000020 /* StickWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F40000000000000000000020 /* StickWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B40000000000000000000030 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000030 /* Assets.xcassets */; };
 		B50000000000000000000001 /* WidgetPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000001 /* WidgetPreviewView.swift */; };
 		B50000000000000000000002 /* StickWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000004 /* StickWidgetView.swift */; };
@@ -57,7 +55,17 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-/* REMOVED: P40000000000000000000004 Embed Foundation Extensions phase (widget 屏蔽) */
+		P40000000000000000000004 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B40000000000000000000020 /* StickWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -85,8 +93,6 @@
 		F29900000000000000000A06 /* SleepAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepAnalyzer.swift; sourceTree = "<group>"; };
 		F29900000000000000000A07 /* DeviceCapabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceCapabilities.swift; sourceTree = "<group>"; };
 		F29900000000000000000A08 /* HealthAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthAuthService.swift; sourceTree = "<group>"; };
-		F29900000000000000000A09 /* AIRiskAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRiskAnalyzer.swift; sourceTree = "<group>"; };
-		F10000000000000000000014 /* AIAnalysisView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAnalysisView.swift; sourceTree = "<group>"; };
 		F40000000000000000000001 /* StickWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickWidget.swift; sourceTree = "<group>"; };
 		F40000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F40000000000000000000003 /* StickWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StickWidget.entitlements; sourceTree = "<group>"; };
@@ -175,7 +181,6 @@
 				F50000000000000000000001 /* WidgetPreviewView.swift */,
 				F50000000000000000000004 /* ChatOverlay.swift */,
 				F50000000000000000000005 /* SleepReportView.swift */,
-				F10000000000000000000014 /* AIAnalysisView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -191,7 +196,6 @@
 				F29900000000000000000A05 /* StateInference.swift */,
 				F29900000000000000000A07 /* DeviceCapabilities.swift */,
 				F29900000000000000000A08 /* HealthAuthService.swift */,
-				F29900000000000000000A09 /* AIRiskAnalyzer.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -227,12 +231,12 @@
 				P10000000000000000000003 /* Sources */,
 				P10000000000000000000002 /* Frameworks */,
 				P10000000000000000000004 /* Resources */,
-/* REMOVED: P40000000000000000000004 Embed Foundation Extensions (widget 屏蔽) */
+				P40000000000000000000004 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-/* REMOVED: B40000000000000000000021 target dependency on widget (widget 屏蔽) */
+				B40000000000000000000021 /* PBXTargetDependency */,
 			);
 			name = Stick;
 			productName = Stick;
@@ -342,8 +346,6 @@
 				B50000000000000000000003 /* StickMediumWidgetView.swift in Sources */,
 				B50000000000000000000006 /* ChatOverlay.swift in Sources */,
 				B50000000000000000000004 /* SleepReportView.swift in Sources */,
-				B29900000000000000000A09 /* AIRiskAnalyzer.swift in Sources */,
-				B10000000000000000000018 /* AIAnalysisView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -30,6 +30,7 @@ struct StickFigureView: View {
     var showScene: Bool = true                      // 地面/椅子/床等环境元素
     var confidence: Double = 1.0   // 0–1, 越低越虚
     var tiredness: Double = 0.0    // 0–1, 越高越累（仅 .tired 用：头部下俯 + 浮 Z + 汗滴）
+    var neckWarning: Double = 0.0  // 0–1, 越高颈线越粗越红（提醒"颈椎压力过大"）
 
     var body: some View {
         // SwiftUI 内置 TimelineView 提供时间信号，驱动状态专属动效
@@ -54,7 +55,7 @@ struct StickFigureView: View {
                 ctx.scaleBy(x: scale, y: scale)
 
                 drawScene(ctx: &ctx, state: state, accent: accent, t: t, show: showScene)
-                drawFigure(ctx: &ctx, state: state, mood: mood, tiredness: tiredness, stroke: lineColor, fill: fillColor, joint: joint, w: lineWidth * widthScale, t: t, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
+                drawFigure(ctx: &ctx, state: state, mood: mood, tiredness: tiredness, neckWarning: neckWarning, stroke: lineColor, fill: fillColor, joint: joint, w: lineWidth * widthScale, t: t, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
             }
             .drawingGroup()  // 离屏渲染保持线条锐利
         }
@@ -367,7 +368,7 @@ private func drawWalk(ctx: inout GraphicsContext, stroke: Color, fill: Color, jo
 
 // MARK: - 坐
 
-private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double, mood: StickFigureMood = .normal, tiredness: Double = 0.0, lineAlpha: CGFloat = 1.0, jointAlpha: CGFloat = 1.0) {
+private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double, mood: StickFigureMood = .normal, tiredness: Double = 0.0, neckWarning: Double = 0.0, lineAlpha: CGFloat = 1.0, jointAlpha: CGFloat = 1.0) {
     let isCalm = mood == .calm
     let isTired = mood == .tired
 
@@ -479,8 +480,16 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
         x: (neckTopLocal.x + neckBotLocal.x) / 2 - 5,
         y: (neckTopLocal.y + neckBotLocal.y) / 2
     )
+    // 颈线颜色 + 宽度：tired 时颈压力大，navy → 鲜艳红，w+0.4 → w+2.8
+    let neckW = CGFloat(neckWarning)
+    let neckColor = Color(
+        red:   0.10 + (0.93 - 0.10) * neckW,
+        green: 0.15 + (0.20 - 0.15) * neckW,
+        blue:  0.25 + (0.20 - 0.25) * neckW
+    )
+    let neckWidth = (w + 0.4) + 2.4 * neckW
     strokeCurve(ctx: &ctx, from: neckTopLocal, to: neckBotLocal,
-                control: neckControlLocal, color: stroke, width: w + 0.4, alpha: lineAlpha)
+                control: neckControlLocal, color: neckColor, width: neckWidth, alpha: lineAlpha)
 
     ctx.transform = saved
 
@@ -590,10 +599,10 @@ private func drawSleep(ctx: inout GraphicsContext, stroke: Color, fill: Color, j
 
 // MARK: - 路由
 
-private func drawFigure(ctx: inout GraphicsContext, state: StickState, mood: StickFigureMood, tiredness: Double, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double, lineAlpha: CGFloat, jointAlpha: CGFloat) {
+private func drawFigure(ctx: inout GraphicsContext, state: StickState, mood: StickFigureMood, tiredness: Double, neckWarning: Double, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double, lineAlpha: CGFloat, jointAlpha: CGFloat) {
     switch state {
     case .walk:  drawWalk(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
-    case .sit:   drawSit(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood, tiredness: tiredness, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
+    case .sit:   drawSit(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood, tiredness: tiredness, neckWarning: neckWarning, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
     case .sleep: drawSleep(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
     }
 }

@@ -57,9 +57,7 @@ enum SharedStateStore {
         if let data = try? JSONEncoder().encode(state) {
             defaults.set(data, forKey: key)
         }
-        #if canImport(WidgetKit)
-        WidgetCenter.shared.reloadAllTimelines()
-        #endif
+        // Widget 暂时屏蔽；恢复 widget 后再启用 reloadAllTimelines()
     }
 }
 

@@ -1,7 +1,4 @@
 import SwiftUI
-#if canImport(WidgetKit)
-import WidgetKit
-#endif
 
 /// 首页：火柴人主舞台。视觉参考 ATLAS v6-dashboard-sleeping：
 ///  - 顶栏（品牌 mark + 名称 + session + LIVE）
@@ -19,11 +16,13 @@ struct ContentView: View {
     @State private var scrubOffset: Int? = nil   // 0 = 现在；>0 表示过去多少分钟（窗口起点 = now - 24h）
     @State private var showFilm: Bool = false
     @State private var showSleepReport: Bool = false
+    @State private var showNeckReport: Bool = false
     @State private var showPersonal: Bool = false
     @State private var openSpecialists: Bool = false
     @State private var openDataRecord: Bool = false
     @State private var openWidgetPreview: Bool = false
     @State private var showDevicePicker: Bool = false
+    @State private var showAIReport: Bool = false
     @State private var deviceSet: Set<DeviceID> = [.iPhone]
 
     // HealthKit 状态推断（30s 重算一次）
@@ -88,6 +87,34 @@ struct ContentView: View {
         isAfternoonTired ? afternoonTiredness : 0
     }
 
+    /// 白天心情监测：当前 mood 文本 + 色调。sleep 时返回 nil（行隐藏）。
+    private var displayMoodLine: MoodLineInfo? {
+        switch displayState {
+        case .sleep:
+            return nil
+        case .walk:
+            if isMorningEnergetic {
+                return MoodLineInfo(text: "兴奋", tone: .excited, spark: .excited)
+            }
+            let m = StickState.minutesOfDay(displayDate)
+            if m >= 720 && m < 810 {
+                return MoodLineInfo(text: "轻松", tone: .good, spark: .relaxed)
+            }
+            if m >= 1080 {
+                return MoodLineInfo(text: "愉悦", tone: .good, spark: .evening)
+            }
+            return MoodLineInfo(text: "良好", tone: .good, spark: .good)
+        case .sit:
+            if isMorningCalm {
+                return MoodLineInfo(text: "专注", tone: .calm, spark: .focused)
+            }
+            if isAfternoonTired {
+                return MoodLineInfo(text: "疲倦", tone: .warn, spark: .tired)
+            }
+            return MoodLineInfo(text: "平稳", tone: .good, spark: .stable)
+        }
+    }
+
     /// 颈椎压力过大提醒的可见度（0..1）。弯角 > 98° 开始出现，> 130° 完全显示。
     private var neckWarningOpacity: Double {
         let t = figureTiredness
@@ -108,6 +135,42 @@ struct ContentView: View {
         // DURATION 行（walk）值形如 "18 min" → 18
         let v = displayState.tertiaryMetric.value
         return Int(v.split(separator: " ").first ?? "0") ?? 0
+    }
+
+    // MARK: - 实时心率 + AI 风险分析
+
+    /// 合成实时心率：晚间走路时随时间在 105–148 之间波动，
+    /// 触发 "心率过高" 检测。接 HealthKit 后替换为真实读数即可。
+    private var currentHeartRate: Int {
+        let m = StickState.minutesOfDay(displayDate)
+        switch displayState {
+        case .walk:
+            if m >= 1080 && m < 1320 {
+                // 1080-1140: 中段 110-120
+                // 1140-1200: 峰值段 130-148
+                // 1200-1260: 缓降 125-140
+                // 1260-1320: 回落 115-128
+                let t = Double(m - 1080) / 240.0   // 0..1
+                let base: Double
+                if t < 0.25      { base = 115 + 8 * sin(t * .pi * 8) }
+                else if t < 0.5  { base = 140 + 8 * sin(t * .pi * 8) }
+                else if t < 0.75 { base = 132 + 8 * sin(t * .pi * 8) }
+                else             { base = 120 + 8 * sin(t * .pi * 8) }
+                return Int(base.rounded())
+            }
+            return 92
+        case .sit:   return 78
+        case .sleep: return 56
+        }
+    }
+
+    /// 实时风险分析：仅在「晚间走路 + HR > 115」时返回报告
+    private var aiReport: AIAnalysisReport? {
+        AIRiskAnalyzer.analyze(
+            state: displayState,
+            heartRate: currentHeartRate,
+            at: displayDate
+        )
     }
 
     var body: some View {
@@ -180,9 +243,10 @@ struct ContentView: View {
             )
             SharedStateStore.write(snap)
             // 通知 WidgetKit 立刻刷新 widget timeline (不等到 5min 后)
-            #if canImport(WidgetKit)
-            WidgetCenter.shared.reloadAllTimelines()
-            #endif
+            // widget 暂时屏蔽；恢复后再启用
+            // #if canImport(WidgetKit)
+            // WidgetCenter.shared.reloadAllTimelines()
+            // #endif
         }
         .onOpenURL { url in
             // widget tap 深链：stick://open?state=walk|sit|sleep
@@ -206,10 +270,26 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.28), value: showChat)
+        .sheet(isPresented: $showAIReport) {
+            if let r = aiReport {
+                AIAnalysisView(report: r, onClose: { showAIReport = false })
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
+        }
         .sheet(isPresented: $showSleepReport) {
             SleepReportView(onClose: { showSleepReport = false })
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showNeckReport) {
+            NeckPressureReportView(
+                tiredness: figureTiredness,
+                bendAngle: 20.0 + figureTiredness * 130.0,
+                onClose: { showNeckReport = false }
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .onAppear {
             // 启动 HealthKit 抓取 (1 分钟一次, 写到本地)
@@ -221,6 +301,12 @@ struct ContentView: View {
             }
             // 检查各 metric 真实授权状态 (有/无/拒绝)
             healthAuth.refresh()
+            #if DEBUG
+            // DEBUG: 自动开 chat 让你看到贴底效果
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                openChat("")
+            }
+            #endif
         }
     }
 
@@ -238,9 +324,22 @@ struct ContentView: View {
                         .padding(.bottom, 4)
 
                     // 三行数据：左上角，top bar 下方
-                    FeatureRow(state: displayState, deviceSet: deviceSet, healthStatuses: healthAuth.statuses)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 6)
+                    FeatureRow(
+                        state: displayState,
+                        deviceSet: deviceSet,
+                        healthStatuses: healthAuth.statuses,
+                        moodLine: displayMoodLine
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 6)
+
+                    // AI 风险预警 (晚间走路 + HR 高) — 点击弹出完整报告
+                    if let r = aiReport {
+                        AIRiskBanner(report: r) { showAIReport = true }
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 6)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
 
                     StageHeroView(
                         state: displayState,
@@ -251,7 +350,8 @@ struct ContentView: View {
                         inference: inference,
                         showDevicePicker: $showDevicePicker,
                         onPreview: { showFilm = true },
-                        onSleepAlert: { showSleepReport = true }
+                        onSleepAlert: { showSleepReport = true },
+                        onNeckWarningTap: { showNeckReport = true }
                     )
                     .frame(maxWidth: .infinity)
                     .frame(height: 240)
@@ -341,6 +441,226 @@ struct ContentView: View {
     }
 }
 
+// MARK: - 颈椎压力 AI 分析报告
+
+/// 用户点击"颈椎压力过大"徽章后弹出的 sheet。
+/// 根据当前 tiredness 等级（0..1）和 head 弯曲角度（20° + 130°×t）生成 AI 分析报告。
+/// 内容为本地模拟（没接 LLM），但风格、风险评估、建议都根据 level 动态生成。
+private struct NeckPressureReportView: View {
+    let tiredness: Double
+    let bendAngle: Double
+    let onClose: () -> Void
+
+    /// 风险等级（0..1 → 低/中/高/严重）
+    private var riskLevel: (label: String, color: Color) {
+        switch tiredness {
+        case ..<0.5:  return ("低", Color(red: 0.02, green: 0.59, blue: 0.41))
+        case ..<0.7:  return ("中", Color(red: 0.92, green: 0.34, blue: 0.05))
+        case ..<0.85: return ("高", Color(red: 0.93, green: 0.20, blue: 0.20))
+        default:      return ("严重", Color(red: 0.72, green: 0.05, blue: 0.05))
+        }
+    }
+
+    private var durationHours: Double { 0.5 + tiredness * 4.0 }
+
+    private var currentTime: String {
+        let c = Calendar.current
+        let d = Date()
+        let h = c.component(.hour, from: d)
+        let m = c.component(.minute, from: d)
+        return String(format: "%02d:%02d", h, m)
+    }
+
+    private var analysisBody: String {
+        switch tiredness {
+        case ..<0.5:
+            return "过去 30 分钟你的头部前倾角度维持在 \(Int(bendAngle))° 左右，颈椎承受的额外压力约为正常直立姿势的 1.5 倍。当前属于轻度疲劳，建议每小时起身活动 2-3 分钟，避免进一步累积。"
+        case ..<0.7:
+            return "过去 1.5 小时内你的头部持续前倾 \(Int(bendAngle))°，相当于在颈椎上挂了约 12 公斤的沙袋（正常直立约 4.5 公斤）。这个角度会导致颈后肌群持续紧张，肩部也开始代偿。建议立刻做一组颈部拉伸，并把屏幕抬高到视线平行位置。"
+        case ..<0.85:
+            return "⚠️ 高风险：你的头部已经前倾 \(Int(bendAngle))° 长达近 \(String(format: "%.1f", durationHours)) 小时。颈椎承受的压力是正常的 3 倍以上（约 15-18 公斤），相当于一个 6 岁小孩坐在你的脖子上。椎间盘突出、肩颈僵硬、头晕恶心的风险显著上升。请立刻：① 离开工位 ② 做 5 分钟米字操 ③ 调整显示器高度 ④ 之后每 30 分钟强制起身。"
+        default:
+            return "🚨 严重警告：头部前倾达到 \(Int(bendAngle))°，已经进入可能造成颈椎反弓的角度。肌肉韧带长期被牵拉、椎动脉供血受影响，风险包括：颈椎曲度变直、椎间盘突出、神经根压迫、头晕手麻。不要再继续这个姿势。建议立即离开屏幕，去做专业理疗或就医检查。如果只是暂时性疲劳，请至少：① 缓慢做颈部米字操 ② 热敷颈后 15 分钟 ③ 把椅子降低让视线平视屏幕。"
+        }
+    }
+
+    private var recommendations: [String] {
+        switch tiredness {
+        case ..<0.5:
+            return [
+                "保持当前姿势每小时起身一次",
+                "做 30 秒颈部米字操",
+                "喝一杯水补充水分",
+            ]
+        case ..<0.7:
+            return [
+                "立刻离开工位 3-5 分钟",
+                "做 1 分钟米字操（前后左右各 5 次）",
+                "调整显示器：上沿与视线平齐",
+                "考虑加装笔记本支架",
+            ]
+        case ..<0.85:
+            return [
+                "立即停止当前工作，休息 5-10 分钟",
+                "米字操 1 分钟 + 肩部环绕 30 秒",
+                "热敷颈后 10 分钟",
+                "调整工位：屏幕抬高、椅子升高、键盘下沉",
+                "接下来每 30 分钟强制起身",
+                "下班后做专业颈部按摩 / 推拿",
+            ]
+        default:
+            return [
+                "立即停止所有屏幕工作",
+                "去最近的医院或理疗店做一次专业评估",
+                "近期考虑颈椎 X 光 / MRI 检查",
+                "暂停高强度脑力工作至少 1 天",
+                "如伴随手麻、头晕、恶心，立即就医",
+                "工位全面改造：升降桌 + 显示器支架 + 人体工学椅",
+            ]
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    // 顶部风险条
+                    HStack(alignment: .top, spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(riskLevel.color.opacity(0.15))
+                                .frame(width: 56, height: 56)
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 24, weight: .heavy))
+                                .foregroundColor(riskLevel.color)
+                        }
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Text("风险等级")
+                                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                    .tracking(0.6)
+                                    .foregroundColor(Theme.slate)
+                                Text(riskLevel.label)
+                                    .font(.system(size: 16, weight: .heavy, design: .serif))
+                                    .foregroundColor(riskLevel.color)
+                            }
+                            Text("采集时间 · \(currentTime)")
+                                .font(.system(size: 10, weight: .regular, design: .monospaced))
+                                .foregroundColor(Theme.slate)
+                        }
+                        Spacer()
+                    }
+                    .padding(14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(riskLevel.color.opacity(0.08))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(riskLevel.color.opacity(0.4), lineWidth: 1)
+                    )
+
+                    sectionHeader("当前数据")
+                    dataRow("头部前倾角度", "\(Int(bendAngle))°")
+                    dataRow("不良姿势持续", String(format: "%.1f 小时", durationHours))
+                    dataRow("颈椎承受压力", "约 \(Int(4.5 + tiredness * 18)) kg")
+                    dataRow("疲劳强度", "\(Int(tiredness * 100))%")
+
+                    sectionHeader("AI 分析")
+                    Text(analysisBody)
+                        .font(.system(size: 14, weight: .regular, design: .serif))
+                        .foregroundColor(Theme.navy)
+                        .lineSpacing(4)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Theme.card)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Theme.border, lineWidth: 0.5)
+                        )
+
+                    sectionHeader("建议")
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(Array(recommendations.enumerated()), id: \.offset) { idx, rec in
+                            HStack(alignment: .top, spacing: 8) {
+                                Text("\(idx + 1).")
+                                    .font(.system(size: 13, weight: .heavy, design: .monospaced))
+                                    .foregroundColor(riskLevel.color)
+                                    .frame(width: 20, alignment: .trailing)
+                                Text(rec)
+                                    .font(.system(size: 13, weight: .regular, design: .serif))
+                                    .foregroundColor(Theme.navy)
+                                    .lineSpacing(3)
+                            }
+                        }
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Theme.card)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Theme.border, lineWidth: 0.5)
+                    )
+
+                    Text("⚠️ 本报告为系统根据姿态信号估算，仅供参考；如有持续不适请咨询专业医师。")
+                        .font(.system(size: 10, weight: .regular, design: .monospaced))
+                        .foregroundColor(Theme.slate)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 8)
+                }
+                .padding(16)
+            }
+            .background(Theme.bgTop.ignoresSafeArea())
+            .navigationTitle("颈椎压力分析")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("关闭", action: onClose)
+                }
+            }
+        }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                .tracking(1.4)
+                .foregroundColor(Theme.slate)
+            Rectangle()
+                .fill(Theme.divider)
+                .frame(height: 0.5)
+        }
+        .padding(.top, 4)
+    }
+
+    private func dataRow(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 13, weight: .regular, design: .serif))
+                .foregroundColor(Theme.slate)
+            Spacer()
+            Text(value)
+                .font(.system(size: 14, weight: .heavy, design: .monospaced))
+                .foregroundColor(Theme.navy)
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 14)
+        .background(
+            RoundedRectangle(cornerRadius: 6).fill(Theme.card)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6).stroke(Theme.border, lineWidth: 0.5)
+        )
+    }
+}
+
 // MARK: - 主舞台（v6 风格）
 
 private struct StageHeroView: View {
@@ -353,6 +673,7 @@ private struct StageHeroView: View {
     @Binding var showDevicePicker: Bool
     var onPreview: () -> Void
     var onSleepAlert: () -> Void
+    var onNeckWarningTap: () -> Void
 
     /// 把 inference 副标拼成单行 mono 文本：CONF xx% · <first reason>
     private var inferenceSubline: String {
@@ -376,7 +697,7 @@ private struct StageHeroView: View {
                     noDataStage
                         .transition(.opacity)
                 } else {
-                    StickFigureView(state: state, mood: mood, tiredness: tiredness)
+                    StickFigureView(state: state, mood: mood, tiredness: tiredness, neckWarning: neckWarningOpacity)
                         .padding(.horizontal, 32)
                         .padding(.top, 8)
                         .padding(.bottom, 8)
@@ -384,24 +705,29 @@ private struct StageHeroView: View {
                         .transition(.opacity)
                 }
 
-                // 颈椎压力过大提醒（左上角；tiredness > 0.6 开始淡入）
+                // 颈椎压力过大提醒（左上角；tiredness > 0.6 开始淡入；点击弹 AI 报告）
                 if neckWarningOpacity > 0.01 {
                     VStack {
                         HStack {
-                            HStack(spacing: 4) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .font(.system(size: 10, weight: .heavy))
-                                Text("颈椎压力过大")
-                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                    .tracking(0.4)
+                            Button(action: onNeckWarningTap) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.system(size: 10, weight: .heavy))
+                                    Text("颈椎压力过大")
+                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                        .tracking(0.4)
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 8, weight: .bold))
+                                }
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule().fill(Color(red: 0.92, green: 0.34, blue: 0.05).opacity(0.92))
+                                )
+                                .foregroundColor(.white)
+                                .shadow(color: .black.opacity(0.15), radius: 3, x: 0, y: 1)
                             }
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule().fill(Color(red: 0.92, green: 0.34, blue: 0.05).opacity(0.92))
-                            )
-                            .foregroundColor(.white)
-                            .shadow(color: .black.opacity(0.15), radius: 3, x: 0, y: 1)
+                            .buttonStyle(.plain)
                             Spacer()
                         }
                         Spacer()
@@ -551,4 +877,73 @@ private struct StageHeroView: View {
 
 #Preview {
     ContentView()
+}
+
+// MARK: - AI 风险预警横幅
+
+/// 主页上半部一条横向警示条，提示「晚间走路 + 心率过高」。
+/// 点击整条进入 `AIAnalysisView` 看完整报告。
+private struct AIRiskBanner: View {
+    let report: AIAnalysisReport
+    var onTap: () -> Void
+
+    private var timeText: String {
+        StickState.formatMinute(StickState.minutesOfDay(report.timestamp))
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                // 左侧 ECG 图标
+                ZStack {
+                    Circle()
+                        .fill(report.risk.color.opacity(0.15))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "waveform.path.ecg.rectangle.fill")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(report.risk.color)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 5) {
+                        Text("AI 风险预警")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .tracking(1.4)
+                            .foregroundColor(report.risk.color)
+                        Text("·")
+                            .foregroundColor(Theme.slate)
+                        Text(timeText)
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundColor(Theme.slate)
+                    }
+                    Text("心率 \(report.heartRate) bpm · \(report.risk.label)度风险")
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .foregroundColor(Theme.navy)
+                        .lineLimit(1)
+                    Text(report.headline)
+                        .font(.system(size: 10, weight: .regular, design: .serif))
+                        .foregroundColor(Theme.slate)
+                        .lineLimit(2)
+                        .lineSpacing(2)
+                }
+
+                Spacer(minLength: 4)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(report.risk.color)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(report.risk.color.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(report.risk.color.opacity(0.32), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
 }

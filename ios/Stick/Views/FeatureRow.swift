@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// 主页 3 行紧凑指标（左上角）：
+/// 主页 3-4 行紧凑指标（左上角）：
 ///  - 心率那一行额外带一个 48×18 的 ECG 动画波形（图形 + 数据）
+///  - 心情那一行（白天）额外带一个 48×18 的心情曲线（图形 + 数据）
 ///  - 其他行：状态色点 + mono 标签 + 数值 + 副标
 ///
 /// 设备能力：每个 metric 关联一个 MetricID。`deviceSet` 没有命中该 metric 的 required 设备时，
@@ -10,14 +11,159 @@ struct FeatureRow: View {
     let state: StickState
     let deviceSet: Set<DeviceID>
     let healthStatuses: [MetricID: MetricDataStatus]
+    let moodLine: MoodLineInfo?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             FeatureLine(metric: state.primaryMetric,   accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses)
             FeatureLine(metric: state.secondaryMetric, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses)
             FeatureLine(metric: state.tertiaryMetric,  accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses)
+            if let m = moodLine {
+                MoodLine(info: m, accent: state.accent)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .animation(.easeInOut(duration: 0.35), value: moodLine)
+    }
+}
+
+// MARK: - 心情监测（白天）
+
+struct MoodLineInfo: Equatable {
+    enum Tone { case good, calm, warn, excited }
+    enum Spark { case excited, relaxed, evening, good, focused, tired, stable }
+
+    let text: String
+    let tone: Tone
+    let spark: Spark
+}
+
+private struct MoodLine: View {
+    let info: MoodLineInfo
+    let accent: Color
+
+    private var dotColor: Color {
+        switch info.tone {
+        case .good:    return Color(red: 0.20, green: 0.65, blue: 0.45)   // 绿
+        case .calm:    return Color(red: 0.30, green: 0.55, blue: 0.85)   // 蓝
+        case .warn:    return Color(red: 0.92, green: 0.55, blue: 0.20)   // 橙
+        case .excited: return Color(red: 0.95, green: 0.40, blue: 0.55)   // 粉
+        }
+    }
+
+    private var statusText: String {
+        switch info.tone {
+        case .good:    return "STABLE"
+        case .calm:    return "FOCUS"
+        case .warn:    return "WARN"
+        case .excited: return "PEAK"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(dotColor)
+                .frame(width: 5, height: 5)
+
+            Text("MOOD")
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .tracking(0.8)
+                .foregroundColor(Theme.slate)
+                .lineLimit(1)
+                .frame(width: 68, alignment: .leading)
+
+            // 心情曲线（柔和填充曲线）
+            MoodSparkline(kind: info.spark, color: dotColor)
+                .frame(width: 52, height: 18)
+
+            Text(info.text)
+                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                .foregroundColor(Theme.navy)
+                .lineLimit(1)
+
+            Text("心情 · \(statusText)")
+                .font(.system(size: 10, weight: .medium, design: .serif))
+                .foregroundColor(Theme.mist)
+                .lineLimit(1)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+/// 白天心情曲线：根据当前状态画 4 小时内的典型心情走势（无动画，纯静态）
+private struct MoodSparkline: View {
+    let kind: MoodLineInfo.Spark
+    let color: Color
+
+    /// y 值 0..1, 0 = 谷, 1 = 峰
+    private var samples: [Double] {
+        switch kind {
+        case .excited:
+            // 上午通勤: 从中位上冲到顶再微降
+            return [0.55, 0.72, 0.92, 0.85, 0.78]
+        case .relaxed:
+            // 午餐后: 平稳 → 上升 → 峰值 → 缓降
+            return [0.65, 0.70, 0.82, 0.78, 0.70]
+        case .evening:
+            // 晚间: 缓慢上行，临近峰值
+            return [0.50, 0.60, 0.72, 0.82, 0.88]
+        case .good:
+            // 良好: 平稳中高
+            return [0.70, 0.74, 0.72, 0.76, 0.74]
+        case .focused:
+            // 专注: 起步平 → 稳高
+            return [0.68, 0.74, 0.78, 0.80, 0.78]
+        case .tired:
+            // 疲倦: 缓降
+            return [0.80, 0.74, 0.66, 0.55, 0.42]
+        case .stable:
+            // 平稳: 几乎不变
+            return [0.68, 0.70, 0.68, 0.72, 0.70]
+        }
+    }
+
+    var body: some View {
+        Canvas { ctx, size in
+            let pts = samples
+            let stepX = size.width / CGFloat(pts.count - 1)
+            let points: [CGPoint] = pts.enumerated().map { i, v in
+                CGPoint(x: CGFloat(i) * stepX, y: size.height * (1 - CGFloat(v)))
+            }
+
+            // 平滑路径
+            var path = Path()
+            path.move(to: points[0])
+            for i in 1..<points.count {
+                let prev = points[i - 1]
+                let cur  = points[i]
+                let c1 = CGPoint(x: prev.x + stepX * 0.5, y: prev.y)
+                let c2 = CGPoint(x: cur.x  - stepX * 0.5, y: cur.y)
+                path.addCurve(to: cur, control1: c1, control2: c2)
+            }
+
+            // 填充：曲线下到 baseline
+            var fill = path
+            fill.addLine(to: CGPoint(x: size.width, y: size.height))
+            fill.addLine(to: CGPoint(x: 0, y: size.height))
+            fill.closeSubpath()
+            ctx.fill(fill, with: .color(color.opacity(0.22)))
+
+            // 描边
+            ctx.stroke(
+                path,
+                with: .color(color),
+                style: StrokeStyle(lineWidth: 1.3, lineCap: .round, lineJoin: .round)
+            )
+
+            // 末点小圆
+            if let last = points.last {
+                ctx.fill(
+                    Path(ellipseIn: CGRect(x: last.x - 2, y: last.y - 2, width: 4, height: 4)),
+                    with: .color(color)
+                )
+            }
+        }
     }
 }
 

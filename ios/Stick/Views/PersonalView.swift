@@ -28,14 +28,24 @@ struct PersonalView: View {
         MenuItem(icon: "macwindow",  title: "Widget 预览"),
     ]
 
-    // 已配置的设备 (iPhone 永远在线) — 可点击切换连接状态
+    // 已配置的设备 (iPhone 看 HealthKit 授权; 其他看 toggle 连上)
     private var allDevices: [Device] {
         DeviceID.allCases.map { id in
-            Device(
+            // iPhone 判授权: 至少一个 native metric 成功 query 出数据 → 已授权
+            let isAuthorized: Bool = {
+                if id != .iPhone { return true }
+                return MetricID.allCases.contains { m in
+                    if m.dataSource != .iPhoneNative && m.dataSource != .iPhoneManual { return false }
+                    let s = healthAuth.statuses[m] ?? .unknown
+                    return s == .hasData || s == .noData
+                }
+            }()
+            return Device(
                 id: id.rawValue,
                 icon: id.icon,
                 name: id.displayName,
                 isConnected: deviceSet.contains(id),
+                isAuthorized: isAuthorized,
                 color: id.color
             )
         }
@@ -190,7 +200,15 @@ struct PersonalView: View {
                         healthStatuses: healthAuth.statuses,
                         deviceSet: deviceSet
                     ) {
-                        toggleDevice(dev.idEnum)
+                        // iPhone + 未授权 → 触发 HealthKit 授权弹窗
+                        if dev.idEnum == .iPhone && !dev.isAuthorized {
+                            Task {
+                                await HealthKitService.shared.requestAuthorization()
+                                healthAuth.refresh()
+                            }
+                        } else {
+                            toggleDevice(dev.idEnum)
+                        }
                     }
                     if idx < allDevices.count - 1 {
                         Rectangle()
@@ -302,7 +320,10 @@ struct Device: Identifiable {
     let id: String
     let icon: String
     let name: String
+    /// 外设 (Watch/护腰/鞋): 是否 toggle 连上
     let isConnected: Bool
+    /// iPhone: 是否已授权 HealthKit (任一 native metric 成功 query → 已授权)
+    let isAuthorized: Bool
     let color: Color
 
     var idEnum: DeviceID {
@@ -320,6 +341,24 @@ struct DeviceRow: View {
     let deviceSet: Set<DeviceID>
     let onTap: () -> Void
 
+    /// iPhone 标"已授权" / "点击授权"; 其他设备标"已连接/未连接"
+    private var statusText: String {
+        if device.idEnum == .iPhone {
+            return device.isAuthorized ? "已授权" : "点击授权"
+        }
+        return device.isConnected ? "已连接" : "未连接"
+    }
+
+    /// 决定整行亮/灰 + 状态色 dot
+    private var isActive: Bool {
+        device.idEnum == .iPhone ? device.isAuthorized : device.isConnected
+    }
+
+    /// iPhone 未授权时整行可点 (触发 HealthKit 授权弹窗)
+    private var isIPhoneAwaitingAuth: Bool {
+        device.idEnum == .iPhone && !device.isAuthorized
+    }
+
     /// 该 metric 在当前 UI 下的呈现 (亮/灰)
     private func availability(of metric: MetricID) -> MetricAvailability {
         let status = healthStatuses[metric] ?? .unknown
@@ -333,36 +372,45 @@ struct DeviceRow: View {
                     // 图标
                     ZStack {
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(device.color.opacity(device.isConnected ? 0.14 : 0.05))
+                            .fill(device.color.opacity(isActive ? 0.14 : 0.05))
                         Image(systemName: device.icon)
                             .font(.system(size: 18, weight: .light))
-                            .foregroundColor(device.isConnected ? device.color : Theme.mist)
+                            .foregroundColor(isActive ? device.color : Theme.mist)
                     }
                     .frame(width: 32, height: 32)
 
                     // 名称
                     Text(device.name)
                         .font(.system(size: 16))
-                        .foregroundColor(device.isConnected ? Theme.navy : Theme.mist)
+                        .foregroundColor(isActive ? Theme.navy : Theme.mist)
 
                     Spacer()
 
-                    // 状态指示
+                    // 状态指示 (iPhone 显已授权/点击授权, 其他显已连接/未连接)
                     HStack(spacing: 6) {
-                        Circle()
-                            .fill(device.isConnected ? device.color : Theme.mist)
-                            .frame(width: 6, height: 6)
-                        Text(device.isConnected ? "已连接" : "未连接")
-                            .font(.system(size: 12))
-                            .foregroundColor(device.isConnected ? Theme.slate : Theme.mist)
+                        if isIPhoneAwaitingAuth {
+                            // 点击授权 — 用 chevron + 高亮文本，提示可点
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(StickState.walk.accent)
+                        } else {
+                            Circle()
+                                .fill(isActive ? device.color : Theme.mist)
+                                .frame(width: 6, height: 6)
+                        }
+                        Text(statusText)
+                            .font(.system(size: 12, weight: isIPhoneAwaitingAuth ? .semibold : .regular))
+                            .foregroundColor(isIPhoneAwaitingAuth
+                                             ? StickState.walk.accent
+                                             : (isActive ? Theme.slate : Theme.mist))
                     }
                 }
                 .frame(minHeight: 40)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .disabled(device.name == DeviceID.iPhone.rawValue)   // iPhone 不可断开
-            .opacity(device.name == DeviceID.iPhone.rawValue ? 0.6 : 1.0)
+            // iPhone 已授权时不可点 (永远在); 未授权时可点 → 触发 HealthKit 授权
+            .disabled(device.idEnum == .iPhone && device.isAuthorized)
 
             // 设备下方小字: 该设备能提供的数据项 (亮/灰)
             if !capabilities.isEmpty {
@@ -394,35 +442,49 @@ struct DeviceRow: View {
 
 // MARK: - 设备下方的能力 tag (小字)
 
-/// tag 小字 - 状态色根据 availability 决定
+/// tag 两行: 第 1 行 = 锁图标 + 名字; 第 2 行 = hint (具体呈现什么)
 private struct CapabilityTag: View {
     let metric: MetricID
     let availability: MetricAvailability
 
     private var isOn: Bool { availability.kind == .available }
     private var isEmpty: Bool { availability.kind == .availableEmpty }
+    private var isLocked: Bool { availability.kind == .locked }
 
     var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: isOn ? metric.icon : "lock.fill")
-                .font(.system(size: 7, weight: .semibold))
-            Text(metric.rawValue)
-                .font(.system(size: 9.5, weight: .medium, design: .monospaced))
-                .lineLimit(1)
+        VStack(alignment: .leading, spacing: 1) {
+            // 第 1 行: 锁图标 / 真实图标 + 名字
+            HStack(spacing: 3) {
+                Image(systemName: isOn ? metric.icon : "lock.fill")
+                    .font(.system(size: 7.5, weight: .semibold))
+                Text(metric.rawValue)
+                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            // 第 2 行: 具体呈现什么 (不论锁/不锁, 统一显示 metric 实际含义)
+            Text(metric.hint)
+                .font(.system(size: 7.5, weight: .medium, design: .monospaced))
+                .foregroundColor(isLocked ? Theme.mist : Theme.slate)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 5)
-        .padding(.vertical, 2)
+        .padding(.vertical, 3)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .fill(isOn ? metric.required.first?.color.opacity(0.10) ?? Theme.mist.opacity(0.10)
-                       : Theme.mist.opacity(0.08))
+                .fill(isOn
+                      ? (metric.required.first?.color.opacity(0.10) ?? Theme.mist.opacity(0.10))
+                      : Theme.mist.opacity(0.08))
         )
-        .foregroundColor(isOn ? Theme.navy : (isEmpty ? Theme.slate : Theme.mist))
         .overlay(
             RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .stroke(isOn ? Color.clear : Theme.mist.opacity(0.30),
                         style: StrokeStyle(lineWidth: 0.5, dash: [1.5, 1.5]))
         )
+        .opacity(isEmpty ? 0.6 : 1.0)
     }
 }
 

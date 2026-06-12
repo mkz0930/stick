@@ -52,7 +52,7 @@ final class HealthAuthService: ObservableObject {
     /// 查询单个 metric 的真实状态
     private func checkOne(_ metric: MetricID) async -> MetricDataStatus {
         // iPhone 自身没硬件的类型
-        guard let type = metric.hkType else {
+        guard let type = metric.hkType, let sampleType = type as? HKSampleType else {
             return .notSupported
         }
         let now = Date()
@@ -60,12 +60,15 @@ final class HealthAuthService: ObservableObject {
         let pred = HKQuery.predicateForSamples(withStart: from, end: now, options: .strictStartDate)
 
         return await withCheckedContinuation { (cont: CheckedContinuation<MetricDataStatus, Never>) in
+            // 防重入: 用原子标记，callback 只 resume 一次
+            let flag = ResumeFlag()
             let q = HKSampleQuery(
-                sampleType: type as! HKSampleType,
+                sampleType: sampleType,
                 predicate: pred,
                 limit: 1,
                 sortDescriptors: nil
             ) { _, samples, error in
+                guard flag.tryResume() else { return }   // 多次 callback 防御
                 if let hkErr = error as? HKError, hkErr.code == .errorAuthorizationDenied {
                     cont.resume(returning: .notAuthorized)
                 } else if error != nil {
@@ -78,6 +81,18 @@ final class HealthAuthService: ObservableObject {
                 }
             }
             self.store.execute(q)
+        }
+    }
+
+    /// 防"checked continuation 多次 resume"的小工具
+    private final class ResumeFlag: @unchecked Sendable {
+        private var done = false
+        private let lock = NSLock()
+        func tryResume() -> Bool {
+            lock.lock(); defer { lock.unlock() }
+            if done { return false }
+            done = true
+            return true
         }
     }
 }

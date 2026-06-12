@@ -43,6 +43,8 @@ struct ChatOverlay: View {
         .padding(.horizontal, 12)         // 水平留白
         .padding(.top, 8)                  // 顶部留白（让 card 浮起来）
         .frame(maxHeight: 320)             // 限制最大高度
+        // 突破底部 safe area，贴到屏幕最底（home indicator 之上）
+        .ignoresSafeArea(.container, edges: .bottom)
         .onAppear {
             input = initialText
             if !initialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
