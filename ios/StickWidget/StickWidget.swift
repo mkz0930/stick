@@ -20,8 +20,8 @@ struct StickWidget: Widget {
         StaticConfiguration(kind: "StickWidget", provider: StickProvider()) { entry in
             StickWidgetView(entry: entry)
         }
-        .configurationDisplayName("Stick · 状态")
-        .description("实时姿态 · 心率 · 心情")
+        .configurationDisplayName("Stick")
+        .description("2x2 · 状态 + 心率")
         .supportedFamilies([.systemSmall])
     }
 }
@@ -33,8 +33,8 @@ struct StickMediumWidget: Widget {
         StaticConfiguration(kind: "StickMediumWidget", provider: StickProvider()) { entry in
             StickMediumWidgetView(entry: entry)
         }
-        .configurationDisplayName("Stick · 心情 + 告警")
-        .description("心情趋势 + 状态告警（久坐提醒 / 浅睡提示）")
+        .configurationDisplayName("Stick")
+        .description("4x2 · 心情 + 告警")
         .supportedFamilies([.systemMedium])
     }
 }
