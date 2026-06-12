@@ -13,6 +13,8 @@ struct ChatOverlay: View {
     @State private var input: String = ""
     @State private var isStreaming: Bool = false
     @State private var streamTask: Task<Void, Never>?
+    /// 是否展开全屏 (默认底部小对话框, 点击 → 全屏)
+    @State private var isExpanded: Bool = false
 
     private let suggestedQuestions: [String] = [
         "我刚坐了一上午，怎么办？",
@@ -29,22 +31,40 @@ struct ChatOverlay: View {
             Spacer(minLength: 0)
             DashedDivider()
             inputBar
+            // 底色 footer：与 card 同色，延伸到屏幕最底（覆盖 home indicator 区域）
+            Theme.card
+                .frame(height: 60)
+                .ignoresSafeArea(edges: .bottom)
         }
         .background(
-            // 只圆顶部两角，底部贴边
-            UnevenRoundedRectangle(cornerRadii: .init(topLeading: 14, topTrailing: 14), style: .continuous)
-                .fill(Theme.card)
+            // 只圆顶部两角，底部贴边 (展开后全圆)
+            UnevenRoundedRectangle(
+                cornerRadii: .init(
+                    topLeading: 14,
+                    bottomLeading: 0,
+                    bottomTrailing: 0,
+                    topTrailing: 14
+                ),
+                style: .continuous
+            )
+            .fill(Theme.card)
         )
         .overlay(
-            UnevenRoundedRectangle(cornerRadii: .init(topLeading: 14, topTrailing: 14), style: .continuous)
-                .stroke(Theme.border, lineWidth: 1)
+            UnevenRoundedRectangle(
+                cornerRadii: .init(
+                    topLeading: 14,
+                    bottomLeading: 0,
+                    bottomTrailing: 0,
+                    topTrailing: 14
+                ),
+                style: .continuous
+            )
+            .stroke(Theme.border, lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.10), radius: 10, y: -2)
+        .shadow(color: .black.opacity(isExpanded ? 0.20 : 0.10), radius: isExpanded ? 0 : 10, y: -2)
         .padding(.horizontal, 12)         // 水平留白
         .padding(.top, 8)                  // 顶部留白（让 card 浮起来）
-        .frame(maxHeight: 320)             // 限制最大高度
-        // 突破底部 safe area，贴到屏幕最底（home indicator 之上）
-        .ignoresSafeArea(.container, edges: .bottom)
+        .frame(maxHeight: isExpanded ? .infinity : 320)
         .onAppear {
             input = initialText
             if !initialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -98,6 +118,27 @@ struct ChatOverlay: View {
                 RoundedRectangle(cornerRadius: 2)
                     .stroke(state.accent, lineWidth: 1)
             )
+
+            // 展开/收起
+            Button {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.up")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(Theme.navy)
+                    .frame(width: 28, height: 28)
+                    .background(
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Theme.bgTop)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 2)
+                            .stroke(Theme.border, lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
 
             // 关闭
             Button(action: onClose) {

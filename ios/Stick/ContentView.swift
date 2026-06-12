@@ -23,6 +23,7 @@ struct ContentView: View {
     @State private var openWidgetPreview: Bool = false
     @State private var showDevicePicker: Bool = false
     @State private var showAIReport: Bool = false
+    @State private var selectedAlert: UnifiedAlert? = nil
     @State private var deviceSet: Set<DeviceID> = [.iPhone]
 
     // HealthKit 状态推断（30s 重算一次）
@@ -123,6 +124,35 @@ struct ContentView: View {
         return (t - 0.6) / 0.2
     }
 
+    /// 身体能量 0..100。综合 state + 时段 + tiredness：
+    ///   - walk 兴奋(上午): 90 / walk 其他: 72
+    ///   - sit 专注(上午): 78 / sit 疲倦(下午): 55→15 随 tiredness 衰减
+    ///   - sit 其他: 55
+    ///   - sleep: 8→45 随已睡时长缓慢回升（"充电中"）
+    private var bodyEnergy: Double {
+        switch displayState {
+        case .walk:
+            return isMorningEnergetic ? 90 : 72
+        case .sit:
+            if isMorningCalm    { return 78 }
+            if isAfternoonTired { return 55 - 40 * figureTiredness }
+            return 55
+        case .sleep:
+            let m = StickState.minutesOfDay(displayDate)
+            let hoursSlept = max(0, min(8, Double(m) / 60.0))
+            return min(45, 8 + hoursSlept * 5)
+        }
+    }
+
+    /// 能量条颜色：>75 绿 / >50 黄绿 / >30 橙 / ≤30 红
+    private var energyColor: Color {
+        let e = bodyEnergy
+        if e >= 75 { return Color(red: 0.02, green: 0.59, blue: 0.41) }
+        if e >= 50 { return Color(red: 0.55, green: 0.71, blue: 0.06) }
+        if e >= 30 { return Color(red: 0.92, green: 0.55, blue: 0.06) }
+        return Color(red: 0.93, green: 0.20, blue: 0.20)
+    }
+
     // MARK: - 给 Widget 用的派生值
 
     private var primaryHeartRate: Int {
@@ -173,7 +203,43 @@ struct ContentView: View {
         )
     }
 
+    /// 今日所有异常（AI 实时 + HealthAnalyzer 历史 + 参考睡眠异常）
+    private var unifiedAlerts: [UnifiedAlert] {
+        AlertAggregator.aggregate(
+            snapshots: HealthStore.shared.today,
+            aiReport: aiReport
+        )
+    }
+
+    /// 点击异常行：AI 实时报告 → AIAnalysisView；其他 → AlertDetailView
+    private func handleAlertTap(_ a: UnifiedAlert) {
+        if a.kind == .aiLive, a.aiReport != nil {
+            showAIReport = true
+        } else {
+            selectedAlert = a
+        }
+    }
+
     var body: some View {
+        ZStack(alignment: .bottom) {
+            mainContent
+
+            if showChat {
+                ChatOverlay(
+                    state: displayState,
+                    initialText: chatSeed,
+                    onClose: { showChat = false }
+                )
+                .id(chatKey)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .ignoresSafeArea(edges: .bottom)
+        .animation(.easeInOut(duration: 0.28), value: showChat)
+    }
+
+    /// 主页（被外层 ZStack 包了一层）— GeometryReader + 个人面板
+    private var mainContent: some View {
         GeometryReader { geo in
             let panelWidth = geo.size.width * 0.78
 
@@ -257,25 +323,16 @@ struct ContentView: View {
             MiniFilmShareSheet(isPresented: $showFilm)
                 .presentationBackground(Color.black)
         }
-        // Chat 改成主页底栏 ZStack 叠加（不是 sheet）— 真正贴底
-        .overlay(alignment: .bottom) {
-            if showChat {
-                ChatOverlay(
-                    state: displayState,
-                    initialText: chatSeed,
-                    onClose: { showChat = false }
-                )
-                .id(chatKey)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
-        .animation(.easeInOut(duration: 0.28), value: showChat)
+        // Chat 改到外层 ZStack（贴底）
         .sheet(isPresented: $showAIReport) {
             if let r = aiReport {
                 AIAnalysisView(report: r, onClose: { showAIReport = false })
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
             }
+        }
+        .sheet(item: $selectedAlert) { a in
+            alertDetailView(for: a)
         }
         .sheet(isPresented: $showSleepReport) {
             SleepReportView(onClose: { showSleepReport = false })
@@ -294,19 +351,27 @@ struct ContentView: View {
         .onAppear {
             // 启动 HealthKit 抓取 (1 分钟一次, 写到本地)
             Task {
+                #if targetEnvironment(simulator)
+                // 模拟器: 跳过 requestAuthorization (会无限阻塞等用户点弹窗), 直接注入 demo 数据
+                HealthKitService.shared.startAutoCapture(interval: 60)
+                await HealthKitDemoData.shared.injectIfNeeded()
+                inference = HealthKitService.shared.currentInference
+                #else
+                // 真机: 弹系统授权弹窗
                 await HealthKitService.shared.requestAuthorization()
                 HealthKitService.shared.startAutoCapture(interval: 60)
-                // 首屏立刻算一次 inference，让徽章副标有内容
                 inference = HealthKitService.shared.currentInference
+                #endif
             }
             // 检查各 metric 真实授权状态 (有/无/拒绝)
             healthAuth.refresh()
-            #if DEBUG
-            // DEBUG: 自动开 chat 让你看到贴底效果
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                openChat("")
+            // 注入数据写入需要时间, 1.5s / 3s 后再 refresh 确认
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                healthAuth.refresh()
             }
-            #endif
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                healthAuth.refresh()
+            }
         }
     }
 
@@ -323,49 +388,61 @@ struct ContentView: View {
                         .padding(.top, 10)
                         .padding(.bottom, 4)
 
-                    // 三行数据：左上角，top bar 下方
+                    // 能量徽章（顶部右上方 — 跟 FeatureRow 卡片同一行）
+                    HStack {
+                        Spacer(minLength: 0)
+                        EnergyBadge(
+                            state: displayState,
+                            level: bodyEnergy,
+                            color: energyColor,
+                            onTap: { showFilm = true }
+                        )
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 4)
+
+                    // 3 行数据 + 心情 + 异常提示 (单行，不展开)
                     FeatureRow(
                         state: displayState,
                         deviceSet: deviceSet,
                         healthStatuses: healthAuth.statuses,
-                        moodLine: displayMoodLine
+                        moodLine: displayMoodLine,
+                        unifiedAlerts: unifiedAlerts,
+                        onAlertTap: handleAlertTap
                     )
                     .padding(.horizontal, 20)
                     .padding(.bottom, 6)
 
-                    // AI 风险预警 (晚间走路 + HR 高) — 点击弹出完整报告
-                    if let r = aiReport {
-                        AIRiskBanner(report: r) { showAIReport = true }
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 6)
-                            .transition(.move(edge: .top).combined(with: .opacity))
+                    // 主舞台 + 24h 竖向时间轴 (小人 + 右侧时间轴 侧边栏)
+                    HStack(alignment: .top, spacing: 10) {
+                        StageHeroView(
+                            state: displayState,
+                            mood: figureMood,
+                            tiredness: figureTiredness,
+                            neckWarningOpacity: neckWarningOpacity,
+                            bodyEnergy: 0.6,
+                            energyColor: Color.orange,
+                            isScrubbing: isScrubbing,
+                            inference: inference,
+                            showDevicePicker: $showDevicePicker,
+                            scrubOffset: $scrubOffset,
+                            onPreview: { showFilm = true },
+                            onSleepAlert: { showSleepReport = true },
+                            onNeckWarningTap: { showNeckReport = true }
+                        )
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 400)
+
+                        DayTimelineView(
+                            schedule: StickState.daySchedule,
+                            now: now,
+                            scrubOffset: $scrubOffset,
+                            showDevicePicker: $showDevicePicker
+                        )
+                        .frame(width: 96)
+                        .frame(height: 400)
                     }
-
-                    StageHeroView(
-                        state: displayState,
-                        mood: figureMood,
-                        tiredness: figureTiredness,
-                        neckWarningOpacity: neckWarningOpacity,
-                        isScrubbing: isScrubbing,
-                        inference: inference,
-                        showDevicePicker: $showDevicePicker,
-                        onPreview: { showFilm = true },
-                        onSleepAlert: { showSleepReport = true },
-                        onNeckWarningTap: { showNeckReport = true }
-                    )
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 240)
                     .padding(.horizontal, 16)
-
-                    DayTimelineView(
-                        schedule: StickState.daySchedule,
-                        now: now,
-                        scrubOffset: $scrubOffset,
-                        showDevicePicker: $showDevicePicker
-                    )
-                    .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .padding(.bottom, 8)
 
                     InputBar(
                         state: displayState,
@@ -438,6 +515,14 @@ struct ContentView: View {
         comps.hour = minutes / 60
         comps.minute = minutes % 60
         return c.date(from: comps) ?? Date()
+    }
+
+    /// 通用异常详情 sheet — 历史洞察（睡眠不足 / 久坐 / 步数等）使用
+    @ViewBuilder
+    private func alertDetailView(for a: UnifiedAlert) -> some View {
+        AlertDetailView(alert: a) { selectedAlert = nil }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
     }
 }
 
@@ -668,12 +753,34 @@ private struct StageHeroView: View {
     let mood: StickFigureMood
     let tiredness: Double
     let neckWarningOpacity: Double
+    let bodyEnergy: Double
+    let energyColor: Color
     let isScrubbing: Bool
     let inference: StateInference.Result?
     @Binding var showDevicePicker: Bool
+    @Binding var scrubOffset: Int?            // 接收时间线 binding，stage 也可拖
     var onPreview: () -> Void
     var onSleepAlert: () -> Void
     var onNeckWarningTap: () -> Void
+
+    /// 拖动起点 + 起始 offset (用于把横向 delta 换算成分钟)
+    @State private var dragStartOffset: Int? = nil
+    @State private var dragWidth: CGFloat = 0
+    @State private var isStageScrubbing: Bool = false
+
+    /// 主舞台水平滑动 → 切时间。手势灵敏度：1 pt = 4 min（24h / iPhone 17 Pro 屏幕宽 ≈ 393 pt）
+    /// - 左滑（delta.x > 0）→ 回到过去（offset 增加）
+    /// - 右滑（delta.x < 0）→ 回到现在（offset 减少）
+    private func handleStageDrag(translation: CGFloat, width: CGFloat) {
+        dragWidth = width
+        let baseOffset = dragStartOffset ?? scrubOffset ?? 0
+        // 1 pt ≈ 4 min；24h=1440min ≈ 360pt full width
+        let minutesPerPoint: CGFloat = 4
+        let deltaMinutes = Int((translation / width) * 1440)
+        let newOffset = max(0, min(1440, baseOffset + deltaMinutes))
+        // snap 到 5 min
+        scrubOffset = (newOffset / 5) * 5
+    }
 
     /// 把 inference 副标拼成单行 mono 文本：CONF xx% · <first reason>
     private var inferenceSubline: String {
@@ -698,9 +805,9 @@ private struct StageHeroView: View {
                         .transition(.opacity)
                 } else {
                     StickFigureView(state: state, mood: mood, tiredness: tiredness, neckWarning: neckWarningOpacity)
-                        .padding(.horizontal, 32)
-                        .padding(.top, 8)
-                        .padding(.bottom, 8)
+                        .padding(.horizontal, 4)
+                        .padding(.top, 0)
+                        .padding(.bottom, 0)
                         .id(state)
                         .transition(.opacity)
                 }
@@ -738,37 +845,97 @@ private struct StageHeroView: View {
                     .animation(.easeInOut(duration: 0.35), value: neckWarningOpacity)
                 }
 
-                // 状态名（画布右上）— 点击弹出 10s 短片预览
-                VStack(alignment: .trailing, spacing: 2) {
-                    HStack(spacing: 6) {
-                        if state == .sleep {
-                            SleepAlertChip(count: 2, onTap: onSleepAlert)
-                                .transition(.scale.combined(with: .opacity))
+                // 右上角：状态名 + 副标（能量徽章已搬到顶部卡片区）
+                HStack {
+                    Spacer(minLength: 0)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        HStack(spacing: 6) {
+                            if state == .sleep {
+                                SleepAlertChip(count: 2, onTap: onSleepAlert)
+                                    .transition(.scale.combined(with: .opacity))
+                            }
+                            if hasNoData {
+                                noDataBadge
+                            }
                         }
-                        if hasNoData {
-                            noDataBadge
-                        } else {
-                            stateBadge
+                        if !hasNoData {
+                            Text(inferenceSubline)
+                                .font(.system(size: 8, weight: .medium, design: .monospaced))
+                                .tracking(0.4)
+                                .foregroundColor(Theme.slate)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .frame(maxWidth: 220, alignment: .trailing)
                         }
                     }
-                    if !hasNoData {
-                        Text(inferenceSubline)
-                            .font(.system(size: 8, weight: .medium, design: .monospaced))
-                            .tracking(0.4)
-                            .foregroundColor(Theme.slate)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .frame(maxWidth: 220, alignment: .trailing)
-                    }
-                    Spacer()
                 }
-                .padding(12)
+                .padding(4)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.top, 6)
             .animation(.easeInOut(duration: 0.45), value: state)
             .animation(.easeInOut(duration: 0.35), value: hasNoData)
+            // 主舞台水平滑动 → 切换时间
+            .contentShape(Rectangle())
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .onAppear { dragWidth = proxy.size.width }
+                        .onChange(of: proxy.size.width) { _, new in dragWidth = new }
+                }
+            )
+            .gesture(
+                DragGesture(minimumDistance: 12, coordinateSpace: .local)
+                    .onChanged { value in
+                        if dragStartOffset == nil {
+                            dragStartOffset = scrubOffset ?? 0
+                        }
+                        isStageScrubbing = true
+                        // 优先用 GeometryReader 拿到的真实宽度，回落到 320 防 nil
+                        let width = dragWidth > 0 ? dragWidth : 320
+                        handleStageDrag(translation: value.translation.width, width: width)
+                    }
+                    .onEnded { _ in
+                        isStageScrubbing = false
+                        dragStartOffset = nil
+                    }
+            )
+            // 拖动时显示当前时间
+            .overlay(alignment: .center) {
+                if isStageScrubbing {
+                    stageScrubBadge
+                }
+            }
         }
+    }
+
+    /// 拖动时主舞台中央显示的当前时间徽章
+    private var stageScrubBadge: some View {
+        let offset = scrubOffset ?? 0
+        let m = StickState.minutesOfDay(Date().addingTimeInterval(-Double(offset) * 60))
+        let hh = (m / 60) % 24
+        let mm = m % 60
+        return VStack(spacing: 2) {
+            Text(String(format: "%02d:%02d", hh, mm))
+                .font(.system(size: 26, weight: .black, design: .monospaced))
+                .foregroundColor(Theme.navy)
+            Text("← 左右滑动切换时间 →")
+                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .tracking(0.6)
+                .foregroundColor(Theme.slate)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Theme.card.opacity(0.92))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Theme.border, lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
+        .transition(.scale.combined(with: .opacity))
     }
 
     // MARK: - 缺数据状态（柔色，提示连接设备）
@@ -877,6 +1044,57 @@ private struct StageHeroView: View {
 
 #Preview {
     ContentView()
+}
+
+// MARK: - 能量徽章
+
+private struct EnergyBadge: View {
+    let state: StickState
+    let level: Double           // 0..100
+    let color: Color
+    var onTap: () -> Void
+
+    private let bodyW: CGFloat = 42
+    private let bodyH: CGFloat = 14
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("BODY ENERGY")
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .tracking(1.4)
+                    .foregroundColor(Theme.slate)
+                // 手机电池：圆角外框 + 内部填充 + 右边小帽
+                HStack(spacing: 1) {
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2.5)
+                            .fill(color.opacity(0.18))
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(color)
+                            .frame(width: max(0, (bodyW - 2) * CGFloat(level) / 100.0))
+                            .padding(1)
+                    }
+                    .frame(width: bodyW, height: bodyH)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 2.5)
+                            .stroke(color.opacity(0.7), lineWidth: 0.9)
+                    )
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(color.opacity(0.85))
+                        .frame(width: 2.2, height: 6)
+                }
+                // 大数字（放在电池下方）
+                Text("\(Int(level))%")
+                    .font(.system(size: 13, weight: .heavy, design: .monospaced))
+                    .foregroundColor(color)
+                    .monospacedDigit()
+            }
+            // 徽章整体无框：只留 4×2 padding 贴边
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+        }
+        .buttonStyle(.plain)
+    }
 }
 
 // MARK: - AI 风险预警横幅
