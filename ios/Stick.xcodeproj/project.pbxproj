@@ -36,6 +36,7 @@
 		B29900000000000000000A09 /* AIRiskAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A09 /* AIRiskAnalyzer.swift */; };
 		B29900000000000000000A0A /* AlertAggregator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A0A /* AlertAggregator.swift */; };
 		B29900000000000000000A10 /* HealthKitDemoData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A10 /* HealthKitDemoData.swift */; };
+		B29900000000000000000A11 /* ChatHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A11 /* ChatHistoryStore.swift */; };
 		B40000000000000000000001 /* StickWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000001 /* StickWidget.swift */; };
 		B40000000000000000000002 /* StickWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000004 /* StickWidgetView.swift */; };
 		B40000000000000000000003 /* StickMediumWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000005 /* StickMediumWidgetView.swift */; };
@@ -80,6 +81,7 @@
 		F29900000000000000000A09 /* AIRiskAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRiskAnalyzer.swift; sourceTree = "<group>"; };
 		F29900000000000000000A0A /* AlertAggregator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertAggregator.swift; sourceTree = "<group>"; };
 		F29900000000000000000A10 /* HealthKitDemoData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitDemoData.swift; sourceTree = "<group>"; };
+		F29900000000000000000A11 /* ChatHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryStore.swift; sourceTree = "<group>"; };
 		F40000000000000000000001 /* StickWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickWidget.swift; sourceTree = "<group>"; };
 		F40000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F40000000000000000000003 /* StickWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StickWidget.entitlements; sourceTree = "<group>"; };
@@ -188,6 +190,7 @@
 				F29900000000000000000A08 /* HealthAuthService.swift */,
 				F29900000000000000000A09 /* AIRiskAnalyzer.swift */,
 				F29900000000000000000A10 /* HealthKitDemoData.swift */,
+				F29900000000000000000A11 /* ChatHistoryStore.swift */,
 				F29900000000000000000A0A /* AlertAggregator.swift */,
 			);
 			path = Services;
@@ -224,6 +227,7 @@
 				P10000000000000000000003 /* Sources */,
 				P10000000000000000000002 /* Frameworks */,
 				P10000000000000000000004 /* Resources */,
+				P100000000000000000000005 /* Embed Widget */,
 			);
 			buildRules = (
 			);
@@ -303,6 +307,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		P100000000000000000000005 /* Embed Widget */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/StickWidget.appex",
+			);
+			name = "Embed Widget";
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/Stick.app/PlugIns/StickWidget.appex",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nmkdir -p \"$BUILT_PRODUCTS_DIR/Stick.app/PlugIns\"\nif [ -d \"$BUILT_PRODUCTS_DIR/StickWidget.appex\" ]; then\n  rm -rf \"$BUILT_PRODUCTS_DIR/Stick.app/PlugIns/StickWidget.appex\"\n  cp -R \"$BUILT_PRODUCTS_DIR/StickWidget.appex\" \"$BUILT_PRODUCTS_DIR/Stick.app/PlugIns/\"\nfi\n";
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -339,6 +359,7 @@
 				B50000000000000000000004 /* SleepReportView.swift in Sources */,
 				B29900000000000000000A09 /* AIRiskAnalyzer.swift in Sources */,
 				B29900000000000000000A10 /* HealthKitDemoData.swift in Sources */,
+				B29900000000000000000A11 /* ChatHistoryStore.swift in Sources */,
 				B10000000000000000000018 /* AIAnalysisView.swift in Sources */,
 				B29900000000000000000A0A /* AlertAggregator.swift in Sources */,
 				B10000000000000000000019 /* AlertsPanel.swift in Sources */,
