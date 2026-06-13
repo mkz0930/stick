@@ -347,11 +347,11 @@ private struct BodyScoreLine: View {
                 .frame(width: 6, height: 6)
 
             Text("身体状态得分")
-                .font(.system(size: 17, weight: .bold, design: .monospaced))
+                .font(.system(size: 21, weight: .bold, design: .monospaced))
                 .tracking(0.8)
                 .foregroundColor(Theme.slate)
                 .lineLimit(1)
-                .frame(width: 150, alignment: .leading)
+                .frame(width: 180, alignment: .leading)
 
             // 大数字 + /100（**第 1 行视觉重点**，字号比 FeatureLine 数值还大）
             HStack(alignment: .firstTextBaseline, spacing: 1) {
@@ -362,11 +362,7 @@ private struct BodyScoreLine: View {
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundColor(Theme.slate)
             }
-
-            Text(tier)
-                .font(.system(size: 12, weight: .semibold, design: .serif))
-                .foregroundColor(color)
-                .lineLimit(1)
+            // [tier 文字去掉 — 颜色 + 数字已经传达档位信息]
         }
         .padding(.vertical, 3)
     }
