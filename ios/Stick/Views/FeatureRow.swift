@@ -335,8 +335,7 @@ private struct BodyScoreLine: View {
     private var tier: String {
         switch score {
         case 75...: return "充沛"
-        case 50..<75: return "稳定"
-        case 30..<50: return "偏低"
+        case 30..<75: return "偏低"
         default: return "告急"
         }
     }
@@ -348,11 +347,11 @@ private struct BodyScoreLine: View {
                 .frame(width: 6, height: 6)
 
             Text("身体状态得分")
-                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                .font(.system(size: 17, weight: .bold, design: .monospaced))
                 .tracking(0.8)
                 .foregroundColor(Theme.slate)
                 .lineLimit(1)
-                .frame(width: 120, alignment: .leading)
+                .frame(width: 150, alignment: .leading)
 
             // 大数字 + /100（**第 1 行视觉重点**，字号比 FeatureLine 数值还大）
             HStack(alignment: .firstTextBaseline, spacing: 1) {
