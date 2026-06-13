@@ -358,6 +358,11 @@ struct ContentView: View {
                         targetScrollId = id
                         scrollTrigger += 1
                         withAnimation(.easeInOut(duration: 0.28)) { showChat = true }
+                    },
+                    onOpenChat: {
+                        // 关掉个人面板，打开聊天
+                        withAnimation(.easeInOut(duration: 0.32)) { showPersonal = false }
+                        openChat("")
                     }
                 )
                 .frame(width: panelWidth)
@@ -482,16 +487,10 @@ struct ContentView: View {
 
                 // Preview 模式：跳过 ScrollView（强制全内容布局是 Canvas 超时常见源）
                 let contentVStack = VStack(spacing: 0) {
-                    // TopBar + BODY ENERGY（**同一水平行**：左 menu 按键 + 右电池徽章）
+                    // TopBar（badge 已经移走 — body energy 现在是 FeatureRow 的第 1 行）
                     HStack(alignment: .center, spacing: 0) {
                         TopBarView(onMenuTap: { showPersonal = true })
                         Spacer(minLength: 0)
-                        EnergyBadge(
-                            state: displayState,
-                            level: bodyEnergy,
-                            color: energyColor,
-                            onTap: { showFilm = true }
-                        )
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
@@ -504,6 +503,8 @@ struct ContentView: View {
                         healthStatuses: healthAuth.statuses,
                         moodLine: displayMoodLine,
                         moodScore: moodScore,
+                        bodyScore: bodyEnergy,           // ← 身体打分（新增，第 1 行）
+                        bodyScoreColor: energyColor,
                         unifiedAlerts: unifiedAlerts,
                         sitDurationText: sitDurationText,  // ← live 坐姿秒表
                         onAlertTap: handleAlertTap,
@@ -520,8 +521,8 @@ struct ContentView: View {
                             mood: figureMood,
                             tiredness: figureTiredness,
                             neckWarningOpacity: neckWarningOpacity,
-                            bodyEnergy: 0.6,
-                            energyColor: Color.orange,
+                            bodyEnergy: bodyEnergy,
+                            energyColor: energyColor,
                             isScrubbing: isScrubbing,
                             inference: inference,
                             showDevicePicker: $showDevicePicker,
@@ -1260,7 +1261,7 @@ private struct ContentViewPreviewStub: View {
 }
 
 // MARK: - 能量徽章
-
+/* [已注释] 能量徽章下线
 private struct EnergyBadge: View {
     let state: StickState
     let level: Double           // 0..100
@@ -1309,6 +1310,7 @@ private struct EnergyBadge: View {
         .buttonStyle(.plain)
     }
 }
+*/  // [已注释] 能量徽章下线
 
 // MARK: - 心情数值徽章
 

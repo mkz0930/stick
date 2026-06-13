@@ -14,6 +14,8 @@ struct FeatureRow: View {
     let healthStatuses: [MetricID: MetricDataStatus]
     let moodLine: MoodLineInfo?
     let moodScore: Double           // 0..100, 跟 MOOD 标签一起显示
+    let bodyScore: Double           // 0..100, 身体打分（**第 1 行**，跟 MOOD 区分）
+    let bodyScoreColor: Color
     let unifiedAlerts: [UnifiedAlert]
     let sitDurationText: String?      // 坐姿秒表 live MM:SS（sit 状态时为 "47:23" 这种，非 sit 时 nil）
     var onAlertTap: (UnifiedAlert) -> Void = { _ in }
@@ -47,7 +49,9 @@ struct FeatureRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // ① 心率
+            // ① 身体打分（**第 1 行**，跟心率/心情区分）
+            BodyScoreLine(score: bodyScore, color: bodyScoreColor)
+            // ② 心率
             if let hr = heartRateMetric {
                 FeatureLine(metric: hr, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap)
             }
@@ -321,6 +325,56 @@ private struct MoodSparkline: View {
                 )
             }
         }
+    }
+}
+
+// MARK: - 身体打分（第 1 行专用 — 跟 FeatureLine / MoodLine 同视觉风格）
+
+/// 紧凑单行：色点 + BODY 标签 + 大数字 + /100 + 副标
+/// 颜色由 `bodyScoreColor` 传（4 档绿/黄绿/橙/红）。
+private struct BodyScoreLine: View {
+    let score: Double           // 0..100
+    let color: Color
+
+    private var intScore: Int { Int(score.rounded()) }
+    private var tier: String {
+        switch score {
+        case 75...: return "充沛"
+        case 50..<75: return "稳定"
+        case 30..<50: return "偏低"
+        default: return "告急"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(color)
+                .frame(width: 5, height: 5)
+
+            Text("BODY")
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .tracking(0.8)
+                .foregroundColor(Theme.slate)
+                .lineLimit(1)
+                .frame(width: 68, alignment: .leading)
+
+            // 大数字 + /100
+            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                Text("\(intScore)")
+                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .foregroundColor(color)
+                Text("/100")
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundColor(Theme.slate)
+            }
+
+            Text(tier)
+                .font(.system(size: 10, weight: .semibold, design: .serif))
+                .foregroundColor(color)
+                .lineLimit(1)
+        }
+        .padding(.vertical, 2)
     }
 }
 
