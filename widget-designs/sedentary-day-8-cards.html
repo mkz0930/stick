@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>久坐健康助手 · 2x2 小组件 8 张</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #18202a;
+    --muted: #7c8491;
+    --paper: #f5f7fb;
+    --line: 4px;
+  }
+  body {
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+    background:
+      radial-gradient(circle at 18% 12%, rgba(255, 213, 92, .22), transparent 26%),
+      radial-gradient(circle at 88% 18%, rgba(77, 198, 141, .20), transparent 24%),
+      linear-gradient(180deg, #f8fafc 0%, #edf1f7 100%);
+    color: var(--ink);
+    padding: 34px 24px 48px;
+  }
+  .shell {
+    max-width: 920px;
+    margin: 0 auto;
+  }
+  .hero {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 1.6px;
+    color: #28a66a;
+    text-transform: uppercase;
+  }
+  h1 {
+    margin-top: 7px;
+    font-size: clamp(28px, 5vw, 48px);
+    line-height: .92;
+    letter-spacing: 0;
+    font-weight: 950;
+  }
+  .brief {
+    max-width: 330px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 180px);
+    justify-content: center;
+    gap: 22px;
+  }
+  .tile {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+  }
+  .widget {
+    width: 180px;
+    aspect-ratio: 1 / 1;
+    min-height: 0;
+    border-radius: 34px;
+    position: relative;
+    overflow: hidden;
+    border: var(--line) solid var(--ink);
+    box-shadow: 0 12px 0 rgba(24, 32, 42, .13), 0 26px 36px rgba(24, 32, 42, .12);
+    isolation: isolate;
+  }
+  .widget::before {
+    content: "";
+    position: absolute;
+    inset: 12px 12px auto auto;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.38);
+  }
+  .top {
+    position: absolute;
+    z-index: 3;
+    top: 13px;
+    left: 14px;
+    right: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--ink);
+  }
+  .time {
+    font-size: clamp(9px, 1.35vw, 11px);
+    font-weight: 950;
+    letter-spacing: .8px;
+    white-space: nowrap;
+  }
+  .badge {
+    min-width: 27px;
+    height: 22px;
+    border: 3px solid var(--ink);
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: #fff;
+    font-size: 11px;
+    font-weight: 950;
+  }
+  .word {
+    position: absolute;
+    z-index: 4;
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    height: 34px;
+    border: 3px solid var(--ink);
+    border-radius: 17px;
+    background: #fff;
+    display: grid;
+    place-items: center;
+    color: var(--ink);
+    font-size: clamp(17px, 2.35vw, 21px);
+    line-height: 1;
+    font-weight: 950;
+    letter-spacing: 0;
+    box-shadow: 0 4px 0 rgba(24, 32, 42, .2);
+  }
+  .art {
+    position: absolute;
+    z-index: 2;
+    inset: 34px 8px 50px;
+    display: grid;
+    place-items: center;
+  }
+  svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .caption {
+    padding: 0 4px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .caption strong {
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0;
+  }
+  .caption span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .sun { background: linear-gradient(145deg, #ffe06f 0%, #ffb44c 100%); }
+  .mint { background: linear-gradient(145deg, #8cf0b2 0%, #31c774 100%); }
+  .pink { background: linear-gradient(145deg, #ffbad1 0%, #ff6c9c 100%); }
+  .blue { background: linear-gradient(145deg, #9ddcff 0%, #4f8fff 100%); }
+  .lime { background: linear-gradient(145deg, #d4f36b 0%, #88d846 100%); }
+  .coral { background: linear-gradient(145deg, #ffad80 0%, #ff615f 100%); }
+  .violet { background: linear-gradient(145deg, #cdb7ff 0%, #8056ff 100%); }
+  .night { background: linear-gradient(145deg, #26324b 0%, #111827 100%); color: #fff; }
+  .night .top { color: #fff; }
+  .night .badge, .night .word { color: var(--ink); }
+  .floor {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 5;
+    stroke-linecap: round;
+  }
+  .outline {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .thin {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .body-fill { fill: #fff8dc; stroke: var(--ink); stroke-width: 5; }
+  .eye { fill: var(--ink); }
+  .cheek { fill: #ff6f8f; opacity: .72; }
+  .spark { fill: #fff; stroke: var(--ink); stroke-width: 4; stroke-linejoin: round; }
+  .smoke { fill: #fff; stroke: var(--ink); stroke-width: 3; }
+  .label-text {
+    font-size: 17px;
+    font-weight: 950;
+    fill: var(--ink);
+    letter-spacing: 0;
+  }
+  .night .label-text { fill: #fff; }
+  .night .outline, .night .thin, .night .floor { stroke: #fff; }
+  .night .body-fill { fill: #3f4d68; stroke: #fff; }
+  .night .eye { fill: #fff; }
+  .night .smoke { stroke: #fff; }
+  @media (max-width: 820px) {
+    body { padding: 28px 16px 40px; }
+    .hero { align-items: start; flex-direction: column; }
+    .grid { grid-template-columns: repeat(2, minmax(140px, 180px)); gap: 18px; }
+    .widget { width: 100%; }
+  }
+  @media (max-width: 380px) {
+    .grid { gap: 14px; }
+    .widget { border-radius: 28px; }
+    .word { height: 30px; font-size: 16px; }
+    .brief { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Sedentary Widget / 2x2</div>
+        <h1>久坐小怪兽<br>一天 8 张</h1>
+      </div>
+      <p class="brief">按一天久坐状态递进：轻提醒、站立、听劝奖励、饭后、回血奖励、腰警报、沙发陷阱、睡前暧昧夸奖。用户真的起来动了，就立刻给一点可爱的正反馈。</p>
+    </section>
+
+    <section class="grid" aria-label="久坐健康助手小组件 8 张">
+      <article class="tile">
+        <div class="widget sun">
+          <div class="top"><div class="time">09:30 · 30m</div><div class="badge">1</div></div>
+          <div class="art">
+            <svg viewBox="0 0 150 150" role="img" aria-label="刚坐下的小角色黏在椅子上">
+              <path class="floor" d="M21 119 H126"/>
+              <path class="outline" d="M44 100 V66 Q44 53 58 53 H91 Q105 53 105 66 V100"/>
+              <path class="thin" d="M50 100 L42 122 M100 100 L108 122"/>
+              <circle class="body-fill" cx="75" cy="45" r="23"/>
+              <circle class="eye" cx="66" cy="42" r="3.5"/>
+              <circle class="eye" cx="84" cy="42" r="3.5"/>
+              <path class="thin" d="M67 54 Q75 60 83 54"/>
+              <path class="outline" d="M60 72 Q75 82 91 72"/>
+              <path class="spark" d="M30 46 L36 58 L25 57 Z"/>
+              <text class="label-text" x="23" y="36">hi</text>
+            </svg>
+          </div>
+          <div class="word">刚黏上</div>
+        </div>
+        <div class="caption"><strong>01 轻坐</strong><span>刚开始坐</span></div>
+      </article>
+
+      <article class="tile">
+        <div class="widget mint">
+          <div class="top"><div class="time">10:30 · 1h</div><div class="badge">2</div></div>
+          <div class="art">
+            <svg viewBox="0 0 150 150" role="img" aria-label="站起来伸懒腰的小角色">
+              <path class="floor" d="M28 122 H123"/>
+              <circle class="body-fill" cx="74" cy="34" r="20"/>
+              <circle class="eye" cx="66" cy="31" r="3.2"/>
+              <circle class="eye" cx="82" cy="31" r="3.2"/>
+              <path class="thin" d="M67 43 Q74 48 81 43"/>
+              <path class="outline" d="M74 55 V89"/>
+              <path class="outline" d="M73 65 L48 39 M76 65 L104 38"/>
+              <path class="outline" d="M74 89 L55 121 M75 89 L96 121"/>
+              <path class="spark" d="M112 25 L119 40 L104 36 Z"/>
+              <path class="thin" d="M43 63 Q34 70 38 83"/>
+              <text class="label-text" x="102" y="75">up</text>
+            </svg>
+          </div>
+          <div class="word">站一下</div>
+        </div>
+        <div class="caption"><strong>02 微僵</strong><span>1 小时提醒</span></div>
+      </article>
+
+      <article class="tile">
+        <div class="widget pink">
+          <div class="top"><div class="time">10:36 · +3m</div><div class="badge">3</div></div>
+          <div class="art">
+            <svg viewBox="0 0 150 150" role="img" aria-label="听劝站起来后收到鼓励的小角色">
+              <path class="floor" d="M25 123 H126"/>
+              <path class="spark" d="M33 34 L40 49 L24 45 Z"/>
+              <path class="spark" d="M114 36 L124 46 L109 51 Z"/>
+              <path class="thin" d="M51 29 L46 19 M98 28 L105 18"/>
+              <circle class="body-fill" cx="75" cy="38" r="21"/>
+              <circle class="eye" cx="67" cy="35" r="3.2"/>
+              <circle class="eye" cx="83" cy="35" r="3.2"/>
+              <path class="thin" d="M66 48 Q75 57 85 48"/>
+              <circle class="cheek" cx="59" cy="43" r="4"/>
+              <circle class="cheek" cx="91" cy="43" r="4"/>
+              <path class="outline" d="M75 59 V90"/>
+              <path class="outline" d="M73 69 L47 48 M77 69 L104 48"/>
+              <path class="outline" d="M75 90 L55 122 M76 90 L99 122"/>
+              <text class="label-text" x="55" y="84">+1</text>
+            </svg>
+          </div>
+          <div class="word">真听劝</div>
+        </div>
+        <div class="caption"><strong>03 回血</strong><span>起来动了</span></div>
+      </article>
+
+      <article class="tile">
+        <div class="widget blue">
+          <div class="top"><div class="time">13:30 · 饭后</div><div class="badge">4</div></div>
+          <div class="art">
+            <svg viewBox="0 0 150 150" role="img" aria-label="饭后坐着石化的小角色">
+              <path class="floor" d="M23 121 H126"/>
+              <path d="M51 108 Q42 87 51 66 Q58 47 76 47 Q95 47 101 68 Q108 91 98 108 Z" fill="#e9eef5" stroke="#18202a" stroke-width="5" stroke-linejoin="round"/>
+              <circle class="body-fill" cx="75" cy="42" r="20"/>
+              <path class="thin" d="M66 38 H71 M80 38 H85"/>
+              <path class="thin" d="M69 51 Q75 47 81 51"/>
+              <path class="thin" d="M59 72 H92 M56 89 H96"/>
+              <path class="outline" d="M46 75 L27 65"/>
+              <path class="outline" d="M103 75 L121 64"/>
+              <path class="spark" d="M107 34 L119 38 L108 47 Z"/>
+              <text class="label-text" x="24" y="36">zz</text>
+            </svg>
+          </div>
+          <div class="word">别石化</div>
+        </div>
+        <div class="caption"><strong>04 饭后</strong><span>午后困住</span></div>
+      </article>
+
+      <article class="tile">
+        <div class="widget lime">
+          <div class="top"><div class="time">15:08 · +5m</div><div class="badge">5</div></div>
+          <div class="art">
+            <svg viewBox="0 0 150 150" role="img" aria-label="短暂走动后能量回血的小角色">
+              <path class="floor" d="M22 122 H128"/>
+              <rect x="35" y="27" width="80" height="26" rx="13" fill="#fff" stroke="#18202a" stroke-width="5"/>
+              <rect x="43" y="35" width="48" height="10" rx="5" fill="#28c76f"/>
+              <path class="outline" d="M115 37 H124 V44 H115"/>
+              <circle class="body-fill" cx="74" cy="69" r="20"/>
+              <circle class="eye" cx="67" cy="66" r="3.2"/>
+              <circle class="eye" cx="82" cy="66" r="3.2"/>
+              <path class="thin" d="M66 78 Q74 85 84 78"/>
+              <path class="outline" d="M74 90 V105"/>
+              <path class="outline" d="M73 96 L54 86 M76 96 L98 86"/>
+              <path class="outline" d="M74 105 L51 123 M76 105 L102 121"/>
+              <path class="spark" d="M28 65 L36 76 L22 78 Z"/>
+              <path class="spark" d="M116 70 L128 76 L116 84 Z"/>
+            </svg>
+          </div>
+          <div class="word">血条回</div>
+        </div>
+        <div class="caption"><strong>05 奖励</strong><span>走了 5 分</span></div>
+      </article>
+
+      <article class="tile">
+        <div class="widget coral">
+          <div class="top"><div class="time">17:30 · 6h</div><div class="badge">6</div></div>
+          <div class="art">
+            <svg viewBox="0 0 150 150" role="img" aria-label="腰部冒烟的小角色">
+              <path class="floor" d="M24 123 H125"/>
+              <circle class="body-fill" cx="71" cy="34" r="19"/>
+              <path class="thin" d="M63 32 L68 36 M84 32 L79 36"/>
+              <path class="thin" d="M66 45 Q72 41 79 45"/>
+              <path class="outline" d="M72 54 Q78 73 90 88"/>
+              <path class="outline" d="M82 69 L58 83"/>
+              <path class="outline" d="M88 83 L108 74"/>
+              <path class="outline" d="M90 88 L78 122 M91 88 L112 119"/>
+              <circle cx="88" cy="76" r="8" fill="#fff05a" stroke="#18202a" stroke-width="5"/>
+              <path class="smoke" d="M104 52 Q116 45 111 34 Q126 44 117 58"/>
+              <path class="smoke" d="M110 82 Q127 80 123 66 Q135 75 127 91"/>
+              <text class="label-text" x="24" y="70">hot</text>
+            </svg>
+          </div>
+          <div class="word">腰冒烟</div>
+        </div>
+        <div class="caption"><strong>06 高危</strong><span>腰背警报</span></div>
+      </article>
+
+      <article class="tile">
+        <div class="widget violet">
+          <div class="top"><div class="time">20:30 · 沙发</div><div class="badge">7</div></div>
+          <div class="art">
+            <svg viewBox="0 0 150 150" role="img" aria-label="沙发抓住小角色不让走">
+              <path d="M24 77 Q24 61 41 61 H109 Q126 61 126 77 V112 H24 Z" fill="#fff" stroke="#18202a" stroke-width="5" stroke-linejoin="round"/>
+              <path class="thin" d="M24 94 H126 M50 61 V112 M101 61 V112"/>
+              <circle class="body-fill" cx="75" cy="47" r="19"/>
+              <path class="thin" d="M66 45 Q70 42 73 45 M80 45 Q84 42 87 45"/>
+              <path class="thin" d="M69 56 Q75 61 82 56"/>
+              <path class="outline" d="M74 66 V86"/>
+              <path class="outline" d="M72 75 L52 95 M78 75 L101 95"/>
+              <path class="outline" d="M52 88 L35 75 M100 88 L117 75"/>
+              <path class="thin" d="M36 75 Q31 70 26 74 M117 75 Q122 70 127 74"/>
+              <text class="label-text" x="27" y="41">no</text>
+            </svg>
+          </div>
+          <div class="word">沙发松手</div>
+        </div>
+        <div class="caption"><strong>07 晚间</strong><span>电视陷阱</span></div>
+      </article>
+
+      <article class="tile">
+        <div class="widget night">
+          <div class="top"><div class="time">23:00 · +2m</div><div class="badge">8</div></div>
+          <div class="art">
+            <svg viewBox="0 0 150 150" role="img" aria-label="睡前走动后收到暧昧鼓励的小角色">
+              <path class="floor" d="M22 121 C44 104 65 132 90 112 C104 100 114 103 126 93"/>
+              <path d="M108 31 A17 17 0 1 1 91 15 A12 12 0 1 0 108 31" fill="#ffd86b"/>
+              <path d="M111 58 C111 49 126 49 126 60 C126 71 111 78 111 78 C111 78 96 71 96 60 C96 49 111 49 111 58 Z" fill="#ff6f9f" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
+              <circle class="body-fill" cx="62" cy="38" r="18"/>
+              <circle class="eye" cx="56" cy="36" r="3"/>
+              <circle class="eye" cx="70" cy="36" r="3"/>
+              <path class="thin" d="M55 47 Q63 55 72 47"/>
+              <path class="outline" d="M63 56 V82"/>
+              <path class="outline" d="M63 65 L45 78 M64 65 L84 55"/>
+              <path class="outline" d="M63 82 L43 113 M64 82 L87 105"/>
+              <circle cx="51" cy="42" r="3.8" fill="#ff6f9f"/>
+              <circle cx="75" cy="42" r="3.8" fill="#ff6f9f"/>
+              <path class="smoke" d="M97 91 Q110 84 105 72 Q120 81 113 97"/>
+              <text class="label-text" x="93" y="119">乖</text>
+            </svg>
+          </div>
+          <div class="word">真乖</div>
+        </div>
+        <div class="caption"><strong>08 睡前</strong><span>夸你一下</span></div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

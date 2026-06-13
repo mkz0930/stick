@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>刚运动完 · 冰水告警 · 聊骚火柴人 4 模板 v2</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    background: #0A0A0F;
+    color: #E6EBF2;
+    min-height: 100vh;
+    padding: 56px 40px 80px;
+    display: flex; flex-direction: column; align-items: center; gap: 28px;
+  }
+  .page-title {
+    font-size: 12px; font-weight: 700; letter-spacing: 2px;
+    color: #6A7088; text-transform: uppercase;
+  }
+  .page-subtitle {
+    font-family: 'New York', 'Source Serif Pro', Georgia, serif;
+    font-style: italic; font-size: 24px; font-weight: 400;
+    color: #C8CFDA; letter-spacing: -0.3px;
+    text-align: center; line-height: 1.4; max-width: 720px;
+  }
+  .page-subtitle b { font-style: normal; font-weight: 700; color: #FF6E9C; }
+  .page-subtitle .sub {
+    display: block; margin-top: 8px;
+    font-family: 'SF Mono', monospace;
+    font-size: 11px; letter-spacing: 1px; color: #6A7088;
+    font-style: normal;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 350px);
+    gap: 48px;
+    margin-top: 16px;
+  }
+  .cell { display: flex; flex-direction: column; gap: 14px; align-items: center; }
+  .cell-label {
+    display: flex; flex-direction: column; gap: 4px;
+    text-align: center;
+  }
+  .cell-label .tag {
+    font-family: 'SF Mono', monospace;
+    font-size: 10px; font-weight: 800; letter-spacing: 2px;
+    color: #6A7088;
+  }
+  .cell-label .nm {
+    font-family: 'New York', Georgia, serif;
+    font-style: italic; font-size: 18px; font-weight: 500;
+    color: #E6EBF2; letter-spacing: -0.2px;
+  }
+  .cell-note {
+    margin-top: 8px;
+    font-size: 11.5px; line-height: 1.55; color: #888;
+    max-width: 320px; text-align: left;
+  }
+  .cell-note em { color: #FF6E9C; font-style: normal; font-weight: 600; }
+  .cell-note q { color: #C8CFDA; font-style: italic; font-weight: 600; }
+
+  .w {
+    width: 350px; height: 350px;
+    border-radius: 50px; overflow: hidden; position: relative;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+    padding: 22px;
+    display: flex; flex-direction: column;
+  }
+
+  /* shared CTA arrow animation */
+  @keyframes cta-x {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(5px); }
+  }
+
+  /* ============= T5 · 「敢喝?」(挑衅 cocky) ============= */
+  .w5 {
+    background:
+      radial-gradient(circle at 30% 80%, #FFB3D1 0%, #FF6E9C 60%, #E13D7A 100%);
+  }
+  .w5 .top { display: flex; align-items: center; justify-content: space-between; }
+  .w5 .top-text {
+    font-family: 'SF Mono', monospace;
+    font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+    color: #FBFAF6;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.18);
+  }
+  .w5 .top-tag {
+    background: #1A2640;
+    color: #FFB3D1;
+    font-family: 'SF Mono', monospace;
+    font-size: 10px; font-weight: 800; letter-spacing: 1.2px;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+  .w5 .stage { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+  .w5 .stage svg { width: 100%; height: 100%; max-height: 220px; }
+  .w5 .word-shout {
+    position: absolute; top: 18px; right: -8px;
+    font-family: 'New York', Georgia, serif;
+    font-weight: 900; font-style: italic; font-size: 44px;
+    color: #FBFAF6;
+    letter-spacing: -2px; line-height: 0.9;
+    text-shadow: 4px 4px 0 #1A2640;
+    transform: rotate(8deg);
+  }
+  .w5 .word-shout .dot { color: #FFD56E; }
+  .w5 .cta {
+    margin-top: 4px;
+    background: #1A2640;
+    border-radius: 14px;
+    padding: 13px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 4px 0 #0A1428;
+  }
+  .w5 .cta .label {
+    font-family: 'New York', Georgia, serif;
+    font-weight: 700; font-size: 15px;
+    color: #FBFAF6; letter-spacing: -0.2px;
+  }
+  .w5 .cta .label .em { color: #FF6E9C; font-weight: 900; font-style: italic; }
+  .w5 .cta .arr {
+    font-family: 'SF Pro Rounded', sans-serif;
+    font-weight: 900; font-size: 22px;
+    color: #FFB3D1; line-height: 1;
+    animation: cta-x 1.2s ease-in-out infinite;
+  }
+
+  /* ============= T6 · 「就一口~」(天使恶魔) ============= */
+  .w6 {
+    background:
+      linear-gradient(120deg, #FFF8E8 0%, #FBE7B7 100%);
+  }
+  .w6 .top { display: flex; align-items: center; justify-content: space-between; }
+  .w6 .top-text {
+    font-family: 'SF Mono', monospace;
+    font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+    color: #1A2640;
+  }
+  .w6 .top-time {
+    font-family: 'SF Mono', monospace;
+    font-size: 10px; font-weight: 700;
+    color: rgba(26,38,64,0.6);
+  }
+  .w6 .stage { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+  .w6 .stage svg { width: 100%; height: 100%; max-height: 220px; }
+  .w6 .bubble-devil {
+    position: absolute; top: 26px; right: 4px;
+    background: #C13B3B;
+    color: #FBFAF6;
+    border: 3px solid #1A2640;
+    border-radius: 14px;
+    padding: 5px 10px;
+    font-family: 'New York', Georgia, serif;
+    font-weight: 900; font-size: 14px; font-style: italic;
+    letter-spacing: -0.3px;
+    box-shadow: 3px 3px 0 #1A2640;
+    transform: rotate(5deg);
+  }
+  .w6 .bubble-devil::after {
+    content: '';
+    position: absolute; bottom: -8px; left: 12px;
+    width: 10px; height: 10px;
+    background: #C13B3B;
+    border-right: 3px solid #1A2640;
+    border-bottom: 3px solid #1A2640;
+    transform: rotate(45deg);
+  }
+  .w6 .bubble-angel {
+    position: absolute; top: 30px; left: 6px;
+    background: #FBFAF6;
+    border: 3px solid #1A2640;
+    border-radius: 14px;
+    padding: 5px 8px;
+    font-family: 'New York', Georgia, serif;
+    font-weight: 700; font-size: 12px;
+    color: #1A2640;
+    letter-spacing: -0.2px;
+    box-shadow: -3px 3px 0 #1A2640;
+    transform: rotate(-6deg);
+  }
+  .w6 .cta {
+    margin-top: 4px;
+    background: #1A2640;
+    border-radius: 14px;
+    padding: 13px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 4px 0 #0A1428;
+  }
+  .w6 .cta .label {
+    font-family: 'New York', Georgia, serif;
+    font-weight: 700; font-size: 15px;
+    color: #FBFAF6; letter-spacing: -0.2px;
+  }
+  .w6 .cta .label .em { color: #FBE7B7; font-weight: 900; font-style: italic; }
+  .w6 .cta .arr {
+    font-family: 'SF Pro Rounded', sans-serif;
+    font-weight: 900; font-size: 22px;
+    color: #FBE7B7; line-height: 1;
+    animation: cta-x 1.2s ease-in-out infinite;
+  }
+
+  /* ============= T7 · 「ICU 见 ♡」(墓地浪漫) ============= */
+  .w7 {
+    background:
+      radial-gradient(ellipse at 50% 100%, #C8E6C8 0%, #8DC78D 70%, #5A9F5A 100%);
+  }
+  .w7 .top { display: flex; align-items: center; justify-content: space-between; }
+  .w7 .top-text {
+    font-family: 'SF Mono', monospace;
+    font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+    color: #1A2640;
+  }
+  .w7 .top-pulse {
+    font-family: 'SF Mono', monospace;
+    font-size: 11px; font-weight: 800; letter-spacing: 1.2px;
+    color: #C13B3B;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .w7 .top-pulse .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #C13B3B;
+    animation: heart-beat 0.8s ease-in-out infinite;
+  }
+  @keyframes heart-beat { 0%,100% { transform: scale(1); } 30% { transform: scale(1.4); } 60% { transform: scale(1); } }
+  .w7 .stage { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+  .w7 .stage svg { width: 100%; height: 100%; max-height: 220px; }
+  .w7 .bubble {
+    position: absolute; top: 16px; right: 0px;
+    background: #FBFAF6;
+    border: 3px solid #1A2640;
+    border-radius: 16px;
+    padding: 7px 12px;
+    font-family: 'New York', Georgia, serif;
+    font-weight: 800; font-size: 18px;
+    color: #1A2640;
+    letter-spacing: -0.3px; line-height: 1.1;
+    box-shadow: 3px 3px 0 #1A2640;
+    transform: rotate(4deg);
+    text-align: center;
+  }
+  .w7 .bubble::after {
+    content: '';
+    position: absolute; bottom: -8px; left: 24px;
+    width: 12px; height: 12px;
+    background: #FBFAF6;
+    border-right: 3px solid #1A2640;
+    border-bottom: 3px solid #1A2640;
+    transform: rotate(45deg);
+  }
+  .w7 .bubble .heart {
+    color: #C13B3B;
+    font-style: normal;
+    font-size: 17px;
+  }
+  .w7 .cta {
+    margin-top: 4px;
+    background: #1A2640;
+    border-radius: 14px;
+    padding: 13px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 4px 0 #0A1428;
+  }
+  .w7 .cta .label {
+    font-family: 'New York', Georgia, serif;
+    font-weight: 700; font-size: 15px;
+    color: #FBFAF6; letter-spacing: -0.2px;
+  }
+  .w7 .cta .label .em { color: #C8E6C8; font-weight: 900; font-style: italic; }
+  .w7 .cta .arr {
+    font-family: 'SF Pro Rounded', sans-serif;
+    font-weight: 900; font-size: 22px;
+    color: #C8E6C8; line-height: 1;
+    animation: cta-x 1.2s ease-in-out infinite;
+  }
+
+  /* ============= T8 · 「我太帅 不能死」(自恋照镜) ============= */
+  .w8 {
+    background:
+      linear-gradient(160deg, #FFEFC8 0%, #FFD56E 50%, #E8B12A 100%);
+  }
+  .w8 .top { display: flex; align-items: center; justify-content: space-between; }
+  .w8 .top-text {
+    font-family: 'SF Mono', monospace;
+    font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+    color: #1A2640;
+  }
+  .w8 .top-time {
+    font-family: 'SF Mono', monospace;
+    font-size: 10px; font-weight: 700;
+    color: rgba(26,38,64,0.65);
+  }
+  .w8 .stage { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+  .w8 .stage svg { width: 100%; height: 100%; max-height: 220px; }
+  .w8 .word-shout {
+    position: absolute; top: 12px; right: -4px;
+    font-family: 'New York', Georgia, serif;
+    font-weight: 900; font-style: italic; font-size: 26px;
+    color: #1A2640;
+    letter-spacing: -1px; line-height: 1.05;
+    transform: rotate(7deg);
+    text-align: right;
+  }
+  .w8 .word-shout .big {
+    display: block;
+    font-size: 36px;
+    color: #C13B3B;
+    text-shadow: 2px 2px 0 #FBFAF6;
+  }
+  .w8 .cta {
+    margin-top: 4px;
+    background: #1A2640;
+    border-radius: 14px;
+    padding: 13px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 4px 0 #0A1428;
+  }
+  .w8 .cta .label {
+    font-family: 'New York', Georgia, serif;
+    font-weight: 700; font-size: 15px;
+    color: #FBFAF6; letter-spacing: -0.2px;
+  }
+  .w8 .cta .label .em { color: #FFD56E; font-weight: 900; font-style: italic; }
+  .w8 .cta .arr {
+    font-family: 'SF Pro Rounded', sans-serif;
+    font-weight: 900; font-size: 22px;
+    color: #FFD56E; line-height: 1;
+    animation: cta-x 1.2s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-title">Stick · post-workout · 聊骚火柴人 · 4 templates v2</div>
+<div class="page-subtitle">
+  火柴人当主角，<b>体态</b>骚 ／ <b>台词</b>骚 ／ <b>颜色</b>骚<br>
+  <span class="sub">STICK-FIGURE-DRIVEN · POSE & SASS · FUN & MAGNETIC</span>
+</div>
+
+<div class="grid">
+
+  <!-- ========== T5 · 「敢喝?」(挑衅 cocky) ========== -->
+  <div class="cell">
+    <div class="cell-label">
+      <div class="tag">TEMPLATE · 5</div>
+      <div class="nm">「敢喝?」· 叉腰挑衅</div>
+    </div>
+
+    <div class="w w5">
+      <div class="top">
+        <span class="top-text">YOUR BODY · LIVE</span>
+        <span class="top-tag">152 BPM</span>
+      </div>
+
+      <div class="stage">
+        <svg viewBox="0 0 240 240" fill="none">
+          <!-- COCKY STICK FIGURE: hand on hip, weight on one leg, cup dangling tauntingly -->
+
+          <!-- HEAD (slightly tilted left, smirk) -->
+          <circle cx="90" cy="65" r="38" fill="#FBFAF6" stroke="#1A2640" stroke-width="5"/>
+          <!-- one raised brow (right side) -->
+          <path d="M 75 50 Q 85 46 95 50" stroke="#1A2640" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <path d="M 102 44 Q 112 38 118 46" stroke="#1A2640" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+          <!-- half-lidded smirky eyes -->
+          <path d="M 75 62 Q 82 67 90 62" stroke="#1A2640" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <ellipse cx="83" cy="64" rx="3" ry="3" fill="#1A2640"/>
+          <path d="M 102 62 Q 109 67 116 62" stroke="#1A2640" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <ellipse cx="109" cy="64" rx="3" ry="3" fill="#1A2640"/>
+          <!-- smirk mouth (asymmetric curve) -->
+          <path d="M 78 84 Q 92 92 108 80" stroke="#1A2640" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+          <!-- tongue slightly showing on left -->
+          <ellipse cx="80" cy="84" rx="3.5" ry="2" fill="#FF6E9C"/>
+          <!-- blush -->
+          <ellipse cx="64" cy="78" rx="6" ry="3.5" fill="#FFB3D1" opacity="0.7"/>
+          <ellipse cx="118" cy="76" rx="5" ry="3" fill="#FFB3D1" opacity="0.6"/>
+
+          <!-- BODY: leaning to the LEFT (cocky lean) -->
+          <g stroke="#1A2640" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+            <!-- spine: from neck through shoulder, slight curve -->
+            <path d="M 90 103 Q 88 130 80 155"/>
+
+            <!-- LEFT arm: hand on hip (akimbo, elbow out) -->
+            <path d="M 86 120 L 60 130 L 70 152"/>
+
+            <!-- RIGHT arm: extended forward holding cup tauntingly -->
+            <path d="M 92 120 L 130 130 L 168 142"/>
+
+            <!-- LEFT leg: weight-bearing, slight bend -->
+            <path d="M 80 155 L 76 195 L 78 224"/>
+            <!-- RIGHT leg: relaxed, slightly bent and out -->
+            <path d="M 80 155 L 100 200 L 110 224"/>
+          </g>
+
+          <!-- ICE CUP dangling from right hand -->
+          <g transform="translate(160 138)">
+            <path d="M 0 4 L 24 4 L 22 36 L 4 36 Z"
+                  fill="rgba(255,255,255,0.9)" stroke="#1A2640" stroke-width="3.5" stroke-linejoin="round"/>
+            <ellipse cx="12" cy="4" rx="12" ry="2.5" fill="#A7DCEE" stroke="#1A2640" stroke-width="3"/>
+            <rect x="3" y="10" width="8" height="8" rx="1.6" fill="#FFFFFF" stroke="#1A2640" stroke-width="2" transform="rotate(-12 7 14)"/>
+            <rect x="13" y="14" width="7" height="7" rx="1.6" fill="#FFFFFF" stroke="#1A2640" stroke-width="2" transform="rotate(12 16 17)"/>
+            <!-- "to you" arrow tag -->
+            <path d="M -8 50 L 4 38" stroke="#FBFAF6" stroke-width="2" fill="none" stroke-linecap="round" stroke-dasharray="3 2"/>
+          </g>
+
+          <!-- motion lines around cup (sparkles) -->
+          <g fill="#FBFAF6" stroke="#1A2640" stroke-width="1.8">
+            <path d="M 200 130 L 204 138 L 212 140 L 206 145 L 208 154 L 200 149 L 192 154 L 194 145 L 188 140 L 196 138 Z"/>
+          </g>
+        </svg>
+
+        <div class="word-shout">敢喝<span class="dot">?</span></div>
+      </div>
+
+      <div class="cta">
+        <span class="label">来啊<span class="em"> 互相伤害 </span>→</span>
+        <span class="arr">→</span>
+      </div>
+    </div>
+
+    <div class="cell-note">
+      <em>T5 · 叉腰挑衅</em>：火柴人单手叉腰、歪头、坏笑、舌头探一点点，另一只手把冰杯朝你递过来。「敢喝?」歪 8° 砸下来。CTA 「来啊 互相伤害」拉满 dare 感。
+    </div>
+  </div>
+
+  <!-- ========== T6 · 「就 . 一 . 口 . 啊」(天使恶魔) ========== -->
+  <div class="cell">
+    <div class="cell-label">
+      <div class="tag">TEMPLATE · 6</div>
+      <div class="nm">「就一口～」· 双肩天使恶魔</div>
+    </div>
+
+    <div class="w w6">
+      <div class="top">
+        <span class="top-text">INNER DEBATE · NOW</span>
+        <span class="top-time">心率 152 ↓ 100 中</span>
+      </div>
+
+      <div class="stage">
+        <svg viewBox="0 0 240 220" fill="none">
+          <!-- MAIN FIGURE (centered, looking conflicted, slightly bigger head) -->
+          <!-- head -->
+          <circle cx="120" cy="100" r="40" fill="#FBFAF6" stroke="#1A2640" stroke-width="5"/>
+          <!-- worried eyes looking sideways -->
+          <ellipse cx="106" cy="96" rx="9" ry="11" fill="#FBFAF6" stroke="#1A2640" stroke-width="3"/>
+          <ellipse cx="134" cy="96" rx="9" ry="11" fill="#FBFAF6" stroke="#1A2640" stroke-width="3"/>
+          <!-- pupils glancing right (toward devil) -->
+          <ellipse cx="111" cy="96" rx="4" ry="6" fill="#1A2640"/>
+          <ellipse cx="139" cy="96" rx="4" ry="6" fill="#1A2640"/>
+          <circle cx="113" cy="93" r="1.5" fill="#FBFAF6"/>
+          <circle cx="141" cy="93" r="1.5" fill="#FBFAF6"/>
+          <!-- raised brows (conflicted) -->
+          <path d="M 94 80 L 110 84" stroke="#1A2640" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <path d="M 128 84 L 144 80" stroke="#1A2640" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <!-- wavy mouth (uncertain) -->
+          <path d="M 104 122 Q 112 118 120 122 Q 128 126 136 122" stroke="#1A2640" stroke-width="4" stroke-linecap="round" fill="none" stroke-linejoin="round"/>
+          <!-- sweat drop big -->
+          <path d="M 152 70 Q 146 84 152 90 Q 158 84 152 70 Z" fill="#5BA9D9" stroke="#1A2640" stroke-width="3"/>
+
+          <!-- BODY -->
+          <g stroke="#1A2640" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+            <!-- body -->
+            <path d="M 120 140 L 120 180"/>
+            <!-- arms hanging slightly nervous -->
+            <path d="M 120 155 L 100 178"/>
+            <path d="M 120 155 L 140 178"/>
+            <!-- legs -->
+            <path d="M 120 180 L 105 215"/>
+            <path d="M 120 180 L 135 215"/>
+          </g>
+
+          <!-- LEFT SHOULDER · ANGEL -->
+          <g transform="translate(60 60)">
+            <!-- halo -->
+            <ellipse cx="14" cy="-4" rx="12" ry="3" fill="none" stroke="#E8B12A" stroke-width="2"/>
+            <!-- head -->
+            <circle cx="14" cy="8" r="9" fill="#FBFAF6" stroke="#1A2640" stroke-width="3"/>
+            <!-- closed peaceful eyes -->
+            <path d="M 9 8 Q 11 10 13 8" stroke="#1A2640" stroke-width="2" stroke-linecap="round" fill="none"/>
+            <path d="M 15 8 Q 17 10 19 8" stroke="#1A2640" stroke-width="2" stroke-linecap="round" fill="none"/>
+            <!-- gentle smile -->
+            <path d="M 11 13 Q 14 15 17 13" stroke="#1A2640" stroke-width="2" stroke-linecap="round" fill="none"/>
+            <!-- body -->
+            <g stroke="#1A2640" stroke-width="3" stroke-linecap="round" fill="none">
+              <path d="M 14 17 L 14 30"/>
+              <path d="M 14 22 L 6 26"/>
+              <path d="M 14 22 L 22 26"/>
+              <path d="M 14 30 L 8 40"/>
+              <path d="M 14 30 L 20 40"/>
+            </g>
+            <!-- wings (small arcs) -->
+            <path d="M 2 16 Q -6 12 0 22" stroke="#1A2640" stroke-width="2" fill="#FBFAF6" stroke-linejoin="round"/>
+            <path d="M 26 16 Q 34 12 28 22" stroke="#1A2640" stroke-width="2" fill="#FBFAF6" stroke-linejoin="round"/>
+          </g>
+
+          <!-- RIGHT SHOULDER · DEVIL -->
+          <g transform="translate(170 60)">
+            <!-- head -->
+            <circle cx="14" cy="8" r="9" fill="#FFC9A8" stroke="#1A2640" stroke-width="3"/>
+            <!-- horns -->
+            <path d="M 8 0 L 6 -6 L 12 -2 Z" fill="#C13B3B" stroke="#1A2640" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M 20 0 L 22 -6 L 16 -2 Z" fill="#C13B3B" stroke="#1A2640" stroke-width="2" stroke-linejoin="round"/>
+            <!-- sneaky eyes -->
+            <ellipse cx="11" cy="8" rx="2" ry="2.5" fill="#1A2640"/>
+            <ellipse cx="17" cy="8" rx="2" ry="2.5" fill="#1A2640"/>
+            <!-- evil smirk -->
+            <path d="M 9 13 Q 14 16 19 12" stroke="#1A2640" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+            <!-- body -->
+            <g stroke="#1A2640" stroke-width="3" stroke-linecap="round" fill="none">
+              <path d="M 14 17 L 14 30"/>
+              <!-- one arm holding mini cup -->
+              <path d="M 14 22 L 24 24"/>
+              <path d="M 14 22 L 6 26"/>
+              <path d="M 14 30 L 8 40"/>
+              <path d="M 14 30 L 20 40"/>
+            </g>
+            <!-- mini cup in devil's hand -->
+            <g transform="translate(22 22)">
+              <path d="M 0 0 L 8 0 L 7 10 L 1 10 Z" fill="#A7DCEE" stroke="#1A2640" stroke-width="2" stroke-linejoin="round"/>
+              <rect x="2" y="2" width="2.5" height="2.5" fill="#FBFAF6" stroke="#1A2640" stroke-width="0.8"/>
+            </g>
+            <!-- pitchfork tail tip -->
+            <path d="M 24 32 L 30 38 L 26 40 L 32 42" stroke="#C13B3B" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          </g>
+
+          <!-- arrows from shoulder figs to main head (whispering paths) -->
+          <path d="M 78 70 Q 88 80 96 85" stroke="#1A2640" stroke-width="1.5" stroke-dasharray="2 2" opacity="0.5" fill="none"/>
+          <path d="M 168 70 Q 156 80 148 85" stroke="#C13B3B" stroke-width="1.5" stroke-dasharray="2 2" opacity="0.6" fill="none"/>
+        </svg>
+
+        <div class="bubble-devil">就 . 一 . 口 . 啊 ~</div>
+        <div class="bubble-angel">不行!</div>
+      </div>
+
+      <div class="cta">
+        <span class="label">听<span class="em">天使</span>的</span>
+        <span class="arr">→</span>
+      </div>
+    </div>
+
+    <div class="cell-note">
+      <em>T6 · 双肩</em>：天使 vs 恶魔贴脸劝说。恶魔小红气泡「就 . 一 . 口 . 啊 ~」打消斜倾， 天使白气泡「不行!」对抗。主火柴人额头一颗大汗珠纠结。
+    </div>
+  </div>
+
+  <!-- ========== T7 · 「ICU 见 ♡」(墓地浪漫) ========== -->
+  <div class="cell">
+    <div class="cell-label">
+      <div class="tag">TEMPLATE · 7</div>
+      <div class="nm">「ICU 见 ♡」· 抱花靠墙等</div>
+    </div>
+
+    <div class="w w7">
+      <div class="top">
+        <span class="top-text">YOUR FUTURE · 5 MIN</span>
+        <span class="top-pulse"><span class="dot"></span>ICU READY</span>
+      </div>
+
+      <div class="stage">
+        <svg viewBox="0 0 240 220" fill="none">
+          <!-- WALL/PILLAR (figure leaning against) -->
+          <path d="M 60 30 L 60 200" stroke="#1A2640" stroke-width="3" stroke-dasharray="4 3" opacity="0.45" fill="none"/>
+          <!-- ground line -->
+          <line x1="20" y1="208" x2="220" y2="208" stroke="#1A2640" stroke-width="2" opacity="0.4"/>
+
+          <!-- STICK FIGURE leaning casually against wall -->
+          <!-- head -->
+          <circle cx="86" cy="50" r="32" fill="#FBFAF6" stroke="#1A2640" stroke-width="5"/>
+          <!-- chill side-eye (looking right at viewer) -->
+          <ellipse cx="78" cy="48" rx="6.5" ry="9" fill="#FBFAF6" stroke="#1A2640" stroke-width="3"/>
+          <ellipse cx="100" cy="48" rx="6.5" ry="9" fill="#FBFAF6" stroke="#1A2640" stroke-width="3"/>
+          <ellipse cx="82" cy="50" rx="3" ry="5" fill="#1A2640"/>
+          <ellipse cx="104" cy="50" rx="3" ry="5" fill="#1A2640"/>
+          <circle cx="83" cy="48" r="1.2" fill="#FBFAF6"/>
+          <circle cx="105" cy="48" r="1.2" fill="#FBFAF6"/>
+          <!-- one raised brow -->
+          <path d="M 70 36 Q 78 32 86 36" stroke="#1A2640" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+          <path d="M 94 32 Q 102 28 108 34" stroke="#1A2640" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <!-- knowing smirk -->
+          <path d="M 76 66 Q 86 73 98 64" stroke="#1A2640" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <!-- subtle blush -->
+          <ellipse cx="66" cy="62" rx="5" ry="2.5" fill="#FFB3D1" opacity="0.55"/>
+
+          <!-- BODY: leaning against wall (right shoulder pressed in) -->
+          <g stroke="#1A2640" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+            <!-- body leaning, angle slight tilt -->
+            <path d="M 86 82 L 84 150"/>
+            <!-- LEFT arm holding bouquet (relaxed) -->
+            <path d="M 85 105 L 110 130 L 130 155"/>
+            <!-- RIGHT arm in "pocket" (bent at elbow) -->
+            <path d="M 85 105 L 72 130 L 88 138"/>
+            <!-- legs CROSSED at ankle (chill waiting pose) -->
+            <path d="M 84 150 L 92 195"/>
+            <path d="M 84 150 L 76 195"/>
+            <!-- ankle cross -->
+            <line x1="76" y1="195" x2="92" y2="200"/>
+            <line x1="92" y1="195" x2="76" y2="200"/>
+          </g>
+
+          <!-- BOUQUET held in left hand -->
+          <g transform="translate(128 145)">
+            <!-- 3 stems -->
+            <line x1="0" y1="0" x2="-4" y2="20" stroke="#5A9F5A" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="2" y1="-2" x2="2" y2="22" stroke="#5A9F5A" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="4" y1="0" x2="8" y2="20" stroke="#5A9F5A" stroke-width="2.5" stroke-linecap="round"/>
+            <!-- 3 flower heads (rose-like) -->
+            <circle cx="-4" cy="-4" r="8" fill="#C13B3B" stroke="#1A2640" stroke-width="2.5"/>
+            <circle cx="2" cy="-10" r="9" fill="#FBFAF6" stroke="#1A2640" stroke-width="2.5"/>
+            <circle cx="8" cy="-4" r="8" fill="#C13B3B" stroke="#1A2640" stroke-width="2.5"/>
+            <!-- inner detail on white rose -->
+            <path d="M -1 -10 Q 2 -7 5 -10" stroke="#FFA5C3" stroke-width="1.4" fill="none"/>
+            <!-- bouquet wrap -->
+            <path d="M -4 14 L 8 14 L 10 22 L -6 22 Z" fill="#1A2640" stroke="#1A2640" stroke-width="1.5"/>
+          </g>
+        </svg>
+
+        <div class="bubble">ICU 见 <span class="heart">♡</span></div>
+      </div>
+
+      <div class="cta">
+        <span class="label">取消<span class="em"> ICU 之约 </span>→</span>
+        <span class="arr">→</span>
+      </div>
+    </div>
+
+    <div class="cell-note">
+      <em>T7 · 墓地浪漫</em>：未来版的你抱着鲜花在 ICU 门口等你。歪靠墙 + 翘脚踝 + 单挑眉 + 知道你会来的坏笑。CTA：「取消 ICU 之约」黑色幽默拉满。
+    </div>
+  </div>
+
+  <!-- ========== T8 · 「我太帅 不能死」(自恋照镜) ========== -->
+  <div class="cell">
+    <div class="cell-label">
+      <div class="tag">TEMPLATE · 8</div>
+      <div class="nm">「不能死」· 照镜子自恋</div>
+    </div>
+
+    <div class="w w8">
+      <div class="top">
+        <span class="top-text">SELF · APPRECIATION</span>
+        <span class="top-time">15:02 · 健身房</span>
+      </div>
+
+      <div class="stage">
+        <svg viewBox="0 0 240 220" fill="none">
+          <!-- MIRROR FRAME (right side) -->
+          <rect x="140" y="22" width="92" height="170" rx="46" fill="none" stroke="#1A2640" stroke-width="4"/>
+          <rect x="140" y="22" width="92" height="170" rx="46" fill="#FFEFC8" opacity="0.55"/>
+          <!-- mirror shine streaks -->
+          <line x1="220" y1="38" x2="226" y2="60" stroke="#FBFAF6" stroke-width="3" stroke-linecap="round" opacity="0.85"/>
+          <line x1="223" y1="40" x2="227" y2="50" stroke="#FBFAF6" stroke-width="2" stroke-linecap="round" opacity="0.85"/>
+
+          <!-- MAIN FIGURE flexing (left side) -->
+          <!-- head -->
+          <circle cx="80" cy="68" r="36" fill="#FBFAF6" stroke="#1A2640" stroke-width="5"/>
+          <!-- happy half-closed eyes (in love with self) -->
+          <path d="M 64 64 Q 70 60 76 64" stroke="#1A2640" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <path d="M 84 64 Q 90 60 96 64" stroke="#1A2640" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <!-- big confident smile -->
+          <path d="M 64 84 Q 80 100 96 80" stroke="#1A2640" stroke-width="5" stroke-linecap="round" fill="none"/>
+          <!-- show small white teeth -->
+          <path d="M 70 86 L 90 86" stroke="#FBFAF6" stroke-width="4" stroke-linecap="round"/>
+          <!-- 2 small star sparkles around head -->
+          <g fill="#C13B3B" stroke="#1A2640" stroke-width="1.6">
+            <path d="M 116 50 L 119 56 L 125 57 L 121 61 L 122 67 L 116 64 L 110 67 L 111 61 L 107 57 L 113 56 Z"/>
+            <path d="M 44 42 L 46 47 L 51 48 L 47 51 L 48 56 L 44 53 L 40 56 L 41 51 L 37 48 L 42 47 Z" transform="scale(0.7) translate(20 20)"/>
+          </g>
+
+          <!-- BODY: flexing pose -->
+          <g stroke="#1A2640" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+            <!-- body -->
+            <path d="M 80 104 L 82 165"/>
+            <!-- LEFT arm: flexed bicep (up and bent) -->
+            <path d="M 78 122 L 56 110 L 40 130 L 54 145"/>
+            <!-- RIGHT arm: flexed bicep too (mirror) -->
+            <path d="M 82 122 L 104 110 L 120 130 L 108 145"/>
+            <!-- legs in confident stance, slightly apart -->
+            <path d="M 82 165 L 68 205"/>
+            <path d="M 82 165 L 98 205"/>
+          </g>
+
+          <!-- BICEP BULGES (filled ellipses to suggest muscle) -->
+          <ellipse cx="50" cy="120" rx="9" ry="11" fill="#FBFAF6" stroke="#1A2640" stroke-width="4" transform="rotate(-30 50 120)"/>
+          <ellipse cx="112" cy="120" rx="9" ry="11" fill="#FBFAF6" stroke="#1A2640" stroke-width="4" transform="rotate(30 112 120)"/>
+
+          <!-- REFLECTION in mirror (same figure smaller, mirrored) -->
+          <g transform="translate(186 105) scale(0.55)" opacity="0.85">
+            <circle cx="0" cy="-50" r="36" fill="#FBFAF6" stroke="#1A2640" stroke-width="6"/>
+            <!-- mirrored smile -->
+            <path d="M -16 -46 Q -10 -50 -4 -46" stroke="#1A2640" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <path d="M 4 -46 Q 10 -50 16 -46" stroke="#1A2640" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <path d="M -16 -30 Q 0 -14 16 -30" stroke="#1A2640" stroke-width="6" stroke-linecap="round" fill="none"/>
+            <!-- mirrored body (same flex pose mirrored) -->
+            <g stroke="#1A2640" stroke-width="6" stroke-linecap="round" fill="none">
+              <path d="M 0 -14 L -2 50"/>
+              <path d="M 2 0 L 24 -10 L 40 10 L 26 25"/>
+              <path d="M -2 0 L -24 -10 L -40 10 L -26 25"/>
+              <path d="M -2 50 L 12 90"/>
+              <path d="M -2 50 L -18 90"/>
+            </g>
+            <ellipse cx="30" cy="0" rx="9" ry="11" fill="#FBFAF6" stroke="#1A2640" stroke-width="5" transform="rotate(30 30 0)"/>
+            <ellipse cx="-30" cy="0" rx="9" ry="11" fill="#FBFAF6" stroke="#1A2640" stroke-width="5" transform="rotate(-30 -30 0)"/>
+          </g>
+
+          <!-- heart "kiss" between figure and reflection -->
+          <text x="140" y="78" font-family="serif" font-size="18" font-weight="900" fill="#C13B3B" transform="rotate(-12 140 78)">♥</text>
+          <text x="148" y="92" font-family="serif" font-size="13" font-weight="900" fill="#C13B3B">♥</text>
+        </svg>
+
+        <div class="word-shout">这身材<br><span class="big">不能死!</span></div>
+      </div>
+
+      <div class="cta">
+        <span class="label">救救<span class="em"> 这把骨头 </span>→</span>
+        <span class="arr">→</span>
+      </div>
+    </div>
+
+    <div class="cell-note">
+      <em>T8 · 自恋</em>：火柴人在镜子前双臂秀肌肉（用白椭圆体现 bicep），镜中倒影也在秀。两人之间小红心。「这身材 / <strong>不能死!</strong>」歪 7° 砸下来。CTA 用「救救这把骨头」自嘲。
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

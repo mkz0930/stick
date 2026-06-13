@@ -22,7 +22,9 @@ struct StickWidgetBundle: WidgetBundle {
 struct StickWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "StickWidget", provider: StickProvider()) { entry in
-            StickWidgetView(entry: entry)
+            Link(destination: URL(string: "stick://science/walking")!) {
+                StickWidgetView(entry: entry)
+            }
         }
         .configurationDisplayName("Stick")
         .description("2x2 · 状态 + 心率")
@@ -35,7 +37,9 @@ struct StickWidget: Widget {
 struct StickMediumWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "StickMediumWidget", provider: StickProvider()) { entry in
-            StickMediumWidgetView(entry: entry)
+            Link(destination: URL(string: "stick://science/sedentarymood")!) {
+                StickMediumWidgetView(entry: entry)
+            }
         }
         .configurationDisplayName("Stick")
         .description("4x2 · 心情 + 告警")
@@ -48,7 +52,9 @@ struct StickMediumWidget: Widget {
 struct StickRiskAlertWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "StickRiskAlertWidget", provider: RiskAlertProvider()) { entry in
-            StickRiskAlertWidgetView(entry: entry)
+            Link(destination: URL(string: "stick://science/sedentary")!) {
+                StickRiskAlertWidgetView(entry: entry)
+            }
         }
         .configurationDisplayName("Stick 风险")
         .description("久坐血小板沉积风险 · 提示动动")
@@ -61,7 +67,9 @@ struct StickRiskAlertWidget: Widget {
 struct StickPostWorkoutWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "StickPostWorkoutWidget", provider: PostWorkoutProvider()) { entry in
-            StickPostWorkoutWidgetView(entry: entry)
+            Link(destination: URL(string: "stick://science/icewater")!) {
+                StickPostWorkoutWidgetView(entry: entry)
+            }
         }
         .configurationDisplayName("Stick 运动后")
         .description("刚运动完 · 别灌冰水 · 5 步因果链")
@@ -74,7 +82,9 @@ struct StickPostWorkoutWidget: Widget {
 struct StickSedentaryLegDMWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "StickSedentaryLegDMWidget", provider: LegDMProvider()) { entry in
-            StickSedentaryLegDMWidgetView(entry: entry)
+            Link(destination: URL(string: "stick://science/sedentaryhook")!) {
+                StickSedentaryLegDMWidgetView(entry: entry)
+            }
         }
         .configurationDisplayName("Stick 腿私信")
         .description("久坐钩子 · 腿给你发了一条私信")
@@ -87,7 +97,9 @@ struct StickSedentaryLegDMWidget: Widget {
 struct StickSedentaryWaistShowWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "StickSedentaryWaistShowWidget", provider: WaistShowProvider()) { entry in
-            StickSedentaryWaistShowWidgetView(entry: entry)
+            Link(destination: URL(string: "stick://science/sedentaryhook")!) {
+                StickSedentaryWaistShowWidgetView(entry: entry)
+            }
         }
         .configurationDisplayName("Stick 腰演出")
         .description("久坐钩子 · 今晚腰会演哪一出")

@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>久坐助手 · 可点击钩子卡片</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #17202a;
+    --muted: #788291;
+    --paper: #f8fafc;
+  }
+  body {
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+    background:
+      radial-gradient(circle at 12% 10%, rgba(255, 109, 156, .18), transparent 25%),
+      radial-gradient(circle at 88% 18%, rgba(52, 211, 153, .18), transparent 26%),
+      linear-gradient(180deg, #f8fafc 0%, #e9eef6 100%);
+    color: var(--ink);
+    padding: 32px 20px 52px;
+  }
+  .page {
+    width: min(1040px, 100%);
+    margin: 0 auto;
+  }
+  .hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: 1.6px;
+    color: #ff4f93;
+    text-transform: uppercase;
+  }
+  h1 {
+    margin-top: 8px;
+    font-size: clamp(32px, 5vw, 58px);
+    line-height: .9;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .brief {
+    max-width: 380px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.55;
+    font-weight: 700;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+  }
+  .card {
+    aspect-ratio: 1 / 1;
+    border: 4px solid var(--ink);
+    border-radius: 30px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+    box-shadow: 0 10px 0 rgba(23, 32, 42, .14), 0 24px 46px rgba(23, 32, 42, .12);
+    transition: transform .14s ease, box-shadow .14s ease;
+  }
+  .card:active {
+    transform: translateY(6px);
+    box-shadow: 0 4px 0 rgba(23, 32, 42, .14), 0 12px 28px rgba(23, 32, 42, .12);
+  }
+  .card::after {
+    content: "";
+    position: absolute;
+    top: 13px;
+    right: 13px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.32);
+  }
+  .front,
+  .back {
+    position: absolute;
+    inset: 0;
+    padding: 16px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 10px;
+    transition: opacity .18s ease, transform .18s ease;
+  }
+  .back {
+    opacity: 0;
+    transform: scale(.96);
+    pointer-events: none;
+  }
+  .card.open .front {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+  .card.open .back {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .top {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    font-weight: 950;
+    letter-spacing: .8px;
+  }
+  .chip {
+    min-width: 24px;
+    height: 24px;
+    border: 3px solid var(--ink);
+    border-radius: 999px;
+    background: #fff;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    line-height: 1;
+  }
+  .art {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    min-height: 0;
+  }
+  svg {
+    width: 100%;
+    height: 100%;
+    max-height: 106px;
+    overflow: visible;
+  }
+  .hook {
+    position: relative;
+    z-index: 2;
+    min-height: 38px;
+    border: 3px solid var(--ink);
+    border-radius: 19px;
+    background: #fff;
+    display: grid;
+    place-items: center;
+    padding: 0 10px;
+    color: var(--ink);
+    font-size: clamp(17px, 2.1vw, 24px);
+    font-weight: 950;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: 0 5px 0 rgba(23, 32, 42, .18);
+  }
+  .back .hook {
+    white-space: normal;
+    text-align: center;
+    min-height: 58px;
+    line-height: 1.08;
+    font-size: clamp(18px, 2.2vw, 25px);
+  }
+  .micro {
+    color: rgba(23, 32, 42, .72);
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 850;
+    text-align: center;
+  }
+  .outline {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .thin {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .face { fill: #fff6dc; stroke: var(--ink); stroke-width: 5; }
+  .eye { fill: var(--ink); }
+  .white { fill: #fff; stroke: var(--ink); stroke-width: 4.5; }
+  .pink { background: linear-gradient(145deg, #ffc0d8 0%, #ff6fa8 100%); }
+  .green { background: linear-gradient(145deg, #b7f7cf 0%, #40d887 100%); }
+  .yellow { background: linear-gradient(145deg, #ffe775 0%, #ffb446 100%); }
+  .blue { background: linear-gradient(145deg, #a9e2ff 0%, #5b97ff 100%); }
+  .violet { background: linear-gradient(145deg, #ceb8ff 0%, #7b56ff 100%); }
+  .coral { background: linear-gradient(145deg, #ffb28b 0%, #ff6666 100%); }
+  .night { background: linear-gradient(145deg, #2f3e5f 0%, #121a2d 100%); color: #fff; }
+  .night .top, .night .micro { color: rgba(255,255,255,.82); }
+  .night .outline, .night .thin { stroke: #fff; }
+  .night .face { fill: #40506c; stroke: #fff; }
+  .night .eye { fill: #fff; }
+  .night .white { stroke: #fff; }
+  .night .hook { color: var(--ink); }
+  .footer {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+    font-weight: 700;
+    margin-top: 18px;
+  }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 680px) {
+    body { padding: 24px 14px 42px; }
+    .hero { align-items: start; flex-direction: column; }
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .front, .back { padding: 12px; }
+    .hook { min-height: 34px; font-size: 16px; }
+    .micro { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Clickable Hooks</div>
+        <h1>想让用户点的<br>聊骚卡片</h1>
+      </div>
+      <p class="brief">每张都是一个可点击钩子：先用短句勾一下，点开后给奖励、调侃或下一步动作。适合放在小组件详情页、通知卡片或弹窗入口。</p>
+    </section>
+
+    <section class="grid" aria-label="久坐助手可点击钩子卡片">
+      <article class="card pink" tabindex="0">
+        <div class="front">
+          <div class="top"><span>挑衅</span><span class="chip">?</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><circle class="face" cx="60" cy="35" r="18"/><circle class="eye" cx="53" cy="33" r="3"/><circle class="eye" cx="67" cy="33" r="3"/><path class="thin" d="M52 46 Q60 52 68 46"/><path class="outline" d="M60 54 V81 M60 62 L41 74 M61 62 L81 47 M60 81 L43 108 M61 81 L82 108"/><path d="M91 30 C91 22 104 22 104 32 C104 42 91 48 91 48 C91 48 78 42 78 32 C78 22 91 22 91 30 Z" fill="#ff4f93" stroke="#17202a" stroke-width="4"/></svg></div>
+          <div class="hook">你敢不点？</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>点击后</span><span class="chip">!</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><path class="white" d="M28 28 H92 Q101 28 101 37 V70 Q101 79 92 79 H65 L52 94 V79 H28 Q19 79 19 70 V37 Q19 28 28 28 Z"/><text x="36" y="58" font-size="22" font-weight="950" fill="#17202a">乖</text></svg></div>
+          <div class="hook">点了就算听话</div>
+          <div class="micro">下一步：站起来 30 秒</div>
+        </div>
+      </article>
+
+      <article class="card green" tabindex="0">
+        <div class="front">
+          <div class="top"><span>奖励</span><span class="chip">+1</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><rect x="25" y="24" width="70" height="22" rx="11" class="white"/><rect x="33" y="31" width="41" height="8" rx="4" fill="#34d983"/><path class="outline" d="M95 32 H104 V38 H95"/><circle class="face" cx="60" cy="68" r="17"/><circle class="eye" cx="54" cy="66" r="3"/><circle class="eye" cx="67" cy="66" r="3"/><path class="thin" d="M53 77 Q60 84 68 77"/></svg></div>
+          <div class="hook">回血了喔</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>点击后</span><span class="chip">♥</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><circle class="face" cx="51" cy="44" r="18"/><path class="thin" d="M44 53 Q51 61 60 53"/><path d="M82 39 C82 29 98 29 98 42 C98 55 82 63 82 63 C82 63 66 55 66 42 C66 29 82 29 82 39 Z" fill="#ff6f9f" stroke="#17202a" stroke-width="4"/><text x="32" y="91" font-size="18" font-weight="950" fill="#17202a">继续保持</text></svg></div>
+          <div class="hook">身体说谢谢你</div>
+          <div class="micro">适合运动后奖励弹出</div>
+        </div>
+      </article>
+
+      <article class="card yellow" tabindex="0">
+        <div class="front">
+          <div class="top"><span>欠揍</span><span class="chip">3</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><path class="outline" d="M27 75 H94 M35 75 V106 M86 75 V106"/><circle class="face" cx="60" cy="35" r="18"/><path class="thin" d="M51 34 H56 M64 34 H69"/><path class="thin" d="M54 47 Q60 43 66 47"/><path class="outline" d="M60 53 V75 M60 62 L41 75 M60 62 L79 75"/><text x="80" y="34" font-size="18" font-weight="950" fill="#17202a">?</text></svg></div>
+          <div class="hook">装没看见？</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>点击后</span><span class="chip">哼</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><path class="white" d="M24 40 H96 V82 H24 Z"/><circle class="face" cx="60" cy="38" r="17"/><path class="thin" d="M51 35 L56 39 M69 35 L64 39 M52 50 Q60 45 68 50"/><text x="31" y="100" font-size="17" font-weight="950" fill="#17202a">被我抓到了</text></svg></div>
+          <div class="hook">抓到你了</div>
+          <div class="micro">适合久坐超时二次提醒</div>
+        </div>
+      </article>
+
+      <article class="card blue" tabindex="0">
+        <div class="front">
+          <div class="top"><span>悬念</span><span class="chip">...</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><path class="white" d="M36 88 Q29 68 38 50 Q45 36 60 36 Q77 36 83 52 Q90 70 81 88 Z"/><circle class="face" cx="60" cy="33" r="16"/><path class="thin" d="M52 31 H56 M64 31 H68 M54 43 Q60 39 66 43"/><text x="81" y="35" font-size="17" font-weight="950" fill="#17202a">zz</text></svg></div>
+          <div class="hook">腿刚说了句</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>点击后</span><span class="chip">腿</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><path class="white" d="M22 30 H98 Q106 30 106 38 V73 Q106 81 98 81 H67 L55 96 V81 H22 Q14 81 14 73 V38 Q14 30 22 30 Z"/><text x="31" y="58" font-size="17" font-weight="950" fill="#17202a">想你动动</text></svg></div>
+          <div class="hook">它说想你动动</div>
+          <div class="micro">悬念型入口，点开才见梗</div>
+        </div>
+      </article>
+
+      <article class="card coral" tabindex="0">
+        <div class="front">
+          <div class="top"><span>警报</span><span class="chip">!</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><circle class="face" cx="55" cy="31" r="16"/><path class="thin" d="M48 30 L53 34 M65 30 L61 34 M50 43 Q56 39 63 43"/><path class="outline" d="M56 48 Q63 64 74 78 M68 63 L48 75 M74 77 L91 69 M75 78 L63 109 M76 78 L94 106"/><circle cx="74" cy="66" r="7" fill="#fff05a" stroke="#17202a" stroke-width="5"/></svg></div>
+          <div class="hook">腰在骂你</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>点击后</span><span class="chip">5s</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><circle class="face" cx="58" cy="35" r="17"/><circle class="eye" cx="52" cy="33" r="3"/><circle class="eye" cx="65" cy="33" r="3"/><path class="thin" d="M51 44 Q58 51 66 44"/><path class="outline" d="M58 52 Q54 66 58 82 M58 62 L40 52 M58 62 L78 52 M58 82 L42 107 M59 82 L79 107"/><text x="76" y="36" font-size="17" font-weight="950" fill="#17202a">松</text></svg></div>
+          <div class="hook">摸摸，先伸个腰</div>
+          <div class="micro">从骂人切成照顾感</div>
+        </div>
+      </article>
+
+      <article class="card violet" tabindex="0">
+        <div class="front">
+          <div class="top"><span>挑战</span><span class="chip">PK</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><path class="white" d="M22 62 Q22 50 36 50 H84 Q98 50 98 62 V94 H22 Z"/><path class="thin" d="M22 78 H98 M45 50 V94 M76 50 V94"/><circle class="face" cx="60" cy="39" r="16"/><path class="thin" d="M52 38 Q55 35 58 38 M63 38 Q67 35 70 38 M54 48 Q60 53 67 48"/></svg></div>
+          <div class="hook">打败沙发</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>点击后</span><span class="chip">赢</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><path class="white" d="M23 82 H97 V98 H23 Z"/><circle class="face" cx="58" cy="35" r="17"/><circle class="eye" cx="52" cy="33" r="3"/><circle class="eye" cx="65" cy="33" r="3"/><path class="thin" d="M51 44 Q58 52 67 44"/><path class="outline" d="M58 52 V76 M57 62 L37 49 M59 62 L81 49 M58 76 L41 106 M59 76 L83 104"/></svg></div>
+          <div class="hook">今晚你赢它</div>
+          <div class="micro">适合晚间沙发场景</div>
+        </div>
+      </article>
+
+      <article class="card night" tabindex="0">
+        <div class="front">
+          <div class="top"><span>睡前</span><span class="chip">♥</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><path class="outline" d="M18 99 C36 85 51 108 72 91 C85 80 93 83 103 72"/><path d="M90 30 A14 14 0 1 1 77 17 A10 10 0 1 0 90 30" fill="#ffd86b"/><circle class="face" cx="51" cy="36" r="16"/><circle class="eye" cx="45" cy="34" r="3"/><circle class="eye" cx="57" cy="34" r="3"/><path class="thin" d="M44 45 Q51 52 59 45"/><path d="M92 58 C92 50 105 50 105 60 C105 70 92 76 92 76 C92 76 79 70 79 60 C79 50 92 50 92 58 Z" fill="#ff6f9f" stroke="#fff" stroke-width="4"/></svg></div>
+          <div class="hook">睡前来一下</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>点击后</span><span class="chip">乖</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><circle class="face" cx="58" cy="42" r="19"/><circle class="eye" cx="51" cy="39" r="3"/><circle class="eye" cx="65" cy="39" r="3"/><path class="thin" d="M50 51 Q58 60 67 51"/><circle cx="45" cy="47" r="4" fill="#ff6f9f"/><circle cx="72" cy="47" r="4" fill="#ff6f9f"/><text x="42" y="88" font-size="20" font-weight="950" fill="#fff">真乖</text></svg></div>
+          <div class="hook">乖，去睡吧</div>
+          <div class="micro">暧昧收尾，不再继续催</div>
+        </div>
+      </article>
+
+      <article class="card pink" tabindex="0">
+        <div class="front">
+          <div class="top"><span>撒娇</span><span class="chip">喵</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><circle class="face" cx="60" cy="41" r="18"/><path class="thin" d="M45 26 L51 36 M75 26 L69 36"/><circle class="eye" cx="53" cy="39" r="3"/><circle class="eye" cx="67" cy="39" r="3"/><path class="thin" d="M53 51 Q60 56 67 51"/><path class="outline" d="M60 59 V83 M60 68 L42 78 M61 68 L80 78"/></svg></div>
+          <div class="hook">理我一下嘛</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>点击后</span><span class="chip">好</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><path class="white" d="M24 33 H96 Q104 33 104 41 V72 Q104 80 96 80 H67 L56 94 V80 H24 Q16 80 16 72 V41 Q16 33 24 33 Z"/><text x="31" y="61" font-size="18" font-weight="950" fill="#17202a">就一下</text></svg></div>
+          <div class="hook">就站一下嘛</div>
+          <div class="micro">软一点，适合轻提醒</div>
+        </div>
+      </article>
+
+      <article class="card green" tabindex="0">
+        <div class="front">
+          <div class="top"><span>成就</span><span class="chip">奖</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><path class="white" d="M60 20 L72 45 L99 49 L79 68 L84 95 L60 82 L36 95 L41 68 L21 49 L48 45 Z"/><text x="47" y="66" font-size="20" font-weight="950" fill="#17202a">1</text></svg></div>
+          <div class="hook">今日最乖</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>点击后</span><span class="chip">榜</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><rect x="25" y="34" width="70" height="55" rx="12" class="white"/><text x="38" y="57" font-size="16" font-weight="950" fill="#17202a">乖榜</text><text x="45" y="78" font-size="18" font-weight="950" fill="#34d983">No.1</text></svg></div>
+          <div class="hook">奖励你上榜</div>
+          <div class="micro">适合做连续打卡入口</div>
+        </div>
+      </article>
+
+      <article class="card blue" tabindex="0">
+        <div class="front">
+          <div class="top"><span>神秘</span><span class="chip">开</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><rect x="32" y="42" width="56" height="48" rx="10" class="white"/><path class="outline" d="M43 42 Q43 22 60 22 Q77 22 77 42"/><circle cx="60" cy="65" r="5" fill="#17202a"/><path class="thin" d="M60 70 V78"/></svg></div>
+          <div class="hook">解锁一句话</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>点击后</span><span class="chip">开</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><path class="white" d="M25 34 H95 Q103 34 103 42 V76 Q103 84 95 84 H65 L53 98 V84 H25 Q17 84 17 76 V42 Q17 34 25 34 Z"/><text x="29" y="61" font-size="17" font-weight="950" fill="#17202a">你今天</text><text x="29" y="79" font-size="17" font-weight="950" fill="#17202a">有点乖</text></svg></div>
+          <div class="hook">你今天有点乖</div>
+          <div class="micro">悬念 + 夸奖，点击动机强</div>
+        </div>
+      </article>
+
+      <article class="card yellow" tabindex="0">
+        <div class="front">
+          <div class="top"><span>倒计时</span><span class="chip">30</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><circle class="white" cx="60" cy="58" r="34"/><path class="outline" d="M60 58 V35 M60 58 L78 67"/><text x="43" y="105" font-size="17" font-weight="950" fill="#17202a">秒</text></svg></div>
+          <div class="hook">陪我30秒</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>点击后</span><span class="chip">走</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><circle class="face" cx="55" cy="35" r="17"/><circle class="eye" cx="49" cy="33" r="3"/><circle class="eye" cx="62" cy="33" r="3"/><path class="thin" d="M48 44 Q55 51 63 44"/><path class="outline" d="M56 52 V76 M56 61 L38 73 M57 61 L78 51 M56 76 L36 105 M57 76 L84 96"/><text x="78" y="88" font-size="18" font-weight="950" fill="#17202a">走</text></svg></div>
+          <div class="hook">好，牵你走</div>
+          <div class="micro">把任务说得更像陪伴</div>
+        </div>
+      </article>
+
+      <article class="card coral" tabindex="0">
+        <div class="front">
+          <div class="top"><span>反差</span><span class="chip">冷</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><path class="outline" d="M28 68 H92 M36 68 V104 M84 68 V104"/><circle class="face" cx="60" cy="33" r="17"/><circle class="eye" cx="53" cy="31" r="3"/><circle class="eye" cx="67" cy="31" r="3"/><path class="thin" d="M53 43 Q60 39 67 43"/><path class="outline" d="M60 50 V68 M60 59 L42 68 M60 59 L78 68 M51 68 L44 106 M70 68 L78 106"/></svg></div>
+          <div class="hook">腿不理你了</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>点击后</span><span class="chip">哄</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><path class="white" d="M23 32 H97 Q105 32 105 40 V74 Q105 82 97 82 H66 L54 97 V82 H23 Q15 82 15 74 V40 Q15 32 23 32 Z"/><text x="31" y="60" font-size="17" font-weight="950" fill="#17202a">哄一下</text><text x="33" y="78" font-size="15" font-weight="950" fill="#ff6666">走两步</text></svg></div>
+          <div class="hook">哄它走两步</div>
+          <div class="micro">拟人化让提醒更有戏</div>
+        </div>
+      </article>
+
+      <article class="card violet" tabindex="0">
+        <div class="front">
+          <div class="top"><span>暧昧</span><span class="chip">♥</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><circle class="face" cx="57" cy="40" r="18"/><circle class="eye" cx="50" cy="38" r="3"/><circle class="eye" cx="64" cy="38" r="3"/><path class="thin" d="M49 50 Q57 58 66 50"/><circle cx="45" cy="46" r="4" fill="#ff6f9f"/><circle cx="70" cy="46" r="4" fill="#ff6f9f"/><path d="M91 34 C91 26 104 26 104 36 C104 46 91 52 91 52 C91 52 78 46 78 36 C78 26 91 26 91 34 Z" fill="#ff6f9f" stroke="#17202a" stroke-width="4"/></svg></div>
+          <div class="hook">你刚刚好乖</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>点击后</span><span class="chip">亲</span></div>
+          <div class="art"><svg viewBox="0 0 120 120"><path class="white" d="M27 31 H93 Q101 31 101 39 V74 Q101 82 93 82 H65 L54 96 V82 H27 Q19 82 19 74 V39 Q19 31 27 31 Z"/><text x="33" y="59" font-size="18" font-weight="950" fill="#17202a">奖励</text><text x="33" y="78" font-size="15" font-weight="950" fill="#7b56ff">摸摸头</text></svg></div>
+          <div class="hook">奖励摸摸头</div>
+          <div class="micro">适合完成动作后的点击奖励</div>
+        </div>
+      </article>
+    </section>
+
+    <p class="footer">交互说明：点击任意卡片会翻出第二句。这里的钩子可以直接拆成通知标题、小组件文案、详情页入口或动作完成奖励。</p>
+  </main>
+
+  <script>
+    const cards = document.querySelectorAll(".card");
+    cards.forEach((card) => {
+      const toggle = () => card.classList.toggle("open");
+      card.addEventListener("click", toggle);
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          toggle();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

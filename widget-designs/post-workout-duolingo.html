@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>刚运动完 · 冰水告警 · Duolingo 风 4 模板</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    background: #0A0A0F;
+    color: #E6EBF2;
+    min-height: 100vh;
+    padding: 56px 40px 80px;
+    display: flex; flex-direction: column; align-items: center; gap: 28px;
+  }
+  .page-title {
+    font-size: 12px; font-weight: 700; letter-spacing: 2px;
+    color: #6A7088; text-transform: uppercase;
+  }
+  .page-subtitle {
+    font-family: 'New York', 'Source Serif Pro', Georgia, serif;
+    font-style: italic; font-size: 22px; font-weight: 400;
+    color: #C8CFDA; letter-spacing: -0.3px;
+    text-align: center; line-height: 1.4; max-width: 720px;
+  }
+  .page-subtitle b { font-style: normal; font-weight: 700; color: #FFD56E; }
+  .page-subtitle .sub {
+    display: block; margin-top: 8px;
+    font-family: 'SF Mono', monospace;
+    font-size: 11px; letter-spacing: 1px; color: #6A7088;
+    font-style: normal;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 350px);
+    gap: 48px;
+    margin-top: 16px;
+  }
+  .cell { display: flex; flex-direction: column; gap: 14px; align-items: center; }
+  .cell-label {
+    display: flex; flex-direction: column; gap: 4px;
+    text-align: center;
+  }
+  .cell-label .tag {
+    font-family: 'SF Mono', monospace;
+    font-size: 10px; font-weight: 800; letter-spacing: 2px;
+    color: #6A7088;
+  }
+  .cell-label .nm {
+    font-family: 'New York', Georgia, serif;
+    font-style: italic; font-size: 18px; font-weight: 500;
+    color: #E6EBF2; letter-spacing: -0.2px;
+  }
+  .cell-note {
+    margin-top: 8px;
+    font-size: 11.5px; line-height: 1.55; color: #888;
+    max-width: 320px; text-align: left;
+  }
+  .cell-note em { color: #FFD56E; font-style: normal; font-weight: 600; }
+
+  /* ============== Widget shell ============== */
+  .w {
+    width: 350px; height: 350px;
+    border-radius: 50px; overflow: hidden; position: relative;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+    padding: 22px;
+    display: flex; flex-direction: column;
+  }
+
+  /* ============== T1 — STOP (alarmed) ============== */
+  .w1 {
+    background:
+      radial-gradient(circle at 50% 40%, #FFCBA8 0%, #FF9966 70%, #F47A4B 100%);
+  }
+  .w1 .top { display: flex; align-items: center; gap: 7px; }
+  .w1 .pulse {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: #FBFAF6;
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.35);
+    animation: w1-pulse 0.8s ease-in-out infinite;
+  }
+  @keyframes w1-pulse { 0%,100% { opacity: 1; transform: scale(1);} 50% { opacity: .6; transform: scale(.7);} }
+  .w1 .top-text {
+    font-family: 'SF Mono', monospace;
+    font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+    color: #FBFAF6;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  }
+  .w1 .stage { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+  .w1 .stage svg { width: 100%; height: 100%; max-height: 220px; }
+  .w1 .bubble {
+    position: absolute; top: 8px; right: 0;
+    background: #FBFAF6;
+    border: 3px solid #1A2640;
+    border-radius: 18px;
+    padding: 7px 16px;
+    font-family: 'New York', Georgia, serif;
+    font-weight: 900; font-size: 28px;
+    color: #D9382E;
+    letter-spacing: -1px; line-height: 1;
+    box-shadow: 4px 4px 0 #1A2640;
+    transform: rotate(8deg);
+  }
+  .w1 .bubble::after {
+    content: '';
+    position: absolute; bottom: -10px; left: 24px;
+    width: 14px; height: 14px;
+    background: #FBFAF6;
+    border-right: 3px solid #1A2640;
+    border-bottom: 3px solid #1A2640;
+    transform: rotate(45deg);
+  }
+  .w1 .cta {
+    margin-top: 4px;
+    background: #1A2640;
+    border-radius: 14px;
+    padding: 13px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 4px 0 #0A1428;
+  }
+  .w1 .cta .label {
+    font-family: 'New York', Georgia, serif;
+    font-weight: 700; font-size: 15px;
+    color: #FBFAF6; letter-spacing: -0.2px;
+  }
+  .w1 .cta .arr {
+    font-family: 'SF Pro Rounded', sans-serif;
+    font-weight: 900; font-size: 22px;
+    color: #FFCBA8; line-height: 1;
+    animation: cta-x 1.2s ease-in-out infinite;
+  }
+  @keyframes cta-x {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(5px); }
+  }
+
+  /* ============== T2 — FAINTED (drama) ============== */
+  .w2 {
+    background:
+      radial-gradient(ellipse at 50% 75%, #FF7B6B 0%, #D9382E 60%, #A02718 100%);
+  }
+  .w2 .top { display: flex; align-items: center; justify-content: space-between; }
+  .w2 .ribbon {
+    background: #1A2640;
+    color: #FBFAF6;
+    font-family: 'SF Mono', monospace;
+    font-size: 11px; font-weight: 900; letter-spacing: 1.5px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+  }
+  .w2 .ribbon .heart-anim {
+    display: inline-block;
+    animation: w2-beat 0.6s ease-in-out infinite;
+  }
+  @keyframes w2-beat { 0%,100%{transform:scale(1);} 50%{transform:scale(1.2);} }
+  .w2 .stage { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+  .w2 .stage svg { width: 100%; height: 100%; max-height: 190px; }
+  .w2 .word-big {
+    text-align: center;
+    font-family: 'New York', Georgia, serif;
+    font-weight: 900; font-size: 48px;
+    color: #FBFAF6;
+    letter-spacing: -2px; line-height: 0.9;
+    text-shadow: 3px 3px 0 #1A2640;
+    margin-top: -4px;
+    margin-bottom: 4px;
+    transform: rotate(-3deg);
+  }
+  .w2 .word-big .dot { color: #FFD56E; }
+  .w2 .cta {
+    margin-top: 8px;
+    background: #FBFAF6;
+    border: 3px solid #1A2640;
+    border-radius: 14px;
+    padding: 11px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 4px 0 #1A2640;
+  }
+  .w2 .cta .label {
+    font-family: 'New York', Georgia, serif;
+    font-weight: 700; font-size: 14px;
+    color: #1A2640; letter-spacing: -0.2px;
+  }
+  .w2 .cta .label .em { color: #D9382E; font-style: italic; font-weight: 900; }
+  .w2 .cta .arr {
+    font-family: 'SF Pro Rounded', sans-serif;
+    font-weight: 900; font-size: 20px;
+    color: #D9382E; line-height: 1;
+    animation: cta-x 1.2s ease-in-out infinite;
+  }
+
+  /* ============== T3 — HEART CRIES (empathy) ============== */
+  .w3 {
+    background:
+      radial-gradient(ellipse at 50% 30%, #FFD1E0 0%, #FFA5C3 60%, #E97197 100%);
+  }
+  .w3 .top { display: flex; align-items: center; justify-content: space-between; }
+  .w3 .top-tag {
+    font-family: 'SF Mono', monospace;
+    font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+    color: #1A2640;
+  }
+  .w3 .top-time {
+    font-family: 'SF Mono', monospace;
+    font-size: 10px; font-weight: 700;
+    color: rgba(26,38,64,0.65);
+  }
+  .w3 .stage { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; padding: 0 4px;}
+  .w3 .stage svg { width: 100%; height: 100%; max-height: 220px; }
+  .w3 .speech {
+    position: absolute; top: 24px; right: -6px;
+    background: #FBFAF6;
+    border: 3px solid #1A2640;
+    border-radius: 16px;
+    padding: 6px 12px;
+    font-family: 'New York', Georgia, serif;
+    font-weight: 800; font-size: 16px;
+    color: #1A2640;
+    letter-spacing: -0.3px; line-height: 1.2;
+    box-shadow: 3px 3px 0 #1A2640;
+    text-align: center;
+  }
+  .w3 .speech::after {
+    content: '';
+    position: absolute; bottom: -8px; left: 16px;
+    width: 12px; height: 12px;
+    background: #FBFAF6;
+    border-right: 3px solid #1A2640;
+    border-bottom: 3px solid #1A2640;
+    transform: rotate(45deg);
+  }
+  .w3 .speech .em { color: #D9382E; font-weight: 900; font-style: italic; }
+  .w3 .cta {
+    margin-top: 4px;
+    background: #1A2640;
+    border-radius: 14px;
+    padding: 13px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 4px 0 #0A1428;
+  }
+  .w3 .cta .label {
+    font-family: 'New York', Georgia, serif;
+    font-weight: 700; font-size: 15px;
+    color: #FBFAF6; letter-spacing: -0.2px;
+  }
+  .w3 .cta .label .em {
+    color: #FFA5C3; font-weight: 900; font-style: italic;
+  }
+  .w3 .cta .arr {
+    font-family: 'SF Pro Rounded', sans-serif;
+    font-weight: 900; font-size: 22px;
+    color: #FFA5C3; line-height: 1;
+    animation: cta-x 1.2s ease-in-out infinite;
+  }
+
+  /* ============== T4 — WATCHING (playful surveillance) ============== */
+  .w4 {
+    background:
+      radial-gradient(ellipse at 30% 30%, #FFE584 0%, #FFC940 60%, #E8A615 100%);
+  }
+  .w4 .top { display: flex; align-items: center; gap: 8px; }
+  .w4 .badge-eye {
+    width: 22px; height: 22px;
+    background: #1A2640;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.18);
+  }
+  .w4 .badge-eye::after {
+    content: '';
+    width: 6px; height: 6px;
+    background: #FFE584;
+    border-radius: 50%;
+    animation: w4-blink 2.4s steps(1) infinite;
+  }
+  @keyframes w4-blink {
+    0%, 92% { opacity: 1; }
+    94%, 100% { opacity: 0.05; }
+  }
+  .w4 .top-text {
+    font-family: 'SF Mono', monospace;
+    font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+    color: #1A2640;
+  }
+  .w4 .stage { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+  .w4 .stage svg { width: 100%; height: 100%; max-height: 220px; }
+  .w4 .word-tag {
+    position: absolute; top: 12px; right: 4px;
+    background: #1A2640;
+    color: #FFE584;
+    font-family: 'New York', Georgia, serif;
+    font-weight: 900; font-style: italic; font-size: 18px;
+    padding: 5px 12px;
+    border-radius: 10px;
+    letter-spacing: -0.5px;
+    transform: rotate(6deg);
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.18);
+  }
+  .w4 .cta {
+    margin-top: 4px;
+    background: #1A2640;
+    border-radius: 14px;
+    padding: 13px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 4px 0 #0A1428;
+  }
+  .w4 .cta .label {
+    font-family: 'New York', Georgia, serif;
+    font-weight: 700; font-size: 15px;
+    color: #FBFAF6; letter-spacing: -0.2px;
+  }
+  .w4 .cta .label .em { color: #FFE584; font-weight: 900; font-style: italic; }
+  .w4 .cta .arr {
+    font-family: 'SF Pro Rounded', sans-serif;
+    font-weight: 900; font-size: 22px;
+    color: #FFE584; line-height: 1;
+    animation: cta-x 1.2s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-title">Stick · post-workout · DUOLINGO-STYLE · 4 templates</div>
+<div class="page-subtitle">
+  情绪驱动、几个字、好玩。<br>
+  <span class="sub">REFERENCE: DUOLINGO MASCOT REACTIONS · BIG FACE · SIMPLE WORDS · TAP CTA</span>
+</div>
+
+<div class="grid">
+
+  <!-- ========== T1: STOP! (alarmed authority) ========== -->
+  <div class="cell">
+    <div class="cell-label">
+      <div class="tag">TEMPLATE · 1</div>
+      <div class="nm">「停!」· 拦下手</div>
+    </div>
+
+    <div class="w w1">
+      <div class="top">
+        <span class="pulse"></span>
+        <span class="top-text">POST-WORKOUT</span>
+      </div>
+
+      <div class="stage">
+        <!-- 大火柴人头 + STOP 手势 -->
+        <svg viewBox="0 0 240 220" fill="none">
+          <!-- big round head (white face) -->
+          <circle cx="120" cy="78" r="60" fill="#FBFAF6" stroke="#1A2640" stroke-width="5"/>
+          <!-- alarmed eyes (white circles with black pupils, wide-open) -->
+          <g>
+            <ellipse cx="98" cy="70" rx="13" ry="16" fill="#FBFAF6" stroke="#1A2640" stroke-width="3"/>
+            <ellipse cx="142" cy="70" rx="13" ry="16" fill="#FBFAF6" stroke="#1A2640" stroke-width="3"/>
+            <!-- pupils up high = startled -->
+            <ellipse cx="98" cy="66" rx="6" ry="9" fill="#1A2640"/>
+            <ellipse cx="142" cy="66" rx="6" ry="9" fill="#1A2640"/>
+            <!-- pupil highlights -->
+            <circle cx="100" cy="62" r="2" fill="#FBFAF6"/>
+            <circle cx="144" cy="62" r="2" fill="#FBFAF6"/>
+          </g>
+          <!-- raised brows (angry / surprised) -->
+          <path d="M 86 50 Q 98 42 110 50" stroke="#1A2640" stroke-width="5" stroke-linecap="round" fill="none"/>
+          <path d="M 130 50 Q 142 42 154 50" stroke="#1A2640" stroke-width="5" stroke-linecap="round" fill="none"/>
+          <!-- O mouth (gasping) -->
+          <ellipse cx="120" cy="106" rx="10" ry="13" fill="#1A2640"/>
+          <ellipse cx="120" cy="104" rx="6" ry="8" fill="#D9382E"/>
+          <!-- sweat drop -->
+          <path d="M 175 50 Q 170 60 175 65 Q 180 60 175 50 Z" fill="#5BA9D9" stroke="#1A2640" stroke-width="2"/>
+
+          <!-- body + STOP arms -->
+          <g stroke="#1A2640" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+            <!-- body -->
+            <path d="M 120 138 L 120 175"/>
+            <!-- left arm UP (palm out) -->
+            <path d="M 120 152 L 84 145 L 60 124"/>
+            <!-- right arm UP (palm out) -->
+            <path d="M 120 152 L 156 145 L 180 124"/>
+            <!-- legs -->
+            <path d="M 120 175 L 102 210"/>
+            <path d="M 120 175 L 138 210"/>
+          </g>
+          <!-- "palms": small squares at hand tips suggesting open hand -->
+          <rect x="46" y="110" width="22" height="22" rx="3" fill="#FBFAF6" stroke="#1A2640" stroke-width="3" transform="rotate(-15 57 121)"/>
+          <rect x="166" y="110" width="22" height="22" rx="3" fill="#FBFAF6" stroke="#1A2640" stroke-width="3" transform="rotate(15 177 121)"/>
+        </svg>
+
+        <!-- Speech bubble -->
+        <div class="bubble">停!</div>
+      </div>
+
+      <div class="cta">
+        <span class="label">为啥不能喝</span>
+        <span class="arr">→</span>
+      </div>
+    </div>
+
+    <div class="cell-note">
+      <em>T1 · 拦下手</em>：橙红警戒色 + 大惊吓表情（圆睁眼、O 嘴）+ 双手张开 STOP。「停!」从嘴里"砰"出来。CTA 反问勾出好奇。
+    </div>
+  </div>
+
+  <!-- ========== T2: 晕倒! (drama/consequence) ========== -->
+  <div class="cell">
+    <div class="cell-label">
+      <div class="tag">TEMPLATE · 2</div>
+      <div class="nm">「晕!」· 戏剧化后果</div>
+    </div>
+
+    <div class="w w2">
+      <div class="top">
+        <div class="ribbon">⚠ <span class="heart-anim">❤</span> 心律失常</div>
+        <div class="ribbon">152 BPM</div>
+      </div>
+
+      <div class="stage">
+        <svg viewBox="0 0 240 230" fill="none">
+          <!-- ground line dashed -->
+          <line x1="20" y1="200" x2="220" y2="200"
+                stroke="#FBFAF6" stroke-width="2.5" stroke-dasharray="5 4" opacity="0.6"/>
+
+          <!-- fallen figure (head left, body to right, on ground) -->
+          <g>
+            <!-- big head (rolled) -->
+            <circle cx="74" cy="160" r="48" fill="#FBFAF6" stroke="#1A2640" stroke-width="5"/>
+            <!-- X eyes -->
+            <g stroke="#1A2640" stroke-width="5" stroke-linecap="round" fill="none">
+              <path d="M 50 150 L 64 164"/>
+              <path d="M 64 150 L 50 164"/>
+              <path d="M 85 150 L 99 164"/>
+              <path d="M 99 150 L 85 164"/>
+            </g>
+            <!-- tongue out (zigzag) -->
+            <path d="M 60 178 Q 70 188 80 178 Q 84 184 88 178"
+                  stroke="#1A2640" stroke-width="4" fill="#FFA5C3" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- body lying down -->
+            <g stroke="#1A2640" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+              <path d="M 116 168 L 168 185"/>
+              <!-- arms splayed -->
+              <path d="M 132 170 L 150 150"/>
+              <path d="M 144 175 L 160 195"/>
+              <!-- legs splayed -->
+              <path d="M 168 185 L 200 175"/>
+              <path d="M 168 185 L 205 195"/>
+            </g>
+          </g>
+
+          <!-- dizzy stars circling head -->
+          <g fill="#FFD56E" stroke="#1A2640" stroke-width="2">
+            <path d="M 60 100 L 65 112 L 78 113 L 68 121 L 71 134 L 60 127 L 49 134 L 52 121 L 42 113 L 55 112 Z"/>
+          </g>
+          <g fill="#FBFAF6" stroke="#1A2640" stroke-width="1.8">
+            <path d="M 110 110 L 113 117 L 121 118 L 115 123 L 117 131 L 110 127 L 103 131 L 105 123 L 99 118 L 107 117 Z"/>
+          </g>
+
+          <!-- spiraling motion -->
+          <path d="M 130 80 Q 160 90 170 120 Q 175 145 158 150"
+                stroke="#FBFAF6" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="3 4" opacity="0.7"/>
+        </svg>
+      </div>
+
+      <div class="word-big">晕<span class="dot">!</span></div>
+
+      <div class="cta">
+        <span class="label">怎么<span class="em">救自己</span></span>
+        <span class="arr">→</span>
+      </div>
+    </div>
+
+    <div class="cell-note">
+      <em>T2 · 戏剧化</em>：直接放最坏后果。XX 眼 + 吐舌头 + 黄色晕眩星 + 鲜红背景。把"可能危及生命"演给你看。CTA 用「救自己」勾紧迫感。
+    </div>
+  </div>
+
+  <!-- ========== T3: HEART CRIES (empathy) ========== -->
+  <div class="cell">
+    <div class="cell-label">
+      <div class="tag">TEMPLATE · 3</div>
+      <div class="nm">「心 = 哭」· 共情</div>
+    </div>
+
+    <div class="w w3">
+      <div class="top">
+        <div class="top-tag">YOUR HEART · 152 ♥</div>
+        <div class="top-time">刚停 2 min</div>
+      </div>
+
+      <div class="stage">
+        <svg viewBox="0 0 240 220" fill="none">
+          <!-- BIG HEART with face inside -->
+          <g>
+            <!-- heart shape (drawn from arcs) -->
+            <path d="M 120 200
+                     C 60 160, 30 110, 30 80
+                     C 30 50, 60 30, 85 30
+                     C 105 30, 115 45, 120 60
+                     C 125 45, 135 30, 155 30
+                     C 180 30, 210 50, 210 80
+                     C 210 110, 180 160, 120 200 Z"
+                  fill="#D9382E" stroke="#1A2640" stroke-width="6" stroke-linejoin="round"/>
+            <!-- inner highlight (small white circle = "glow") -->
+            <ellipse cx="74" cy="64" rx="14" ry="10" fill="#FFFFFF" opacity="0.42" transform="rotate(-30 74 64)"/>
+
+            <!-- SAD eyes inside heart -->
+            <g>
+              <ellipse cx="90" cy="92" rx="12" ry="14" fill="#FBFAF6" stroke="#1A2640" stroke-width="3"/>
+              <ellipse cx="150" cy="92" rx="12" ry="14" fill="#FBFAF6" stroke="#1A2640" stroke-width="3"/>
+              <!-- pupils looking down sad -->
+              <ellipse cx="90" cy="96" rx="5" ry="7" fill="#1A2640"/>
+              <ellipse cx="150" cy="96" rx="5" ry="7" fill="#1A2640"/>
+              <!-- highlights -->
+              <circle cx="92" cy="92" r="1.6" fill="#FBFAF6"/>
+              <circle cx="152" cy="92" r="1.6" fill="#FBFAF6"/>
+              <!-- sad downward brows -->
+              <path d="M 78 76 Q 90 82 100 76" stroke="#1A2640" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <path d="M 140 76 Q 150 82 162 76" stroke="#1A2640" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <!-- tears flowing -->
+              <path d="M 86 110 Q 84 122 86 134 Q 88 144 86 154" stroke="#5BA9D9" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <path d="M 80 116 Q 78 128 80 140 Q 82 150 80 160" stroke="#5BA9D9" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <path d="M 154 110 Q 156 122 154 134 Q 152 144 154 154" stroke="#5BA9D9" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <!-- frowny mouth -->
+              <path d="M 100 138 Q 120 124 140 138" stroke="#1A2640" stroke-width="4" stroke-linecap="round" fill="none"/>
+            </g>
+          </g>
+        </svg>
+
+        <!-- speech bubble -->
+        <div class="speech">心: <span class="em">别灌</span>!</div>
+      </div>
+
+      <div class="cta">
+        <span class="label">告诉<span class="em">心脏</span>你听到了</span>
+        <span class="arr">→</span>
+      </div>
+    </div>
+
+    <div class="cell-note">
+      <em>T3 · 共情</em>：把心脏拟人化成大红心 + 哭脸 + 蓝色眼泪。心在直接对你说话「别灌!」。CTA 把禁止反转成对心脏的承诺。
+    </div>
+  </div>
+
+  <!-- ========== T4: WATCHING (playful) ========== -->
+  <div class="cell">
+    <div class="cell-label">
+      <div class="tag">TEMPLATE · 4</div>
+      <div class="nm">「看见你了」· 好玩监督</div>
+    </div>
+
+    <div class="w w4">
+      <div class="top">
+        <div class="badge-eye"></div>
+        <span class="top-text">YOUR STICK IS WATCHING</span>
+      </div>
+
+      <div class="stage">
+        <svg viewBox="0 0 240 220" fill="none">
+          <!-- big head -->
+          <circle cx="100" cy="80" r="60" fill="#FBFAF6" stroke="#1A2640" stroke-width="5"/>
+          <!-- ONE HUGE EYE (judgmental) + one tiny squinty -->
+          <ellipse cx="85" cy="82" rx="22" ry="18" fill="#FBFAF6" stroke="#1A2640" stroke-width="4"/>
+          <!-- big pupil tracking right -->
+          <ellipse cx="98" cy="82" rx="11" ry="14" fill="#1A2640"/>
+          <circle cx="101" cy="76" r="3" fill="#FBFAF6"/>
+          <!-- tiny squinty eye -->
+          <path d="M 122 80 Q 132 76 142 80" stroke="#1A2640" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <!-- arched brows = judgmental -->
+          <path d="M 65 56 Q 85 50 108 58" stroke="#1A2640" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+          <path d="M 122 60 Q 132 54 144 60" stroke="#1A2640" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <!-- smirk -->
+          <path d="M 80 112 Q 100 122 122 110" stroke="#1A2640" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <!-- subtle blush -->
+          <ellipse cx="60" cy="105" rx="8" ry="4" fill="#FFA5C3" opacity="0.6"/>
+          <ellipse cx="138" cy="103" rx="6" ry="3" fill="#FFA5C3" opacity="0.5"/>
+
+          <!-- body + POINTING finger at viewer -->
+          <g stroke="#1A2640" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+            <path d="M 100 140 L 100 180"/>
+            <path d="M 100 155 L 80 170 L 70 200"/>
+            <!-- right arm POINTING out (toward viewer) -->
+            <path d="M 100 152 L 145 140 L 175 132"/>
+            <path d="M 100 180 L 88 215"/>
+            <path d="M 100 180 L 112 215"/>
+          </g>
+          <!-- cartoon pointing hand at end of arm -->
+          <g>
+            <!-- fist circle -->
+            <circle cx="178" cy="132" r="14" fill="#FBFAF6" stroke="#1A2640" stroke-width="4"/>
+            <!-- index finger pointing toward viewer (right) -->
+            <path d="M 190 130 L 220 128 Q 226 128 226 132 L 226 134 Q 226 138 220 138 L 190 136 Z"
+                  fill="#FBFAF6" stroke="#1A2640" stroke-width="4" stroke-linejoin="round"/>
+            <!-- nail highlight -->
+            <ellipse cx="220" cy="132" rx="2.5" ry="2.5" fill="#FFA5C3"/>
+          </g>
+        </svg>
+
+        <div class="word-tag">看见你了</div>
+      </div>
+
+      <div class="cta">
+        <span class="label">你<span class="em">想喝冰水</span>?</span>
+        <span class="arr">→</span>
+      </div>
+    </div>
+
+    <div class="cell-note">
+      <em>T4 · 好玩监督</em>：拟人化你的火柴人在看你。一大一小眼 + 挑眉 + 坏笑 + 指你。CTA 是反问："你想喝冰水?"（被抓包的尴尬感）。
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

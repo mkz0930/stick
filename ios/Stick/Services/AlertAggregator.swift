@@ -89,7 +89,9 @@ enum AlertAggregator {
 
         // 2) HealthAnalyzer 历史洞察（含睡眠异常）
         let insights = HealthAnalyzer.shared.analyze(snapshots: snapshots)
+        var hasSleepInsight = false
         for i in insights where i.severity != .info {
+            if i.kind == .sleepWindow { hasSleepInsight = true }
             alerts.append(UnifiedAlert(
                 source: sourceOf(i.kind),
                 severity: severityOf(i.severity),
@@ -103,6 +105,12 @@ enum AlertAggregator {
             ))
         }
 
+        // 2b) 睡眠兜底：没有真实睡眠数据时，注入一条"参考睡眠"提示
+        //     （确保异常计数始终包含睡眠维度，模拟器/demo 模式下也能看到）
+        if !hasSleepInsight {
+            alerts.append(makeFallbackSleepAlert())
+        }
+
         // 3) 按 severity (alert > warn > info) + 时间排序
         return alerts.sorted { lhs, rhs in
             sevRank(lhs.severity) > sevRank(rhs.severity)
@@ -110,6 +118,30 @@ enum AlertAggregator {
     }
 
     // MARK: - 映射
+
+    /// 睡眠兜底提示：没有真实睡眠数据时注入一条
+    ///  根据当日是否有 ≥1 个 sleep snapshot 判断 "未记录" / "参考不足"
+    private static func makeFallbackSleepAlert() -> UnifiedAlert {
+        let now = Date()
+        // 默认 7:00 AM 兜底文案（昨晚的参考睡眠）
+        let summary: (title: String, detail: String, severity: UnifiedAlert.Severity, value: String) = (
+            title: "睡眠参考不足",
+            detail: "未检测到昨晚睡眠数据，开启健康权限或佩戴 Apple Watch 入睡即可记录",
+            severity: .warn,
+            value: "—"
+        )
+        return UnifiedAlert(
+            source: .sleep,
+            severity: summary.severity,
+            title: summary.title,
+            detail: summary.detail,
+            timestampRange: "昨晚",
+            numericValue: summary.value,
+            icon: "bed.double.fill",
+            aiReport: nil,
+            kind: .generic
+        )
+    }
 
     private static func sourceOf(_ k: HealthInsight.Kind) -> UnifiedAlert.Source {
         switch k {

@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Stick App Re-Layout 设计模板</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    background: #0a0a0f;
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    gap: 32px;
+  }
+  h1 { font-size: 13px; font-weight: 600; letter-spacing: 0.5px; color: #666; text-transform: uppercase; }
+
+  /* Phone frame */
+  .phone {
+    width: 393px;
+    height: 852px;
+    background: #f5f6f8;
+    border-radius: 47px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 0 12px #d1d5db, 0 40px 80px rgba(0,0,0,0.15);
+  }
+  .dynamic-island {
+    width: 126px; height: 37px;
+    background: #000;
+    border-radius: 20px;
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .status-bar {
+    height: 54px;
+    padding: 12px 24px 0;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    font-size: 14px; font-weight: 600;
+  }
+  .status-bar .time { color: #1a1a1a; letter-spacing: 0.5px; }
+  .status-bar .icons { display: flex; gap: 5px; align-items: center; color: #1a1a1a; }
+
+  /* Screen content */
+  .screen {
+    height: calc(100% - 54px);
+    overflow-y: auto;
+    padding: 0 20px 120px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: #f5f6f8;
+  }
+  .screen::-webkit-scrollbar { display: none; }
+
+  /* Top bar */
+  .top-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0 6px;
+  }
+  .top-bar .left { display: flex; align-items: center; gap: 10px; }
+  .top-bar .hamburger {
+    width: 20px; height: 14px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .top-bar .hamburger span {
+    display: block; height: 2px; background: #1a1a1a; border-radius: 1px;
+  }
+  .top-bar .title { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; color: #1a1a1a; }
+  .top-bar .live {
+    font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    color: #ff3b30;
+    border: 1.5px solid #ff3b30; border-radius: 4px;
+    padding: 2px 6px;
+  }
+
+  /* Hero section — 小人是重心 */
+  .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 0 12px;
+    gap: 16px;
+  }
+  .hero-figure {
+    width: 180px; height: 220px;
+    background: linear-gradient(180deg, rgba(74,158,255,0.12) 0%, rgba(74,158,255,0.03) 60%, transparent 100%);
+    border-radius: 24px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .hero-figure .state-badge {
+    position: absolute; top: 10px; right: 10px;
+    font-size: 12px; font-weight: 800; letter-spacing: 1px;
+    color: #4a9eff;
+    background: rgba(74,158,255,0.1);
+    border: 1.5px solid rgba(74,158,255,0.25);
+    border-radius: 6px; padding: 3px 8px;
+  }
+  .hero-figure svg { width: 140px; height: 180px; }
+  .hero-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-align: center;
+  }
+  .time-display {
+    font-size: 52px; font-weight: 800; letter-spacing: -3px;
+    font-family: 'SF Pro Display', -apple-system;
+    line-height: 1;
+    color: #1a1a1a;
+  }
+  .time-display .ampm { font-size: 18px; font-weight: 600; letter-spacing: 0; margin-left: 4px; opacity: 0.5; }
+  .state-large {
+    font-size: 36px; font-weight: 800; letter-spacing: -0.5px;
+    color: #4a9eff;
+    margin-top: 2px;
+  }
+  .state-desc {
+    font-size: 14px; font-weight: 400; color: #888; margin-top: 2px;
+  }
+  .metrics-row {
+    display: flex; gap: 10px; margin-top: 8px;
+  }
+  .metric-chip {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 10px; padding: 8px 14px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .metric-chip .val { font-size: 18px; font-weight: 700; color: #1a1a1a; }
+  .metric-chip .lbl { font-size: 9px; font-weight: 600; letter-spacing: 0.5px; color: #888; text-transform: uppercase; }
+
+  /* Collapsible data sections */
+  .sections {
+    display: flex; flex-direction: column; gap: 8px;
+    margin-top: 8px;
+  }
+  .section {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  }
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .section-header:active { background: rgba(0,0,0,0.02); }
+  .section-header .sh-left { display: flex; align-items: center; gap: 8px; }
+  .section-header .sh-title {
+    font-size: 13px; font-weight: 700; color: #1a1a1a; letter-spacing: 0.2px;
+  }
+  .section-header .sh-count {
+    font-size: 10px; font-weight: 600; color: #666;
+    background: rgba(0,0,0,0.05); border-radius: 4px; padding: 1px 5px;
+  }
+  .section-header .chevron {
+    font-size: 12px; color: #aaa; transition: transform 0.2s;
+  }
+  .section.open .chevron { transform: rotate(180deg); }
+  .section-body {
+    max-height: 0; overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  .section.open .section-body { max-height: 300px; }
+  .section-content {
+    padding: 0 14px 14px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .data-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0;
+    border-bottom: 0.5px solid rgba(0,0,0,0.04);
+  }
+  .data-row:last-child { border-bottom: none; }
+  .data-row .lbl { font-size: 12px; color: #888; }
+  .data-row .val { font-size: 14px; font-weight: 600; color: #1a1a1a; }
+
+  /* Timeline scrubber */
+  .timeline {
+    margin-top: 8px;
+    padding: 12px 0;
+  }
+  .timeline-track {
+    height: 4px; background: rgba(0,0,0,0.06);
+    border-radius: 2px; position: relative; overflow: hidden;
+  }
+  .timeline-segments {
+    position: absolute; inset: 0; display: flex;
+  }
+  .timeline-seg {
+    height: 100%;
+  }
+  .timeline-thumb {
+    width: 18px; height: 18px;
+    background: #4a9eff; border-radius: 50%;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    box-shadow: 0 0 0 4px rgba(74,158,255,0.2), 0 2px 8px rgba(74,158,255,0.3);
+    cursor: grab;
+  }
+  .timeline-thumb:active { cursor: grabbing; transform: translate(-50%,-50%) scale(1.15); }
+  .timeline-labels {
+    display: flex; justify-content: space-between;
+    margin-top: 6px; font-size: 10px; color: #aaa; font-weight: 500;
+  }
+
+  /* Bottom dialog */
+  .bottom-dialog {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(255,255,255,0.98);
+    backdrop-filter: blur(20px);
+    border-top: 0.5px solid rgba(0,0,0,0.08);
+    padding: 12px 16px 34px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  .dialog-avatar {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, #4a9eff 0%, #6b5bff 100%);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .dialog-bubble {
+    flex: 1;
+    background: rgba(0,0,0,0.04);
+    border: 0.5px solid rgba(0,0,0,0.06);
+    border-radius: 16px 16px 16px 4px;
+    padding: 10px 14px;
+    font-size: 14px; line-height: 1.5; color: #333;
+  }
+  .dialog-bubble .highlight { color: #4a9eff; font-weight: 600; }
+  .dialog-input-wrap {
+    flex: 1;
+    display: flex; align-items: center;
+    background: rgba(0,0,0,0.04);
+    border: 0.5px solid rgba(0,0,0,0.08);
+    border-radius: 22px;
+    padding: 8px 14px;
+    gap: 8px;
+  }
+  .dialog-input-wrap input {
+    flex: 1; background: none; border: none; outline: none;
+    font-size: 14px; color: #1a1a1a;
+  }
+  .dialog-input-wrap input::placeholder { color: #aaa; }
+  .dialog-send {
+    width: 36px; height: 36px;
+    background: #4a9eff; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+  }
+  .dialog-send svg { width: 16px; height: 16px; }
+
+  /* Design notes */
+  .notes {
+    max-width: 500px;
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 14px;
+    padding: 20px 24px;
+    font-size: 13px; line-height: 1.7; color: #555;
+  }
+  .notes h2 { font-size: 12px; font-weight: 700; color: #888; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+  .notes ul { padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+  .notes li strong { color: #4a9eff; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>火柴人 App · 重新排版设计模板</h1>
+
+<div class="phone">
+  <div class="dynamic-island"></div>
+  <div class="status-bar">
+    <span class="time">9:41</span>
+    <div class="icons">
+      <svg width="17" height="12" viewBox="0 0 17 12"><path d="M1 4C1 3.4 1.4 3 2 3H3L4.5 9.5L6 3H7L8.5 9.5L10 3H11C11.6 3 12 3.4 12 4V11C12 11.6 11.6 12 11 12H2C1.4 12 1 11.6 1 11V4Z" fill="currentColor"/></svg>
+      <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 2.5C10.5 2.5 12.7 3.6 14.2 5.3C14.5 5.6 14.5 6.1 14.2 6.4C12.7 8.2 10.5 9.3 8 9.3C5.5 9.3 3.3 8.2 1.8 6.4C1.5 6.1 1.5 5.6 1.8 5.3C3.3 3.6 5.5 2.5 8 2.5Z" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M6.5 1L5.5 0L4.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
+      <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0.5" y="0.5" width="21" height="11" rx="2.5" stroke="currentColor" fill="none"/><rect x="2" y="2" width="17" height="8" rx="1" fill="currentColor"/><path d="M23 4V8C23.8 4 24 4 24 4H25" stroke="currentColor" stroke-linecap="round"/></svg>
+    </div>
+  </div>
+
+  <div class="screen">
+    <!-- Top bar -->
+    <div class="top-bar">
+      <div class="left">
+        <div class="hamburger">
+          <span></span><span></span><span></span>
+        </div>
+        <span class="title">Stick</span>
+      </div>
+      <span class="live">● LIVE</span>
+    </div>
+
+    <!-- Hero: 小人是重心 -->
+    <div class="hero">
+      <div class="hero-figure">
+        <span class="state-badge">站</span>
+        <!-- 站立小火柴人 SVG -->
+        <svg viewBox="0 0 80 120" fill="none">
+          <circle cx="40" cy="18" r="12" stroke="#4a9eff" stroke-width="2.5"/>
+          <line x1="40" y1="30" x2="40" y2="65" stroke="#4a9eff" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="40" y1="38" x2="20" y2="55" stroke="#4a9eff" stroke-width="2" stroke-linecap="round"/>
+          <line x1="40" y1="38" x2="60" y2="55" stroke="#4a9eff" stroke-width="2" stroke-linecap="round"/>
+          <line x1="40" y1="65" x2="25" y2="95" stroke="#4a9eff" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="40" y1="65" x2="55" y2="95" stroke="#4a9eff" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="40" cy="38" r="3" fill="#4a9eff"/>
+          <circle cx="40" cy="65" r="3" fill="#4a9eff"/>
+        </svg>
+      </div>
+      <div class="hero-info">
+        <div class="time-display">08:30<span class="ampm">AM</span></div>
+        <div class="state-large">站立</div>
+        <div class="state-desc">专注 · 第 2 小时</div>
+        <div class="metrics-row">
+          <div class="metric-chip">
+            <span class="val">82</span>
+            <span class="lbl">心率</span>
+          </div>
+          <div class="metric-chip">
+            <span class="val">78%</span>
+            <span class="lbl">能量</span>
+          </div>
+          <div class="metric-chip">
+            <span class="val">65</span>
+            <span class="lbl">心情</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 可折叠数据面板 -->
+    <div class="sections">
+      <div class="section open">
+        <div class="section-header" onclick="this.parentElement.classList.toggle('open')">
+          <div class="sh-left">
+            <span class="sh-title">睡眠分析</span>
+            <span class="sh-count">2 项</span>
+          </div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="section-body">
+          <div class="section-content">
+            <div class="data-row">
+              <span class="lbl">睡眠时长</span>
+              <span class="val">7h 32m</span>
+            </div>
+            <div class="data-row">
+              <span class="lbl">睡眠质量</span>
+              <span class="val" style="color:#4ade80">优</span>
+            </div>
+            <div class="data-row">
+              <span class="lbl">入睡时间</span>
+              <span class="val">23:15</span>
+            </div>
+            <div class="data-row">
+              <span class="lbl">醒来次数</span>
+              <span class="val">1 次</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header" onclick="this.parentElement.classList.toggle('open')">
+          <div class="sh-left">
+            <span class="sh-title">运动分析</span>
+            <span class="sh-count">3 项</span>
+          </div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="section-body">
+          <div class="section-content">
+            <div class="data-row">
+              <span class="lbl">步数</span>
+              <span class="val">6,842</span>
+            </div>
+            <div class="data-row">
+              <span class="lbl">活动时长</span>
+              <span class="val">1h 18m</span>
+            </div>
+            <div class="data-row">
+              <span class="lbl">消耗卡路里</span>
+              <span class="val">320 kcal</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header" onclick="this.parentElement.classList.toggle('open')">
+          <div class="sh-left">
+            <span class="sh-title">健康跟踪</span>
+            <span class="sh-count" style="background:rgba(255,100,100,0.15);color:#ff6464;">1 项</span>
+          </div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="section-body">
+          <div class="section-content">
+            <div class="data-row">
+              <span class="lbl">颈椎压力</span>
+              <span class="val" style="color:#ff9f43">中风险</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="timeline">
+      <div class="timeline-track">
+        <div class="timeline-segments">
+          <div class="timeline-seg" style="width:29%;background:#9333ea;"></div>
+          <div class="timeline-seg" style="width:6%;background:#22c55e;"></div>
+          <div class="timeline-seg" style="width:22%;background:#f97316;"></div>
+          <div class="timeline-seg" style="width:6%;background:#22c55e;"></div>
+          <div class="timeline-seg" style="width:18%;background:#f97316;"></div>
+          <div class="timeline-seg" style="width:4%;background:#22c55e;"></div>
+          <div class="timeline-seg" style="width:12%;background:#3b82f6;"></div>
+          <div class="timeline-seg" style="width:3%;background:#9333ea;"></div>
+        </div>
+        <div class="timeline-thumb"></div>
+      </div>
+      <div class="timeline-labels">
+        <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 底部对话框 -->
+  <div class="bottom-dialog">
+    <div class="dialog-avatar">🤖</div>
+    <div class="dialog-bubble">
+      检测到当前<span class="highlight">颈椎压力偏高</span>，建议每 30 分钟起身活动一下
+    </div>
+    <div class="dialog-input-wrap">
+      <input type="text" placeholder="问点什么...">
+      <div class="dialog-send">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M2 8L14 2L9 14L7 9L2 8Z" fill="white"/></svg>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="notes">
+  <h2>设计说明</h2>
+  <ul>
+    <li><strong>字号放大</strong>：时间 48px / 状态名 32px / 数据值 14-16px / 标签 10-12px — 全部比原版大 2-3 号</li>
+    <li><strong>状态突出</strong>：左侧火柴人占 40%，右侧时间 + 状态名占主视觉焦点，状态色（蓝/绿/橙/紫）贯穿</li>
+    <li><strong>数据折叠</strong>：睡眠 / 运动 / 健康三大板块，默认展开第一个，其余折叠；点击展开，带 chevron 箭头</li>
+    <li><strong>底部对话框</strong>：参考图风格 — 左侧 AI 头像 + 气泡 + 右侧输入框，背景磨砂</li>
+    <li><strong>配色</strong>：深色主题 (#090910) + 状态色 accent + off-white 文字 (#fff / #aaa / #666)</li>
+    <li><strong>间距</strong>：各区块间距 8-12px，呼吸感更强，不再拥挤</li>
+  </ul>
+</div>
+
+</body>
+</html>

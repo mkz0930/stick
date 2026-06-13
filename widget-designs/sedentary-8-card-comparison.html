@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>久坐助手 · 8 张听劝对比</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #17202a;
+    --muted: #7b8491;
+    --good: #34d983;
+    --bad: #ff6868;
+  }
+  body {
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+    background:
+      radial-gradient(circle at 12% 10%, rgba(255, 105, 105, .16), transparent 26%),
+      radial-gradient(circle at 88% 14%, rgba(52, 217, 131, .18), transparent 28%),
+      linear-gradient(180deg, #f8fafc 0%, #e9eef6 100%);
+    color: var(--ink);
+    padding: 30px 18px 52px;
+  }
+  .page {
+    width: min(1040px, 100%);
+    margin: 0 auto;
+  }
+  .hero {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 22px;
+  }
+  h1 {
+    font-size: clamp(30px, 5vw, 58px);
+    line-height: .9;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .hero p {
+    max-width: 360px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.55;
+    font-weight: 700;
+  }
+  .board {
+    border: 4px solid var(--ink);
+    border-radius: 30px;
+    background: rgba(255,255,255,.78);
+    box-shadow: 0 16px 0 rgba(23, 32, 42, .12), 0 30px 70px rgba(23, 32, 42, .12);
+    overflow: hidden;
+  }
+  .columns {
+    display: grid;
+    grid-template-columns: 86px 1fr 1fr;
+    background: #fff;
+    border-bottom: 4px solid var(--ink);
+  }
+  .columns div {
+    min-height: 58px;
+    display: grid;
+    place-items: center;
+    font-weight: 950;
+    font-size: 20px;
+    border-right: 4px solid var(--ink);
+  }
+  .columns div:last-child { border-right: 0; }
+  .columns .bad-head { background: #ffe0dc; color: #d53636; }
+  .columns .good-head { background: #ddfbe9; color: #128a52; }
+  .row {
+    display: grid;
+    grid-template-columns: 86px 1fr 1fr;
+    border-bottom: 4px solid var(--ink);
+  }
+  .row:last-child { border-bottom: 0; }
+  .idx {
+    display: grid;
+    place-items: center;
+    border-right: 4px solid var(--ink);
+    background: #f7f9fc;
+    font-size: 24px;
+    font-weight: 950;
+  }
+  .cell {
+    border-right: 4px solid var(--ink);
+    padding: 14px;
+    display: grid;
+    grid-template-columns: 142px 1fr;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+  .cell:last-child { border-right: 0; }
+  .mini {
+    width: 142px;
+    aspect-ratio: 1 / 1;
+    border: 4px solid var(--ink);
+    border-radius: 28px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 0 rgba(23, 32, 42, .15);
+  }
+  .mini::after {
+    content: "";
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.34);
+  }
+  .top {
+    position: absolute;
+    z-index: 2;
+    left: 11px;
+    right: 11px;
+    top: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 9px;
+    font-weight: 950;
+    letter-spacing: .5px;
+  }
+  .dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 3px solid var(--ink);
+    background: #fff;
+  }
+  .art {
+    position: absolute;
+    inset: 30px 8px 38px;
+    display: grid;
+    place-items: center;
+  }
+  .word {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 9px;
+    height: 28px;
+    border: 3px solid var(--ink);
+    border-radius: 14px;
+    background: #fff;
+    display: grid;
+    place-items: center;
+    font-size: 16px;
+    font-weight: 950;
+    line-height: 1;
+  }
+  .copy {
+    min-width: 0;
+  }
+  .copy strong {
+    display: block;
+    font-size: 23px;
+    line-height: 1;
+    font-weight: 950;
+    margin-bottom: 8px;
+  }
+  .copy span {
+    display: block;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.38;
+    font-weight: 750;
+  }
+  svg { width: 100%; height: 100%; overflow: visible; }
+  .outline {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .thin {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .face { fill: #fff6dc; stroke: var(--ink); stroke-width: 5; }
+  .eye { fill: var(--ink); }
+  .white { fill: #fff; stroke: var(--ink); stroke-width: 4.5; }
+  .bad1 { background: linear-gradient(145deg, #ffe06f, #ffb34d); }
+  .bad2 { background: linear-gradient(145deg, #ffd4c9, #ff7b65); }
+  .bad3 { background: linear-gradient(145deg, #ffbad1, #ff6c9c); }
+  .bad4 { background: linear-gradient(145deg, #a6dfff, #5b95ff); }
+  .bad5 { background: linear-gradient(145deg, #ffd274, #ff8b47); }
+  .bad6 { background: linear-gradient(145deg, #ffad80, #ff615f); }
+  .bad7 { background: linear-gradient(145deg, #cdb7ff, #8056ff); }
+  .bad8 { background: linear-gradient(145deg, #26324b, #111827); color: #fff; }
+  .good1 { background: linear-gradient(145deg, #8cf0b2, #31c774); }
+  .good2 { background: linear-gradient(145deg, #b7f7cf, #45dc8f); }
+  .good3 { background: linear-gradient(145deg, #ffc4dc, #ff75aa); }
+  .good4 { background: linear-gradient(145deg, #b9e5ff, #6fb4ff); }
+  .good5 { background: linear-gradient(145deg, #d4f36b, #88d846); }
+  .good6 { background: linear-gradient(145deg, #ffd064, #ff9f43); }
+  .good7 { background: linear-gradient(145deg, #b99dff, #6f54ff); }
+  .good8 { background: linear-gradient(145deg, #303f60, #151e32); color: #fff; }
+  .night .top, .night .label { color: #fff; }
+  .night .outline, .night .thin { stroke: #fff; }
+  .night .face { fill: #3f4d68; stroke: #fff; }
+  .night .eye { fill: #fff; }
+  .night .white { stroke: #fff; }
+  .night .word { color: var(--ink); }
+  .bad-copy strong { color: #c92f2f; }
+  .good-copy strong { color: #128a52; }
+  @media (max-width: 820px) {
+    .hero { align-items: start; flex-direction: column; }
+    .columns { grid-template-columns: 54px 1fr 1fr; }
+    .columns div { font-size: 15px; }
+    .row { grid-template-columns: 54px 1fr; }
+    .idx { grid-row: span 2; font-size: 18px; }
+    .cell {
+      grid-column: 2;
+      grid-template-columns: 118px 1fr;
+      border-right: 0;
+      border-bottom: 4px solid var(--ink);
+      padding: 12px;
+    }
+    .cell:last-child { border-bottom: 0; }
+    .mini { width: 118px; border-radius: 24px; }
+    .copy strong { font-size: 19px; }
+    .copy span { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <h1>8 张卡片<br>听劝对比</h1>
+      <p>每个时间点都拆成两种版本：左边是不听劝继续坐，右边是听劝动一下后的鼓励反馈。</p>
+    </section>
+
+    <section class="board" aria-label="8 张久坐提醒听劝对比">
+      <div class="columns">
+        <div>序号</div>
+        <div class="bad-head">不听劝</div>
+        <div class="good-head">听劝</div>
+      </div>
+
+      <article class="row">
+        <div class="idx">01</div>
+        <div class="cell">
+          <div class="mini bad1">
+            <div class="top"><span>09:30 · 30m</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><path class="outline" d="M30 86 V55 Q30 45 43 45 H78 Q91 45 91 55 V86"/><circle class="face" cx="60" cy="37" r="18"/><circle class="eye" cx="53" cy="35" r="3"/><circle class="eye" cx="67" cy="35" r="3"/><path class="thin" d="M53 46 Q60 51 67 46"/><path class="outline" d="M45 62 Q60 71 75 62"/></svg></div>
+            <div class="word">先坐会</div>
+          </div>
+          <div class="copy bad-copy"><strong>粘住开局</strong><span>提醒出现，但用户先忽略，身体还没明显抗议。</span></div>
+        </div>
+        <div class="cell">
+          <div class="mini good1">
+            <div class="top"><span>09:31 · +1m</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><circle class="face" cx="60" cy="35" r="18"/><circle class="eye" cx="53" cy="33" r="3"/><circle class="eye" cx="67" cy="33" r="3"/><path class="thin" d="M52 45 Q60 53 69 45"/><path class="outline" d="M60 54 V80 M59 62 L38 45 M61 62 L83 45 M60 80 L44 107 M61 80 L81 107"/><path class="white" d="M93 31 L101 44 L87 43 Z"/></svg></div>
+            <div class="word">起得早</div>
+          </div>
+          <div class="copy good-copy"><strong>开局加分</strong><span>刚提醒就起来一下，助手立刻夸，建立正反馈。</span></div>
+        </div>
+      </article>
+
+      <article class="row">
+        <div class="idx">02</div>
+        <div class="cell">
+          <div class="mini bad2">
+            <div class="top"><span>10:30 · 1h</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><path class="white" d="M32 68 H88 V92 H32 Z"/><circle class="face" cx="60" cy="33" r="17"/><path class="thin" d="M53 32 H57 M64 32 H68"/><path class="thin" d="M54 44 Q60 40 66 44"/><path class="outline" d="M60 50 V70 M60 59 L42 70 M60 59 L78 70 M48 92 L39 112 M72 92 L83 112"/><text x="83" y="36" font-size="16" font-weight="950" fill="#17202a">?</text></svg></div>
+            <div class="word">还不动</div>
+          </div>
+          <div class="copy bad-copy"><strong>开始发僵</strong><span>已经坐满一小时，肩颈和腿开始变硬。</span></div>
+        </div>
+        <div class="cell">
+          <div class="mini good2">
+            <div class="top"><span>10:36 · +3m</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><path class="white" d="M24 30 L31 43 L18 40 Z"/><path class="white" d="M93 30 L104 39 L90 45 Z"/><circle class="face" cx="60" cy="35" r="18"/><circle class="eye" cx="53" cy="33" r="3"/><circle class="eye" cx="67" cy="33" r="3"/><path class="thin" d="M52 45 Q60 53 69 45"/><path class="outline" d="M60 54 V81 M59 63 L38 44 M61 63 L84 44 M60 81 L44 108 M61 81 L82 108"/><text x="45" y="83" font-size="18" font-weight="950" fill="#17202a">+1</text></svg></div>
+            <div class="word">真听劝</div>
+          </div>
+          <div class="copy good-copy"><strong>奖励到手</strong><span>动了 3 分钟，小组件变成夸奖卡。</span></div>
+        </div>
+      </article>
+
+      <article class="row">
+        <div class="idx">03</div>
+        <div class="cell">
+          <div class="mini bad3">
+            <div class="top"><span>11:30 · 2h</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><path class="outline" d="M28 68 H92 M36 68 V104 M84 68 V104"/><circle class="face" cx="60" cy="33" r="17"/><circle class="eye" cx="53" cy="31" r="3"/><circle class="eye" cx="67" cy="31" r="3"/><ellipse cx="60" cy="42" rx="4" ry="5" fill="#17202a"/><path class="outline" d="M60 50 V68 M60 59 L42 68 M60 59 L78 68 M51 68 L44 106 M70 68 L78 106"/><path class="thin" d="M39 80 L47 89 L38 91 L47 103"/></svg></div>
+            <div class="word">腿麻了</div>
+          </div>
+          <div class="copy bad-copy"><strong>腿部抗议</strong><span>继续坐，画面开始出现电流和麻感。</span></div>
+        </div>
+        <div class="cell">
+          <div class="mini good3">
+            <div class="top"><span>11:35 · +5m</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><path class="outline" d="M22 94 H100"/><circle class="face" cx="55" cy="35" r="17"/><circle class="eye" cx="49" cy="33" r="3"/><circle class="eye" cx="62" cy="33" r="3"/><path class="thin" d="M48 44 Q55 51 63 44"/><path class="outline" d="M56 52 V76 M56 62 L36 74 M57 62 L80 50 M56 76 L37 105 M57 76 L84 96"/><path d="M92 31 C92 23 105 23 105 33 C105 43 92 49 92 49 C92 49 79 43 79 33 C79 23 92 23 92 31 Z" fill="#ff6f9f" stroke="#17202a" stroke-width="4"/></svg></div>
+            <div class="word">腿活了</div>
+          </div>
+          <div class="copy good-copy"><strong>循环回来</strong><span>腿动起来了，用小爱心表达身体在感谢你。</span></div>
+        </div>
+      </article>
+
+      <article class="row">
+        <div class="idx">04</div>
+        <div class="cell">
+          <div class="mini bad4">
+            <div class="top"><span>13:30 · 饭后</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><path d="M42 90 Q34 70 42 52 Q49 36 61 36 Q77 36 83 53 Q91 72 80 90 Z" fill="#e9eef5" stroke="#17202a" stroke-width="5"/><circle class="face" cx="60" cy="32" r="16"/><path class="thin" d="M52 30 H56 M64 30 H68 M54 42 Q60 38 66 42"/><path class="thin" d="M47 63 H76 M45 77 H79"/><text x="82" y="34" font-size="17" font-weight="950" fill="#17202a">zz</text></svg></div>
+            <div class="word">别石化</div>
+          </div>
+          <div class="copy bad-copy"><strong>饭后石化</strong><span>午后困意叠加久坐，整个人像被封印。</span></div>
+        </div>
+        <div class="cell">
+          <div class="mini good4">
+            <div class="top"><span>13:40 · +6m</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><path class="outline" d="M22 95 C38 80 52 105 70 88 C82 78 91 81 101 69"/><circle class="face" cx="53" cy="35" r="17"/><circle class="eye" cx="47" cy="33" r="3"/><circle class="eye" cx="60" cy="33" r="3"/><path class="thin" d="M46 44 Q53 51 62 44"/><path class="outline" d="M54 52 V75 M54 60 L36 72 M55 60 L77 50 M54 75 L35 103 M55 75 L81 95"/><text x="78" y="83" font-size="18" font-weight="950" fill="#17202a">醒</text></svg></div>
+            <div class="word">醒过来</div>
+          </div>
+          <div class="copy good-copy"><strong>饭后破冰</strong><span>走几分钟，把午后困住的状态切开。</span></div>
+        </div>
+      </article>
+
+      <article class="row">
+        <div class="idx">05</div>
+        <div class="cell">
+          <div class="mini bad5">
+            <div class="top"><span>15:00 · 4h</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><circle class="white" cx="61" cy="62" r="32"/><path class="outline" d="M39 36 L29 24 M82 36 L92 24"/><circle class="face" cx="60" cy="52" r="15"/><circle class="eye" cx="54" cy="50" r="3"/><circle class="eye" cx="66" cy="50" r="3"/><path class="thin" d="M54 61 Q60 65 67 61"/><path class="outline" d="M60 66 V81 M60 66 L48 75 M60 66 L73 75"/><text x="51" y="30" font-size="17" font-weight="950" fill="#17202a">!</text></svg></div>
+            <div class="word">屁股响</div>
+          </div>
+          <div class="copy bad-copy"><strong>闹钟升级</strong><span>坐太久，提醒从温柔变成大声报警。</span></div>
+        </div>
+        <div class="cell">
+          <div class="mini good5">
+            <div class="top"><span>15:08 · +5m</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><rect x="25" y="23" width="66" height="22" rx="11" class="white"/><rect x="32" y="30" width="40" height="8" rx="4" fill="#28c76f"/><path class="outline" d="M91 31 H99 V37 H91"/><circle class="face" cx="60" cy="65" r="17"/><circle class="eye" cx="54" cy="63" r="3"/><circle class="eye" cx="67" cy="63" r="3"/><path class="thin" d="M53 74 Q60 81 68 74"/><path class="outline" d="M60 82 V95 M60 89 L43 82 M61 89 L80 82 M60 95 L41 110 M61 95 L83 109"/></svg></div>
+            <div class="word">血条回</div>
+          </div>
+          <div class="copy good-copy"><strong>回血成功</strong><span>动完之后不再吓你，改成游戏式奖励。</span></div>
+        </div>
+      </article>
+
+      <article class="row">
+        <div class="idx">06</div>
+        <div class="cell">
+          <div class="mini bad6">
+            <div class="top"><span>17:30 · 6h</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><circle class="face" cx="56" cy="31" r="16"/><path class="thin" d="M49 30 L54 34 M66 30 L62 34 M51 43 Q57 39 64 43"/><path class="outline" d="M57 48 Q63 64 74 78 M68 63 L48 75 M73 77 L90 68 M74 78 L63 109 M75 78 L93 107"/><circle cx="73" cy="66" r="7" fill="#fff05a" stroke="#17202a" stroke-width="5"/><path class="thin" d="M88 48 Q99 41 95 31 Q107 39 100 53"/></svg></div>
+            <div class="word">腰冒烟</div>
+          </div>
+          <div class="copy bad-copy"><strong>腰背警报</strong><span>长时间不动，腰开始用夸张方式求救。</span></div>
+        </div>
+        <div class="cell">
+          <div class="mini good6">
+            <div class="top"><span>17:36 · +4m</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><circle class="face" cx="58" cy="35" r="17"/><circle class="eye" cx="52" cy="33" r="3"/><circle class="eye" cx="65" cy="33" r="3"/><path class="thin" d="M51 44 Q58 51 66 44"/><path class="outline" d="M58 52 Q54 67 58 82 M58 62 L39 51 M58 62 L78 51 M58 82 L42 107 M59 82 L79 107"/><path class="thin" d="M84 70 Q95 62 91 51 Q103 60 97 76"/><text x="75" y="35" font-size="17" font-weight="950" fill="#17202a">松</text></svg></div>
+            <div class="word">腰松了</div>
+          </div>
+          <div class="copy good-copy"><strong>拉伸有效</strong><span>从报警切成舒缓反馈，鼓励继续保持。</span></div>
+        </div>
+      </article>
+
+      <article class="row">
+        <div class="idx">07</div>
+        <div class="cell">
+          <div class="mini bad7">
+            <div class="top"><span>20:30 · 沙发</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><path class="white" d="M22 63 Q22 50 36 50 H84 Q98 50 98 63 V93 H22 Z"/><path class="thin" d="M22 78 H98 M45 50 V93 M76 50 V93"/><circle class="face" cx="60" cy="39" r="16"/><path class="thin" d="M52 38 Q55 35 58 38 M63 38 Q67 35 70 38 M54 48 Q60 53 67 48"/><path class="outline" d="M60 55 V75 M59 63 L40 79 M61 63 L80 79"/><text x="24" y="38" font-size="17" font-weight="950" fill="#17202a">no</text></svg></div>
+            <div class="word">沙发抓</div>
+          </div>
+          <div class="copy bad-copy"><strong>晚间陷阱</strong><span>沙发把人吸住，越坐越不想起。</span></div>
+        </div>
+        <div class="cell">
+          <div class="mini good7">
+            <div class="top"><span>20:40 · +8m</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><path class="white" d="M22 82 H98 V98 H22 Z"/><circle class="face" cx="58" cy="35" r="17"/><circle class="eye" cx="52" cy="33" r="3"/><circle class="eye" cx="65" cy="33" r="3"/><path class="thin" d="M51 44 Q58 52 67 44"/><path class="outline" d="M58 52 V76 M57 62 L37 49 M59 62 L81 49 M58 76 L41 106 M59 76 L83 104"/><path d="M94 34 C94 26 106 26 106 36 C106 46 94 52 94 52 C94 52 82 46 82 36 C82 26 94 26 94 34 Z" fill="#ff6f9f" stroke="#17202a" stroke-width="4"/></svg></div>
+            <div class="word">赢沙发</div>
+          </div>
+          <div class="copy good-copy"><strong>逃脱成功</strong><span>从沙发里出来，助手用胜利感奖励你。</span></div>
+        </div>
+      </article>
+
+      <article class="row">
+        <div class="idx">08</div>
+        <div class="cell">
+          <div class="mini bad8 night">
+            <div class="top"><span>23:00 · 坐麻</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><path class="outline" d="M22 96 H99"/><circle class="face" cx="57" cy="32" r="16"/><path class="thin" d="M50 30 L55 34 M66 30 L62 34 M51 43 Q57 39 64 43"/><path class="outline" d="M57 48 Q64 65 75 78 M68 62 L47 75 M74 77 L91 69 M75 78 L62 109 M76 78 L94 106"/><path class="thin" d="M89 48 Q101 40 96 30 Q109 39 101 55"/><text x="78" y="27" font-size="16" font-weight="950" fill="#fff">晚了</text></svg></div>
+            <div class="word">还坐？</div>
+          </div>
+          <div class="copy bad-copy"><strong>睡前翻车</strong><span>一天结束才想补救，身体已经很不爽。</span></div>
+        </div>
+        <div class="cell">
+          <div class="mini good8 night">
+            <div class="top"><span>23:00 · +2m</span><i class="dot"></i></div>
+            <div class="art"><svg viewBox="0 0 120 120"><path class="outline" d="M18 99 C36 85 51 108 72 91 C85 80 93 83 103 72"/><path d="M90 30 A14 14 0 1 1 77 17 A10 10 0 1 0 90 30" fill="#ffd86b"/><path d="M92 58 C92 50 105 50 105 60 C105 70 92 76 92 76 C92 76 79 70 79 60 C79 50 92 50 92 58 Z" fill="#ff6f9f" stroke="#fff" stroke-width="4"/><circle class="face" cx="51" cy="36" r="16"/><circle class="eye" cx="45" cy="34" r="3"/><circle class="eye" cx="57" cy="34" r="3"/><path class="thin" d="M44 45 Q51 52 59 45"/><path class="outline" d="M52 52 V75 M52 60 L35 72 M53 60 L73 51 M52 75 L35 103 M53 75 L78 95"/><text x="78" y="102" font-size="18" font-weight="950" fill="#fff">乖</text></svg></div>
+            <div class="word">真乖</div>
+          </div>
+          <div class="copy good-copy"><strong>暧昧收尾</strong><span>睡前听劝走两分钟，被小助手轻轻夸一下。</span></div>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

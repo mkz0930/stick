@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>久坐提醒 · 一天 8 张 · 更骚版</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #0E1116;
+    color: #E6EBF2;
+    padding: 32px;
+    min-height: 100vh;
+  }
+  .page-title {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+  .page-sub {
+    font-size: 13px;
+    color: #6E7585;
+    margin-bottom: 14px;
+    font-style: italic;
+  }
+  .theme {
+    font-size: 12px;
+    color: #E94B5C;
+    margin-bottom: 28px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .timeline {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 30px;
+    max-width: 780px;
+    font-size: 10.5px;
+    color: #6E7585;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+  .timeline .dot { width: 6px; height: 6px; border-radius: 50%; background: #4A5060; }
+  .timeline .seg { flex: 1; height: 1.5px; background: linear-gradient(90deg, #4A5060, #2A2F3C); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 28px 20px;
+    max-width: 780px;
+  }
+  .card-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .num {
+    font-size: 36px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    color: #E6EBF2;
+    line-height: 1;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .num .nlabel {
+    font-size: 11px;
+    font-weight: 700;
+    color: #6E7585;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-family: -apple-system, "PingFang SC", sans-serif;
+  }
+  .caption {
+    font-size: 11.5px;
+    color: #8A92A0;
+    line-height: 1.45;
+    margin-top: 4px;
+  }
+  .widget {
+    width: 170px;
+    height: 170px;
+    border-radius: 22px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.32);
+  }
+  svg.fig { position: absolute; }
+
+  /* ============ 1 · 08:00 抱键盘亲 ============ */
+  .s1 { background: linear-gradient(135deg, #FFB6D9 0%, #FF6B8E 100%); }
+  .s1 .time {
+    position: absolute; top: 10px; left: 12px;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+    color: #4A0020;
+  }
+  .s1 .text {
+    position: absolute; bottom: 48px; right: 12px;
+    text-align: right;
+    font-weight: 900; line-height: 0.95; color: #2A0010;
+    letter-spacing: -0.04em;
+  }
+  .s1 .text .l1 { font-size: 14px; transform: rotate(-2deg); display: block; }
+  .s1 .text .l2 { font-size: 24px; color: #8C0040; transform: rotate(-2deg); display: block; margin-top: 2px; }
+  .s1 .text .l3 { font-size: 13px; transform: rotate(-2deg); display: block; margin-top: 2px; }
+  .s1 .cta {
+    position: absolute; bottom: 10px; left: 12px; right: 12px;
+    height: 22px; border-radius: 11px;
+    background: rgba(42, 0, 16, 0.95);
+    color: #FFB6D9; font-size: 9.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    letter-spacing: 0.04em;
+  }
+
+  /* ============ 2 · 09:30 被窝想抱 ============ */
+  .s2 { background: linear-gradient(135deg, #FFE2B0 0%, #FFB870 100%); }
+  .s2 .time {
+    position: absolute; top: 10px; left: 12px;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+    color: #6B3A00;
+  }
+  .s2 .text {
+    position: absolute; bottom: 48px; left: 12px;
+    font-weight: 900; line-height: 0.95; color: #3A1F00;
+    letter-spacing: -0.03em;
+  }
+  .s2 .text .l1 { font-size: 14px; transform: rotate(-3deg); display: block; }
+  .s2 .text .l2 { font-size: 26px; color: #C9591F; transform: rotate(-3deg); display: block; margin-top: 2px; }
+  .s2 .text .l3 { font-size: 12px; transform: rotate(-3deg); display: block; margin-top: 2px; font-style: italic; }
+  .s2 .cta {
+    position: absolute; bottom: 10px; left: 12px; right: 12px;
+    height: 22px; border-radius: 11px;
+    background: rgba(58, 31, 0, 0.95);
+    color: #FFE2B0; font-size: 9.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    letter-spacing: 0.04em;
+  }
+
+  /* ============ 3 · 11:00 翘屁股回头 ============ */
+  .s3 { background: linear-gradient(135deg, #FFD1DC 0%, #FF8AAB 100%); }
+  .s3 .time {
+    position: absolute; top: 10px; left: 12px;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+    color: #6B0028;
+  }
+  .s3 .text {
+    position: absolute; bottom: 48px; left: 12px;
+    font-weight: 900; line-height: 0.95; color: #3A0018;
+    letter-spacing: -0.03em;
+  }
+  .s3 .text .l1 { font-size: 14px; transform: rotate(-2deg); display: block; }
+  .s3 .text .l2 { font-size: 24px; color: #B5005A; transform: rotate(-2deg); display: block; margin-top: 2px; }
+  .s3 .text .l3 { font-size: 13px; transform: rotate(-2deg); display: block; margin-top: 2px; font-style: italic; }
+  .s3 .cta {
+    position: absolute; bottom: 10px; left: 12px; right: 12px;
+    height: 22px; border-radius: 11px;
+    background: rgba(58, 0, 24, 0.95);
+    color: #FFD1DC; font-size: 9.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    letter-spacing: 0.04em;
+  }
+
+  /* ============ 4 · 13:00 怀孕散步 ============ */
+  .s4 { background: linear-gradient(135deg, #F5E0BD 0%, #E0B070 100%); }
+  .s4 .time {
+    position: absolute; top: 10px; left: 12px;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+    color: #5A2A00;
+  }
+  .s4 .text {
+    position: absolute; bottom: 48px; right: 12px;
+    text-align: right;
+    font-weight: 900; line-height: 0.95; color: #2A1500;
+    letter-spacing: -0.03em;
+  }
+  .s4 .text .l1 { font-size: 13px; transform: rotate(2deg); display: block; }
+  .s4 .text .l2 { font-size: 22px; color: #B54810; transform: rotate(2deg); display: block; margin-top: 2px; }
+  .s4 .text .l3 { font-size: 13px; transform: rotate(2deg); display: block; margin-top: 2px; }
+  .s4 .cta {
+    position: absolute; bottom: 10px; left: 12px; right: 12px;
+    height: 22px; border-radius: 11px;
+    background: rgba(42, 21, 0, 0.95);
+    color: #F5E0BD; font-size: 9.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    letter-spacing: 0.04em;
+  }
+
+  /* ============ 5 · 14:00 解扣子热 ============ */
+  .s5 { background: linear-gradient(135deg, #D8C8FF 0%, #A088FF 100%); }
+  .s5 .time {
+    position: absolute; top: 10px; left: 12px;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+    color: #28166B;
+  }
+  .s5 .heat {
+    position: absolute; top: 22px; right: 14px;
+    font-size: 14px; font-weight: 900; color: #E94B5C;
+    transform: rotate(15deg);
+  }
+  .s5 .text {
+    position: absolute; bottom: 48px; left: 12px;
+    font-weight: 900; line-height: 0.95;
+    letter-spacing: -0.03em;
+  }
+  .s5 .text .l1 { font-size: 28px; color: #1A0F4D; transform: rotate(-2deg); display: block; }
+  .s5 .text .l2 { font-size: 13px; color: #5A3DBF; transform: rotate(-3deg); display: block; margin-top: 4px; }
+  .s5 .text .l3 { font-size: 19px; color: #B53041; transform: rotate(-2deg); display: block; margin-top: 2px; }
+  .s5 .cta {
+    position: absolute; bottom: 10px; left: 12px; right: 12px;
+    height: 22px; border-radius: 11px;
+    background: rgba(26, 15, 77, 0.95);
+    color: #D8C8FF; font-size: 9.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    letter-spacing: 0.04em;
+  }
+
+  /* ============ 6 · 16:00 腿出轨健身器 ============ */
+  .s6 { background: linear-gradient(135deg, #B5E3DD 0%, #6FB8AC 100%); }
+  .s6 .time {
+    position: absolute; top: 10px; left: 12px;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+    color: #00574A;
+  }
+  .s6 .text {
+    position: absolute; bottom: 48px; left: 12px;
+    font-weight: 900; line-height: 0.95;
+    letter-spacing: -0.03em;
+  }
+  .s6 .text .l1 { font-size: 14px; color: #003A30; transform: rotate(-2deg); display: block; }
+  .s6 .text .l2 { font-size: 24px; color: #B53041; transform: rotate(-2deg); display: block; margin-top: 2px; }
+  .s6 .text .l3 { font-size: 13px; color: #003A30; transform: rotate(-2deg); display: block; margin-top: 2px; font-style: italic; }
+  .s6 .cta {
+    position: absolute; bottom: 10px; left: 12px; right: 12px;
+    height: 22px; border-radius: 11px;
+    background: rgba(0, 58, 48, 0.95);
+    color: #B5E3DD; font-size: 9.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    letter-spacing: 0.04em;
+  }
+
+  /* ============ 7 · 21:00 沙发抱枕三角恋 ============ */
+  .s7 { background: linear-gradient(135deg, #FFB69E 0%, #FF7355 100%); }
+  .s7 .time {
+    position: absolute; top: 10px; left: 12px;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+    color: #5A1A00;
+  }
+  .s7 .text {
+    position: absolute; bottom: 48px; right: 12px;
+    text-align: right;
+    font-weight: 900; line-height: 0.95; color: #3A0E00;
+    letter-spacing: -0.03em;
+  }
+  .s7 .text .l1 { font-size: 26px; transform: rotate(3deg); display: block; color: #C9264A; }
+  .s7 .text .l2 { font-size: 13px; transform: rotate(3deg); display: block; margin-top: 2px; }
+  .s7 .text .l3 { font-size: 18px; transform: rotate(3deg); display: block; margin-top: 2px; color: #3A0E00; }
+  .s7 .cta {
+    position: absolute; bottom: 10px; left: 12px; right: 12px;
+    height: 22px; border-radius: 11px;
+    background: rgba(58, 14, 0, 0.95);
+    color: #FFB69E; font-size: 9.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    letter-spacing: 0.04em;
+  }
+
+  /* ============ 8 · 23:00 灵魂出窍吻别 ============ */
+  .s8 { background: linear-gradient(135deg, #2B3D5F 0%, #15203A 100%); }
+  .s8 .time {
+    position: absolute; top: 10px; left: 12px;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+    color: #E94B5C;
+  }
+  .s8 .moon {
+    position: absolute; top: 14px; right: 16px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    box-shadow: -4px 4px 0 #F4D366;
+    background: transparent;
+  }
+  .s8 .text {
+    position: absolute; bottom: 48px; left: 12px;
+    font-weight: 900; line-height: 0.95;
+    letter-spacing: -0.03em;
+  }
+  .s8 .text .l1 { font-size: 14px; color: #E6EBF2; display: block; transform: rotate(-2deg); }
+  .s8 .text .l2 { font-size: 22px; color: #FF6B35; display: block; transform: rotate(-3deg); margin-top: 2px; }
+  .s8 .text .l3 { font-size: 13px; color: #FFAA88; display: block; margin-top: 2px; font-style: italic; transform: rotate(-2deg); }
+  .s8 .cta {
+    position: absolute; bottom: 10px; left: 12px; right: 12px;
+    height: 22px; border-radius: 11px;
+    background: #E94B5C;
+    color: #FFF; font-size: 9.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    letter-spacing: 0.04em;
+  }
+
+  .footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #2A2F3C;
+    font-size: 11px;
+    color: #6E7585;
+    line-height: 1.6;
+    max-width: 780px;
+  }
+  .footer b { color: #B8BFCC; }
+</style>
+</head>
+<body>
+
+<div class="page-title">久坐提醒 · 一天 8 张 · 更骚版</div>
+<div class="page-sub">从清晨到深夜 · 8 段三角恋</div>
+<div class="theme">主题 · 你不动 你的身体就跟别的东西好上了</div>
+
+<div class="timeline">
+  <span class="dot"></span><span>08:00</span><span class="seg"></span>
+  <span>09:30</span><span class="seg"></span>
+  <span>11:00</span><span class="seg"></span>
+  <span>13:00</span><span class="seg"></span>
+  <span>14:00</span><span class="seg"></span>
+  <span>16:00</span><span class="seg"></span>
+  <span>21:00</span><span class="seg"></span>
+  <span>23:00</span><span class="dot"></span>
+</div>
+
+<div class="grid">
+
+  <!-- ========== 1 · 08:00 抱键盘亲 ========== -->
+  <div class="card-wrap">
+    <div class="num">1 <span class="nlabel">08:00 · 键盘</span></div>
+    <div class="widget s1">
+      <div class="time">08:00 · 刚坐下</div>
+
+      <!-- 火柴人趴下亲键盘 -->
+      <svg class="fig" style="top:22px; left:6px;" width="84" height="90" viewBox="0 0 84 90">
+        <!-- 桌面 -->
+        <line x1="2" y1="58" x2="82" y2="58" stroke="#2A0010" stroke-width="2.2" stroke-linecap="round"/>
+        <!-- 椅腿 -->
+        <line x1="68" y1="72" x2="68" y2="86" stroke="#2A0010" stroke-width="2" stroke-linecap="round"/>
+        <line x1="76" y1="72" x2="76" y2="86" stroke="#2A0010" stroke-width="2" stroke-linecap="round"/>
+        <!-- 键盘（俯视斜放） -->
+        <rect x="14" y="46" width="40" height="12" rx="2" stroke="#2A0010" stroke-width="2" fill="#FFE0EC"/>
+        <!-- 键盘按键点 -->
+        <circle cx="20" cy="50" r="0.7" fill="#2A0010"/>
+        <circle cx="24" cy="50" r="0.7" fill="#2A0010"/>
+        <circle cx="28" cy="50" r="0.7" fill="#2A0010"/>
+        <circle cx="32" cy="50" r="0.7" fill="#2A0010"/>
+        <circle cx="36" cy="50" r="0.7" fill="#2A0010"/>
+        <circle cx="40" cy="50" r="0.7" fill="#2A0010"/>
+        <circle cx="44" cy="50" r="0.7" fill="#2A0010"/>
+        <circle cx="48" cy="50" r="0.7" fill="#2A0010"/>
+        <!-- 心形按键 -->
+        <text x="32" y="55" font-size="5" fill="#E94B5C">♥</text>
+
+        <!-- 身体（从椅子前倾趴向键盘） -->
+        <path d="M 72 72 Q 60 56 50 44" stroke="#2A0010" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- 两只手抱键盘 -->
+        <path d="M 55 46 L 50 50 L 54 56" stroke="#2A0010" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 55 46 L 60 42 L 58 50" stroke="#2A0010" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- 头（趴向键盘亲嘴） -->
+        <circle cx="40" cy="38" r="9" stroke="#2A0010" stroke-width="2.5" fill="#FFB6D9"/>
+        <!-- 闭眼陶醉 -->
+        <path d="M 35 36 Q 37 34 39 36" stroke="#2A0010" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M 42 36 Q 44 34 46 36" stroke="#2A0010" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <!-- 撅嘴亲 -->
+        <ellipse cx="40" cy="44" rx="1.8" ry="2.5" fill="#C9264A"/>
+        <!-- 红晕 -->
+        <circle cx="33" cy="40" r="2" fill="#FF6B85" opacity="0.6"/>
+        <circle cx="47" cy="40" r="2" fill="#FF6B85" opacity="0.6"/>
+        <!-- 腿盘坐 -->
+        <path d="M 65 72 L 62 80 L 66 86" stroke="#2A0010" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 73 72 L 76 80 L 72 86" stroke="#2A0010" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- 飞出小爱心 -->
+        <text x="22" y="42" font-size="9" fill="#E94B5C">♥</text>
+        <text x="14" y="36" font-size="7" fill="#FF6B85">♥</text>
+        <text x="10" y="48" font-size="6" fill="#FF6B85" opacity="0.7">♥</text>
+      </svg>
+
+      <div class="text">
+        <span class="l1">键盘说</span>
+        <span class="l2">它先吻我了</span>
+        <span class="l3">你不来 ♥</span>
+      </div>
+
+      <div class="cta">来抢回去 →</div>
+    </div>
+    <div class="caption">键盘三角恋 · 撅嘴亲键盘 · 心形按键</div>
+  </div>
+
+  <!-- ========== 2 · 09:30 被窝想抱 ========== -->
+  <div class="card-wrap">
+    <div class="num">2 <span class="nlabel">09:30 · 被窝</span></div>
+    <div class="widget s2">
+      <div class="time">09:30 · 久坐 30 MIN</div>
+
+      <!-- 桌前小人遥望床被，被窝伸手 -->
+      <svg class="fig" style="top:22px; right:6px;" width="86" height="100" viewBox="0 0 86 100">
+        <!-- 床（被窝带俩小手） -->
+        <rect x="48" y="42" width="36" height="22" rx="3" stroke="#3A1F00" stroke-width="2.2" fill="#FFF1DD"/>
+        <!-- 枕头 -->
+        <rect x="50" y="38" width="14" height="8" rx="2" stroke="#3A1F00" stroke-width="1.8" fill="#FFE2B0"/>
+        <!-- 被窝纹理 -->
+        <path d="M 52 52 Q 60 48 68 52 T 82 52" stroke="#C9591F" stroke-width="1.2" fill="none" opacity="0.6"/>
+        <path d="M 52 58 Q 60 54 68 58 T 82 58" stroke="#C9591F" stroke-width="1.2" fill="none" opacity="0.6"/>
+        <!-- 被窝伸出的两只小手 -->
+        <path d="M 50 50 L 42 52 L 38 48" stroke="#3A1F00" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="38" cy="48" r="2" stroke="#3A1F00" stroke-width="1.5" fill="#FFE2B0"/>
+        <!-- 被窝爱心 -->
+        <text x="66" y="58" font-size="9" fill="#E94B5C">♥</text>
+
+        <!-- 桌前小人扭头看床 -->
+        <line x1="2" y1="86" x2="40" y2="86" stroke="#3A1F00" stroke-width="2" stroke-linecap="round"/>
+        <!-- 椅子 -->
+        <line x1="10" y1="74" x2="10" y2="86" stroke="#3A1F00" stroke-width="2" stroke-linecap="round"/>
+        <line x1="22" y1="74" x2="22" y2="86" stroke="#3A1F00" stroke-width="2" stroke-linecap="round"/>
+        <!-- 身体（坐姿） -->
+        <line x1="16" y1="58" x2="16" y2="74" stroke="#3A1F00" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- 头（扭头朝床） -->
+        <circle cx="20" cy="52" r="9" stroke="#3A1F00" stroke-width="2.5" fill="#FFE2B0"/>
+        <!-- 望向床的渴望眼神（凝视） -->
+        <circle cx="25" cy="51" r="1.6" fill="#3A1F00"/>
+        <circle cx="22" cy="52" r="1.4" fill="#3A1F00"/>
+        <!-- 流口水嘴 -->
+        <ellipse cx="22" cy="56" rx="2" ry="1.2" fill="#3A1F00"/>
+        <ellipse cx="24" cy="59" rx="0.8" ry="2" fill="#C9591F" opacity="0.7"/>
+        <!-- 一只手伸向床 -->
+        <path d="M 22 62 L 32 56 L 38 50" stroke="#3A1F00" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- 另一只手撑桌 -->
+        <path d="M 14 64 L 6 72" stroke="#3A1F00" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- 腿 -->
+        <path d="M 12 74 L 8 90" stroke="#3A1F00" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M 20 74 L 24 90" stroke="#3A1F00" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- 中间小爱心粉 -->
+        <text x="33" y="42" font-size="6" fill="#C9591F">♥</text>
+      </svg>
+
+      <div class="text">
+        <span class="l1">被窝喊</span>
+        <span class="l2">它要抱我</span>
+        <span class="l3">来抢呀 ~</span>
+      </div>
+
+      <div class="cta">走 三角恋去 →</div>
+    </div>
+    <div class="caption">被窝伸手 · 桌前小人流口水望床 · 拉扯戏</div>
+  </div>
+
+  <!-- ========== 3 · 11:00 翘屁股回头 ========== -->
+  <div class="card-wrap">
+    <div class="num">3 <span class="nlabel">11:00 · 没人疼</span></div>
+    <div class="widget s3">
+      <div class="time">11:00 · 久坐 2 H</div>
+
+      <!-- 侧身翘屁股 回头看 -->
+      <svg class="fig" style="top:22px; right:8px;" width="84" height="100" viewBox="0 0 84 100">
+        <!-- 椅子 -->
+        <line x1="6" y1="78" x2="78" y2="78" stroke="#3A0018" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="16" y1="78" x2="16" y2="90" stroke="#3A0018" stroke-width="2" stroke-linecap="round"/>
+        <line x1="64" y1="78" x2="64" y2="90" stroke="#3A0018" stroke-width="2" stroke-linecap="round"/>
+        <!-- 椅背 -->
+        <line x1="74" y1="78" x2="74" y2="46" stroke="#3A0018" stroke-width="2" stroke-linecap="round"/>
+
+        <!-- 头（朝右扭回看观众） -->
+        <circle cx="48" cy="22" r="9.5" stroke="#3A0018" stroke-width="2.5" fill="#FFD1DC"/>
+        <!-- 眨眼挑眉 -->
+        <path d="M 42 18 Q 44 16 46 18" stroke="#3A0018" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M 50 20 Q 53 19 55 21" stroke="#3A0018" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        <circle cx="44" cy="22" r="1.5" fill="#3A0018"/>
+        <!-- 撅嘴 -->
+        <ellipse cx="47" cy="27" rx="2.2" ry="1.5" fill="#B5005A"/>
+        <!-- 红晕 -->
+        <circle cx="41" cy="25" r="2" fill="#FF6B85" opacity="0.6"/>
+        <circle cx="55" cy="25" r="2" fill="#FF6B85" opacity="0.6"/>
+
+        <!-- 上半身（侧身扭转） -->
+        <path d="M 48 32 Q 44 42 36 52" stroke="#3A0018" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- 一只手撑椅（向后扶） -->
+        <path d="M 42 40 L 50 50 L 60 58" stroke="#3A0018" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- 一只手放屁股（暗示） -->
+        <path d="M 40 48 L 30 56 L 32 64" stroke="#3A0018" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- 翘起来的屁股（椭圆+曲线） -->
+        <ellipse cx="28" cy="66" rx="14" ry="9" stroke="#3A0018" stroke-width="2.5" fill="#FFC4D4" transform="rotate(-15, 28, 66)"/>
+        <!-- 屁股缝 -->
+        <line x1="22" y1="62" x2="22" y2="74" stroke="#3A0018" stroke-width="1.5" stroke-linecap="round"/>
+
+        <!-- 屁股上闪光 -->
+        <text x="18" y="58" font-size="10" fill="#B5005A">✨</text>
+        <text x="12" y="68" font-size="7" fill="#B5005A" opacity="0.7">✨</text>
+
+        <!-- 腿（坐姿） -->
+        <path d="M 22 72 L 14 86" stroke="#3A0018" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M 30 72 L 38 80 L 42 90" stroke="#3A0018" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+
+      <div class="text">
+        <span class="l1">瞧瞧</span>
+        <span class="l2">这屁股</span>
+        <span class="l3">还没人疼 ♡</span>
+      </div>
+
+      <div class="cta">来揉揉 →</div>
+    </div>
+    <div class="caption">翘屁股回头 · 闪光示意 · 撅嘴挑眉</div>
+  </div>
+
+  <!-- ========== 4 · 13:00 怀孕散步 ========== -->
+  <div class="card-wrap">
+    <div class="num">4 <span class="nlabel">13:00 · 是你的</span></div>
+    <div class="widget s4">
+      <div class="time">13:00 · 午餐 +0 MIN</div>
+
+      <!-- 站立 大肚子 双手捧肚（孕妇姿） -->
+      <svg class="fig" style="top:20px; left:10px;" width="74" height="106" viewBox="0 0 74 106">
+        <!-- 头（仰起来骄傲） -->
+        <circle cx="34" cy="16" r="9" stroke="#2A1500" stroke-width="2.5" fill="#F5E0BD"/>
+        <!-- 眯眼骄傲 -->
+        <path d="M 28 15 L 32 15" stroke="#2A1500" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M 36 15 L 40 15" stroke="#2A1500" stroke-width="1.6" stroke-linecap="round"/>
+        <!-- 微笑嘴 -->
+        <path d="M 30 20 Q 34 23 38 20" stroke="#2A1500" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        <!-- 颜值红晕 -->
+        <circle cx="27" cy="18" r="1.8" fill="#E07560" opacity="0.55"/>
+        <circle cx="41" cy="18" r="1.8" fill="#E07560" opacity="0.55"/>
+
+        <!-- 脖子 -->
+        <line x1="34" y1="25" x2="34" y2="32" stroke="#2A1500" stroke-width="2.5" stroke-linecap="round"/>
+
+        <!-- 大圆肚子 -->
+        <ellipse cx="36" cy="50" rx="18" ry="14" stroke="#2A1500" stroke-width="2.5" fill="#FFF1DD"/>
+        <!-- 肚脐+鼓鼓的纹 -->
+        <circle cx="36" cy="50" r="1.2" fill="#2A1500"/>
+        <path d="M 24 46 Q 36 54 48 46" stroke="#B54810" stroke-width="1.3" fill="none" opacity="0.7"/>
+        <!-- "BABY?" 字样 -->
+        <text x="22" y="38" font-size="6" font-weight="700" fill="#B54810">+9 MONTHS</text>
+
+        <!-- 双手捧肚（孕妇标志姿势） -->
+        <path d="M 30 38 L 20 46 L 22 60" stroke="#2A1500" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 42 38 L 52 46 L 50 60" stroke="#2A1500" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- 手掌 -->
+        <ellipse cx="22" cy="60" rx="3" ry="2" stroke="#2A1500" stroke-width="1.6" fill="#F5E0BD" transform="rotate(-20, 22, 60)"/>
+        <ellipse cx="50" cy="60" rx="3" ry="2" stroke="#2A1500" stroke-width="1.6" fill="#F5E0BD" transform="rotate(20, 50, 60)"/>
+
+        <!-- 腿（双腿撑住） -->
+        <path d="M 30 64 L 26 88 L 22 102" stroke="#2A1500" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 42 64 L 46 88 L 50 102" stroke="#2A1500" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+
+      <div class="text">
+        <span class="l1">我怀了</span>
+        <span class="l2">是你的</span>
+        <span class="l3">带我溜溜 →</span>
+      </div>
+
+      <div class="cta">爹味十足 走 →</div>
+    </div>
+    <div class="caption">饭后大肚子 · 双手捧肚孕妇姿 · "+9 MONTHS"</div>
+  </div>
+
+  <!-- ========== 5 · 14:00 解扣子热 ========== -->
+  <div class="card-wrap">
+    <div class="num">5 <span class="nlabel">14:00 · 热</span></div>
+    <div class="widget s5">
+      <div class="time">14:00 · 久坐 4 H</div>
+      <div class="heat">🔥</div>
+
+      <!-- 坐姿 解领口 一手扇风 -->
+      <svg class="fig" style="top:32px; right:6px;" width="80" height="90" viewBox="0 0 80 90">
+        <!-- 椅子 -->
+        <line x1="2" y1="76" x2="70" y2="76" stroke="#1A0F4D" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="8" y1="76" x2="8" y2="88" stroke="#1A0F4D" stroke-width="2" stroke-linecap="round"/>
+        <line x1="58" y1="76" x2="58" y2="88" stroke="#1A0F4D" stroke-width="2" stroke-linecap="round"/>
+
+        <!-- 头（微仰 半闭眼陶醉） -->
+        <circle cx="36" cy="16" r="9" stroke="#1A0F4D" stroke-width="2.5" fill="#D8C8FF"/>
+        <!-- 半闭眼 -->
+        <path d="M 30 14 Q 32 16 34 14" stroke="#1A0F4D" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M 38 14 Q 40 16 42 14" stroke="#1A0F4D" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <!-- 咬嘴唇 -->
+        <ellipse cx="36" cy="20" rx="2" ry="1.5" fill="#B53041"/>
+        <line x1="34" y1="21" x2="38" y2="21" stroke="#1A0F4D" stroke-width="1" stroke-linecap="round"/>
+        <!-- 红晕（更明显） -->
+        <circle cx="29" cy="18" r="2.2" fill="#E94B5C" opacity="0.55"/>
+        <circle cx="43" cy="18" r="2.2" fill="#E94B5C" opacity="0.55"/>
+        <!-- 汗珠 -->
+        <ellipse cx="46" cy="14" rx="1.2" ry="2" fill="#5A3DBF" opacity="0.7"/>
+
+        <!-- 身体（V领开口） -->
+        <path d="M 36 25 L 30 35 L 36 42 L 42 35 Z" stroke="#1A0F4D" stroke-width="2.2" fill="none" stroke-linejoin="round"/>
+        <!-- 内里皮肤 -->
+        <path d="M 32 33 L 36 38 L 40 33" fill="#E94B5C" opacity="0.45"/>
+        <!-- 散落的扣子 -->
+        <circle cx="48" cy="40" r="1.5" stroke="#1A0F4D" stroke-width="1.2" fill="#D8C8FF"/>
+        <line x1="48" y1="40" x2="48" y2="40" stroke="#1A0F4D"/>
+        <circle cx="48" cy="40" r="0.5" fill="#1A0F4D"/>
+
+        <!-- 身体下半 -->
+        <line x1="36" y1="42" x2="36" y2="60" stroke="#1A0F4D" stroke-width="2.5" stroke-linecap="round"/>
+
+        <!-- 一只手扇风（手指张开） -->
+        <path d="M 32 36 L 22 28 L 16 24" stroke="#1A0F4D" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- 风线 -->
+        <path d="M 12 22 Q 8 24 10 28" stroke="#5A3DBF" stroke-width="1.2" fill="none" opacity="0.7"/>
+        <path d="M 16 18 Q 12 20 14 24" stroke="#5A3DBF" stroke-width="1.2" fill="none" opacity="0.7"/>
+
+        <!-- 一只手玩衣领（手在脖子上） -->
+        <path d="M 40 30 L 46 24 L 44 16" stroke="#1A0F4D" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- 腿 -->
+        <path d="M 32 60 L 26 76" stroke="#1A0F4D" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M 40 60 L 46 76" stroke="#1A0F4D" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      </svg>
+
+      <div class="text">
+        <span class="l1">热…</span>
+        <span class="l2">扣子 自己 解了</span>
+        <span class="l3">你来 吹吹？</span>
+      </div>
+
+      <div class="cta">不行 站起来 →</div>
+    </div>
+    <div class="caption">解扣子诱惑 · 咬唇红晕汗珠 · 火焰</div>
+  </div>
+
+  <!-- ========== 6 · 16:00 腿出轨健身器 ========== -->
+  <div class="card-wrap">
+    <div class="num">6 <span class="nlabel">16:00 · 出轨</span></div>
+    <div class="widget s6">
+      <div class="time">16:00 · 久坐 6 H</div>
+
+      <!-- 上半身在椅子上, 腿走向哑铃, 红虚线连 -->
+      <svg class="fig" style="top:22px; right:6px;" width="86" height="106" viewBox="0 0 86 106">
+        <!-- 椅子（左边） -->
+        <line x1="2" y1="58" x2="34" y2="58" stroke="#003A30" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="6" y1="58" x2="6" y2="74" stroke="#003A30" stroke-width="2" stroke-linecap="round"/>
+        <line x1="30" y1="58" x2="30" y2="74" stroke="#003A30" stroke-width="2" stroke-linecap="round"/>
+        <line x1="32" y1="58" x2="32" y2="30" stroke="#003A30" stroke-width="2" stroke-linecap="round"/>
+
+        <!-- 上半身（坐姿 沮丧） -->
+        <!-- 头 -->
+        <circle cx="18" cy="20" r="9" stroke="#003A30" stroke-width="2.5" fill="#B5E3DD"/>
+        <!-- 哭脸 -->
+        <line x1="13" y1="17" x2="16" y2="20" stroke="#003A30" stroke-width="1.6" stroke-linecap="round"/>
+        <line x1="16" y1="17" x2="13" y2="20" stroke="#003A30" stroke-width="1.6" stroke-linecap="round"/>
+        <line x1="20" y1="17" x2="23" y2="20" stroke="#003A30" stroke-width="1.6" stroke-linecap="round"/>
+        <line x1="23" y1="17" x2="20" y2="20" stroke="#003A30" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M 14 26 Q 18 23 22 26" stroke="#003A30" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        <!-- 眼泪 -->
+        <ellipse cx="12" cy="22" rx="1" ry="1.8" fill="#3B5BB5" opacity="0.7"/>
+        <!-- 身体 -->
+        <line x1="18" y1="29" x2="18" y2="50" stroke="#003A30" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- 手臂下垂 -->
+        <path d="M 18 36 L 10 46" stroke="#003A30" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M 18 36 L 26 46" stroke="#003A30" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- 腰部以下断开（虚线） -->
+        <line x1="10" y1="52" x2="28" y2="52" stroke="#B53041" stroke-width="1.5" stroke-dasharray="2,2"/>
+
+        <!-- 离家出走的两条腿（往右走） -->
+        <path d="M 40 52 L 38 64 L 36 76" stroke="#3B5BB5" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 48 52 L 52 64 L 56 76" stroke="#3B5BB5" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- 腿的小爱心（朝向哑铃） -->
+        <text x="50" y="64" font-size="7" fill="#E94B5C">♥</text>
+
+        <!-- 哑铃（右边 张开手等着） -->
+        <rect x="64" y="64" width="20" height="6" rx="1" stroke="#003A30" stroke-width="2" fill="#003A30"/>
+        <rect x="60" y="60" width="6" height="14" rx="1" stroke="#003A30" stroke-width="2" fill="#003A30"/>
+        <rect x="82" y="60" width="6" height="14" rx="1" stroke="#003A30" stroke-width="2" fill="#003A30"/>
+        <!-- 哑铃笑脸 -->
+        <circle cx="74" cy="67" r="1.2" fill="#E94B5C"/>
+        <path d="M 70 70 Q 74 73 78 70" stroke="#E94B5C" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+        <!-- 哑铃伸出的小手 -->
+        <path d="M 60 66 L 56 70" stroke="#003A30" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+
+        <!-- 红线连接腿和哑铃（暗示出轨） -->
+        <path d="M 56 76 Q 62 78 64 70" stroke="#E94B5C" stroke-width="1.5" stroke-dasharray="3,3" fill="none"/>
+
+        <!-- 椅子上腿原本位置（空着 留虚线脚印） -->
+        <text x="14" y="70" font-size="9" fill="#B53041">×</text>
+      </svg>
+
+      <div class="text">
+        <span class="l1">腿跑了</span>
+        <span class="l2">跟哑铃</span>
+        <span class="l3">公开恋爱了</span>
+      </div>
+
+      <div class="cta">追回去 →</div>
+    </div>
+    <div class="caption">下身出轨健身器 · 上身留椅子哭 · 红虚线</div>
+  </div>
+
+  <!-- ========== 7 · 21:00 沙发抱枕三角恋 ========== -->
+  <div class="card-wrap">
+    <div class="num">7 <span class="nlabel">21:00 · 三角</span></div>
+    <div class="widget s7">
+      <div class="time">21:00 · 久坐 3 H</div>
+
+      <!-- 火柴人陷沙发 抱抱枕 沙发吃醋 -->
+      <svg class="fig" style="top:24px; left:8px;" width="82" height="100" viewBox="0 0 82 100">
+        <!-- 沙发（带表情） -->
+        <path d="M 2 50 Q 2 42 10 42 L 70 42 Q 78 42 78 50 L 78 88 L 2 88 Z" stroke="#3A0E00" stroke-width="2.2" fill="#FF9B7A"/>
+        <line x1="2" y1="72" x2="78" y2="72" stroke="#3A0E00" stroke-width="1.6"/>
+        <!-- 沙发扶手 -->
+        <rect x="0" y="50" width="6" height="38" rx="2" stroke="#3A0E00" stroke-width="2" fill="#E07560"/>
+        <rect x="74" y="50" width="6" height="38" rx="2" stroke="#3A0E00" stroke-width="2" fill="#E07560"/>
+        <!-- 沙发吃醋脸（在左下角） -->
+        <circle cx="68" cy="80" r="1" fill="#3A0E00"/>
+        <circle cx="72" cy="80" r="1" fill="#3A0E00"/>
+        <!-- 嫉妒下垂嘴 -->
+        <path d="M 67 84 Q 70 82 73 84" stroke="#3A0E00" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+        <!-- 沙发额头气怒线 -->
+        <line x1="64" y1="74" x2="66" y2="76" stroke="#3A0E00" stroke-width="1.2" stroke-linecap="round"/>
+        <line x1="68" y1="73" x2="68" y2="76" stroke="#3A0E00" stroke-width="1.2" stroke-linecap="round"/>
+
+        <!-- 火柴人陷在沙发 -->
+        <!-- 头（贴着抱枕） -->
+        <circle cx="32" cy="40" r="8" stroke="#3A0E00" stroke-width="2.5" fill="#FFE0D0"/>
+        <!-- 陶醉眯眼 -->
+        <path d="M 27 39 Q 29 37 31 39" stroke="#3A0E00" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M 33 39 Q 35 37 37 39" stroke="#3A0E00" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <!-- 满足嘴 -->
+        <path d="M 29 43 Q 32 45 35 43" stroke="#3A0E00" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+        <!-- 红晕 -->
+        <circle cx="26" cy="42" r="1.8" fill="#FF6B85" opacity="0.6"/>
+        <circle cx="38" cy="42" r="1.8" fill="#FF6B85" opacity="0.6"/>
+
+        <!-- 抱枕（大方块 带爱心） -->
+        <rect x="30" y="50" width="22" height="20" rx="3" stroke="#3A0E00" stroke-width="2.2" fill="#FFD0C0"/>
+        <text x="36" y="64" font-size="10" fill="#E94B5C">♥</text>
+
+        <!-- 抱枕也眯眼陶醉 -->
+        <path d="M 33 57 Q 34 56 35 57" stroke="#3A0E00" stroke-width="0.9" fill="none" stroke-linecap="round"/>
+        <path d="M 47 57 Q 48 56 49 57" stroke="#3A0E00" stroke-width="0.9" fill="none" stroke-linecap="round"/>
+
+        <!-- 身体（被抱枕挡住 露一点） -->
+        <line x1="32" y1="48" x2="32" y2="52" stroke="#3A0E00" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- 双臂环抱抱枕 -->
+        <path d="M 28 52 L 24 60 L 28 70" stroke="#3A0E00" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 36 52 L 54 60 L 56 70" stroke="#3A0E00" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- 腿 -->
+        <path d="M 26 72 L 22 84" stroke="#3A0E00" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M 38 72 L 42 84" stroke="#3A0E00" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+        <!-- 飞出的两个小心 -->
+        <text x="20" y="40" font-size="9" fill="#E94B5C">♥</text>
+        <text x="48" y="48" font-size="7" fill="#E94B5C" opacity="0.7">♥</text>
+      </svg>
+
+      <div class="text">
+        <span class="l1">沙发 抱枕</span>
+        <span class="l2">+ 你</span>
+        <span class="l3">三角恋 ♡</span>
+      </div>
+
+      <div class="cta">来选 一个 →</div>
+    </div>
+    <div class="caption">沙发吃醋 · 抱枕陶醉 · 主角三人行</div>
+  </div>
+
+  <!-- ========== 8 · 23:00 灵魂出窍吻别 ========== -->
+  <div class="card-wrap">
+    <div class="num">8 <span class="nlabel">23:00 · 吻别</span></div>
+    <div class="widget s8">
+      <div class="time">23:00 · ⚠️ 1 H</div>
+      <div class="moon"></div>
+
+      <!-- 身体趴桌 灵魂虚线小人浮出吻 -->
+      <svg class="fig" style="top:28px; right:6px;" width="86" height="100" viewBox="0 0 86 100">
+        <!-- 桌面 -->
+        <line x1="2" y1="78" x2="84" y2="78" stroke="#E6EBF2" stroke-width="2" stroke-linecap="round"/>
+        <!-- 椅腿 -->
+        <line x1="70" y1="92" x2="70" y2="100" stroke="#E6EBF2" stroke-width="2" stroke-linecap="round"/>
+        <line x1="78" y1="92" x2="78" y2="100" stroke="#E6EBF2" stroke-width="2" stroke-linecap="round"/>
+
+        <!-- 身体（趴桌死状） -->
+        <!-- 头趴桌 -->
+        <circle cx="30" cy="68" r="9" stroke="#E6EBF2" stroke-width="2.5" fill="#3A4860"/>
+        <!-- 闭眼（X X 死) -->
+        <line x1="25" y1="65" x2="28" y2="68" stroke="#E6EBF2" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="28" y1="65" x2="25" y2="68" stroke="#E6EBF2" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="32" y1="65" x2="35" y2="68" stroke="#E6EBF2" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="35" y1="65" x2="32" y2="68" stroke="#E6EBF2" stroke-width="1.5" stroke-linecap="round"/>
+        <!-- 张嘴吐舌 -->
+        <ellipse cx="30" cy="72" rx="1.5" ry="1.2" fill="#E6EBF2"/>
+        <line x1="30" y1="73" x2="30" y2="75" stroke="#FF6B35" stroke-width="1.5" stroke-linecap="round"/>
+
+        <!-- 身体趴下 -->
+        <path d="M 38 68 Q 55 70 70 78" stroke="#E6EBF2" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- 一只胳膊伸出桌 -->
+        <path d="M 40 72 L 28 78" stroke="#E6EBF2" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- 椅子上腿 -->
+        <path d="M 70 84 L 66 96" stroke="#E6EBF2" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M 78 84 L 82 96" stroke="#E6EBF2" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+        <!-- 灵魂从胸口飞出（虚线小人） -->
+        <!-- 灵魂从胸口飘升的轨迹（虚线） -->
+        <path d="M 50 72 Q 52 56 48 40" stroke="#FF6B35" stroke-width="1" stroke-dasharray="2,2" fill="none"/>
+
+        <!-- 灵魂头（虚线） -->
+        <circle cx="48" cy="30" r="7" stroke="#FF6B35" stroke-width="1.8" fill="none" stroke-dasharray="2,2"/>
+        <!-- 灵魂闭眼陶醉 -->
+        <path d="M 45 28 Q 46 27 47 28" stroke="#FF6B35" stroke-width="1.2" fill="none"/>
+        <path d="M 49 28 Q 50 27 51 28" stroke="#FF6B35" stroke-width="1.2" fill="none"/>
+        <!-- 灵魂撅嘴亲下方 -->
+        <ellipse cx="48" cy="33" rx="1.5" ry="2" fill="#FF6B35"/>
+        <!-- 灵魂身体（虚线） -->
+        <line x1="48" y1="37" x2="48" y2="48" stroke="#FF6B35" stroke-width="1.8" stroke-dasharray="2,2"/>
+        <!-- 灵魂两手向下托着身体头 -->
+        <path d="M 44 42 L 36 56 L 32 64" stroke="#FF6B35" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-dasharray="2,2"/>
+        <path d="M 52 42 L 50 50" stroke="#FF6B35" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-dasharray="2,2"/>
+
+        <!-- 吻的小心 -->
+        <text x="38" y="50" font-size="8" fill="#FF6B35">♥</text>
+        <text x="44" y="20" font-size="7" fill="#FFAA88" opacity="0.7">♥</text>
+      </svg>
+
+      <div class="text">
+        <span class="l1">灵魂 出窍</span>
+        <span class="l2">下来 吻你</span>
+        <span class="l3">说 永别 ♡</span>
+      </div>
+
+      <div class="cta">挽留 站起来 →</div>
+    </div>
+    <div class="caption">灵魂出窍来吻别 · 虚线小人 · 死亡吻戏</div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <p><b>剧情递进（更骚版）</b> · 八段三角恋 / 你不动 你的身体就跟别的东西好上了：</p>
+  <p style="margin-top:6px;">
+    1 键盘吻她 → 2 被窝抢她 → 3 屁股没人疼 → 4 怀孕赖你 →
+    5 解扣子热 → 6 腿出轨哑铃 → 7 沙发抱枕三角恋 → 8 灵魂出窍吻别
+  </p>
+  <p style="margin-top:10px;"><b>骚的等级</b> · 撅嘴亲 → 流口水 → 翘屁股 → 怀孕 → 解扣子 → 出轨 → 三角 → 死亡 ♥ — 越晚越离谱</p>
+  <p style="margin-top:10px;"><b>视觉签名</b> · 大量 ♥ 出现 / 红晕表情 / 撅嘴亲嘴 / 红虚线连接 / "+9 MONTHS" 标识 / V 领开口 / 灵魂虚线小人</p>
+  <p style="margin-top:10px;"><b>下一步</b> · 选 1-2 张落 Swift widget · 或换更骚方向（前任 / 闺蜜 / 出轨升级）· 或调某张文案换"刺"</p>
+</div>
+
+</body>
+</html>

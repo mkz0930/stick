@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>久坐听劝 · 一天 8 张 · 奖励版</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #0E1116;
+    color: #E6EBF2;
+    padding: 32px;
+    min-height: 100vh;
+  }
+  .page-title {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+  .page-sub {
+    font-size: 13px;
+    color: #6E7585;
+    margin-bottom: 14px;
+    font-style: italic;
+  }
+  .theme {
+    font-size: 12px;
+    color: #00D9A0;
+    margin-bottom: 28px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .timeline {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 30px;
+    max-width: 780px;
+    font-size: 10.5px;
+    color: #6E7585;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+  .timeline .dot { width: 6px; height: 6px; border-radius: 50%; background: #00D9A0; }
+  .timeline .seg { flex: 1; height: 1.5px; background: linear-gradient(90deg, #4A5060, #2A2F3C); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 28px 20px;
+    max-width: 780px;
+  }
+  .card-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .num {
+    font-size: 36px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    color: #E6EBF2;
+    line-height: 1;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .num .nlabel {
+    font-size: 11px;
+    font-weight: 700;
+    color: #6E7585;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-family: -apple-system, "PingFang SC", sans-serif;
+  }
+  .num .check {
+    font-size: 14px;
+    color: #00D9A0;
+    margin-left: -4px;
+  }
+  .caption {
+    font-size: 11.5px;
+    color: #8A92A0;
+    line-height: 1.45;
+    margin-top: 4px;
+  }
+  .widget {
+    width: 170px;
+    height: 170px;
+    border-radius: 22px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.32);
+  }
+  svg.fig { position: absolute; }
+
+  /* 统一奖励徽章 — 金色 */
+  .reward {
+    position: absolute; bottom: 10px; left: 12px; right: 12px;
+    height: 22px; border-radius: 11px;
+    background: linear-gradient(135deg, #FFD93D 0%, #FFA800 100%);
+    color: #4A2A00; font-size: 10.5px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    letter-spacing: 0.02em;
+    box-shadow: 0 2px 6px rgba(255, 168, 0, 0.35);
+  }
+
+  /* 已完成绿点 (替代时间警告) */
+  .done {
+    position: absolute; top: 10px; right: 12px;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.04em;
+    color: #00B894;
+    display: flex; align-items: center; gap: 3px;
+  }
+  .done::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: #00D9A0; box-shadow: 0 0 6px #00D9A0;
+  }
+
+  /* ============ 1 · 08:00 起床见你 ============ */
+  .s1 { background: linear-gradient(135deg, #FFE5A0 0%, #FFD074 100%); }
+  .s1 .time { position: absolute; top: 10px; left: 12px; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; color: #6B3A00; }
+  .s1 .text { position: absolute; bottom: 48px; left: 12px; font-weight: 900; line-height: 0.95; color: #3A1F00; letter-spacing: -0.04em; }
+  .s1 .text .l1 { font-size: 26px; transform: rotate(-2deg); display: block; }
+  .s1 .text .l2 { font-size: 13px; display: block; margin-top: 3px; color: #8C4A00; transform: rotate(-2deg); font-style: italic; }
+
+  /* ============ 2 · 09:30 听话宝宝 ============ */
+  .s2 { background: linear-gradient(135deg, #FFF0CC 0%, #FFE5A0 100%); }
+  .s2 .time { position: absolute; top: 10px; left: 12px; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; color: #6B3A00; }
+  .s2 .text { position: absolute; bottom: 48px; right: 12px; text-align: right; font-weight: 900; line-height: 0.95; color: #3A2200; letter-spacing: -0.03em; }
+  .s2 .text .l1 { font-size: 14px; transform: rotate(2deg); display: block; }
+  .s2 .text .l2 { font-size: 24px; transform: rotate(2deg); display: block; margin-top: 2px; color: #B5872E; }
+  .s2 .text .l3 { font-size: 13px; transform: rotate(2deg); display: block; margin-top: 2px; }
+
+  /* ============ 3 · 11:00 屁股活了 ============ */
+  .s3 { background: linear-gradient(135deg, #FFE5F0 0%, #FFC4D9 100%); }
+  .s3 .time { position: absolute; top: 10px; left: 12px; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; color: #6B0028; }
+  .s3 .text { position: absolute; bottom: 48px; left: 12px; font-weight: 900; line-height: 0.95; color: #3A0018; letter-spacing: -0.03em; }
+  .s3 .text .l1 { font-size: 14px; transform: rotate(-2deg); display: block; }
+  .s3 .text .l2 { font-size: 24px; color: #B5005A; transform: rotate(-2deg); display: block; margin-top: 2px; }
+  .s3 .text .l3 { font-size: 13px; transform: rotate(-2deg); display: block; margin-top: 2px; font-style: italic; }
+
+  /* ============ 4 · 13:00 胃宽心 ============ */
+  .s4 { background: linear-gradient(135deg, #FFEBC8 0%, #F5D89A 100%); }
+  .s4 .time { position: absolute; top: 10px; left: 12px; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; color: #5A2A00; }
+  .s4 .text { position: absolute; bottom: 48px; right: 12px; text-align: right; font-weight: 900; line-height: 0.95; color: #2A1500; letter-spacing: -0.03em; }
+  .s4 .text .l1 { font-size: 14px; transform: rotate(2deg); display: block; }
+  .s4 .text .l2 { font-size: 22px; color: #B54810; transform: rotate(2deg); display: block; margin-top: 2px; }
+  .s4 .text .l3 { font-size: 13px; transform: rotate(2deg); display: block; margin-top: 2px; }
+
+  /* ============ 5 · 14:00 醒着真性感 ============ */
+  .s5 { background: linear-gradient(135deg, #E5DEFF 0%, #C9B8FF 100%); }
+  .s5 .time { position: absolute; top: 10px; left: 12px; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; color: #28166B; }
+  .s5 .text { position: absolute; bottom: 48px; left: 12px; font-weight: 900; line-height: 0.95; letter-spacing: -0.03em; }
+  .s5 .text .l1 { font-size: 14px; color: #1A0F4D; transform: rotate(-2deg); display: block; }
+  .s5 .text .l2 { font-size: 24px; color: #5A3DBF; transform: rotate(-2deg); display: block; margin-top: 2px; }
+  .s5 .text .l3 { font-size: 13px; color: #B53041; transform: rotate(-2deg); display: block; margin-top: 2px; }
+
+  /* ============ 6 · 16:00 腿和好 ============ */
+  .s6 { background: linear-gradient(135deg, #C8EDE5 0%, #A0DBCC 100%); }
+  .s6 .time { position: absolute; top: 10px; left: 12px; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; color: #00574A; }
+  .s6 .text { position: absolute; bottom: 48px; left: 12px; font-weight: 900; line-height: 0.95; letter-spacing: -0.03em; }
+  .s6 .text .l1 { font-size: 14px; color: #003A30; transform: rotate(-2deg); display: block; }
+  .s6 .text .l2 { font-size: 22px; color: #00A07A; transform: rotate(-2deg); display: block; margin-top: 2px; }
+  .s6 .text .l3 { font-size: 13px; color: #003A30; transform: rotate(-2deg); display: block; margin-top: 2px; font-style: italic; }
+
+  /* ============ 7 · 21:00 沙发哭了 ============ */
+  .s7 { background: linear-gradient(135deg, #FFC9B0 0%, #FFA088 100%); }
+  .s7 .time { position: absolute; top: 10px; left: 12px; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; color: #5A1A00; }
+  .s7 .text { position: absolute; bottom: 48px; right: 12px; text-align: right; font-weight: 900; line-height: 0.95; color: #3A0E00; letter-spacing: -0.03em; }
+  .s7 .text .l1 { font-size: 14px; transform: rotate(3deg); display: block; }
+  .s7 .text .l2 { font-size: 22px; transform: rotate(3deg); display: block; margin-top: 2px; color: #C9264A; }
+  .s7 .text .l3 { font-size: 14px; transform: rotate(3deg); display: block; margin-top: 2px; }
+
+  /* ============ 8 · 23:00 灵魂归位 ============ */
+  .s8 { background: linear-gradient(135deg, #2B3D5F 0%, #15203A 100%); }
+  .s8 .time { position: absolute; top: 10px; left: 12px; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; color: #FFD93D; }
+  .s8 .stars { position: absolute; top: 14px; right: 30px; font-size: 8px; color: #FFD93D; letter-spacing: 2px; }
+  .s8 .moon { position: absolute; top: 14px; right: 16px; width: 12px; height: 12px; border-radius: 50%; box-shadow: -4px 4px 0 #F4D366; background: transparent; }
+  .s8 .text { position: absolute; bottom: 48px; left: 12px; font-weight: 900; line-height: 0.95; letter-spacing: -0.03em; }
+  .s8 .text .l1 { font-size: 14px; color: #E6EBF2; display: block; transform: rotate(-2deg); }
+  .s8 .text .l2 { font-size: 22px; color: #FFD93D; display: block; transform: rotate(-3deg); margin-top: 2px; }
+  .s8 .text .l3 { font-size: 13px; color: #FFAA88; display: block; margin-top: 2px; font-style: italic; transform: rotate(-2deg); }
+  /* 8 的奖励改用蓝紫色发光 */
+  .s8 .reward {
+    background: linear-gradient(135deg, #FFD93D 0%, #FF6B35 100%);
+    color: #2A0010;
+    box-shadow: 0 2px 12px rgba(255, 217, 61, 0.5);
+  }
+
+  .footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #2A2F3C;
+    font-size: 11px;
+    color: #6E7585;
+    line-height: 1.6;
+    max-width: 780px;
+  }
+  .footer b { color: #B8BFCC; }
+  .footer .pair { color: #00D9A0; }
+</style>
+</head>
+<body>
+
+<div class="page-title">久坐听劝 · 一天 8 张 · 奖励版</div>
+<div class="page-sub">从清晨到深夜 · 听话了换甜的 · 跟 nag 版一一对应</div>
+<div class="theme">✓ 主题 · 你动了 我就甜 · 命币随你长</div>
+
+<div class="timeline">
+  <span class="dot"></span><span>08:00 ✓</span><span class="seg"></span>
+  <span>09:30 ✓</span><span class="seg"></span>
+  <span>11:00 ✓</span><span class="seg"></span>
+  <span>13:00 ✓</span><span class="seg"></span>
+  <span>14:00 ✓</span><span class="seg"></span>
+  <span>16:00 ✓</span><span class="seg"></span>
+  <span>21:00 ✓</span><span class="seg"></span>
+  <span>23:00 ✓</span><span class="dot"></span>
+</div>
+
+<div class="grid">
+
+  <!-- ========== 1 · 08:00 起床见你 ========== -->
+  <div class="card-wrap">
+    <div class="num">1 <span class="check">✓</span> <span class="nlabel">08:00 · 元气</span></div>
+    <div class="widget s1">
+      <div class="time">08:00 · 起身了</div>
+      <div class="done">DONE</div>
+
+      <!-- 站立伸懒腰 Y 姿 太阳光线 -->
+      <svg class="fig" style="top:28px; right:6px;" width="84" height="100" viewBox="0 0 84 100">
+        <!-- 太阳光芒（背景） -->
+        <line x1="42" y1="6" x2="42" y2="12" stroke="#FFA800" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="22" y1="22" x2="28" y2="26" stroke="#FFA800" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="62" y1="22" x2="56" y2="26" stroke="#FFA800" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="14" y1="42" x2="22" y2="42" stroke="#FFA800" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="70" y1="42" x2="62" y2="42" stroke="#FFA800" stroke-width="1.8" stroke-linecap="round"/>
+
+        <!-- 头（仰起来阳光脸） -->
+        <circle cx="42" cy="36" r="10" stroke="#3A1F00" stroke-width="2.5" fill="#FFE5A0"/>
+        <!-- 眯眼大笑 -->
+        <path d="M 36 34 Q 38 32 40 34" stroke="#3A1F00" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        <path d="M 44 34 Q 46 32 48 34" stroke="#3A1F00" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        <!-- 大张嘴笑 -->
+        <path d="M 36 40 Q 42 46 48 40" stroke="#3A1F00" stroke-width="1.8" fill="#C9591F" stroke-linecap="round"/>
+        <!-- 红晕 -->
+        <circle cx="34" cy="40" r="2" fill="#FF8E5A" opacity="0.6"/>
+        <circle cx="50" cy="40" r="2" fill="#FF8E5A" opacity="0.6"/>
+
+        <!-- 脖子 -->
+        <line x1="42" y1="46" x2="42" y2="52" stroke="#3A1F00" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Y 姿手臂高举 -->
+        <line x1="42" y1="52" x2="24" y2="36" stroke="#3A1F00" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="42" y1="52" x2="60" y2="36" stroke="#3A1F00" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- 身体 -->
+        <line x1="42" y1="52" x2="42" y2="74" stroke="#3A1F00" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- 腿（站立微叉） -->
+        <line x1="42" y1="74" x2="36" y2="96" stroke="#3A1F00" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="42" y1="74" x2="48" y2="96" stroke="#3A1F00" stroke-width="2.5" stroke-linecap="round"/>
+
+        <!-- 闪光 -->
+        <text x="14" y="62" font-size="8" fill="#FFA800">✨</text>
+        <text x="68" y="68" font-size="8" fill="#FFA800">✨</text>
+      </svg>
+
+      <div class="text">
+        <span class="l1">早 ♥</span>
+        <span class="l2">看见你了 一起活</span>
+      </div>
+
+      <div class="reward">+ 5 元气 ♥</div>
+    </div>
+    <div class="caption">站起来伸懒腰 · 阳光光芒 · 元气拉满</div>
+  </div>
+
+  <!-- ========== 2 · 09:30 听话宝宝 ========== -->
+  <div class="card-wrap">
+    <div class="num">2 <span class="check">✓</span> <span class="nlabel">09:30 · 摸摸</span></div>
+    <div class="widget s2">
+      <div class="time">09:30 · 动了 5 MIN</div>
+      <div class="done">DONE</div>
+
+      <!-- 走路样子 一手挥别桌面 -->
+      <svg class="fig" style="top:32px; left:6px;" width="86" height="80" viewBox="0 0 86 80">
+        <!-- 桌面（在左边） -->
+        <line x1="2" y1="64" x2="18" y2="64" stroke="#3A2200" stroke-width="2" stroke-linecap="round"/>
+        <line x1="6" y1="64" x2="6" y2="74" stroke="#3A2200" stroke-width="2" stroke-linecap="round"/>
+
+        <!-- 头 -->
+        <circle cx="42" cy="14" r="8.5" stroke="#3A2200" stroke-width="2.5" fill="#FFF0CC"/>
+        <!-- 满足眯眼 -->
+        <path d="M 37 12 Q 39 10 41 12" stroke="#3A2200" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M 43 12 Q 45 10 47 12" stroke="#3A2200" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <!-- 翘嘴角微笑 -->
+        <path d="M 38 17 Q 42 21 46 17" stroke="#3A2200" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        <!-- 红晕 -->
+        <circle cx="36" cy="17" r="1.8" fill="#FFB870" opacity="0.6"/>
+        <circle cx="48" cy="17" r="1.8" fill="#FFB870" opacity="0.6"/>
+
+        <!-- 身体 -->
+        <line x1="42" y1="23" x2="42" y2="48" stroke="#3A2200" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- 一只手挥手再见 -->
+        <path d="M 42 30 L 28 24 L 24 16" stroke="#3A2200" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- 另一只手插腰 -->
+        <path d="M 42 32 L 54 38 L 50 46" stroke="#3A2200" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- 走路姿势 一脚前一脚后 -->
+        <path d="M 42 48 L 30 60 L 26 70" stroke="#3A2200" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 42 48 L 52 60 L 58 72" stroke="#3A2200" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- 头上抚摸手势线 -->
+        <path d="M 38 4 Q 42 0 46 4" stroke="#B5872E" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M 36 8 Q 42 4 48 8" stroke="#B5872E" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.6"/>
+
+        <!-- 屁股 +1 标识 -->
+        <text x="64" y="46" font-size="8" font-weight="800" fill="#B5872E">+1</text>
+        <text x="62" y="54" font-size="6" fill="#3A2200">满意</text>
+
+        <!-- 飞出小心 -->
+        <text x="68" y="22" font-size="9" fill="#E94B5C">♥</text>
+      </svg>
+
+      <div class="text">
+        <span class="l1">听话宝</span>
+        <span class="l2">屁股 奖你</span>
+        <span class="l3">摸摸头 ♥</span>
+      </div>
+
+      <div class="reward">+ 10 屁股币 ♥</div>
+    </div>
+    <div class="caption">走开 + 头上抚摸手势 · "+1 满意"</div>
+  </div>
+
+  <!-- ========== 3 · 11:00 屁股活了 ========== -->
+  <div class="card-wrap">
+    <div class="num">3 <span class="check">✓</span> <span class="nlabel">11:00 · 活了</span></div>
+    <div class="widget s3">
+      <div class="time">11:00 · 起身溜达</div>
+      <div class="done">DONE</div>
+
+      <!-- 拉伸姿 屁股长脸 -->
+      <svg class="fig" style="top:24px; right:6px;" width="84" height="106" viewBox="0 0 84 106">
+        <!-- 头（侧身回望开心） -->
+        <circle cx="52" cy="20" r="9" stroke="#3A0018" stroke-width="2.5" fill="#FFE5F0"/>
+        <!-- 眯眼大笑 -->
+        <path d="M 47 18 Q 49 16 51 18" stroke="#3A0018" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M 53 18 Q 55 16 57 18" stroke="#3A0018" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <!-- 张嘴笑 -->
+        <path d="M 48 23 Q 52 27 56 23" stroke="#3A0018" stroke-width="1.6" fill="#B5005A" stroke-linecap="round"/>
+        <!-- 红晕 -->
+        <circle cx="45" cy="23" r="1.8" fill="#FF6B85" opacity="0.6"/>
+        <circle cx="59" cy="23" r="1.8" fill="#FF6B85" opacity="0.6"/>
+
+        <!-- 身体（侧身伸展） -->
+        <path d="M 52 29 Q 48 42 38 56" stroke="#3A0018" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- 双手向上拉伸 -->
+        <path d="M 50 40 L 62 30 L 70 22" stroke="#3A0018" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 46 42 L 36 36 L 28 30" stroke="#3A0018" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- 屁股（有脸！） -->
+        <ellipse cx="34" cy="68" rx="16" ry="11" stroke="#3A0018" stroke-width="2.5" fill="#FFB6C8" transform="rotate(-12, 34, 68)"/>
+        <!-- 屁股的眼睛 -->
+        <circle cx="28" cy="66" r="1.3" fill="#3A0018"/>
+        <circle cx="40" cy="68" r="1.3" fill="#3A0018"/>
+        <!-- 屁股的笑嘴 -->
+        <path d="M 30 72 Q 34 75 38 72" stroke="#3A0018" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+        <!-- 屁股闪光 -->
+        <text x="18" y="58" font-size="10" fill="#B5005A">✨</text>
+        <text x="46" y="80" font-size="8" fill="#B5005A">✨</text>
+        <text x="50" y="68" font-size="7" fill="#B5005A" opacity="0.7">✨</text>
+
+        <!-- 腿（站立站稳） -->
+        <path d="M 28 76 L 22 90 L 20 102" stroke="#3A0018" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 40 76 L 46 90 L 48 102" stroke="#3A0018" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+
+      <div class="text">
+        <span class="l1">屁股说</span>
+        <span class="l2">活过来了</span>
+        <span class="l3">谢谢你 ♡</span>
+      </div>
+
+      <div class="reward">+ 15 屁股币 ♥</div>
+    </div>
+    <div class="caption">拉伸 + 屁股长脸笑 · 闪光满天</div>
+  </div>
+
+  <!-- ========== 4 · 13:00 胃宽心 ========== -->
+  <div class="card-wrap">
+    <div class="num">4 <span class="check">✓</span> <span class="nlabel">13:00 · 宽心</span></div>
+    <div class="widget s4">
+      <div class="time">13:00 · 散步中</div>
+      <div class="done">DONE</div>
+
+      <!-- 散步 肚子小+1 胃的笑脸 -->
+      <svg class="fig" style="top:24px; left:6px;" width="86" height="106" viewBox="0 0 86 106">
+        <!-- 头（开心仰起） -->
+        <circle cx="32" cy="16" r="9" stroke="#2A1500" stroke-width="2.5" fill="#FFEBC8"/>
+        <!-- 闭眼笑 -->
+        <path d="M 26 14 Q 28 12 30 14" stroke="#2A1500" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M 34 14 Q 36 12 38 14" stroke="#2A1500" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <!-- 大笑嘴 -->
+        <path d="M 27 19 Q 32 23 37 19" stroke="#2A1500" stroke-width="1.6" fill="#B54810" stroke-linecap="round"/>
+        <!-- 红晕 -->
+        <circle cx="25" cy="19" r="1.8" fill="#E0B070" opacity="0.6"/>
+        <circle cx="39" cy="19" r="1.8" fill="#E0B070" opacity="0.6"/>
+
+        <!-- 身体 -->
+        <line x1="32" y1="25" x2="32" y2="44" stroke="#2A1500" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- 小肚子（有脸！） -->
+        <ellipse cx="32" cy="56" rx="11" ry="8" stroke="#2A1500" stroke-width="2.2" fill="#FFE2B0"/>
+        <!-- 胃的眼睛 -->
+        <circle cx="28" cy="55" r="1" fill="#2A1500"/>
+        <circle cx="36" cy="55" r="1" fill="#2A1500"/>
+        <!-- 胃的笑嘴 -->
+        <path d="M 29 58 Q 32 60 35 58" stroke="#2A1500" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+        <!-- 胃说话气泡（"谢谢"） -->
+        <ellipse cx="56" cy="46" rx="14" ry="8" stroke="#2A1500" stroke-width="1.5" fill="#FFF5DE"/>
+        <text x="48" y="49" font-size="7" font-weight="800" fill="#B54810">谢谢 ♥</text>
+        <line x1="48" y1="52" x2="44" y2="56" stroke="#2A1500" stroke-width="1"/>
+
+        <!-- 双手摆动（走路状） -->
+        <path d="M 32 32 L 24 42 L 28 50" stroke="#2A1500" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 32 32 L 40 42 L 38 50" stroke="#2A1500" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- 走路腿 -->
+        <path d="M 28 64 L 18 80 L 14 96" stroke="#2A1500" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 36 64 L 44 80 L 50 96" stroke="#2A1500" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- 走的步频小线 -->
+        <path d="M 12 100 L 8 100" stroke="#B54810" stroke-width="1.2" stroke-linecap="round"/>
+        <path d="M 54 100 L 58 100" stroke="#B54810" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+
+      <div class="text">
+        <span class="l1">胃说</span>
+        <span class="l2">不憋了</span>
+        <span class="l3">爱你 ♥</span>
+      </div>
+
+      <div class="reward">+ 1 健康值 ♥</div>
+    </div>
+    <div class="caption">饭后散步 · 肚子有脸笑 · 胃说"谢谢"</div>
+  </div>
+
+  <!-- ========== 5 · 14:00 醒着真性感 ========== -->
+  <div class="card-wrap">
+    <div class="num">5 <span class="check">✓</span> <span class="nlabel">14:00 · 清醒</span></div>
+    <div class="widget s5">
+      <div class="time">14:00 · 没倒下</div>
+      <div class="done">DONE</div>
+
+      <!-- 坐姿 大眼睛 双手 jazz hands -->
+      <svg class="fig" style="top:32px; right:6px;" width="82" height="84" viewBox="0 0 82 84">
+        <!-- 椅子 -->
+        <line x1="6" y1="68" x2="68" y2="68" stroke="#1A0F4D" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="12" y1="68" x2="12" y2="80" stroke="#1A0F4D" stroke-width="2" stroke-linecap="round"/>
+        <line x1="58" y1="68" x2="58" y2="80" stroke="#1A0F4D" stroke-width="2" stroke-linecap="round"/>
+
+        <!-- 头 -->
+        <circle cx="38" cy="14" r="9" stroke="#1A0F4D" stroke-width="2.5" fill="#E5DEFF"/>
+        <!-- 大睁眼（亮的） -->
+        <circle cx="34" cy="13" r="2.2" stroke="#1A0F4D" stroke-width="1.2" fill="#FFFFFF"/>
+        <circle cx="42" cy="13" r="2.2" stroke="#1A0F4D" stroke-width="1.2" fill="#FFFFFF"/>
+        <circle cx="34" cy="13" r="1" fill="#1A0F4D"/>
+        <circle cx="42" cy="13" r="1" fill="#1A0F4D"/>
+        <!-- 高光 -->
+        <circle cx="35" cy="12" r="0.5" fill="#FFFFFF"/>
+        <circle cx="43" cy="12" r="0.5" fill="#FFFFFF"/>
+        <!-- 大笑嘴 -->
+        <path d="M 33 18 Q 38 22 43 18" stroke="#1A0F4D" stroke-width="1.6" fill="#B53041" stroke-linecap="round"/>
+        <!-- 红晕 -->
+        <circle cx="30" cy="18" r="2" fill="#C9B8FF" opacity="0.7"/>
+        <circle cx="46" cy="18" r="2" fill="#C9B8FF" opacity="0.7"/>
+
+        <!-- 身体 -->
+        <line x1="38" y1="23" x2="38" y2="46" stroke="#1A0F4D" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Jazz hands 手指张开 -->
+        <path d="M 38 30 L 22 22" stroke="#1A0F4D" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M 38 30 L 54 22" stroke="#1A0F4D" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- 张开的手指 -->
+        <line x1="22" y1="22" x2="18" y2="18" stroke="#1A0F4D" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="22" y1="22" x2="22" y2="16" stroke="#1A0F4D" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="22" y1="22" x2="18" y2="24" stroke="#1A0F4D" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="54" y1="22" x2="58" y2="18" stroke="#1A0F4D" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="54" y1="22" x2="54" y2="16" stroke="#1A0F4D" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="54" y1="22" x2="58" y2="24" stroke="#1A0F4D" stroke-width="1.5" stroke-linecap="round"/>
+
+        <!-- 腿坐姿 -->
+        <path d="M 32 46 L 26 60 L 22 68" stroke="#1A0F4D" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 44 46 L 50 60 L 54 68" stroke="#1A0F4D" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- 头上闪光 -->
+        <text x="14" y="10" font-size="7" fill="#5A3DBF">✨</text>
+        <text x="60" y="10" font-size="7" fill="#5A3DBF">✨</text>
+        <text x="38" y="0" font-size="6" fill="#5A3DBF" text-anchor="middle">✨</text>
+      </svg>
+
+      <div class="text">
+        <span class="l1">醒着的你</span>
+        <span class="l2">真性感</span>
+        <span class="l3">想抱抱 ♥</span>
+      </div>
+
+      <div class="reward">+ 8 清醒值 ♥</div>
+    </div>
+    <div class="caption">大眼+jazz hands · 头上闪光 · "醒着真性感"</div>
+  </div>
+
+  <!-- ========== 6 · 16:00 腿和好 ========== -->
+  <div class="card-wrap">
+    <div class="num">6 <span class="check">✓</span> <span class="nlabel">16:00 · 复合</span></div>
+    <div class="widget s6">
+      <div class="time">16:00 · 腿回家</div>
+      <div class="done">DONE</div>
+
+      <!-- 全身 + 腿回归 + 爱心 -->
+      <svg class="fig" style="top:22px; right:10px;" width="72" height="106" viewBox="0 0 72 106">
+        <!-- 头 -->
+        <circle cx="36" cy="16" r="9" stroke="#003A30" stroke-width="2.5" fill="#C8EDE5"/>
+        <!-- 闭眼笑 -->
+        <path d="M 30 14 Q 32 12 34 14" stroke="#003A30" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M 38 14 Q 40 12 42 14" stroke="#003A30" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <!-- 大笑嘴 -->
+        <path d="M 31 19 Q 36 24 41 19" stroke="#003A30" stroke-width="1.6" fill="#00A07A" stroke-linecap="round"/>
+        <!-- 红晕 -->
+        <circle cx="29" cy="19" r="1.8" fill="#A0DBCC" opacity="0.8"/>
+        <circle cx="43" cy="19" r="1.8" fill="#A0DBCC" opacity="0.8"/>
+
+        <!-- 身体 -->
+        <line x1="36" y1="25" x2="36" y2="48" stroke="#003A30" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- 双手抱腿（爱护姿势） -->
+        <path d="M 36 32 L 24 50 L 20 64" stroke="#003A30" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 36 32 L 48 50 L 52 64" stroke="#003A30" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- 腿（恢复正常色） -->
+        <path d="M 36 48 L 28 72 L 24 92" stroke="#003A30" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 36 48 L 44 72 L 48 92" stroke="#003A30" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- 复合的爱心（替代红虚线） -->
+        <text x="14" y="58" font-size="12" fill="#E94B5C">♥</text>
+        <text x="54" y="58" font-size="12" fill="#E94B5C">♥</text>
+        <text x="32" y="84" font-size="9" fill="#E94B5C">♥</text>
+
+        <!-- 腿上写"+1" -->
+        <text x="24" y="80" font-size="7" font-weight="800" fill="#00A07A">+1</text>
+        <text x="46" y="80" font-size="7" font-weight="800" fill="#00A07A">+1</text>
+      </svg>
+
+      <div class="text">
+        <span class="l1">腿说</span>
+        <span class="l2">复合啦</span>
+        <span class="l3">不跟哑铃跑了 ♡</span>
+      </div>
+
+      <div class="reward">+ 15 真心 ♥</div>
+    </div>
+    <div class="caption">抱腿姿 · 红色爱心代替红虚线 · "复合"</div>
+  </div>
+
+  <!-- ========== 7 · 21:00 沙发哭了 ========== -->
+  <div class="card-wrap">
+    <div class="num">7 <span class="check">✓</span> <span class="nlabel">21:00 · 自由</span></div>
+    <div class="widget s7">
+      <div class="time">21:00 · 离开沙发</div>
+      <div class="done">DONE</div>
+
+      <!-- 站立 沙发在背景哭 -->
+      <svg class="fig" style="top:24px; left:6px;" width="84" height="106" viewBox="0 0 84 106">
+        <!-- 沙发（背景 哭脸） -->
+        <path d="M 48 56 Q 48 50 54 50 L 80 50 Q 86 50 86 56 L 86 84 L 48 84 Z" stroke="#3A0E00" stroke-width="2" fill="#FFB69E" opacity="0.7"/>
+        <line x1="48" y1="74" x2="86" y2="74" stroke="#3A0E00" stroke-width="1.3" opacity="0.7"/>
+        <!-- 沙发的哭脸 -->
+        <line x1="58" y1="60" x2="62" y2="64" stroke="#3A0E00" stroke-width="1.4" stroke-linecap="round"/>
+        <line x1="62" y1="60" x2="58" y2="64" stroke="#3A0E00" stroke-width="1.4" stroke-linecap="round"/>
+        <line x1="66" y1="60" x2="70" y2="64" stroke="#3A0E00" stroke-width="1.4" stroke-linecap="round"/>
+        <line x1="70" y1="60" x2="66" y2="64" stroke="#3A0E00" stroke-width="1.4" stroke-linecap="round"/>
+        <!-- 沙发下垂嘴 -->
+        <path d="M 59 70 Q 64 67 69 70" stroke="#3A0E00" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+        <!-- 沙发眼泪 -->
+        <ellipse cx="60" cy="66" rx="1.2" ry="2.5" fill="#3B5BB5" opacity="0.7"/>
+        <ellipse cx="68" cy="66" rx="1.2" ry="2.5" fill="#3B5BB5" opacity="0.7"/>
+
+        <!-- 站立火柴人（前景） -->
+        <!-- 头 -->
+        <circle cx="22" cy="22" r="9.5" stroke="#3A0E00" stroke-width="2.5" fill="#FFC9B0"/>
+        <!-- 得意笑脸 -->
+        <line x1="17" y1="20" x2="20" y2="22" stroke="#3A0E00" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="20" y1="20" x2="17" y2="22" stroke="#3A0E00" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="24" y1="20" x2="27" y2="22" stroke="#3A0E00" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="27" y1="20" x2="24" y2="22" stroke="#3A0E00" stroke-width="1.5" stroke-linecap="round"/>
+        <!-- 嘴角上扬 -->
+        <path d="M 18 26 Q 22 30 26 26" stroke="#3A0E00" stroke-width="1.6" fill="#C9264A" stroke-linecap="round"/>
+        <!-- 红晕 -->
+        <circle cx="14" cy="26" r="1.8" fill="#FFA088" opacity="0.7"/>
+        <circle cx="30" cy="26" r="1.8" fill="#FFA088" opacity="0.7"/>
+
+        <!-- 身体（站立） -->
+        <line x1="22" y1="32" x2="22" y2="62" stroke="#3A0E00" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- 一手叉腰（胜利） -->
+        <path d="M 22 40 L 14 48 L 14 56" stroke="#3A0E00" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- 另一手胜利 V -->
+        <path d="M 22 38 L 32 28 L 30 18" stroke="#3A0E00" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- V 字两指 -->
+        <line x1="30" y1="18" x2="34" y2="14" stroke="#3A0E00" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="30" y1="18" x2="28" y2="12" stroke="#3A0E00" stroke-width="1.5" stroke-linecap="round"/>
+
+        <!-- 腿（叉立） -->
+        <path d="M 22 62 L 14 86 L 12 102" stroke="#3A0E00" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 22 62 L 30 86 L 32 102" stroke="#3A0E00" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- 头顶闪光 -->
+        <text x="6" y="14" font-size="8" fill="#C9264A">✨</text>
+        <text x="36" y="8" font-size="7" fill="#C9264A">✨</text>
+      </svg>
+
+      <div class="text">
+        <span class="l1">沙发哭了</span>
+        <span class="l2">你赢了</span>
+        <span class="l3">来抱抱 ♥</span>
+      </div>
+
+      <div class="reward">+ 20 自由 ♥</div>
+    </div>
+    <div class="caption">叉腰 V · 沙发在背景哭 · 胜利姿</div>
+  </div>
+
+  <!-- ========== 8 · 23:00 灵魂归位 ========== -->
+  <div class="card-wrap">
+    <div class="num">8 <span class="check">✓</span> <span class="nlabel">23:00 · 安睡</span></div>
+    <div class="widget s8">
+      <div class="time">23:00 · 躺床了</div>
+      <div class="done">DONE</div>
+      <div class="stars">✦ ✧</div>
+      <div class="moon"></div>
+
+      <!-- 床上睡 灵魂回归抱着 -->
+      <svg class="fig" style="top:32px; right:6px;" width="86" height="90" viewBox="0 0 86 90">
+        <!-- 床 -->
+        <rect x="6" y="42" width="78" height="26" rx="3" stroke="#FFD93D" stroke-width="2.2" fill="#2B3D5F"/>
+        <!-- 床头 -->
+        <rect x="6" y="32" width="20" height="14" rx="2" stroke="#FFD93D" stroke-width="1.8" fill="#3A4860"/>
+        <!-- 床上枕头 -->
+        <rect x="10" y="38" width="14" height="8" rx="2" stroke="#FFD93D" stroke-width="1.4" fill="#FFAA88"/>
+
+        <!-- 被子盖着的身体（轮廓） -->
+        <path d="M 26 56 Q 50 50 78 56" stroke="#FFD93D" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+
+        <!-- 头（露在枕头上 闭眼睡） -->
+        <circle cx="22" cy="42" r="8" stroke="#FFD93D" stroke-width="2.2" fill="#3A4860"/>
+        <!-- 闭眼睡 -->
+        <path d="M 18 41 Q 19 40 20 41" stroke="#FFD93D" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+        <path d="M 23 41 Q 24 40 25 41" stroke="#FFD93D" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+        <!-- 满足嘴角 -->
+        <path d="M 19 45 Q 22 47 25 45" stroke="#FFD93D" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+
+        <!-- 灵魂（虚线）回来抱身体 -->
+        <!-- 灵魂头 -->
+        <circle cx="44" cy="32" r="6.5" stroke="#FF6B35" stroke-width="1.6" fill="none" stroke-dasharray="2,2"/>
+        <!-- 灵魂闭眼笑 -->
+        <path d="M 41 31 Q 42 30 43 31" stroke="#FF6B35" stroke-width="1.1" fill="none"/>
+        <path d="M 45 31 Q 46 30 47 31" stroke="#FF6B35" stroke-width="1.1" fill="none"/>
+        <!-- 灵魂笑嘴 -->
+        <path d="M 41 34 Q 44 36 47 34" stroke="#FF6B35" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+
+        <!-- 灵魂飘进床（虚线身体） -->
+        <path d="M 44 38 Q 38 44 30 48" stroke="#FF6B35" stroke-width="1.6" stroke-dasharray="2,2" fill="none" stroke-linecap="round"/>
+        <!-- 灵魂胳膊抱身体 -->
+        <path d="M 40 40 L 30 44" stroke="#FF6B35" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-dasharray="2,2"/>
+        <path d="M 48 40 L 56 46" stroke="#FF6B35" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-dasharray="2,2"/>
+
+        <!-- 中间的爱心（融合） -->
+        <text x="34" y="36" font-size="10" fill="#FF6B35">♥</text>
+        <text x="50" y="28" font-size="8" fill="#FFD93D">♥</text>
+
+        <!-- Zzz 睡觉 -->
+        <text x="62" y="36" font-size="12" font-family="Georgia, serif" font-style="italic" fill="#FFD93D">Z</text>
+        <text x="70" y="28" font-size="9" font-family="Georgia, serif" font-style="italic" fill="#FFD93D">z</text>
+        <text x="76" y="22" font-size="7" font-family="Georgia, serif" font-style="italic" fill="#FFD93D" opacity="0.7">z</text>
+
+        <!-- 床底闪光 -->
+        <text x="14" y="80" font-size="7" fill="#FFD93D">✦</text>
+        <text x="68" y="80" font-size="7" fill="#FFD93D">✦</text>
+      </svg>
+
+      <div class="text">
+        <span class="l1">灵魂回来</span>
+        <span class="l2">抱你睡</span>
+        <span class="l3">晚安 ♥</span>
+      </div>
+
+      <div class="reward">+ 30 命币 ♥</div>
+    </div>
+    <div class="caption">睡了 · 灵魂回归抱身体 · 满天 ♥ 和 ✦</div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <p><b>设计逻辑</b> · 每张对应一个 <span class="pair">nag 时段</span>，听话起来动了之后弹出。同一个角色，从撩骚转成甜：</p>
+  <p style="margin-top:6px;">
+    <span class="pair">1</span> 键盘吻她 → 早 ♥ 看见你了<br>
+    <span class="pair">2</span> 被窝抢她 → 听话宝 摸摸头<br>
+    <span class="pair">3</span> 屁股没人疼 → 屁股活了 谢谢你<br>
+    <span class="pair">4</span> 怀孕赖你 → 胃说 不憋了 爱你<br>
+    <span class="pair">5</span> 解扣子热 → 醒着的你 真性感<br>
+    <span class="pair">6</span> 腿跟哑铃跑 → 腿说 复合啦<br>
+    <span class="pair">7</span> 沙发三角恋 → 沙发哭了 你赢了<br>
+    <span class="pair">8</span> 灵魂出窍吻别 → 灵魂回来 抱你睡
+  </p>
+  <p style="margin-top:10px;"><b>视觉签名</b> · ✓ DONE 绿点 · 金色奖励徽章 · ✨ 闪光 · 上下扬的笑脸 · 红晕变甜 · 爱心增多</p>
+  <p style="margin-top:10px;"><b>命币体系</b> · 元气 · 屁股币 · 健康值 · 清醒值 · 真心 · 自由 · 命币 — 一天最高 +104 (≈ 等级 LV.1 →LV.2)</p>
+  <p style="margin-top:10px;"><b>用法</b> · iOS widget 上 · nag 推送 → 用户站起来 → 切到 reward 卡 → 3s 后回到中性状态。或：周末做累计，一周 7×8=56 张都集齐解锁专属表情</p>
+  <p style="margin-top:10px;"><b>下一步</b> · 选 1-2 张落 Swift · 或加未听话的 retry 版（"喂 / 还在坐?"）· 或加连击 combo 卡（"3 连击！你赢回我了"）· 或调奖励币种</p>
+</div>
+
+</body>
+</html>

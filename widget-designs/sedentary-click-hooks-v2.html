@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>久坐助手 · 高点击欲钩子 v2</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #151d28;
+    --muted: #748091;
+    --paper: #f8fafc;
+    --pink: #ff5c9a;
+    --green: #30d77d;
+    --yellow: #ffd84f;
+  }
+  body {
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+    background:
+      radial-gradient(circle at 11% 10%, rgba(255,92,154,.20), transparent 26%),
+      radial-gradient(circle at 89% 16%, rgba(48,215,125,.20), transparent 27%),
+      linear-gradient(180deg, #f9fbfe 0%, #e8eef7 100%);
+    color: var(--ink);
+    padding: 34px 20px 54px;
+  }
+  .page { width: min(1120px, 100%); margin: 0 auto; }
+  .hero {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  .eyebrow {
+    color: var(--pink);
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+  }
+  h1 {
+    margin-top: 8px;
+    font-size: clamp(34px, 5vw, 62px);
+    line-height: .88;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .brief {
+    max-width: 390px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.55;
+    font-weight: 760;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 18px;
+  }
+  .card {
+    aspect-ratio: 1 / 1.13;
+    border: 4px solid var(--ink);
+    border-radius: 30px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+    box-shadow: 0 10px 0 rgba(21,29,40,.14), 0 24px 44px rgba(21,29,40,.12);
+    transition: transform .14s ease, box-shadow .14s ease;
+  }
+  .card:active {
+    transform: translateY(6px);
+    box-shadow: 0 4px 0 rgba(21,29,40,.14), 0 12px 26px rgba(21,29,40,.12);
+  }
+  .card::before {
+    content: "";
+    position: absolute;
+    inset: 12px 12px auto auto;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.35);
+  }
+  .front, .back {
+    position: absolute;
+    inset: 0;
+    padding: 15px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 11px;
+    transition: opacity .18s ease, transform .18s ease;
+  }
+  .back {
+    opacity: 0;
+    transform: scale(.96);
+    pointer-events: none;
+  }
+  .card.open .front { opacity: 0; transform: scale(1.04); }
+  .card.open .back { opacity: 1; transform: scale(1); }
+  .top {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+    letter-spacing: .7px;
+  }
+  .badge {
+    min-width: 27px;
+    height: 27px;
+    padding: 0 8px;
+    border-radius: 999px;
+    border: 3px solid var(--ink);
+    background: #fff;
+    display: grid;
+    place-items: center;
+    color: var(--ink);
+    font-size: 12px;
+    box-shadow: 0 3px 0 rgba(21,29,40,.14);
+  }
+  .visual {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    min-height: 0;
+  }
+  .symbol {
+    width: min(108px, 82%);
+    aspect-ratio: 1;
+    border: 4px solid var(--ink);
+    border-radius: 26px;
+    background: rgba(255,255,255,.78);
+    display: grid;
+    place-items: center;
+    position: relative;
+    box-shadow: 0 7px 0 rgba(21,29,40,.18);
+  }
+  .symbol .big {
+    font-size: 50px;
+    font-weight: 950;
+    line-height: 1;
+  }
+  .symbol .mini {
+    position: absolute;
+    top: -11px;
+    right: -12px;
+    min-width: 32px;
+    height: 32px;
+    border: 4px solid var(--ink);
+    border-radius: 999px;
+    background: #ff375f;
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-size: 15px;
+    font-weight: 950;
+  }
+  .face {
+    width: 92px;
+    height: 92px;
+    border: 5px solid var(--ink);
+    border-radius: 50%;
+    background: #fff4d7;
+    position: relative;
+    box-shadow: 0 7px 0 rgba(21,29,40,.18);
+  }
+  .face::before, .face::after {
+    content: "";
+    position: absolute;
+    top: 33px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ink);
+  }
+  .face::before { left: 27px; }
+  .face::after { right: 27px; }
+  .mouth {
+    position: absolute;
+    left: 33px;
+    top: 52px;
+    width: 26px;
+    height: 14px;
+    border-bottom: 4px solid var(--ink);
+    border-radius: 0 0 20px 20px;
+  }
+  .blush {
+    position: absolute;
+    top: 45px;
+    left: 17px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ff6f9f;
+    box-shadow: 46px 0 0 #ff6f9f;
+    opacity: .72;
+  }
+  .hook {
+    position: relative;
+    z-index: 2;
+    min-height: 52px;
+    border: 4px solid var(--ink);
+    border-radius: 24px;
+    background: #fff;
+    padding: 8px 10px;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    color: var(--ink);
+    font-size: clamp(18px, 2.15vw, 25px);
+    line-height: 1.02;
+    font-weight: 950;
+    letter-spacing: 0;
+    box-shadow: 0 6px 0 rgba(21,29,40,.18);
+  }
+  .micro {
+    color: rgba(21,29,40,.72);
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.28;
+    font-weight: 850;
+  }
+  .back .hook {
+    min-height: 66px;
+    font-size: clamp(18px, 2.1vw, 24px);
+  }
+  .a { background: linear-gradient(145deg, #ffc0d9, #ff5c9a); }
+  .b { background: linear-gradient(145deg, #b8f7cd, #30d77d); }
+  .c { background: linear-gradient(145deg, #ffe879, #ffb445); }
+  .d { background: linear-gradient(145deg, #aee4ff, #5d96ff); }
+  .e { background: linear-gradient(145deg, #d0b8ff, #7756ff); }
+  .f { background: linear-gradient(145deg, #ffb18b, #ff6363); }
+  .g { background: linear-gradient(145deg, #303f62, #121a2d); color: #fff; }
+  .g .top, .g .micro { color: rgba(255,255,255,.85); }
+  .g .hook, .g .badge { color: var(--ink); }
+  .g .face { background: #40506c; border-color: #fff; }
+  .g .face::before, .g .face::after { background: #fff; }
+  .g .mouth { border-color: #fff; }
+  .g .symbol { border-color: #fff; }
+  .footer {
+    margin-top: 18px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+    font-weight: 760;
+  }
+  @media (max-width: 980px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 660px) {
+    body { padding: 24px 14px 42px; }
+    .hero { align-items: start; flex-direction: column; }
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .card { border-radius: 26px; }
+    .front, .back { padding: 12px; }
+    .hook { min-height: 46px; font-size: 17px; }
+    .symbol { border-radius: 22px; }
+  }
+</style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Better Click Hooks</div>
+        <h1>别把答案<br>写在正面</h1>
+      </div>
+      <p class="brief">这一版用“未读、盲盒、红包、举报、私密评价、倒计时”制造打开欲。正面只给信息缺口，点开才给梗、夸奖和动作。</p>
+    </section>
+
+    <section class="grid" aria-label="高点击欲久坐钩子卡片">
+      <article class="card d" tabindex="0">
+        <div class="front">
+          <div class="top"><span>身体消息</span><span class="badge">1</span></div>
+          <div class="visual"><div class="symbol"><span class="big">信</span><span class="mini">1</span></div></div>
+          <div class="hook">腿给你发了<br>一条私信</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>私信内容</span><span class="badge">腿</span></div>
+          <div class="visual"><div class="face"><i class="mouth"></i><i class="blush"></i></div></div>
+          <div class="hook">“想你了，<br>走两步见我。”</div>
+          <div class="micro">强钩子：未读消息 + 拟人化</div>
+        </div>
+      </article>
+
+      <article class="card a" tabindex="0">
+        <div class="front">
+          <div class="top"><span>私密评价</span><span class="badge">?</span></div>
+          <div class="visual"><div class="symbol"><span class="big">?</span><span class="mini">新</span></div></div>
+          <div class="hook">刚刚身体<br>偷偷评价你</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>评价结果</span><span class="badge">♥</span></div>
+          <div class="visual"><div class="face"><i class="mouth"></i><i class="blush"></i></div></div>
+          <div class="hook">“坐太久，<br>但还挺可爱。”</div>
+          <div class="micro">强钩子：想知道评价内容</div>
+        </div>
+      </article>
+
+      <article class="card c" tabindex="0">
+        <div class="front">
+          <div class="top"><span>奖励待领</span><span class="badge">领</span></div>
+          <div class="visual"><div class="symbol"><span class="big">包</span><span class="mini">¥</span></div></div>
+          <div class="hook">你有一个<br>回血红包</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>领取成功</span><span class="badge">+5</span></div>
+          <div class="visual"><div class="symbol"><span class="big">+5</span><span class="mini">血</span></div></div>
+          <div class="hook">站 30 秒，<br>立刻到账</div>
+          <div class="micro">强钩子：奖励未领取</div>
+        </div>
+      </article>
+
+      <article class="card f" tabindex="0">
+        <div class="front">
+          <div class="top"><span>匿名举报</span><span class="badge">!</span></div>
+          <div class="visual"><div class="symbol"><span class="big">报</span><span class="mini">!</span></div></div>
+          <div class="hook">有人举报你<br>屁股超时</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>举报人</span><span class="badge">椅</span></div>
+          <div class="visual"><div class="face"><i class="mouth"></i></div></div>
+          <div class="hook">举报人：<br>你的椅子</div>
+          <div class="micro">强钩子：谁举报了我</div>
+        </div>
+      </article>
+
+      <article class="card e" tabindex="0">
+        <div class="front">
+          <div class="top"><span>盲盒</span><span class="badge">开</span></div>
+          <div class="visual"><div class="symbol"><span class="big">盒</span><span class="mini">?</span></div></div>
+          <div class="hook">打开今天的<br>乖乖盲盒</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>开盒结果</span><span class="badge">SSR</span></div>
+          <div class="visual"><div class="face"><i class="mouth"></i><i class="blush"></i></div></div>
+          <div class="hook">抽中：<br>“摸摸头”</div>
+          <div class="micro">强钩子：随机奖励感</div>
+        </div>
+      </article>
+
+      <article class="card b" tabindex="0">
+        <div class="front">
+          <div class="top"><span>进度条</span><span class="badge">93%</span></div>
+          <div class="visual"><div class="symbol"><span class="big">93</span><span class="mini">%</span></div></div>
+          <div class="hook">差 7% 就能<br>被夸了</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>补齐方式</span><span class="badge">7%</span></div>
+          <div class="visual"><div class="face"><i class="mouth"></i><i class="blush"></i></div></div>
+          <div class="hook">走到水杯边，<br>我就夸你</div>
+          <div class="micro">强钩子：接近完成</div>
+        </div>
+      </article>
+
+      <article class="card g" tabindex="0">
+        <div class="front">
+          <div class="top"><span>睡前密语</span><span class="badge">锁</span></div>
+          <div class="visual"><div class="symbol"><span class="big">锁</span><span class="mini">♥</span></div></div>
+          <div class="hook">睡前奖励语<br>已锁住</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>解锁条件</span><span class="badge">2m</span></div>
+          <div class="visual"><div class="face"><i class="mouth"></i><i class="blush"></i></div></div>
+          <div class="hook">走 2 分钟，<br>解锁“真乖”</div>
+          <div class="micro">强钩子：睡前私密奖励</div>
+        </div>
+      </article>
+
+      <article class="card a" tabindex="0">
+        <div class="front">
+          <div class="top"><span>关系提醒</span><span class="badge">冷</span></div>
+          <div class="visual"><div class="symbol"><span class="big">腿</span><span class="mini">...</span></div></div>
+          <div class="hook">腿今天<br>不太理你</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>哄好方式</span><span class="badge">哄</span></div>
+          <div class="visual"><div class="face"><i class="mouth"></i><i class="blush"></i></div></div>
+          <div class="hook">哄它很简单：<br>站起来亲自走</div>
+          <div class="micro">强钩子：关系修复</div>
+        </div>
+      </article>
+
+      <article class="card c" tabindex="0">
+        <div class="front">
+          <div class="top"><span>倒计时</span><span class="badge">30</span></div>
+          <div class="visual"><div class="symbol"><span class="big">30</span><span class="mini">s</span></div></div>
+          <div class="hook">只占你<br>30 秒</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>开始后</span><span class="badge">陪</span></div>
+          <div class="visual"><div class="face"><i class="mouth"></i><i class="blush"></i></div></div>
+          <div class="hook">我陪你，<br>你别赖着</div>
+          <div class="micro">强钩子：低成本承诺</div>
+        </div>
+      </article>
+
+      <article class="card d" tabindex="0">
+        <div class="front">
+          <div class="top"><span>危险预告</span><span class="badge">晚</span></div>
+          <div class="visual"><div class="symbol"><span class="big">剧</span><span class="mini">新</span></div></div>
+          <div class="hook">今晚腰会演<br>哪一出？</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>预告片</span><span class="badge">腰</span></div>
+          <div class="visual"><div class="face"><i class="mouth"></i></div></div>
+          <div class="hook">《明早起不来》<br>即将上映</div>
+          <div class="micro">强钩子：小剧场标题</div>
+        </div>
+      </article>
+    </section>
+
+    <p class="footer">这版的核心是：正面不直接说“站起来”，只制造未完成、未读、未领取、未解锁。动作放到点开后，点击才有心理收益。</p>
+  </main>
+
+  <script>
+    document.querySelectorAll(".card").forEach((card) => {
+      const toggle = () => card.classList.toggle("open");
+      card.addEventListener("click", toggle);
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          toggle();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

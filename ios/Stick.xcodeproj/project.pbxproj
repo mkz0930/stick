@@ -71,6 +71,7 @@
 /* Begin PBXFileReference section */
 		F10000000000000000000001 /* Stick.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Stick.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F10000000000000000000008 /* StickApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickApp.swift; sourceTree = "<group>"; };
+		F10000000000000000000051 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F10000000000000000000009 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		F1000000000000000000000A /* StickState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickState.swift; sourceTree = "<group>"; };
 		F1000000000000000000000B /* StickFigureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickFigureView.swift; sourceTree = "<group>"; };
@@ -171,6 +172,7 @@
 				F10000000000000000000019 /* Views/ChatHistoryDemoView.swift */,
 				F1000000000000000000001A /* Views/DayPlaybackSheet.swift */,
 				F1000000000000000000001B /* Views/ShareSheet.swift */,
+				F10000000000000000000051 /* Info.plist */,
 			);
 			path = Stick;
 			sourceTree = "<group>";
@@ -580,13 +582,8 @@
 				DEVELOPMENT_ASSET_PATHS = "\"Stick/Preview Content\"";
 				DEVELOPMENT_TEAM = 2ANS3PWJ9D;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LLM_API_KEY = "$(STICK_LLM_API_KEY)";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "读取健康数据用于展示你的身体状态";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Stick/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

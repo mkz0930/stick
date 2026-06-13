@@ -119,16 +119,23 @@ final class SleepReportViewModel: ObservableObject {
 
     @Published var state: State = .loading
 
-    func load() async {
-        state = .loading
+    init() {
         #if DEBUG
-        // DEBUG: 模拟器无 HealthKit 数据, 注入一段 mock 睡眠会话用于演示
         if ProcessInfo.processInfo.environment["STICK_MOCK_SLEEP"] != "0" {
-            try? await Task.sleep(nanoseconds: 600_000_000)
+            _state = Published(initialValue: .loaded(Self.mockSession()))
+            return
+        }
+        #endif
+    }
+
+    func load() async {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["STICK_MOCK_SLEEP"] != "0" {
             state = .loaded(Self.mockSession())
             return
         }
         #endif
+        state = .loading
         let session = await SleepAnalyzer.shared.fetchLastNight()
         if let session {
             state = .loaded(session)
@@ -197,7 +204,7 @@ struct SleepReportView: View {
                 content
             }
         }
-        .task { await vm.load() }
+        .onAppear { Task { await vm.load() } }
     }
 
     // MARK: - Header
@@ -269,6 +276,7 @@ struct SleepReportView: View {
         let segments = barSegments(from: session)
         let efficiency = Int((session.efficiency * 100).rounded())
         let qualityLabel = qualityForEfficiency(session.efficiency)
+        let aiReport = AISleepAnalyzer.analyze(session: session)
 
         return ScrollView {
             VStack(spacing: 18) {
@@ -285,6 +293,11 @@ struct SleepReportView: View {
 
                 adviceLine
                     .padding(.horizontal, 20)
+
+                // AI 健康分析
+                AISleepSection(report: aiReport)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 6)
                     .padding(.bottom, 24)
             }
         }
@@ -412,6 +425,189 @@ struct SleepReportView: View {
             Spacer()
         }
         .padding(.horizontal, 4)
+    }
+}
+
+// MARK: - AI 睡眠分析卡片
+
+/// 睡眠报告末尾的 AI 分析区：
+///  - 风险徽章（good/fair/poor）
+///  - 1 句话结论
+///  - 关键指标 grid
+///  - 分析原因 (3-5 条)
+///  - 行动建议 (3-4 条)
+private struct AISleepSection: View {
+    let report: AISleepReport
+
+    private var h: Int { report.totalMinutes / 60 }
+    private var m: Int { report.totalMinutes % 60 }
+    private var devSign: String { report.deviationPct >= 0 ? "+" : "" }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // 标题行
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(report.risk.color)
+                Text("AI 睡眠分析")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .tracking(1.6)
+                    .foregroundColor(Theme.slate)
+                Spacer()
+                riskBadge
+            }
+
+            // 风险徽章
+            HStack(spacing: 6) {
+                Image(systemName: report.risk.icon)
+                    .font(.system(size: 12, weight: .bold))
+                Text(report.risk.englishLabel)
+                    .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                    .tracking(1.2)
+                Text("·  \(report.risk.label)")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule().fill(report.risk.color)
+            )
+
+            // 结论
+            Text(report.headline)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundColor(Theme.navy)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // 关键指标 grid (2x2)
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8),
+                                GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                vitalCell("总时长", "\(h)h\(String(format: "%02d", m))m",
+                          "较 7 日 \(devSign)\(report.deviationPct)%")
+                vitalCell("深睡占比", "\(report.deepPct)%",
+                          report.deepPct < 18 ? "低于推荐 20-25%" : "在推荐区间")
+                vitalCell("睡眠效率", "\(report.efficiency)%",
+                          report.efficiency < 85 ? "低于 85% 阈值" : "达标")
+                vitalCell("夜间醒来", "\(report.awakenings) 次",
+                          report.awakenings >= 4 ? "连续性受损" : "正常")
+            }
+
+            // 分析原因
+            if !report.reasons.isEmpty {
+                sectionHeader("ANALYSIS", "分析原因", "lightbulb")
+                ForEach(Array(report.reasons.enumerated()), id: \.offset) { _, r in
+                    bulletRow(r, accent: report.risk.color)
+                }
+            }
+
+            // 行动建议
+            if !report.recommendations.isEmpty {
+                sectionHeader("ACTION", "行动建议", "checkmark.circle")
+                ForEach(Array(report.recommendations.enumerated()), id: \.offset) { i, r in
+                    actionRow(i + 1, r, accent: report.risk.color)
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Theme.card)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(report.risk.color.opacity(0.35), lineWidth: 1)
+        )
+    }
+
+    // MARK: - 子组件
+
+    private var riskBadge: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(report.risk.color)
+                .frame(width: 6, height: 6)
+            Text("RISK")
+                .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                .tracking(1.2)
+                .foregroundColor(Theme.slate)
+        }
+    }
+
+    private func vitalCell(_ label: String, _ value: String, _ sub: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label)
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .tracking(0.8)
+                .foregroundColor(Theme.slate)
+            Text(value)
+                .font(.system(size: 18, weight: .heavy, design: .rounded))
+                .foregroundColor(Theme.navy)
+                .monospacedDigit()
+            Text(sub)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(Theme.mist)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Theme.bgTop)
+        )
+    }
+
+    private func sectionHeader(_ tag: String, _ title: String, _ icon: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(Theme.slate)
+            Text(tag)
+                .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                .tracking(1.4)
+                .foregroundColor(Theme.slate)
+            Text(title)
+                .font(.system(size: 12, weight: .heavy))
+                .foregroundColor(Theme.navy)
+            Spacer()
+        }
+        .padding(.top, 4)
+    }
+
+    private func bulletRow(_ text: String, accent: Color) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text("·")
+                .font(.system(size: 14, weight: .heavy))
+                .foregroundColor(accent)
+            Text(text)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(Theme.navy)
+                .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func actionRow(_ idx: Int, _ text: String, accent: Color) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(accent.opacity(0.15))
+                    .frame(width: 20, height: 20)
+                Text("\(idx)")
+                    .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                    .foregroundColor(accent)
+            }
+            Text(text)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(Theme.navy)
+                .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
     }
 }
 

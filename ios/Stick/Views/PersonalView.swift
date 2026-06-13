@@ -131,6 +131,9 @@ struct PersonalView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showShareSheet) {
+            ShareSheet(items: shareItems)
+        }
         .onChange(of: openSpecialists) { _, newValue in
             if newValue { showSpecialists = true; openSpecialists = false }
         }
@@ -267,6 +270,52 @@ struct PersonalView: View {
         }
     }
 
+    // MARK: - 导出对话
+
+    /// 导出对话为 .txt 文件，触发 iOS share sheet（保存到 Files / AirDrop / 复制）
+    private func exportChat() {
+        let text = formatChatAsText()
+        let url = saveTextToTempFile(text)
+        shareItems = [url]
+        showShareSheet = true
+    }
+
+    /// 格式化为可读文本（按时间顺序）
+    private func formatChatAsText() -> String {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "zh_CN")
+        df.dateFormat = "yyyy-MM-dd HH:mm:ss"
+
+        var lines: [String] = []
+        lines.append("═══ Stick 对话记录 ═══")
+        lines.append("导出时间：\(df.string(from: Date()))")
+        lines.append("消息总数：\(chatHistory.messages.count)")
+        lines.append("")
+
+        // 按时间正序（从早到晚）
+        let ordered = chatHistory.messages.sorted { $0.timestamp < $1.timestamp }
+        for (i, msg) in ordered.enumerated() {
+            let role = msg.role == "user" ? "👤 我" : "🤖 AI"
+            let time = df.string(from: msg.timestamp)
+            lines.append("[\(i + 1)] \(role)  \(time)")
+            lines.append("    \(msg.content)")
+            lines.append("")
+        }
+
+        lines.append("─── Stick · 关心你的腰 ───")
+        return lines.joined(separator: "\n")
+    }
+
+    /// 写到 /tmp/stick-chat-时间戳.txt
+    private func saveTextToTempFile(_ text: String) -> URL {
+        let df = DateFormatter()
+        df.dateFormat = "yyyyMMdd-HHmmss"
+        let filename = "stick-chat-\(df.string(from: Date())).txt"
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(filename)
+        try? text.data(using: .utf8)?.write(to: url, options: .atomic)
+        return url
+    }
+
     // MARK: - 对话记录
 
     /// 最近 N 条 user 提问（按时间倒序）— 全部
@@ -283,6 +332,9 @@ struct PersonalView: View {
         chatHistoryExpanded ? recentUserPrompts : Array(recentUserPrompts.prefix(2))
     }
 
+    @State private var showShareSheet: Bool = false
+    @State private var shareItems: [Any] = []
+
     private var chatHistorySection: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
@@ -296,6 +348,22 @@ struct PersonalView: View {
                         .tracking(0.4)
                         .foregroundColor(Theme.slate)
                 }
+                // 保存按钮
+                Button {
+                    exportChat()
+                } label: {
+                    HStack(spacing: 2) {
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 10, weight: .heavy))
+                        Text("保存")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundColor(StickState.walk.accent)
+                }
+                .padding(.leading, 6)
+                .disabled(recentUserPrompts.isEmpty)
+                .opacity(recentUserPrompts.isEmpty ? 0.4 : 1)
+                // 查看全部
                 Button {} label: {
                     Text("查看全部")
                         .font(.system(size: 12))

@@ -60,7 +60,18 @@ struct HealthSnapshot: Codable, Identifiable {
 @MainActor
 final class HealthKitService: ObservableObject {
     static let shared = HealthKitService()
-    private let store = HKHealthStore()
+
+    /// Xcode Canvas Preview 用的 no-op 实例：不构造 HKHealthStore（避免 framework import 卡 preview）
+    static let noop = HealthKitService(isPreview: true)
+
+    /// 真实例用 .shared；preview 用 .noop（避开 HKHealthStore() 初始化）
+    private let isPreview: Bool
+    private let store: HKHealthStore?
+
+    private init(isPreview: Bool = false) {
+        self.isPreview = isPreview
+        self.store = isPreview ? nil : HKHealthStore()
+    }
 
     @Published var lastSnapshot: HealthSnapshot?
     @Published var isAuthorized: Bool = false
@@ -96,6 +107,7 @@ final class HealthKitService: ObservableObject {
             error = "HealthKit 不可用"; return
         }
         do {
+            guard let store else { isAuthorized = false; return }
             try await store.requestAuthorization(toShare: [], read: readTypes)
             isAuthorized = true
         } catch {
@@ -157,7 +169,7 @@ final class HealthKitService: ObservableObject {
         ) { _, samples, _ in
             // not used (synchronous return needed) - just trigger
         }
-        store.execute(q)
+        store?.execute(q)
         return "HealthKit"
     }
 
@@ -169,7 +181,7 @@ final class HealthKitService: ObservableObject {
                 let val = stat?.averageQuantity()?.doubleValue(for: unit)
                 cont.resume(returning: val)
             }
-            store.execute(q)
+            store?.execute(q)
         }
     }
 
@@ -181,7 +193,7 @@ final class HealthKitService: ObservableObject {
                 let val = stat?.sumQuantity()?.doubleValue(for: unit)
                 cont.resume(returning: val)
             }
-            store.execute(q)
+            store?.execute(q)
         }
     }
 

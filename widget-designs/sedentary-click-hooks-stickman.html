@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>久坐助手 · 火柴人点击钩子</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --ink:#151d28; --muted:#748091; --pink:#ff5c9a; }
+  body {
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+    background:
+      radial-gradient(circle at 12% 12%, rgba(255,92,154,.18), transparent 26%),
+      radial-gradient(circle at 86% 14%, rgba(48,215,125,.18), transparent 27%),
+      linear-gradient(180deg,#f9fbfe 0%,#e8eef7 100%);
+    color: var(--ink);
+    padding: 34px 20px 54px;
+  }
+  .page { width: min(1120px, 100%); margin: 0 auto; }
+  .hero {
+    display: flex; align-items: end; justify-content: space-between;
+    gap: 24px; margin-bottom: 24px;
+  }
+  .eyebrow {
+    color: var(--pink); font-size: 12px; font-weight: 950;
+    letter-spacing: 1.6px; text-transform: uppercase;
+  }
+  h1 {
+    margin-top: 8px; font-size: clamp(34px,5vw,62px);
+    line-height: .88; font-weight: 950; letter-spacing: 0;
+  }
+  .brief {
+    max-width: 390px; color: var(--muted); font-size: 14px;
+    line-height: 1.55; font-weight: 760;
+  }
+  .grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 18px; }
+  .card {
+    aspect-ratio: 1 / 1.14;
+    border: 4px solid var(--ink); border-radius: 30px;
+    position: relative; overflow: hidden; cursor: pointer; user-select: none;
+    box-shadow: 0 10px 0 rgba(21,29,40,.14), 0 24px 44px rgba(21,29,40,.12);
+    transition: transform .14s ease, box-shadow .14s ease;
+  }
+  .card:active {
+    transform: translateY(6px);
+    box-shadow: 0 4px 0 rgba(21,29,40,.14), 0 12px 26px rgba(21,29,40,.12);
+  }
+  .card::before {
+    content: ""; position: absolute; inset: 12px 12px auto auto;
+    width: 42px; height: 42px; border-radius: 50%;
+    background: rgba(255,255,255,.35);
+  }
+  .front,.back {
+    position: absolute; inset: 0; padding: 14px;
+    display: grid; grid-template-rows: auto 1fr auto; gap: 10px;
+    transition: opacity .18s ease, transform .18s ease;
+  }
+  .back { opacity: 0; transform: scale(.96); pointer-events: none; }
+  .card.open .front { opacity: 0; transform: scale(1.04); }
+  .card.open .back { opacity: 1; transform: scale(1); }
+  .top {
+    position: relative; z-index: 2; display: flex; justify-content: space-between;
+    align-items: center; gap: 8px; font-size: 10px; line-height: 1;
+    font-weight: 950; letter-spacing: .7px;
+  }
+  .badge {
+    min-width: 27px; height: 27px; padding: 0 8px;
+    border-radius: 999px; border: 3px solid var(--ink); background: #fff;
+    display: grid; place-items: center; color: var(--ink);
+    font-size: 12px; box-shadow: 0 3px 0 rgba(21,29,40,.14);
+  }
+  .stage {
+    position: relative; z-index: 2; display: grid; place-items: center;
+    min-height: 0;
+  }
+  .bubble {
+    position: absolute; top: 3px; right: 2px;
+    min-width: 38px; min-height: 28px; padding: 5px 8px;
+    border: 3px solid var(--ink); border-radius: 14px;
+    background: #fff; font-size: 13px; font-weight: 950;
+    display: grid; place-items: center; box-shadow: 0 4px 0 rgba(21,29,40,.14);
+  }
+  svg { width: 100%; height: 100%; max-height: 118px; overflow: visible; }
+  .line { fill: none; stroke: var(--ink); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+  .thin { fill: none; stroke: var(--ink); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .head { fill: #fff4d7; stroke: var(--ink); stroke-width: 5; }
+  .eye { fill: var(--ink); }
+  .white { fill: #fff; stroke: var(--ink); stroke-width: 4; }
+  .heart { fill: #ff5c9a; stroke: var(--ink); stroke-width: 4; stroke-linejoin: round; }
+  .hook {
+    position: relative; z-index: 2; min-height: 54px;
+    border: 4px solid var(--ink); border-radius: 24px;
+    background: #fff; padding: 8px 10px; display: grid; place-items: center;
+    text-align: center; color: var(--ink); font-size: clamp(18px,2.1vw,25px);
+    line-height: 1.02; font-weight: 950; letter-spacing: 0;
+    box-shadow: 0 6px 0 rgba(21,29,40,.18);
+  }
+  .back .hook { min-height: 66px; font-size: clamp(18px,2.05vw,24px); }
+  .micro {
+    color: rgba(21,29,40,.72); text-align: center;
+    font-size: 12px; line-height: 1.28; font-weight: 850;
+  }
+  .a { background: linear-gradient(145deg,#ffc0d9,#ff5c9a); }
+  .b { background: linear-gradient(145deg,#b8f7cd,#30d77d); }
+  .c { background: linear-gradient(145deg,#ffe879,#ffb445); }
+  .d { background: linear-gradient(145deg,#aee4ff,#5d96ff); }
+  .e { background: linear-gradient(145deg,#d0b8ff,#7756ff); }
+  .f { background: linear-gradient(145deg,#ffb18b,#ff6363); }
+  .g { background: linear-gradient(145deg,#303f62,#121a2d); color:#fff; }
+  .g .top,.g .micro { color: rgba(255,255,255,.84); }
+  .g .line,.g .thin { stroke:#fff; }
+  .g .head { fill:#40506c; stroke:#fff; }
+  .g .eye { fill:#fff; }
+  .g .white { stroke:#fff; }
+  .g .hook,.g .badge,.g .bubble { color: var(--ink); }
+  .footer {
+    margin-top: 18px; color: var(--muted); font-size: 12px;
+    line-height: 1.5; font-weight: 760;
+  }
+  @media (max-width: 980px) { .grid { grid-template-columns: repeat(3,1fr); } }
+  @media (max-width: 660px) {
+    body { padding: 24px 14px 42px; }
+    .hero { align-items: start; flex-direction: column; }
+    .grid { grid-template-columns: repeat(2,1fr); gap: 14px; }
+    .card { border-radius: 26px; }
+    .front,.back { padding: 12px; }
+    .hook { min-height: 46px; font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Stickman Hooks</div>
+        <h1>火柴人来撩你<br>别只放图标</h1>
+      </div>
+      <p class="brief">每张都让火柴人做一个“欲言又止”的动作：偷看、递信、举报、抱盒子、锁住奖励。正面只留悬念，点开才出梗和动作。</p>
+    </section>
+
+    <section class="grid" aria-label="火柴人主题点击钩子卡片">
+      <article class="card d" tabindex="0">
+        <div class="front">
+          <div class="top"><span>身体私信</span><span class="badge">1</span></div>
+          <div class="stage">
+            <span class="bubble">新</span>
+            <svg viewBox="0 0 120 120"><rect class="white" x="69" y="24" width="32" height="24" rx="5"/><path class="thin" d="M71 28 L85 41 L99 28"/><circle class="head" cx="49" cy="36" r="17"/><circle class="eye" cx="43" cy="34" r="3"/><circle class="eye" cx="55" cy="34" r="3"/><path class="thin" d="M43 46 Q49 52 56 46"/><path class="line" d="M50 53 V77 M50 63 L69 48 M50 63 L32 75 M50 77 L34 105 M51 77 L73 103"/></svg>
+          </div>
+          <div class="hook">腿给你发了<br>一条私信</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>私信内容</span><span class="badge">腿</span></div>
+          <div class="stage"><svg viewBox="0 0 120 120"><circle class="head" cx="60" cy="34" r="18"/><circle class="eye" cx="53" cy="32" r="3"/><circle class="eye" cx="67" cy="32" r="3"/><path class="thin" d="M52 45 Q60 53 69 45"/><path class="line" d="M60 53 V80 M60 62 L40 74 M61 62 L82 74 M60 80 L43 106 M61 80 L82 106"/><path class="heart" d="M92 31 C92 23 105 23 105 34 C105 45 92 51 92 51 C92 51 79 45 79 34 C79 23 92 23 92 31 Z"/></svg></div>
+          <div class="hook">“想你了，<br>走两步见我。”</div>
+          <div class="micro">未读消息 + 身体拟人</div>
+        </div>
+      </article>
+
+      <article class="card a" tabindex="0">
+        <div class="front">
+          <div class="top"><span>偷偷评价</span><span class="badge">?</span></div>
+          <div class="stage">
+            <span class="bubble">嘘</span>
+            <svg viewBox="0 0 120 120"><path class="white" d="M73 25 H101 V83 H73 Z"/><circle class="head" cx="50" cy="39" r="17"/><circle class="eye" cx="44" cy="37" r="3"/><circle class="eye" cx="56" cy="37" r="3"/><path class="thin" d="M44 49 Q50 54 57 49"/><path class="line" d="M51 56 V78 M51 65 L71 58 M51 65 L34 75 M51 78 L36 105 M52 78 L72 103"/><path class="thin" d="M80 39 H94 M80 51 H96 M80 63 H91"/></svg>
+          </div>
+          <div class="hook">身体偷偷<br>评价你</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>评价结果</span><span class="badge">♥</span></div>
+          <div class="stage"><svg viewBox="0 0 120 120"><circle class="head" cx="60" cy="40" r="19"/><circle class="eye" cx="53" cy="38" r="3"/><circle class="eye" cx="67" cy="38" r="3"/><path class="thin" d="M51 51 Q60 60 70 51"/><circle cx="47" cy="46" r="4" fill="#ff6f9f"/><circle cx="73" cy="46" r="4" fill="#ff6f9f"/><path class="line" d="M60 59 V82 M60 68 L42 79 M61 68 L80 79 M60 82 L43 106 M61 82 L80 106"/></svg></div>
+          <div class="hook">“坐太久，<br>但还挺可爱。”</div>
+          <div class="micro">好奇评价内容</div>
+        </div>
+      </article>
+
+      <article class="card c" tabindex="0">
+        <div class="front">
+          <div class="top"><span>奖励待领</span><span class="badge">领</span></div>
+          <div class="stage">
+            <span class="bubble">¥</span>
+            <svg viewBox="0 0 120 120"><rect class="white" x="70" y="47" width="30" height="34" rx="7"/><path class="thin" d="M76 58 H94 M76 69 H90"/><circle class="head" cx="48" cy="38" r="17"/><circle class="eye" cx="42" cy="36" r="3"/><circle class="eye" cx="54" cy="36" r="3"/><path class="thin" d="M42 48 Q48 54 55 48"/><path class="line" d="M49 55 V78 M49 63 L70 58 M49 63 L31 73 M49 78 L34 105 M50 78 L70 103"/></svg>
+          </div>
+          <div class="hook">你有一个<br>回血红包</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>到账条件</span><span class="badge">+5</span></div>
+          <div class="stage"><svg viewBox="0 0 120 120"><rect class="white" x="25" y="24" width="68" height="20" rx="10"/><rect x="33" y="31" width="43" height="7" rx="4" fill="#30d77d"/><circle class="head" cx="60" cy="67" r="17"/><circle class="eye" cx="54" cy="65" r="3"/><circle class="eye" cx="67" cy="65" r="3"/><path class="thin" d="M53 76 Q60 83 68 76"/><path class="line" d="M60 84 V97 M60 90 L43 82 M61 90 L79 82 M60 97 L42 111 M61 97 L82 110"/></svg></div>
+          <div class="hook">站 30 秒，<br>立刻到账</div>
+          <div class="micro">奖励未领取</div>
+        </div>
+      </article>
+
+      <article class="card f" tabindex="0">
+        <div class="front">
+          <div class="top"><span>匿名举报</span><span class="badge">!</span></div>
+          <div class="stage">
+            <span class="bubble">报</span>
+            <svg viewBox="0 0 120 120"><path class="white" d="M76 42 H102 V83 H76 Z"/><path class="thin" d="M82 53 H96 M82 64 H95"/><circle class="head" cx="49" cy="38" r="17"/><path class="thin" d="M42 35 L47 39 M56 35 L52 39 M43 50 Q49 46 56 50"/><path class="line" d="M50 55 V77 M50 64 L75 57 M50 64 L32 75 M50 77 L35 105 M51 77 L72 103"/></svg>
+          </div>
+          <div class="hook">有人举报你<br>屁股超时</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>举报人</span><span class="badge">椅</span></div>
+          <div class="stage"><svg viewBox="0 0 120 120"><path class="line" d="M30 76 H91 M39 76 V104 M82 76 V104 M31 76 V52"/><circle class="head" cx="61" cy="36" r="17"/><path class="thin" d="M54 34 L58 38 M68 34 L64 38 M54 48 Q61 44 68 48"/><path class="line" d="M61 53 V76 M61 62 L42 76 M61 62 L80 76"/></svg></div>
+          <div class="hook">举报人：<br>你的椅子</div>
+          <div class="micro">想知道谁举报</div>
+        </div>
+      </article>
+
+      <article class="card e" tabindex="0">
+        <div class="front">
+          <div class="top"><span>乖乖盲盒</span><span class="badge">开</span></div>
+          <div class="stage">
+            <span class="bubble">?</span>
+            <svg viewBox="0 0 120 120"><rect class="white" x="70" y="50" width="32" height="31" rx="6"/><path class="thin" d="M70 61 H102 M86 50 V81"/><circle class="head" cx="47" cy="38" r="17"/><circle class="eye" cx="41" cy="36" r="3"/><circle class="eye" cx="53" cy="36" r="3"/><path class="thin" d="M41 48 Q47 54 54 48"/><path class="line" d="M48 55 V78 M48 64 L70 60 M48 64 L30 73 M48 78 L33 105 M49 78 L70 103"/></svg>
+          </div>
+          <div class="hook">打开今天的<br>乖乖盲盒</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>开盒结果</span><span class="badge">SSR</span></div>
+          <div class="stage"><svg viewBox="0 0 120 120"><circle class="head" cx="58" cy="39" r="18"/><circle class="eye" cx="52" cy="37" r="3"/><circle class="eye" cx="65" cy="37" r="3"/><path class="thin" d="M51 49 Q58 57 66 49"/><path class="heart" d="M88 34 C88 26 101 26 101 36 C101 46 88 52 88 52 C88 52 75 46 75 36 C75 26 88 26 88 34 Z"/><path class="line" d="M58 57 V81 M58 66 L38 78 M59 66 L80 78 M58 81 L42 106 M59 81 L80 106"/></svg></div>
+          <div class="hook">抽中：<br>摸摸头</div>
+          <div class="micro">随机奖励感</div>
+        </div>
+      </article>
+
+      <article class="card b" tabindex="0">
+        <div class="front">
+          <div class="top"><span>快完成</span><span class="badge">93%</span></div>
+          <div class="stage">
+            <span class="bubble">差7</span>
+            <svg viewBox="0 0 120 120"><rect class="white" x="24" y="25" width="72" height="18" rx="9"/><rect x="31" y="31" width="50" height="6" rx="3" fill="#30d77d"/><circle class="head" cx="60" cy="66" r="17"/><circle class="eye" cx="54" cy="64" r="3"/><circle class="eye" cx="67" cy="64" r="3"/><path class="thin" d="M53 75 Q60 82 68 75"/><path class="line" d="M60 83 V97 M60 90 L41 80 M61 90 L80 80 M60 97 L43 111 M61 97 L81 110"/></svg>
+          </div>
+          <div class="hook">差 7% 就能<br>被夸了</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>补齐方式</span><span class="badge">7%</span></div>
+          <div class="stage"><svg viewBox="0 0 120 120"><circle class="head" cx="54" cy="36" r="17"/><circle class="eye" cx="48" cy="34" r="3"/><circle class="eye" cx="61" cy="34" r="3"/><path class="thin" d="M47 45 Q54 52 62 45"/><path class="line" d="M55 53 V77 M55 62 L36 74 M56 62 L79 52 M55 77 L35 106 M56 77 L82 98"/><path class="white" d="M85 70 H100 V96 H85 Z"/></svg></div>
+          <div class="hook">走到水杯边，<br>我就夸你</div>
+          <div class="micro">接近完成最容易点</div>
+        </div>
+      </article>
+
+      <article class="card g" tabindex="0">
+        <div class="front">
+          <div class="top"><span>睡前密语</span><span class="badge">锁</span></div>
+          <div class="stage">
+            <span class="bubble">♥</span>
+            <svg viewBox="0 0 120 120"><path d="M91 31 A15 15 0 1 1 77 17 A10 10 0 1 0 91 31" fill="#ffd86b"/><circle class="head" cx="50" cy="41" r="17"/><circle class="eye" cx="44" cy="39" r="3"/><circle class="eye" cx="56" cy="39" r="3"/><path class="thin" d="M44 50 Q50 56 57 50"/><path class="line" d="M51 58 V81 M51 67 L34 78 M52 67 L72 58 M51 81 L35 106 M52 81 L76 101"/></svg>
+          </div>
+          <div class="hook">睡前奖励语<br>已锁住</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>解锁条件</span><span class="badge">2m</span></div>
+          <div class="stage"><svg viewBox="0 0 120 120"><path class="heart" d="M91 45 C91 35 106 35 106 48 C106 61 91 69 91 69 C91 69 76 61 76 48 C76 35 91 35 91 45 Z"/><circle class="head" cx="51" cy="38" r="17"/><circle class="eye" cx="45" cy="36" r="3"/><circle class="eye" cx="57" cy="36" r="3"/><path class="thin" d="M44 48 Q51 56 59 48"/><path class="line" d="M52 55 V78 M52 64 L34 75 M53 64 L73 55 M52 78 L35 104 M53 78 L78 98"/></svg></div>
+          <div class="hook">走 2 分钟，<br>解锁“真乖”</div>
+          <div class="micro">睡前私密奖励</div>
+        </div>
+      </article>
+
+      <article class="card a" tabindex="0">
+        <div class="front">
+          <div class="top"><span>关系提醒</span><span class="badge">冷</span></div>
+          <div class="stage">
+            <span class="bubble">...</span>
+            <svg viewBox="0 0 120 120"><circle class="head" cx="60" cy="34" r="17"/><path class="thin" d="M53 32 H57 M64 32 H68 M54 45 Q60 41 66 45"/><path class="line" d="M60 51 V75 M60 60 L40 72 M60 60 L80 72 M52 75 L44 106 M68 75 L76 106"/><path class="thin" d="M37 82 L45 91 L36 93 L45 105"/></svg>
+          </div>
+          <div class="hook">腿今天<br>不太理你</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>哄好方式</span><span class="badge">哄</span></div>
+          <div class="stage"><svg viewBox="0 0 120 120"><circle class="head" cx="57" cy="38" r="18"/><circle class="eye" cx="51" cy="36" r="3"/><circle class="eye" cx="64" cy="36" r="3"/><path class="thin" d="M50 48 Q57 56 65 48"/><path class="line" d="M58 56 V80 M58 65 L38 77 M59 65 L80 77 M58 80 L42 106 M59 80 L81 106"/><path class="heart" d="M90 33 C90 25 103 25 103 36 C103 47 90 53 90 53 C90 53 77 47 77 36 C77 25 90 25 90 33 Z"/></svg></div>
+          <div class="hook">哄它很简单：<br>站起来走</div>
+          <div class="micro">关系修复感</div>
+        </div>
+      </article>
+
+      <article class="card c" tabindex="0">
+        <div class="front">
+          <div class="top"><span>低成本</span><span class="badge">30</span></div>
+          <div class="stage">
+            <span class="bubble">s</span>
+            <svg viewBox="0 0 120 120"><circle class="white" cx="60" cy="44" r="26"/><path class="line" d="M60 44 V27 M60 44 L75 52"/><circle class="head" cx="60" cy="87" r="14"/><circle class="eye" cx="55" cy="85" r="2.5"/><circle class="eye" cx="65" cy="85" r="2.5"/><path class="thin" d="M55 94 Q60 98 66 94"/></svg>
+          </div>
+          <div class="hook">只占你<br>30 秒</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>开始后</span><span class="badge">陪</span></div>
+          <div class="stage"><svg viewBox="0 0 120 120"><circle class="head" cx="55" cy="36" r="17"/><circle class="eye" cx="49" cy="34" r="3"/><circle class="eye" cx="62" cy="34" r="3"/><path class="thin" d="M48 45 Q55 52 63 45"/><path class="line" d="M56 53 V77 M56 62 L37 74 M57 62 L78 52 M56 77 L36 106 M57 77 L83 98"/><text x="78" y="88" font-size="18" font-weight="950" fill="#151d28">走</text></svg></div>
+          <div class="hook">我陪你，<br>你别赖着</div>
+          <div class="micro">低成本承诺</div>
+        </div>
+      </article>
+
+      <article class="card d" tabindex="0">
+        <div class="front">
+          <div class="top"><span>小剧场</span><span class="badge">新</span></div>
+          <div class="stage">
+            <span class="bubble">腰</span>
+            <svg viewBox="0 0 120 120"><circle class="head" cx="55" cy="32" r="16"/><path class="thin" d="M48 31 L53 35 M65 31 L61 35 M50 44 Q56 40 63 44"/><path class="line" d="M56 49 Q63 65 74 79 M68 64 L48 76 M74 78 L91 70 M75 79 L63 109 M76 79 L94 107"/><circle cx="74" cy="67" r="7" fill="#ffd84f" stroke="#151d28" stroke-width="5"/></svg>
+          </div>
+          <div class="hook">今晚腰会演<br>哪一出？</div>
+        </div>
+        <div class="back">
+          <div class="top"><span>预告片</span><span class="badge">播</span></div>
+          <div class="stage"><svg viewBox="0 0 120 120"><path class="white" d="M24 33 H96 Q104 33 104 41 V76 Q104 84 96 84 H66 L55 98 V84 H24 Q16 84 16 76 V41 Q16 33 24 33 Z"/><text x="29" y="58" font-size="15" font-weight="950" fill="#151d28">明早</text><text x="29" y="76" font-size="15" font-weight="950" fill="#151d28">起不来</text></svg></div>
+          <div class="hook">《明早起不来》<br>即将上映</div>
+          <div class="micro">预告式悬念</div>
+        </div>
+      </article>
+    </section>
+
+    <p class="footer">交互说明：点击任意火柴人卡片会翻出答案。主视觉统一用火柴人动作，不用大图标当核心。</p>
+  </main>
+
+  <script>
+    document.querySelectorAll(".card").forEach((card) => {
+      const toggle = () => card.classList.toggle("open");
+      card.addEventListener("click", toggle);
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          toggle();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

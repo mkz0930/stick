@@ -13,24 +13,113 @@ struct FeatureRow: View {
     let deviceSet: Set<DeviceID>
     let healthStatuses: [MetricID: MetricDataStatus]
     let moodLine: MoodLineInfo?
+    let moodScore: Double           // 0..100, 跟 MOOD 标签一起显示
     let unifiedAlerts: [UnifiedAlert]
+    let sitDurationText: String?      // 坐姿秒表 live MM:SS（sit 状态时为 "47:23" 这种，非 sit 时 nil）
     var onAlertTap: (UnifiedAlert) -> Void = { _ in }
+    var onLockTap: () -> Void = { }   // 点击锁 → 跳添加设备界面
+    var onSedentaryTap: () -> Void = { }  // 点击坐姿秒表 → 跳坐姿详情/起身提醒
+
+    @State private var isExpanded: Bool = false
+    @State private var alertsDetailExpanded: Bool = false
+
+    /// 3 个指标中"心率"那行（任意位置）
+    private var heartRateMetric: Metric? {
+        [state.primaryMetric, state.secondaryMetric, state.tertiaryMetric]
+            .first(where: { $0.label == "HEART RATE" })
+    }
+
+    /// 3 个指标中"既不是心率也不是心情"那行（= 对应状态的核心数据）
+    ///   walk: DURATION   sit: SEDENTARY   sleep: SLEEP
+    private var stateSpecificMetric: Metric? {
+        [state.primaryMetric, state.secondaryMetric, state.tertiaryMetric]
+            .first(where: { $0.label != "HEART RATE" && $0.label != "MOOD" })
+    }
+
+    /// 折叠时被隐藏的"其它指标"行（剩下的 1-2 个）
+    private var hiddenMetrics: [Metric] {
+        let visibleLabels = Set<String>(
+            [heartRateMetric?.label, stateSpecificMetric?.label].compactMap { $0 }
+        )
+        return [state.primaryMetric, state.secondaryMetric, state.tertiaryMetric]
+            .filter { !visibleLabels.contains($0.label) }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            FeatureLine(metric: state.primaryMetric,   accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses)
-            FeatureLine(metric: state.secondaryMetric, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses)
-            FeatureLine(metric: state.tertiaryMetric,  accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses)
+            // ① 心率
+            if let hr = heartRateMetric {
+                FeatureLine(metric: hr, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap)
+            }
+            // ② 对应状态的核心数据
+            if let ss = stateSpecificMetric {
+                FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap)
+            }
+            // ③ 心情
             if let m = moodLine {
-                MoodLine(info: m, accent: state.accent)
+                MoodLine(info: m, accent: state.accent, moodScore: moodScore)
             }
-            if let top = unifiedAlerts.first {
-                AlertsLine(top: top, totalCount: unifiedAlerts.count) { onAlertTap(top) }
+            // ④ 展开后：剩下的指标行 + 异常计数
+            if isExpanded {
+                ForEach(hiddenMetrics, id: \.label) { m in
+                    FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap)
+                }
+                // 异常摘要：默认只显示计数 + 最严重项标题
+                if !unifiedAlerts.isEmpty {
+                    if alertsDetailExpanded {
+                        // 展开态：每条异常独立一行
+                        ForEach(Array(unifiedAlerts.enumerated()), id: \.offset) { idx, alert in
+                            AlertsLine(
+                                top: alert,
+                                totalCount: unifiedAlerts.count,
+                                isFirst: idx == 0
+                            ) { onAlertTap(alert) }
+                        }
+                    } else {
+                        // 折叠态：只显示计数 + 第 1 项标题
+                        if let top = unifiedAlerts.first {
+                            AlertsLine(
+                                top: top,
+                                totalCount: unifiedAlerts.count,
+                                isFirst: true
+                            ) {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    alertsDetailExpanded = true
+                                }
+                            }
+                        }
+                    }
+                }
             }
+            // ⑤ 展开/折叠按键
+            expandToggle
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.easeInOut(duration: 0.35), value: moodLine)
-        .animation(.easeInOut(duration: 0.3), value: unifiedAlerts.count)
+        .animation(.easeInOut(duration: 0.28), value: isExpanded)
+    }
+
+    /// 左下角小按键：chevron + "more / less" 文字
+    private var expandToggle: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.28)) {
+                isExpanded.toggle()
+                if !isExpanded { alertsDetailExpanded = false }
+            }
+        } label: {
+            HStack(spacing: 3) {
+                Text(isExpanded ? "LESS" : "MORE")
+                    .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                    .tracking(1.2)
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 8, weight: .heavy))
+            }
+            .foregroundColor(Theme.slate)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)  // 靠左
     }
 }
 
@@ -41,6 +130,7 @@ struct FeatureRow: View {
 private struct AlertsLine: View {
     let top: UnifiedAlert
     let totalCount: Int
+    var isFirst: Bool = true   // 第一条显示 "ALERTS · N 项" 标题，后续只显示标题
     var onTap: () -> Void
 
     var body: some View {
@@ -50,17 +140,19 @@ private struct AlertsLine: View {
                     .fill(top.severity.color)
                     .frame(width: 5, height: 5)
 
-                Text("ALERTS")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .tracking(0.8)
-                    .foregroundColor(Theme.slate)
-                    .lineLimit(1)
-                    .frame(width: 68, alignment: .leading)
+                if isFirst {
+                    Text("ALERTS")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .tracking(0.8)
+                        .foregroundColor(Theme.slate)
+                        .lineLimit(1)
+                        .frame(width: 68, alignment: .leading)
 
-                Text("\(totalCount) 项")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .tracking(0.3)
-                    .foregroundColor(top.severity.color)
+                    Text("\(totalCount) 项")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .tracking(0.3)
+                        .foregroundColor(top.severity.color)
+                }
 
                 Text(top.title)
                     .font(.system(size: 13, weight: .heavy, design: .rounded))
@@ -88,6 +180,7 @@ struct MoodLineInfo: Equatable {
 private struct MoodLine: View {
     let info: MoodLineInfo
     let accent: Color
+    let moodScore: Double      // 0..100 数值，跟 "MOOD" 标签放一起
 
     private var dotColor: Color {
         switch info.tone {
@@ -109,32 +202,49 @@ private struct MoodLine: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            // 状态色小点（跟 FeatureLine 一致）
             Circle()
                 .fill(dotColor)
-                .frame(width: 5, height: 5)
+                .frame(width: 6, height: 6)
 
+            // mono 标签 — 字号 11pt（跟 FeatureLine 一致）
             Text("MOOD")
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .font(.system(size: 11, weight: .heavy, design: .monospaced))
                 .tracking(0.8)
                 .foregroundColor(Theme.slate)
                 .lineLimit(1)
-                .frame(width: 68, alignment: .leading)
+                .frame(width: 80, alignment: .leading)
 
-            // 心情曲线（柔和填充曲线）
-            MoodSparkline(kind: info.spark, color: dotColor)
-                .frame(width: 52, height: 18)
+            // 心情曲线 — 已删除（用户要求）
 
-            Text(info.text)
-                .font(.system(size: 13, weight: .heavy, design: .rounded))
-                .foregroundColor(Theme.navy)
-                .lineLimit(1)
+            // 数值 — 字号 17pt（**跟 FeatureLine 数值列完全一致**）
+            // 放在 78pt 固定列宽内左对齐 → 跨行"92 bpm / 18 min / 27"垂直对齐到同一条线
+            HStack(spacing: 2) {
+                Text("\(Int(moodScore))")
+                    .font(.system(size: 17, weight: .heavy, design: .rounded))
+                    .foregroundColor(dotColor)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                Text("/100")
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundColor(Theme.mist)
+            }
+            .frame(width: 78, alignment: .leading)
 
-            Text("心情 · \(statusText)")
-                .font(.system(size: 10, weight: .medium, design: .serif))
-                .foregroundColor(Theme.mist)
-                .lineLimit(1)
+            // 副标 — 字号 11pt（**"82/100" 后面**：先文字描述 "专注"，后状态 "FOCUS"）
+            HStack(spacing: 6) {
+                Text(info.text)
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .foregroundColor(Theme.navy)
+                    .lineLimit(1)
+                Text(statusText)
+                    .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                    .tracking(0.6)
+                    .foregroundColor(dotColor)
+                    .lineLimit(1)
+            }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 3)
     }
 }
 
@@ -219,10 +329,17 @@ private struct FeatureLine: View {
     let accent: Color
     let deviceSet: Set<DeviceID>
     let healthStatuses: [MetricID: MetricDataStatus]
+    let sitDurationText: String?      // 坐姿秒表 live（覆盖 SEDENTARY 行的硬编码值）
+    var onLockTap: () -> Void = { }
+    var onSedentaryTap: () -> Void = { }
 
     @State private var showLockHint: Bool = false
 
     private var isHeartRate: Bool { metric.label == "HEART RATE" }
+    private var isSedentary: Bool { metric.label == "SEDENTARY" }
+
+    /// 优先用 live 坐姿秒表（SEDENTARY 行），否则用硬编码 metric.value
+    private var displayValue: String { sitDurationText ?? metric.value }
 
     /// 该 metric 在当前 UI 下的呈现状态
     private var availability: MetricAvailability {
@@ -239,15 +356,15 @@ private struct FeatureLine: View {
             // 状态色小点 (灰显时变灰)
             Circle()
                 .fill(isLocked ? Theme.mist.opacity(0.5) : accent)
-                .frame(width: 5, height: 5)
+                .frame(width: 6, height: 6)
 
-            // mono 标签（等宽对齐）
+            // mono 标签（等宽对齐）— 字体加大到 11pt
             Text(metric.label)
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .font(.system(size: 11, weight: .heavy, design: .monospaced))
                 .tracking(0.8)
                 .foregroundColor(isLocked ? Theme.mist : Theme.slate)
                 .lineLimit(1)
-                .frame(width: 68, alignment: .leading)
+                .frame(width: 80, alignment: .leading)
 
             // 心率专属：ECG 动画波形 (锁定时不再画)
             if isHeartRate && !isLocked {
@@ -255,32 +372,38 @@ private struct FeatureLine: View {
                     .frame(width: 52, height: 18)
             }
 
-            // 数值 / 锁图标
-            if isLocked {
-                HStack(spacing: 3) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 9, weight: .semibold))
-                    Text("—")
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+            // 数值 / 锁图标（**等宽列对齐 + 字号 17pt 统一**）
+            // 坐姿秒表（SEDENTARY 行）用 live 文本覆盖硬编码值
+            Group {
+                if isLocked {
+                    HStack(spacing: 3) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("—")
+                            .font(.system(size: 17, weight: .heavy, design: .rounded))
+                    }
+                    .foregroundColor(Theme.mist)
+                } else {
+                    Text(displayValue)
+                        .font(.system(size: 17, weight: .heavy, design: .rounded))
+                        .foregroundColor(isEmpty ? Theme.mist : Theme.navy)
+                        .lineLimit(1)
+                        .monospacedDigit()  // 数字宽度固定，跨行对齐
                 }
-                .foregroundColor(Theme.mist)
-            } else {
-                Text(metric.value)
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
-                    .foregroundColor(isEmpty ? Theme.mist : Theme.navy)
-                    .lineLimit(1)
             }
+            .frame(width: 78, alignment: .leading)  // **固定列宽 78pt**，所有数值左对齐
 
-            // 副标 (灰显时用 availability.hint; 正常时用 metric.desc)
+            // 副标 (灰显时用 availability.hint; 正常时用 metric.desc) — 字体加大到 11pt
             Text(isLocked ? availability.hint : metric.desc)
-                .font(.system(size: 10, weight: .medium, design: .serif))
+                .font(.system(size: 11, weight: .regular, design: .serif))
                 .foregroundColor(Theme.mist)
                 .lineLimit(1)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 3)
         .contentShape(Rectangle())
         .onTapGesture {
-            if isLocked { showLockHint = true }
+            if isLocked { onLockTap() }
+            else if metric.label == "SEDENTARY" { onSedentaryTap() }
         }
         .popover(isPresented: $showLockHint, arrowEdge: .top) {
             LockHintPopover(metric: metric, availability: availability)

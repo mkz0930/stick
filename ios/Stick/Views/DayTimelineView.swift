@@ -251,7 +251,7 @@ struct DayTimelineView: View {
                 }
             } label: {
                 HStack(spacing: 4) {
-                    Image(systemName: "iphone.badge.plus")
+                    Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 11, weight: .bold))
                     Text("连接设备")
                         .font(.system(size: 12, weight: .semibold))

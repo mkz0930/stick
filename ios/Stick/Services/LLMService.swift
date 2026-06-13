@@ -72,7 +72,17 @@ struct LLMService {
                         // 某些 Qwen 部署返回非标准 SSE；尝试一次性补发
                         let fallback = try await sendMessage(message, context: context)
                         if !fallback.isEmpty {
-                            continuation.yield(fallback)
+                            // **模拟流式**：切成 2-3 字一组 + 短延迟 yield，UX 上看着像流式
+                            let chunkSize = 2  // 每组 2 字符
+                            var idx = fallback.startIndex
+                            while idx < fallback.endIndex {
+                                let next = fallback.index(idx, offsetBy: chunkSize, limitedBy: fallback.endIndex) ?? fallback.endIndex
+                                let piece = String(fallback[idx..<next])
+                                continuation.yield(piece)
+                                if Task.isCancelled { break }
+                                try? await Task.sleep(nanoseconds: 25_000_000)  // 25ms 每片
+                                idx = next
+                            }
                         }
                     }
                     continuation.finish()

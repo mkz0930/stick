@@ -18,14 +18,20 @@ import Combine
 final class HealthAuthService: ObservableObject {
     static let shared = HealthAuthService()
 
+    /// Xcode Canvas Preview 用的 no-op 实例：不构造 HKHealthStore（避开 framework import 卡 preview）
+    static let noop = HealthAuthService(isPreview: true)
+
     /// 状态字典 (启动 + 30s 刷新)
     @Published private(set) var statuses: [MetricID: MetricDataStatus] = [:]
 
-    private let store = HKHealthStore()
+    private let isPreview: Bool
+    private let store: HKHealthStore?
     private var refreshTask: Task<Void, Never>?
 
-    /// 全部 metric 都"未知"，先占位
-    init() {
+    private init(isPreview: Bool = false) {
+        self.isPreview = isPreview
+        self.store = isPreview ? nil : HKHealthStore()
+        // 全部 metric 都"未知"，先占位
         for m in MetricID.allCases {
             statuses[m] = .unknown
         }
@@ -87,7 +93,7 @@ final class HealthAuthService: ObservableObject {
                     cont.resume(returning: .noData)
                 }
             }
-            self.store.execute(q)
+            self.store?.execute(q)
         }
     }
 
