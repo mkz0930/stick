@@ -17,6 +17,7 @@ struct PersonalView: View {
     @Binding var openWidgetPreview: Bool
     @Binding var deviceSet: Set<DeviceID>
     @ObservedObject var healthAuth: HealthAuthService
+    @ObservedObject var chatHistory: ChatHistoryStore
 
     @State private var showSpecialists: Bool = false
     @State private var showDataRecord: Bool = false
@@ -86,6 +87,17 @@ struct PersonalView: View {
                     }
                     .padding(.top, 24)
 
+                    Rectangle()
+                        .fill(Theme.borderSoft)
+                        .frame(height: 0.5)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 24)
+
+                    chatHistorySection
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
+
+                    // 分隔
                     Rectangle()
                         .fill(Theme.borderSoft)
                         .frame(height: 0.5)
@@ -246,6 +258,81 @@ struct PersonalView: View {
                 deviceSet.remove(id)
             } else {
                 deviceSet.insert(id)
+            }
+        }
+    }
+
+    // MARK: - 对话记录
+
+    /// 最近 N 条 user 提问（按时间倒序）
+    private var recentUserPrompts: [PersistedChatMessage] {
+        Array(
+            chatHistory.messages
+                .filter { $0.role == "user" }
+                .sorted { $0.timestamp > $1.timestamp }
+                .prefix(5)
+        )
+    }
+
+    private var chatHistorySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("对话记录")
+                    .font(.system(size: 14))
+                    .foregroundColor(Theme.slate)
+                Spacer()
+                if !chatHistory.messages.isEmpty {
+                    Text("\(chatHistory.messages.filter { $0.role == "user" }.count) 条")
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .tracking(0.4)
+                        .foregroundColor(Theme.slate)
+                }
+                Button {} label: {
+                    Text("查看全部")
+                        .font(.system(size: 12))
+                        .foregroundColor(StickState.walk.accent)
+                }
+                .padding(.leading, 6)
+            }
+            .padding(.bottom, 12)
+
+            VStack(spacing: 0) {
+                if recentUserPrompts.isEmpty {
+                    HStack(spacing: 8) {
+                        Image(systemName: "bubble.left.and.bubble.right")
+                            .font(.system(size: 14, weight: .light))
+                            .foregroundColor(Theme.mist)
+                        Text("还没有对话记录")
+                            .font(.system(size: 13))
+                            .foregroundColor(Theme.slate)
+                        Spacer()
+                    }
+                    .frame(minHeight: 40)
+                } else {
+                    ForEach(Array(recentUserPrompts.enumerated()), id: \.offset) { idx, msg in
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "bubble.left.fill")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(StickState.walk.accent)
+                                .frame(width: 18)
+                                .padding(.top, 2)
+                            Text(msg.content)
+                                .font(.system(size: 13, weight: .regular, design: .serif))
+                                .foregroundColor(Theme.navy)
+                                .lineLimit(2)
+                                .lineSpacing(1.5)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding(.vertical, 8)
+                        if idx < recentUserPrompts.count - 1 {
+                            Rectangle()
+                                .fill(Theme.borderSoft)
+                                .frame(height: 0.5)
+                                .padding(.leading, 28)
+                        }
+                    }
+                }
             }
         }
     }
@@ -498,7 +585,8 @@ private struct CapabilityTag: View {
         openDataRecord: .constant(false),
         openWidgetPreview: .constant(false),
         deviceSet: .constant([.iPhone]),
-        healthAuth: HealthAuthService.shared
+        healthAuth: HealthAuthService.shared,
+        chatHistory: ChatHistoryStore.shared
     )
 }
 

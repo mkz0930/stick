@@ -13,13 +13,32 @@ import WidgetKit
 /// 状态来源：`StickState.current(at: now)`。
 /// 拖动时间线时 `scrubOffset` 临时覆盖，UI 全程跟着更新。
 struct ContentView: View {
-    @StateObject private var hk = HealthKitService.shared
-    @StateObject private var healthAuth = HealthAuthService.shared
+    // HealthKit + HealthAuth 在 Xcode Preview (Canvas) 里会让预览变卡甚至 5s 超时
+    // (HKHealthStore 构造 + 真实 framework import)。Preview 注入 Noop 替代，真 app
+    // runtime 仍然用真 shared 单例。
+    @StateObject private var hk: HealthKitService = {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil {
+            return HealthKitService.noop
+        }
+        #endif
+        return HealthKitService.shared
+    }()
+    @StateObject private var healthAuth: HealthAuthService = {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil {
+            return HealthAuthService.noop
+        }
+        #endif
+        return HealthAuthService.shared
+    }()
+    @StateObject private var chatHistory = ChatHistoryStore.shared
     @State private var now: Date = Date()
     @State private var scrubOffset: Int? = nil   // 0 = 现在；>0 表示过去多少分钟（窗口起点 = now - 24h）
     @State private var showFilm: Bool = false
     @State private var showSleepReport: Bool = false
     @State private var showNeckReport: Bool = false
+    @State private var showSedentaryDetail: Bool = false
     @State private var showPersonal: Bool = false
     @State private var openSpecialists: Bool = false
     @State private var openDataRecord: Bool = false
@@ -33,7 +52,7 @@ struct ContentView: View {
     @State private var inference: StateInference.Result? = nil
 
     // Chat
-    @State private var showChat: Bool = true
+    @State private var showChat: Bool = false
     @State private var chatSeed: String = ""
     @State private var chatKey: Int = 0
     @State private var inputDraft: String = ""
@@ -147,7 +166,25 @@ struct ContentView: View {
         }
     }
 
-    /// 情绪数值 0..100。基于 mood 文字（"兴奋/良好/专注/疲倦/平稳"）映射。
+    /// 坐姿秒表（live MM:SS）：从当前 sit 时段开始到现在的时长
+    /// sit 段是 08:30-12:00 和 13:30-18:00；非 sit 时返回 nil
+    private var sitDurationText: String? {
+        guard displayState == .sit else { return nil }
+        let m = StickState.minutesOfDay(displayDate)
+        // 找当前 sit 段的起点
+        let startMinute: Int
+        if m >= 510 && m < 720 {
+            startMinute = 510   // 08:30
+        } else if m >= 810 && m < 1080 {
+            startMinute = 810   // 13:30
+        } else {
+            return nil
+        }
+        let elapsedMin = m - startMinute
+        let mm = elapsedMin
+        let ss = Calendar.current.component(.second, from: displayDate)
+        return String(format: "%d:%02d", mm, ss)
+    }
     private var moodScore: Double {
         // walk: 兴奋 92, 良好 75, 愉悦 80
         // sit: 专注 82, 疲倦 30, 平稳 65
@@ -247,11 +284,16 @@ struct ContentView: View {
         }
     }
 
+    /// Preview 模式检测 — Xcode 跑 #Preview 时设了这个环境变量
+    fileprivate static var isRunningForPreviews: Bool {
+        ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             mainContent
 
-            if showChat {
+            if showChat && !Self.isRunningForPreviews {
                 ChatOverlay(
                     state: displayState,
                     initialText: chatSeed,
@@ -295,7 +337,8 @@ struct ContentView: View {
                     openDataRecord: $openDataRecord,
                     openWidgetPreview: $openWidgetPreview,
                     deviceSet: $deviceSet,
-                    healthAuth: healthAuth
+                    healthAuth: healthAuth,
+                    chatHistory: chatHistory
                 )
                 .frame(width: panelWidth)
                 .offset(x: showPersonal ? 0 : -panelWidth)
@@ -313,9 +356,15 @@ struct ContentView: View {
                     }
             )
         }
-        .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
-            // 30s 校准一次实际时间
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
+            // Preview 模式跳过 — 不让 Timer 反复触发重渲染
+            guard !Self.isRunningForPreviews else { return }
+            // 1s 校准一次（让坐姿秒表 / DURATION 等 live 数据每秒跳一次）
             now = Date()
+        }
+        .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
+            // Preview 模式跳过 — 不让 Timer 反复触发重渲染
+            guard !Self.isRunningForPreviews else { return }
             // 30s 重新跑一次 HealthKit 抓取 + 状态推断（.today 持续增长）
             Task {
                 _ = await HealthKitService.shared.captureSnapshot()
@@ -323,6 +372,8 @@ struct ContentView: View {
             }
         }
         .onChange(of: displayState) { _ in
+            // Preview 模式跳过 — Widget reload 在 Preview 里会卡死
+            guard !Self.isRunningForPreviews else { return }
             // 状态切换时把当前快照写给 Widget
             let snap = SharedStickState(
                 stateRaw: displayState.rawValue,
@@ -375,7 +426,8 @@ struct ContentView: View {
             .presentationDragIndicator(.visible)
         }
         .onAppear {
-            // showChat = true  // 暂时关闭，方便看主页 InputBar 位置
+            // Preview 模式完全短路 — 不跑 HealthKit / Timer / refresh
+            guard !Self.isRunningForPreviews else { return }
             // 启动 HealthKit 抓取 (1 分钟一次, 写到本地)
             Task {
                 #if targetEnvironment(simulator)
@@ -409,73 +461,80 @@ struct ContentView: View {
             ZStack(alignment: .top) {
                 background
 
-                // 滚动内容（不含 InputBar）
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        // TopBar + BODY ENERGY（**同一水平行**：左 menu 按键 + 右电池徽章）
-                        HStack(alignment: .center, spacing: 0) {
-                            TopBarView(onMenuTap: { showPersonal = true })
-                            Spacer(minLength: 0)
-                            EnergyBadge(
-                                state: displayState,
-                                level: bodyEnergy,
-                                color: energyColor,
-                                onTap: { showFilm = true }
-                            )
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 10)
-                        .padding(.bottom, 4)
-
-                        // 3 行数据 + 心情
-                        FeatureRow(
+                // Preview 模式：跳过 ScrollView（强制全内容布局是 Canvas 超时常见源）
+                let contentVStack = VStack(spacing: 0) {
+                    // TopBar + BODY ENERGY（**同一水平行**：左 menu 按键 + 右电池徽章）
+                    HStack(alignment: .center, spacing: 0) {
+                        TopBarView(onMenuTap: { showPersonal = true })
+                        Spacer(minLength: 0)
+                        EnergyBadge(
                             state: displayState,
-                            deviceSet: deviceSet,
-                            healthStatuses: healthAuth.statuses,
-                            moodLine: displayMoodLine,
-                            moodScore: moodScore,
-                            unifiedAlerts: unifiedAlerts,
-                            onAlertTap: handleAlertTap
+                            level: bodyEnergy,
+                            color: energyColor,
+                            onTap: { showFilm = true }
                         )
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 6)
-
-                        // 主舞台 + 24h 竖向时间轴
-                        HStack(alignment: .top, spacing: 10) {
-                            StageHeroView(
-                                state: displayState,
-                                mood: figureMood,
-                                tiredness: figureTiredness,
-                                neckWarningOpacity: neckWarningOpacity,
-                                bodyEnergy: 0.6,
-                                energyColor: Color.orange,
-                                isScrubbing: isScrubbing,
-                                inference: inference,
-                                showDevicePicker: $showDevicePicker,
-                                scrubOffset: $scrubOffset,
-                                onPreview: { showFilm = true },
-                                onSleepAlert: { showSleepReport = true },
-                                onNeckWarningTap: { showNeckReport = true }
-                            )
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 400)
-
-                            DayTimelineView(
-                                schedule: StickState.daySchedule,
-                                now: now,
-                                scrubOffset: $scrubOffset,
-                                showDevicePicker: $showDevicePicker
-                            )
-                            .frame(width: 22)
-                            .frame(height: 400)
-                        }
-                        .padding(.leading, 16)
-                        .padding(.trailing, 4)
-
-                        // 给 InputBar 预留滚动空间 (88pt ≈ InputBar 高度)
-                        Spacer()
-                            .frame(height: 96)
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+                    .padding(.bottom, 4)
+
+                    // 3 行数据 + 心情
+                    FeatureRow(
+                        state: displayState,
+                        deviceSet: deviceSet,
+                        healthStatuses: healthAuth.statuses,
+                        moodLine: displayMoodLine,
+                        moodScore: moodScore,
+                        unifiedAlerts: unifiedAlerts,
+                        sitDurationText: sitDurationText,  // ← live 坐姿秒表
+                        onAlertTap: handleAlertTap,
+                        onLockTap: { showDevicePicker = true },
+                        onSedentaryTap: { showSedentaryDetail = true }
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 6)
+
+                    // 主舞台 + 24h 竖向时间轴
+                    HStack(alignment: .top, spacing: 10) {
+                        StageHeroView(
+                            state: displayState,
+                            mood: figureMood,
+                            tiredness: figureTiredness,
+                            neckWarningOpacity: neckWarningOpacity,
+                            bodyEnergy: 0.6,
+                            energyColor: Color.orange,
+                            isScrubbing: isScrubbing,
+                            inference: inference,
+                            showDevicePicker: $showDevicePicker,
+                            scrubOffset: $scrubOffset,
+                            onPreview: { showFilm = true },
+                            onSleepAlert: { showSleepReport = true },
+                            onNeckWarningTap: { showNeckReport = true }
+                        )
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 400)
+
+                        DayTimelineView(
+                            schedule: StickState.daySchedule,
+                            now: now,
+                            scrubOffset: $scrubOffset,
+                            showDevicePicker: $showDevicePicker
+                        )
+                        .frame(width: 22)
+                        .frame(height: 400)
+                    }
+                    .padding(.leading, 16)
+                    .padding(.trailing, 4)
+
+                    // 给 InputBar 预留滚动空间 (88pt ≈ InputBar 高度)
+                    Spacer()
+                        .frame(height: 96)
+                }
+
+                if Self.isRunningForPreviews {
+                    contentVStack
+                } else {
+                    ScrollView(.vertical, showsIndicators: false) { contentVStack }
                 }
 
                 // InputBar 钉在屏幕 0.9 位置 (中心 = 0.9 * height)
@@ -485,7 +544,8 @@ struct ContentView: View {
                     InputBar(
                         state: displayState,
                         text: $inputDraft,
-                        onOpenChat: openChat
+                        onOpenChat: openChat,
+                        lastHistoryPrompt: chatHistory.messages.last(where: { $0.role == "user" })?.content
                     )
                     .padding(.horizontal, 16)
                 }
@@ -509,36 +569,39 @@ struct ContentView: View {
                 endPoint: .bottom
             )
 
-            // 弱网格（v6 style）
-            Canvas { ctx, size in
-                let step: CGFloat = 36
-                var x: CGFloat = 0
-                while x < size.width {
-                    var p = Path()
-                    p.move(to: CGPoint(x: x, y: 0))
-                    p.addLine(to: CGPoint(x: x, y: size.height))
-                    ctx.stroke(p, with: .color(Theme.grid), lineWidth: 0.5)
-                    x += step
+            // Preview 跳过网格 Canvas + RadialGradient（这两个是最重的渲染源）
+            if !Self.isRunningForPreviews {
+                // 弱网格（v6 style）
+                Canvas { ctx, size in
+                    let step: CGFloat = 36
+                    var x: CGFloat = 0
+                    while x < size.width {
+                        var p = Path()
+                        p.move(to: CGPoint(x: x, y: 0))
+                        p.addLine(to: CGPoint(x: x, y: size.height))
+                        ctx.stroke(p, with: .color(Theme.grid), lineWidth: 0.5)
+                        x += step
+                    }
+                    var y: CGFloat = 0
+                    while y < size.height {
+                        var p = Path()
+                        p.move(to: CGPoint(x: 0, y: y))
+                        p.addLine(to: CGPoint(x: size.width, y: y))
+                        ctx.stroke(p, with: .color(Theme.grid), lineWidth: 0.5)
+                        y += step
+                    }
                 }
-                var y: CGFloat = 0
-                while y < size.height {
-                    var p = Path()
-                    p.move(to: CGPoint(x: 0, y: y))
-                    p.addLine(to: CGPoint(x: size.width, y: y))
-                    ctx.stroke(p, with: .color(Theme.grid), lineWidth: 0.5)
-                    y += step
-                }
-            }
-            .allowsHitTesting(false)
+                .allowsHitTesting(false)
 
-            // 顶部状态柔光
-            RadialGradient(
-                colors: [displayState.accentSoft.opacity(0.55), .clear],
-                center: .init(x: 0.5, y: 0.0),
-                startRadius: 30,
-                endRadius: 360
-            )
-            .animation(.easeInOut(duration: 0.45), value: displayState)
+                // 顶部状态柔光
+                RadialGradient(
+                    colors: [displayState.accentSoft.opacity(0.55), .clear],
+                    center: .init(x: 0.5, y: 0.0),
+                    startRadius: 30,
+                    endRadius: 360
+                )
+                .animation(.easeInOut(duration: 0.45), value: displayState)
+            }
         }
     }
 
@@ -907,10 +970,17 @@ private struct StageHeroView: View {
             // 主舞台水平滑动 → 切换时间
             .contentShape(Rectangle())
             .background(
-                GeometryReader { proxy in
-                    Color.clear
-                        .onAppear { dragWidth = proxy.size.width }
-                        .onChange(of: proxy.size.width) { _, new in dragWidth = new }
+                Group {
+                    if ContentView.isRunningForPreviews {
+                        // Preview 跳过嵌套 GeometryReader；用 360 作为 iPhone 17 宽度估计
+                        Color.clear.onAppear { dragWidth = 360 }
+                    } else {
+                        GeometryReader { proxy in
+                            Color.clear
+                                .onAppear { dragWidth = proxy.size.width }
+                                .onChange(of: proxy.size.width) { _, new in dragWidth = new }
+                        }
+                    }
                 }
             )
             .gesture(
@@ -1068,6 +1138,101 @@ private struct StageHeroView: View {
             )
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Preview (轻量 stub)
+// 真 ContentView 含 1100 行 SwiftUI + HealthKit + Timer + onAppear Task，
+// 渲染时间 > 5s 会触发 Xcode "Updating took more than 5 seconds" 超时。
+// 这里渲染一个 stub：顶栏 / FeatureRow / 主舞台 / 时间线 / 输入栏 静态组合，
+// 不挂 onAppear / 不用 StateObject / 不 import HealthKit framework。
+private struct ContentViewPreviewStub: View {
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Theme.bgTop.ignoresSafeArea()
+            VStack(spacing: 0) {
+                // 顶栏
+                HStack {
+                    Capsule().fill(Theme.navy).frame(width: 22, height: 2.5)
+                    Spacer()
+                    Capsule().fill(Theme.navy).frame(width: 22, height: 2.5)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+
+                // FeatureRow 4 行静态
+                VStack(alignment: .leading, spacing: 4) {
+                    featureLine("SEDENTARY", "47:23", "持续久坐")
+                    featureLine("POSTURE",   "POOR",  "姿态·前倾")
+                    featureLine("HEART RATE", "78 bpm", "心率·静息")
+                    featureLine("MOOD",      "良好",   "心情·愉悦")
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
+
+                // 主舞台 stub（简化版 StickFigure）
+                ZStack {
+                    StickFigureView(state: .sit, mood: .normal, tiredness: 0.2, neckWarning: 0)
+                        .padding(.horizontal, 32)
+                }
+                .frame(height: 280)
+                .background(
+                    RoundedRectangle(cornerRadius: 0)
+                        .fill(LinearGradient(colors: [Theme.bgTop, Theme.bgBottom], startPoint: .top, endPoint: .bottom))
+                )
+
+                // 时间线 stub
+                HStack(spacing: 1) {
+                    ForEach(0..<24, id: \.self) { i in
+                        Rectangle()
+                            .fill([Color.green, .orange, .purple][i % 3])
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 8)
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 2))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+
+                // 输入栏 stub
+                HStack {
+                    Image(systemName: "plus.circle.fill").foregroundColor(Theme.mist)
+                    Text("安排任务, Stick 帮你完成")
+                        .font(.system(size: 13))
+                        .foregroundColor(Theme.slate)
+                    Spacer()
+                    Image(systemName: "paperplane.fill")
+                        .foregroundColor(Theme.mist)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Theme.card)
+                )
+                .padding(.horizontal, 16)
+                Spacer()
+            }
+        }
+    }
+
+    private func featureLine(_ label: String, _ value: String, _ desc: String) -> some View {
+        HStack(spacing: 8) {
+            Circle().fill(StickState.sit.accent).frame(width: 5, height: 5)
+            Text(label)
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .tracking(0.8)
+                .foregroundColor(Theme.slate)
+                .frame(width: 68, alignment: .leading)
+            Text(value)
+                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                .foregroundColor(Theme.navy)
+            Text(desc)
+                .font(.system(size: 10, weight: .medium, design: .serif))
+                .foregroundColor(Theme.mist)
+            Spacer()
+        }
     }
 }
 
