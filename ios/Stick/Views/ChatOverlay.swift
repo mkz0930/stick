@@ -151,6 +151,12 @@ struct ChatOverlay: View {
             // widget 风险提醒触发：预填输入框 + 走专属风险科普流程（AI 自动回答）
             if let seed = riskSeed, !seed.isEmpty {
                 input = initialText
+                // 把用户消息加入对话列表（显示在 AI 回复上方）
+                let userMsgId = UUID()
+                messages.append(ChatMessage(id: userMsgId, role: .user, content: initialText))
+                history.append(PersistedChatMessage(id: userMsgId, role: "user", content: initialText))
+                _ = UserProfileStore.shared.recordUserMessage()
+                self.pendingScrollId = userMsgId
                 generateRiskAnalysis(seed: seed)
             } else {
                 // 普通 chat seed：作为用户消息发送
@@ -286,7 +292,9 @@ struct ChatOverlay: View {
                         ScrollView {
                             LazyVStack(alignment: .leading, spacing: 10) {
                                 ForEach(messages) { msg in
-                                    MessageRow(message: msg, state: state)
+                                    MessageRow(message: msg, state: state) { suggestion in
+                                        sendDirect(suggestion)
+                                    }
                                         .id(msg.id)
                                 }
                                 if isStreaming {
@@ -640,9 +648,56 @@ struct ChatOverlay: View {
             }
             await MainActor.run { isStreaming = false }
 
+            // 流结束后生成追问建议
+            generateSuggestions(for: assistantId)
+
             // 每 3 条用户消息总结一次用户画像
             if shouldSummarize {
                 await summarizeUserProfile()
+            }
+        }
+    }
+
+    /// 直接发送文字（不经过 input 框，用于意图按钮）
+    private func sendDirect(_ text: String) {
+        let userMsgId = UUID()
+        messages.append(ChatMessage(id: userMsgId, role: .user, content: text))
+
+        self.scrollToBottom = false
+        self.pendingScrollId = userMsgId
+
+        let shouldSummarize = UserProfileStore.shared.recordUserMessage()
+        isStreaming = true
+
+        let assistantId = UUID()
+        messages.append(ChatMessage(id: assistantId, role: .assistant, content: ""))
+
+        let ctx = buildContext()
+        streamTask = Task {
+            do {
+                for try await chunk in LLMService.sendMessageStream(text, context: ctx) {
+                    if Task.isCancelled { break }
+                    await MainActor.run {
+                        if let idx = self.messages.firstIndex(where: { $0.id == assistantId }) {
+                            self.messages[idx].content += chunk
+                        }
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    if let idx = self.messages.firstIndex(where: { $0.id == assistantId }) {
+                        let err = (error as? LLMError)?.errorDescription ?? error.localizedDescription
+                        let prefix = self.messages[idx].content.isEmpty ? "" : self.messages[idx].content + "\n\n"
+                        self.messages[idx].content = "\(prefix)⚠️ \(err)"
+                    }
+                }
+            }
+            await MainActor.run { self.isStreaming = false }
+
+            generateSuggestions(for: assistantId)
+
+            if shouldSummarize {
+                await self.summarizeUserProfile()
             }
         }
     }
@@ -659,7 +714,12 @@ struct ChatOverlay: View {
             let suggestions = await fetchSuggestions(from: responseContent)
             await MainActor.run {
                 if let i = self.messages.firstIndex(where: { $0.id == messageId }) {
-                    self.messages[i].suggestions = suggestions
+                    var updated = self.messages
+                    updated[i].suggestions = suggestions
+                    self.messages = updated
+                    // 意图出现后自动滚动到底部
+                    self.scrollToBottom = true
+                    self.pendingScrollId = messageId
                 }
             }
         }
@@ -667,25 +727,35 @@ struct ChatOverlay: View {
 
     private func fetchSuggestions(from response: String) async -> [String] {
         let prompt = """
-        基于以下AI健康助手的回复，生成1-3条用户可能会追问的问题。
-        要求：
-        - 每条不超过20字
-        - 自然、口语化，像用户真的在问
-        - 列出问题即可，不要编号，不要解释
-
-        AI回复：
+        基于下方AI健康助手回复内容，输出1-3条用户接下来真实想执行/深入了解的主动意图
+        硬性规则：
+        1. 单条文字≤20个字
+        2. 严禁问号、禁止疑问句；全部使用行动句式，参考格式：了解下XX、试试XX、查看XX
+        3. 仅罗列文本，不带序号、注释、说明文字
+        AI健康助手回复内容：
         \(response)
-
-        追问（1-3条）：
         """
 
         do {
             let result = try await LLMService.sendMessage(prompt, context: "生成追问建议")
             let lines = result.components(separatedBy: "\n")
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-                .prefix(3)
-            return Array(lines)
+            var suggestions: [String] = []
+            for line in lines {
+                var s = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                if s.isEmpty { continue }
+                // 跳过含"追问"的标题行
+                if s.contains("追问") { continue }
+                // 去掉开头的编号 "1. " "1)" "1、" 等
+                s = s.replacingOccurrences(of: "^[0-9]+[.)、\\s]+", with: "", options: .regularExpression)
+                // 去掉结尾的问号
+                s = s.replacingOccurrences(of: "[？?]+$", with: "", options: .regularExpression)
+                s = s.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !s.isEmpty {
+                    suggestions.append(s)
+                }
+                if suggestions.count >= 3 { break }
+            }
+            return suggestions
         } catch {
             return []
         }
@@ -867,7 +937,13 @@ struct ChatOverlay: View {
                     }
                 }
             }
-            await MainActor.run { isStreaming = false }
+            await MainActor.run {
+                isStreaming = false
+                input = ""
+            }
+
+            // 流结束后生成追问建议
+            generateSuggestions(for: assistantId)
         }
     }
 }
@@ -894,6 +970,7 @@ struct ChatMessage: Identifiable, Equatable {
 struct MessageRow: View {
     let message: ChatMessage
     let state: StickState
+    var onSuggestionTap: ((String) -> Void)? = nil
 
     var body: some View {
         switch message.role {
@@ -912,23 +989,52 @@ struct MessageRow: View {
                     )
             }
         case .assistant:
-            HStack(alignment: .top, spacing: 0) {
-                Rectangle().fill(state.accent).frame(width: 3)
-                VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 7) {
+                // 一个大泡泡
+                VStack(alignment: .leading, spacing: 8) {
                     AssistantText(text: message.content, accent: state.accent)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
                 .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Theme.card)
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(red: 0.97, green: 0.96, blue: 1.0))
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Theme.border, lineWidth: 0.5)
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color(red: 0.85, green: 0.80, blue: 0.98), lineWidth: 0.8)
                 )
-                Spacer(minLength: 16)
+                .shadow(color: Color(red: 0.7, green: 0.6, blue: 1.0).opacity(0.15), radius: 6, x: 0, y: 3)
+
+                // 追问意图按钮（竖向排列）
+                if !message.suggestions.isEmpty {
+                    VStack(spacing: 6) {
+                        ForEach(message.suggestions, id: \.self) { suggestion in
+                            Button {
+                                onSuggestionTap?(suggestion)
+                            } label: {
+                                Text(suggestion)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(state.accent)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(state.accent.opacity(0.1))
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(state.accent, lineWidth: 1)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.top, 2)
+                }
             }
         }
     }
@@ -942,11 +1048,76 @@ private struct AssistantText: View {
         text.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
     }
 
-    private func stripBullet(_ s: String) -> String? {
-        for p in ["- ", "• ", "· ", "* "] where s.hasPrefix(p) {
-            return String(s.dropFirst(p.count))
+    private func parseLine(_ line: String) -> some View {
+        // 警告段落：温暖琥珀色高亮
+        if line.contains("警告") || line.hasPrefix("⚠") {
+            return AnyView(
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: "lightbulb.fill")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(red: 0.88, green: 0.55, blue: 0.2))
+                    Text(line)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(Color(red: 0.65, green: 0.4, blue: 0.1))
+                }
+            )
         }
-        return nil
+        // 粗体标题行 **xxx**
+        if line.hasPrefix("**") && line.hasSuffix("**") && line.count > 4 {
+            let inner = String(line.dropFirst(2).dropLast(2))
+            return AnyView(
+                Text(inner)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(Theme.navy)
+            )
+        }
+        // bullet 行 - xxx 或 * xxx
+        for prefix in ["- ", "• ", "· ", "* "] {
+            if line.hasPrefix(prefix) {
+                let body = String(line.dropFirst(prefix.count))
+                return AnyView(
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("·")
+                            .font(.system(size: 16, weight: .heavy))
+                            .foregroundColor(accent)
+                        Text(body)
+                            .font(.system(size: 15, weight: .regular))
+                            .lineSpacing(3)
+                            .foregroundColor(Theme.navy)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                )
+            }
+        }
+        // 编号行 1. xxx 或 1) xxx
+        let numberedPattern = try! NSRegularExpression(pattern: "^([0-9]+)[.)、\\s]+(.+)$")
+        if let match = numberedPattern.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) {
+            if let numRange = Range(match.range(at: 1), in: line),
+               let bodyRange = Range(match.range(at: 2), in: line) {
+                let num = String(line[numRange])
+                let body = String(line[bodyRange])
+                return AnyView(
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("\(num).")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(accent)
+                        Text(body)
+                            .font(.system(size: 15, weight: .regular))
+                            .lineSpacing(3)
+                            .foregroundColor(Theme.navy)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                )
+            }
+        }
+        // 普通行
+        return AnyView(
+            Text(line)
+                .font(.system(size: 15, weight: .regular))
+                .lineSpacing(3)
+                .foregroundColor(Theme.navy)
+                .fixedSize(horizontal: false, vertical: true)
+        )
     }
 
     var body: some View {
@@ -954,23 +1125,8 @@ private struct AssistantText: View {
             ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
                 if line.isEmpty {
                     Color.clear.frame(height: 4)
-                } else if let body = stripBullet(line) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("·")
-                            .font(.system(size: 16, weight: .heavy))
-                            .foregroundColor(accent)
-                        Text(body)
-                            .font(.system(size: 16, weight: .medium))
-                            .lineSpacing(4)
-                            .foregroundColor(Theme.navy)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
                 } else {
-                    Text(line)
-                        .font(.system(size: 15, weight: .regular))
-                        .lineSpacing(4)
-                        .foregroundColor(Theme.navy)
-                        .fixedSize(horizontal: false, vertical: true)
+                    parseLine(line)
                 }
             }
         }

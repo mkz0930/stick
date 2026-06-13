@@ -136,4 +136,11 @@ enum Theme {
     static let figureStroke = navy
     /// 火柴人内部填充（头/手/脚）默认色：纯白
     static let figureFill   = Color.white
+
+    /// 健康仪表盘 — 卡片图标色（数据记录页用）
+    static let dashSleep    = Color(red: 0.55, green: 0.50, blue: 0.90)   // 睡眠 紫
+    static let dashSteps    = Color(red: 0.20, green: 0.75, blue: 0.50)   // 步数/运动 绿
+    static let dashDiet     = Color(red: 0.55, green: 0.50, blue: 0.90)   // 饮食 紫
+    static let dashBody     = Color(red: 0.20, green: 0.75, blue: 0.50)   // 身材 绿
+    static let dashBlood    = Color(red: 0.55, green: 0.50, blue: 0.90)   // 血压/血糖 紫
 }

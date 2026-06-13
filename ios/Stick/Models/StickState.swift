@@ -104,7 +104,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .walk:  return Color(red: 0.02, green: 0.59, blue: 0.41)  // #059669  ATLAS 绿
         case .sit:   return Color(red: 0.92, green: 0.34, blue: 0.05)  // #EA580C  ATLAS 橙
-        case .sleep: return Color(red: 0.55, green: 0.36, blue: 0.96)  // #8B5CF6  紫
+        case .sleep: return Color(red: 0.70, green: 0.60, blue: 0.98)  // 浅紫
         }
     }
 
@@ -113,7 +113,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .walk:  return Color(red: 0.85, green: 0.94, blue: 0.90)
         case .sit:   return Color(red: 0.99, green: 0.91, blue: 0.83)
-        case .sleep: return Color(red: 0.92, green: 0.88, blue: 0.99)
+        case .sleep: return Color(red: 0.95, green: 0.93, blue: 1.0)
         }
     }
 }

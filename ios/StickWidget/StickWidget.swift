@@ -22,6 +22,10 @@ struct StickRiskAlertWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "StickRiskAlertWidget", provider: RiskAlertProvider()) { entry in
             StickRiskAlertWidgetView(entry: entry)
+                // iOS 17+ 必需：声明 widget container 背景（不设的话 iOS 会显示占位符）
+                .containerBackground(for: .widget) {
+                    Color(red: 1.0, green: 0.97, blue: 0.91)
+                }
         }
         .configurationDisplayName("Stick 风险")
         .description("久坐血小板沉积风险 · 提示动动")

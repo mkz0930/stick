@@ -93,40 +93,22 @@ struct StickRiskAlertWidgetView: View {
     let entry: StickRiskAlertEntry
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            // 主入口：点击久坐区域 → 打开 chat，预填 seed 并触发风险科普流程
-            Button(intent: OpenChatIntent(
-                seed: "久坐风险提醒:\(entry.sitDurationMinutes)分钟"
-            )) {
-                VStack(spacing: 0) {
-                    Text("久坐")
-                        .font(.system(size: 56, weight: .heavy, design: .rounded))
-                        .foregroundColor(Color(red: 0.10, green: 0.10, blue: 0.12))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
+        // 按 widget-platelet-v3.html 设计：标题 + 血管图上下布局
+        Button(intent: OpenChatIntent(seed: "久坐风险提醒:\(entry.sitDurationMinutes)分钟")) {
+            VStack(spacing: 14) {
+                // 标题区
+                Text("久坐")
+                    .font(.system(size: 56, weight: .black))
+                    .foregroundColor(Color(red: 0.10, green: 0.10, blue: 0.12))
+                    .tracking(-2)  // letter-spacing: -2px
 
-                    VesselCanvas(duration: entry.sitDurationMinutes)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 160)
-                }
+                // 血管图：宽度撑满，高度按 2:1 比例自动计算（匹配 HTML vessel-svg: width:100%; height:auto）
+                VesselCanvas(duration: entry.sitDurationMinutes)
+                    .frame(maxWidth: .infinity)
+                    .aspectRatio(2/1, contentMode: .fit)
             }
-            .buttonStyle(.plain)
-
-            // 辅助入口：右下角聊天按钮 → 同样打开风险科普对话
-            Button(intent: OpenChatIntent(
-                seed: "久坐风险提醒:\(entry.sitDurationMinutes)分钟"
-            )) {
-                Image(systemName: "bubble.left.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 32, height: 32)
-                    .background(Color(red: 0.79, green: 0.16, blue: 0.0))
-                    .clipShape(Circle())
-                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-            }
-            .padding(.trailing, 12)
-            .padding(.bottom, 12)
         }
+        .buttonStyle(.plain)
         .padding(.horizontal, 24)
         .padding(.top, 28)
         .padding(.bottom, 24)

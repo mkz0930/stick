@@ -12,7 +12,6 @@ import SwiftUI
 
 struct PersonalView: View {
     var onClose: () -> Void
-    @Binding var openSpecialists: Bool
     @Binding var openDataRecord: Bool
     @Binding var openWidgetPreview: Bool
     @Binding var deviceSet: Set<DeviceID>
@@ -23,16 +22,13 @@ struct PersonalView: View {
     /// 点击 widget 卡片 → 关闭个人面板并打开聊天（seed = 预填文字）
     var onOpenChat: ((String) -> Void)? = nil
 
-    @State private var showSpecialists: Bool = false
     @State private var showDataRecord: Bool = false
     @State private var showWidgetPreview: Bool = false
     @State private var devicesExpanded: Bool = false   // 设备列表展开/收起（默认收起，只显示 1 个）
     @State private var chatHistoryExpanded: Bool = false   // 对话记录展开/收起（默认收起，只显示 2 条）
-    @State private var suggestionsExpanded: Bool = false  // 健康建议展开/收起（默认收起，只显示 2 个）
 
     private let menus: [MenuItem] = [
         MenuItem(icon: "clock.arrow.circlepath", title: "数据记录"),
-        MenuItem(icon: "person.2",  title: "专科专家"),
         MenuItem(icon: "macwindow",  title: "Widget 预览"),
     ]
 
@@ -77,8 +73,6 @@ struct PersonalView: View {
                         ForEach(menus) { item in
                             Button {
                                 switch item.title {
-                                case "专科专家":
-                                    withAnimation(.easeInOut(duration: 0.25)) { showSpecialists = true }
                                 case "数据记录":
                                     withAnimation(.easeInOut(duration: 0.25)) { showDataRecord = true }
                                 case "Widget 预览":
@@ -110,21 +104,11 @@ struct PersonalView: View {
                         .frame(height: 0.5)
                         .padding(.horizontal, 20)
                         .padding(.top, 24)
-
-                    taskSection
-                        .padding(.horizontal, 20)
-                        .padding(.top, 20)
-                        .padding(.bottom, 32)
                 }
             }
         }
-        .sheet(isPresented: $showSpecialists) {
-            SpecialistsView(onClose: { showSpecialists = false })
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-        }
         .sheet(isPresented: $showDataRecord) {
-            DataRecordView(onClose: { showDataRecord = false }, deviceSet: deviceSet)
+            DataRecordView(onClose: { showDataRecord = false })
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
@@ -137,9 +121,6 @@ struct PersonalView: View {
         }
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: shareItems)
-        }
-        .onChange(of: openSpecialists) { _, newValue in
-            if newValue { showSpecialists = true; openSpecialists = false }
         }
         .onChange(of: openDataRecord) { _, newValue in
             if newValue { showDataRecord = true; openDataRecord = false }
@@ -444,83 +425,6 @@ struct PersonalView: View {
             }
         }
     }
-
-    // MARK: - 健康建议
-
-    private let suggestions: [Suggestion] = [
-        Suggestion(icon: "figure.walk",     color: Color(red: 0.30, green: 0.85, blue: 0.50), title: "起身活动",   desc: "已连续坐 2 小时, 建议站起走动 5 分钟"),
-        Suggestion(icon: "drop.fill",       color: Color(red: 0.40, green: 0.65, blue: 0.95), title: "补充水分",   desc: "今日饮水量不足 1L, 目标 2L"),
-        Suggestion(icon: "moon.zzz.fill",   color: Color(red: 0.55, green: 0.50, blue: 0.85), title: "早睡",       desc: "最佳入睡时间为 22:30"),
-    ]
-
-    /// 默认只显示前 2 个建议
-    private var visibleSuggestions: [Suggestion] {
-        suggestionsExpanded ? suggestions : Array(suggestions.prefix(2))
-    }
-
-    private var taskSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("健康建议")
-                    .font(.system(size: 14))
-                    .foregroundColor(Theme.slate)
-                Spacer()
-                Button {} label: {
-                    Text("编辑")
-                        .font(.system(size: 14))
-                        .foregroundColor(StickState.walk.accent)
-                }
-            }
-            .padding(.bottom, 10)
-
-            VStack(spacing: 0) {
-                ForEach(Array(visibleSuggestions.enumerated()), id: \.offset) { idx, s in
-                    SuggestionRow(suggestion: s)
-                    if idx < visibleSuggestions.count - 1 {
-                        Rectangle()
-                            .fill(Theme.borderSoft)
-                            .frame(height: 0.5)
-                            .padding(.leading, 50)
-                    }
-                }
-
-                // 折叠/展开按钮（总条数 > 2 时显示）
-                if suggestions.count > 2 {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.22)) {
-                            suggestionsExpanded.toggle()
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(suggestionsExpanded
-                                 ? "收起"
-                                 : "展开 \(suggestions.count - 2) 个")
-                                .font(.system(size: 11, weight: .semibold))
-                            Image(systemName: suggestionsExpanded ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 9, weight: .bold))
-                        }
-                        .foregroundColor(StickState.walk.accent)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            // 新建
-            Button {} label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 16, weight: .regular))
-                        .foregroundColor(Theme.slate)
-                    Text("新建任务")
-                        .font(.system(size: 15))
-                        .foregroundColor(Theme.slate)
-                }
-            }
-            .padding(.top, 18)
-        }
-    }
 }
 
 // MARK: - 菜单行
@@ -721,186 +625,10 @@ private struct CapabilityTag: View {
 #Preview {
     PersonalView(
         onClose: {},
-        openSpecialists: .constant(false),
         openDataRecord: .constant(false),
         openWidgetPreview: .constant(false),
         deviceSet: .constant([.iPhone]),
         healthAuth: HealthAuthService.shared,
         chatHistory: ChatHistoryStore.shared
     )
-}
-
-// MARK: - 专科专家列表
-
-struct Specialist: Identifiable {
-    let id = UUID()
-    let name: String        // 姓氏
-    let title: String       // 职称
-    let dept: String        // 科室
-    let hospital: String    // 医院
-    let avatarColor: Color  // 头像背景色
-    let avatarChar: String  // 头像文字
-}
-
-struct SpecialistsView: View {
-    var onClose: () -> Void
-
-    // 各专科名医 (假数据)
-    private let specialists: [Specialist] = [
-        Specialist(name: "李",  title: "主任医师",  dept: "心血管内科",   hospital: "北京协和医院",   avatarColor: Color(red: 0.30, green: 0.55, blue: 0.85), avatarChar: "李"),
-        Specialist(name: "王",  title: "副主任医师", dept: "神经内科",     hospital: "北京天坛医院",   avatarColor: Color(red: 0.85, green: 0.45, blue: 0.55), avatarChar: "王"),
-        Specialist(name: "张",  title: "主任医师",  dept: "骨科",         hospital: "北京积水潭医院", avatarColor: Color(red: 0.45, green: 0.65, blue: 0.50), avatarChar: "张"),
-        Specialist(name: "陈",  title: "副主任医师", dept: "消化内科",     hospital: "上海瑞金医院",   avatarColor: Color(red: 0.85, green: 0.65, blue: 0.30), avatarChar: "陈"),
-        Specialist(name: "刘",  title: "主任医师",  dept: "呼吸内科",     hospital: "广州呼吸健康研究院", avatarColor: Color(red: 0.60, green: 0.45, blue: 0.75), avatarChar: "刘"),
-        Specialist(name: "赵",  title: "主任医师",  dept: "内分泌科",     hospital: "北京 301 医院",   avatarColor: Color(red: 0.40, green: 0.65, blue: 0.70), avatarChar: "赵"),
-    ]
-
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            Theme.bgTop.ignoresSafeArea()
-
-            VStack(alignment: .leading, spacing: 0) {
-                header
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 8)
-
-                Rectangle()
-                    .fill(Theme.borderSoft)
-                    .frame(height: 0.5)
-                    .padding(.horizontal, 20)
-
-                ScrollView {
-                    VStack(spacing: 0) {
-                        ForEach(specialists) { s in
-                            SpecialistRow(specialist: s)
-                            Rectangle()
-                                .fill(Theme.borderSoft)
-                                .frame(height: 0.5)
-                                .padding(.leading, 76)
-                        }
-                    }
-                    .padding(.top, 4)
-                }
-            }
-        }
-    }
-
-    private var header: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("专科专家")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(Theme.navy)
-                Text("\(specialists.count) 位名医 · 点击查看详情")
-                    .font(.system(size: 12))
-                    .foregroundColor(Theme.slate)
-            }
-            Spacer()
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Theme.navy)
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(Theme.card))
-                    .overlay(Circle().stroke(Theme.borderSoft, lineWidth: 1))
-            }
-        }
-    }
-}
-
-struct SpecialistRow: View {
-    let specialist: Specialist
-
-    var body: some View {
-        Button {} label: {
-            HStack(spacing: 16) {
-                // 头像 (圆形 + 姓氏 + 彩色背景)
-                ZStack {
-                    Circle().fill(specialist.avatarColor)
-                    Text(specialist.avatarChar)
-                        .font(.system(size: 22, weight: .semibold, design: .rounded))
-                        .foregroundColor(.white)
-                }
-                .frame(width: 52, height: 52)
-
-                // 信息
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text(specialist.name + "医生")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(Theme.navy)
-                        Text("·")
-                            .foregroundColor(Theme.mist)
-                        Text(specialist.title)
-                            .font(.system(size: 13))
-                            .foregroundColor(Theme.slate)
-                    }
-                    Text(specialist.dept)
-                        .font(.system(size: 14))
-                        .foregroundColor(StickState.walk.accent)
-                    Text(specialist.hospital)
-                        .font(.system(size: 12))
-                        .foregroundColor(Theme.slate)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(Theme.mist)
-            }
-            .frame(minHeight: 72)
-            .padding(.horizontal, 20)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - 健康建议
-
-struct Suggestion: Identifiable {
-    let id = UUID()
-    let icon: String
-    let color: Color
-    let title: String
-    let desc: String
-}
-
-struct SuggestionRow: View {
-    let suggestion: Suggestion
-
-    var body: some View {
-        Button {} label: {
-            HStack(spacing: 12) {
-                // 图标 (圆角方块 + 彩色淡底) — 缩小 38→32
-                ZStack {
-                    RoundedRectangle(cornerRadius: 7)
-                        .fill(suggestion.color.opacity(0.12))
-                    Image(systemName: suggestion.icon)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(suggestion.color)
-                }
-                .frame(width: 32, height: 32)
-
-                // 文字
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(suggestion.title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Theme.navy)
-                    Text(suggestion.desc)
-                        .font(.system(size: 11))
-                        .foregroundColor(Theme.slate)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-            }
-            .frame(minHeight: 40)
-            .padding(.vertical, 3)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
 }

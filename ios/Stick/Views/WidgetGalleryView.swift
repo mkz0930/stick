@@ -820,167 +820,166 @@ struct BrokenBackFigure: View {
     }
 }
 
-// MARK: - 久坐血小板 Widget (V3 血管图)
+// MARK: - 久坐血小板 Widget (V3 血管图 · 跟 widget-platelet-v3.html 完全一致)
 
 struct SedentaryPlateletWidget: View {
-    @State private var phase: Double = 0
-
     var body: some View {
         ZStack {
             Color(red: 1.0, green: 0.97, blue: 0.91)   // #FFF7E8
 
-            VStack(spacing: 0) {
-                // 顶栏: 久坐标题 + 提醒
-                HStack {
-                    Text("久坐")
-                        .font(.system(size: 16, weight: .black))
-                        .foregroundColor(Color(red: 0.10, green: 0.15, blue: 0.25))
-                    Spacer()
-                    Text("120' 血栓!")
-                        .font(.system(size: 9, weight: .black, design: .monospaced))
-                        .foregroundColor(Color(red: 1.0, green: 0.30, blue: 0.18))
-                }
-                .padding(.horizontal, 10)
-                .padding(.top, 8)
+            VStack(spacing: 14) {
+                // 标题区: 久坐大字
+                Text("久坐")
+                    .font(.system(size: 56, weight: .black))
+                    .foregroundColor(Color(red: 0.10, green: 0.10, blue: 0.12))
+                    .tracking(-2)
 
-                // 血管 + 血小板
-                PlateletVessel(phase: phase)
+                // 血管 + 血小板 (跟 widget extension 用同一份设计)
+                PlateletVessel()
                     .frame(maxWidth: .infinity)
-                    .frame(height: 100)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 4)
+                    .aspectRatio(2/1, contentMode: .fit)
             }
-        }
-        .onAppear {
-            withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false)) {
-                phase = 6.28
-            }
+            .padding(.horizontal, 24)
+            .padding(.top, 28)
+            .padding(.bottom, 24)
         }
     }
 }
 
-// MARK: - 血管 + 血小板 Canvas
+// MARK: - 血管 + 血小板 Canvas (跟 widget extension 里 VesselCanvas 一致)
 
 struct PlateletVessel: View {
-    let phase: Double
-
     var body: some View {
-        Canvas { ctx, size in
-            let stroke = Color(red: 0.10, green: 0.15, blue: 0.25)
-            let pulse = 0.5 + 0.5 * sin(phase * 3.0)
-            let throbPulse = 0.5 + 0.5 * sin(phase * 5.0)
+        GeometryReader { geo in
+            Canvas { ctx, size in
+                let SVG_W: CGFloat = 320
+                let SVG_H: CGFloat = 160
 
-            // 血管外壁 (左上角略圆, 右上角略圆, 右下角略圆, 左下角略圆)
-            let vesselH: CGFloat = 44
-            let vesselY = size.height * 0.30
-            let vesselRect = CGRect(x: 8, y: vesselY, width: size.width - 16, height: vesselH)
-            let outerPath = Path(roundedRect: vesselRect, cornerRadius: 6)
-            ctx.fill(outerPath, with: .color(Color(red: 1.0, green: 0.89, blue: 0.82)))
-            ctx.stroke(outerPath, with: .color(stroke), lineWidth: 1.5)
+                let scaleX = size.width / SVG_W
+                let scaleY = size.height / SVG_H
+                let scale = min(scaleX, scaleY)
 
-            // 血管内壁
-            let innerRect = vesselRect.insetBy(dx: 4, dy: 6)
-            let innerPath = Path(roundedRect: innerRect, cornerRadius: 4)
-            ctx.fill(innerPath, with: .color(Color(red: 1.0, green: 0.80, blue: 0.66)))
+                func sx(_ x: CGFloat) -> CGFloat { x * scale }
+                func sy(_ y: CGFloat) -> CGFloat { y * scale }
+                let sw: (CGFloat) -> CGFloat = { $0 * scale }
 
-            // 时间刻度 (0', 30', 60', 90', 120')
-            let ticks = [(0, "0'"), (15, "30'"), (40, "60'"), (65, "90'"), (88, "120'")]
-            for (i, tick) in ticks.enumerated() {
-                let xRatio = CGFloat(tick.0) / 100.0
-                let x = 8 + (size.width - 16) * xRatio
-                let isCritical = tick.1 == "120'"
-                let tickColor = isCritical ? Color(red: 1.0, green: 0.30, blue: 0.18) : stroke.opacity(0.3)
-                let lineWidth: CGFloat = isCritical ? 1.0 : 0.5
-                ctx.stroke(Path { p in
-                    p.move(to: CGPoint(x: x, y: vesselY - 4))
-                    p.addLine(to: CGPoint(x: x, y: vesselY + vesselH + 4))
-                }, with: .color(tickColor), style: StrokeStyle(lineWidth: lineWidth, dash: [1.5, 2]))
+                let dark         = Color(red: 0.10, green: 0.10, blue: 0.12)
+                let vesselFill   = Color(red: 1.0,  green: 0.89, blue: 0.82)  // #FFE4D0
+                let vesselInner  = Color(red: 1.0,  green: 0.80, blue: 0.66)  // #FFCBA8
+                let plateletRed  = Color(red: 1.0,  green: 0.30, blue: 0.18)  // #FF4D2E
+                let clotRed      = Color(red: 0.79, green: 0.16, blue: 0.0)   // #C92A00
+
+                // ── 血管外壁 ──
+                let outer = Path { p in
+                    p.move(to: CGPoint(x: sx(20), y: sy(100)))
+                    p.addLine(to: CGPoint(x: sx(20), y: sy(70)))
+                    p.addQuadCurve(to: CGPoint(x: sx(35), y: sy(55)),
+                                   control: CGPoint(x: sx(20),  y: sy(55)))
+                    p.addLine(to: CGPoint(x: sx(285), y: sy(55)))
+                    p.addQuadCurve(to: CGPoint(x: sx(300), y: sy(70)),
+                                   control: CGPoint(x: sx(300), y: sy(55)))
+                    p.addLine(to: CGPoint(x: sx(300), y: sy(130)))
+                    p.addQuadCurve(to: CGPoint(x: sx(285), y: sy(145)),
+                                   control: CGPoint(x: sx(300), y: sy(145)))
+                    p.addLine(to: CGPoint(x: sx(35), y: sy(145)))
+                    p.addQuadCurve(to: CGPoint(x: sx(20), y: sy(130)),
+                                   control: CGPoint(x: sx(20),  y: sy(145)))
+                    p.closeSubpath()
+                }
+                ctx.fill(outer, with: .color(vesselFill))
+                ctx.stroke(outer, with: .color(dark), lineWidth: sw(3.5))
+
+                // ── 血管内壁 ──
+                let inner = Path { p in
+                    p.move(to: CGPoint(x: sx(32), y: sy(100)))
+                    p.addLine(to: CGPoint(x: sx(32), y: sy(77)))
+                    p.addLine(to: CGPoint(x: sx(288), y: sy(77)))
+                    p.addLine(to: CGPoint(x: sx(288), y: sy(123)))
+                    p.addLine(to: CGPoint(x: sx(32), y: sy(123)))
+                    p.closeSubpath()
+                }
+                ctx.fill(inner, with: .color(vesselInner))
+
+                // ── 时间刻度线 + 标签 ──
+                let markers: [(x: CGFloat, label: String, isWarn: Bool)] = [
+                    (55,  "0'",   false),
+                    (115, "30'",  false),
+                    (175, "60'",  false),
+                    (235, "90'",  false),
+                    (280, "120'", true),
+                ]
+                for m in markers {
+                    let x = sx(m.x)
+                    let color = m.isWarn ? plateletRed : dark.opacity(0.3)
+                    var line = Path()
+                    line.move(to: CGPoint(x: x, y: sy(55)))
+                    line.addLine(to: CGPoint(x: x, y: sy(145)))
+                    ctx.stroke(line, with: .color(color),
+                               style: StrokeStyle(lineWidth: m.isWarn ? sw(1.5) : sw(1),
+                                                   dash: [sw(2), sw(3)]))
+
+                    let label = Text(m.label)
+                        .font(.system(size: 11 * scaleX, weight: m.isWarn ? .heavy : .bold,
+                                     design: .monospaced))
+                        .foregroundColor(m.isWarn ? plateletRed : dark.opacity(0.6))
+                    ctx.draw(label, at: CGPoint(x: x, y: sy(48)), anchor: .center)
+
+                    if m.x == 55 {
+                        let normalLabel = Text("正常")
+                            .font(.system(size: 9 * scaleX, weight: .bold, design: .monospaced))
+                            .foregroundColor(dark.opacity(0.5))
+                        ctx.draw(normalLabel, at: CGPoint(x: x, y: sy(158)), anchor: .center)
+                    }
+                }
+
+                // ── 血小板: 0' 1 颗, 30' 3 颗, 60' 6 颗, 90' 10 颗, 120' 10 颗血栓 + 标 ──
+                drawPlatelet(ctx: &ctx, at: CGPoint(x: sx(53),  y: sy(100)), r: sw(6),   color: plateletRed, scale: scaleX)
+                drawPlatelet(ctx: &ctx, at: CGPoint(x: sx(115), y: sy(93)),  r: sw(5.5), color: plateletRed, scale: scaleX)
+                drawPlatelet(ctx: &ctx, at: CGPoint(x: sx(127), y: sy(105)), r: sw(5),   color: plateletRed, scale: scaleX)
+                drawPlatelet(ctx: &ctx, at: CGPoint(x: sx(103), y: sy(103)), r: sw(4.5), color: plateletRed, scale: scaleX)
+                drawPlatelet(ctx: &ctx, at: CGPoint(x: sx(175), y: sy(90)),  r: sw(5),   color: plateletRed, scale: scaleX)
+                drawPlatelet(ctx: &ctx, at: CGPoint(x: sx(187), y: sy(100)), r: sw(5.5), color: plateletRed, scale: scaleX)
+                drawPlatelet(ctx: &ctx, at: CGPoint(x: sx(180), y: sy(110)), r: sw(5),   color: plateletRed, scale: scaleX)
+                drawPlatelet(ctx: &ctx, at: CGPoint(x: sx(167), y: sy(100)), r: sw(4),   color: plateletRed, scale: scaleX)
+                drawPlatelet(ctx: &ctx, at: CGPoint(x: sx(195), y: sy(95)),  r: sw(4),   color: plateletRed, scale: scaleX)
+                drawPlatelet(ctx: &ctx, at: CGPoint(x: sx(165), y: sy(110)), r: sw(3.5), color: plateletRed, scale: scaleX)
+
+                let pos90: [(CGFloat, CGFloat, CGFloat)] = [
+                    (235, 88, 5), (247, 96, 5), (230, 98, 5), (252, 106, 5),
+                    (240, 105, 4.5), (225, 105, 3.5), (256, 98, 3.5), (234, 110, 3), (249, 90, 3), (243, 98, 4)
+                ]
+                for (px, py, pr) in pos90 {
+                    drawPlatelet(ctx: &ctx, at: CGPoint(x: sx(px), y: sy(py)), r: sw(pr), color: plateletRed, scale: scaleX)
+                }
+
+                let clot: [(CGFloat, CGFloat, CGFloat)] = [
+                    (278, 85, 4.5), (285, 93, 4.5), (280, 100, 5), (286, 105, 4.5),
+                    (278, 110, 4.5), (288, 110, 3.5), (290, 100, 3), (284, 89, 3), (292, 108, 2.5), (295, 96, 2.5)
+                ]
+                for (px, py, pr) in clot {
+                    drawPlatelet(ctx: &ctx, at: CGPoint(x: sx(px), y: sy(py)), r: sw(pr), color: clotRed, scale: scaleX)
+                }
+
+                // ── 血栓! 爆炸标 ──
+                let badgeCenter = CGPoint(x: sx(285), y: sy(100))
+                let badgeR = sw(26)
+                let badge = Path(ellipseIn: CGRect(
+                    x: badgeCenter.x - badgeR, y: badgeCenter.y - badgeR,
+                    width: badgeR * 2, height: badgeR * 2))
+                ctx.fill(badge, with: .color(plateletRed))
+                ctx.stroke(badge, with: .color(dark), lineWidth: sw(3.5))
+                let badgeText = Text("血栓!")
+                    .font(.system(size: 16 * scaleX, weight: .heavy, design: .rounded))
+                    .foregroundColor(.white)
+                ctx.draw(badgeText, at: CGPoint(x: badgeCenter.x, y: badgeCenter.y + sw(2)), anchor: .center)
             }
-
-            // 时间标签
-            let labelY = vesselY - 7
-            let fontSize: CGFloat = 7
-            for tick in ticks {
-                let xRatio = CGFloat(tick.0) / 100.0
-                let x = 8 + (size.width - 16) * xRatio
-                let isCritical = tick.1 == "120'"
-                let labelColor = isCritical ? Color(red: 1.0, green: 0.30, blue: 0.18) : stroke.opacity(0.6)
-                let text = Text(tick.1)
-                    .font(.system(size: fontSize, weight: isCritical ? .black : .bold, design: .monospaced))
-                    .foregroundColor(labelColor)
-                ctx.draw(text, at: CGPoint(x: x, y: labelY))
-            }
-
-            // 血小板 - 0' 位置: 1 颗
-            drawPlatelet(ctx: ctx, stroke: stroke,
-                         pos: CGPoint(x: 8 + (size.width - 16) * 0.0, y: vesselY + vesselH/2),
-                         radius: 4)
-
-            // 血小板 - 30' 位置: 3 颗
-            let x30 = 8 + (size.width - 16) * 0.15
-            drawPlatelet(ctx: ctx, stroke: stroke,
-                         pos: CGPoint(x: x30, y: vesselY + vesselH/2 - 4), radius: 3.5)
-            drawPlatelet(ctx: ctx, stroke: stroke,
-                         pos: CGPoint(x: x30 + 8, y: vesselY + vesselH/2 + 3), radius: 3)
-            drawPlatelet(ctx: ctx, stroke: stroke,
-                         pos: CGPoint(x: x30 - 8, y: vesselY + vesselH/2 + 3), radius: 2.5)
-
-            // 血小板 - 60' 位置: 6 颗
-            let x60 = 8 + (size.width - 16) * 0.40
-            let platelets60: [(CGFloat, CGFloat, CGFloat)] = [
-                (0, -5, 3.5), (6, 0, 4), (3, 6, 3.5),
-                (-4, 0, 2.5), (10, -2, 2.5), (-2, 5, 2.5)
-            ]
-            for (dx, dy, r) in platelets60 {
-                drawPlatelet(ctx: ctx, stroke: stroke,
-                             pos: CGPoint(x: x60 + dx, y: vesselY + vesselH/2 + dy), radius: r)
-            }
-
-            // 血小板 - 90' 位置: 10+ 颗
-            let x90 = 8 + (size.width - 16) * 0.65
-            let platelets90: [(CGFloat, CGFloat, CGFloat)] = [
-                (0, -6, 3.5), (7, -3, 3.5), (-3, 0, 3.5),
-                (10, 4, 3.5), (4, 5, 3.2), (-8, 4, 2.5),
-                (12, -1, 2.5), (-1, 7, 2.2), (8, -7, 2.2)
-            ]
-            for (dx, dy, r) in platelets90 {
-                drawPlatelet(ctx: ctx, stroke: stroke,
-                             pos: CGPoint(x: x90 + dx, y: vesselY + vesselH/2 + dy), radius: r)
-            }
-
-            // 血栓! 120' 位置 (砖红)
-            let x120 = 8 + (size.width - 16) * 0.88
-            let thrombusCenter = CGPoint(x: x120, y: vesselY + vesselH/2)
-            let platelets120: [(CGFloat, CGFloat, CGFloat)] = [
-                (-3, -8, 3.2), (3, -5, 3.2), (-2, 0, 3.5),
-                (4, 4, 3.2), (-4, 6, 3.2), (6, 6, 2.5),
-                (8, 0, 2.2), (2, -10, 2.2), (10, 8, 2)
-            ]
-            for (dx, dy, r) in platelets120 {
-                ctx.fill(Path(ellipseIn: CGRect(x: thrombusCenter.x + dx - r, y: thrombusCenter.y + dy - r, width: r*2, height: r*2)),
-                         with: .color(Color(red: 0.79, green: 0.17, blue: 0.0)))
-                ctx.stroke(Path(ellipseIn: CGRect(x: thrombusCenter.x + dx - r, y: thrombusCenter.y + dy - r, width: r*2, height: r*2)),
-                           with: .color(stroke), lineWidth: 1.2)
-            }
-
-            // 血栓! 爆炸标 (在血管下方)
-            let boomY = vesselY + vesselH + 12
-            let boomR: CGFloat = 10
-            ctx.fill(Path(ellipseIn: CGRect(x: x120 - boomR, y: boomY - boomR, width: boomR*2, height: boomR*2)),
-                     with: .color(Color(red: 1.0, green: 0.30, blue: 0.18).opacity(0.7 + 0.3 * throbPulse)))
-            ctx.stroke(Path(ellipseIn: CGRect(x: x120 - boomR, y: boomY - boomR, width: boomR*2, height: boomR*2)),
-                       with: .color(stroke), lineWidth: 1.5)
-            let boomText = Text("血栓!")
-                .font(.system(size: 7, weight: .black))
-                .foregroundColor(.white)
-            ctx.draw(boomText, at: CGPoint(x: x120, y: boomY + 1))
         }
     }
 
-    private func drawPlatelet(ctx: GraphicsContext, stroke: Color, pos: CGPoint, radius: CGFloat) {
-        ctx.fill(Path(ellipseIn: CGRect(x: pos.x - radius, y: pos.y - radius, width: radius*2, height: radius*2)),
-                 with: .color(Color(red: 1.0, green: 0.30, blue: 0.18)))
-        ctx.stroke(Path(ellipseIn: CGRect(x: pos.x - radius, y: pos.y - radius, width: radius*2, height: radius*2)),
-                   with: .color(stroke), lineWidth: 1.2)
+    private func drawPlatelet(ctx: inout GraphicsContext, at p: CGPoint, r: CGFloat, color: Color, scale: CGFloat) {
+        let path = Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2))
+        ctx.fill(path, with: .color(color))
+        ctx.stroke(path, with: .color(Color(red: 0.10, green: 0.10, blue: 0.12)),
+                   lineWidth: max(1, 2 * scale))
     }
 }

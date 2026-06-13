@@ -43,7 +43,6 @@ struct ContentView: View {
     @State private var showNeckReport: Bool = false
     @State private var showSedentaryDetail: Bool = false
     @State private var showPersonal: Bool = false
-    @State private var openSpecialists: Bool = false
     @State private var openDataRecord: Bool = false
     @State private var openWidgetPreview: Bool = false
     @State private var showDevicePicker: Bool = false
@@ -356,7 +355,6 @@ struct ContentView: View {
                 // 3. 左侧滑出的个人面板 (78% 宽)
                 PersonalView(
                     onClose: { withAnimation(.easeInOut(duration: 0.32)) { showPersonal = false } },
-                    openSpecialists: $openSpecialists,
                     openDataRecord: $openDataRecord,
                     openWidgetPreview: $openWidgetPreview,
                     deviceSet: $deviceSet,
