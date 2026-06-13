@@ -50,25 +50,22 @@ struct FeatureRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // ① 身体状态得分（视觉焦点，22pt 数字）
+            // ① 身体状态得分（**唯一默认可见** — 视觉锤）
             BodyScoreLine(score: bodyScore, color: bodyScoreColor)
-            // ② 心情（默认可见，自带 0-100 分数，13pt 数字）
-            if let m = moodLine {
-                MoodLine(info: m, accent: state.accent, moodScore: moodScore)
-            }
-            // ③ 对应状态的核心数据（心率隐藏到展开区 — 3 行限制）
-            if let ss = stateSpecificMetric {
-                FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap)
-            }
-            // ④ 展开后：剩下的指标行 + 异常计数
+            // ② 展开后：心情 + 状态专属 + 隐藏指标
             if isExpanded {
+                if let m = moodLine {
+                    MoodLine(info: m, accent: state.accent, moodScore: moodScore)
+                }
+                if let ss = stateSpecificMetric {
+                    FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap)
+                }
                 ForEach(hiddenMetrics, id: \.label) { m in
                     FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap)
                 }
-                // 异常摘要：默认只显示计数 + 最严重项标题
+                // 异常摘要
                 if !unifiedAlerts.isEmpty {
                     if alertsDetailExpanded {
-                        // 展开态：每条异常独立一行
                         ForEach(Array(unifiedAlerts.enumerated()), id: \.offset) { idx, alert in
                             AlertsLine(
                                 top: alert,
@@ -77,7 +74,6 @@ struct FeatureRow: View {
                             ) { onAlertTap(alert) }
                         }
                     } else {
-                        // 折叠态：只显示计数 + 第 1 项标题
                         if let top = unifiedAlerts.first {
                             AlertsLine(
                                 top: top,
@@ -92,7 +88,7 @@ struct FeatureRow: View {
                     }
                 }
             }
-            // ⑤ 展开/折叠按键
+            // 展开/折叠按键
             expandToggle
         }
         .frame(maxWidth: .infinity, alignment: .leading)
