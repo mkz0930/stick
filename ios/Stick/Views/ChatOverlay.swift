@@ -609,7 +609,7 @@ struct ChatOverlay: View {
     private func summarizeUserProfile() async {
         let recentUserMessages = messages
             .filter { $0.role == .user }
-            .suffix(3)
+            .suffix(10)
             .map(\.content)
 
         let oldProfile = userProfile.profile
@@ -652,7 +652,18 @@ struct ChatOverlay: View {
         default:      period = "深夜"
         }
         let profileBlock = userProfile.profileContextBlock()
+
+        // 最近 10 条用户问题
+        let recentUserMsgs = messages
+            .filter { $0.role == .user }
+            .suffix(10)
+            .map { "用户: \($0.content)" }
+            .joined(separator: "\n")
+
         return profileBlock + """
+        【用户最近问题】
+        \(recentUserMsgs)
+
         - 当前时间: \(time) (\(period))
         - 当前姿态: \(state.actionPhrase) (\(state.englishName))
         - 用户类型: 办公室白领

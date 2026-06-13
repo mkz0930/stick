@@ -23,7 +23,7 @@ final class UserProfileStore: ObservableObject {
     @Published private(set) var userMessageCount: Int = 0
 
     /// 多少条 user 消息触发一次总结
-    let summaryInterval: Int = 3
+    let summaryInterval: Int = 10
 
     private let profileKey = "stick.userprofile.v1"
     private let countKey = "stick.userprofile.count.v1"

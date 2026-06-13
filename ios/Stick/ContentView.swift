@@ -13,6 +13,9 @@ import WidgetKit
 /// 状态来源：`StickState.current(at: now)`。
 /// 拖动时间线时 `scrubOffset` 临时覆盖，UI 全程跟着更新。
 struct ContentView: View {
+    /// 来自 widget 点击（stick://chat?seed=...），由 StickApp 写入，本视图消费后清空
+    @Binding var pendingChatSeed: String?
+
     // HealthKit + HealthAuth 在 Xcode Preview (Canvas) 里会让预览变卡甚至 5s 超时
     // (HKHealthStore 构造 + 真实 framework import)。Preview 注入 Noop 替代，真 app
     // runtime 仍然用真 shared 单例。
@@ -311,6 +314,14 @@ struct ContentView: View {
                 // 调试用：env STICK_TEST_OPEN_CHAT=1 → 启动时自动开 chat
                 if ProcessInfo.processInfo.environment["STICK_TEST_OPEN_CHAT"] != nil {
                     openChat("")
+                }
+            }
+            .onChange(of: pendingChatSeed) { _, new in
+                // widget 点击 → 打开 chat（预填 seed）→ 清空避免重复触发
+                guard let seed = new, !seed.isEmpty else { return }
+                openChat(seed)
+                DispatchQueue.main.async {
+                    pendingChatSeed = nil
                 }
             }
     }
@@ -1252,7 +1263,7 @@ private struct ContentViewPreviewStub: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(pendingChatSeed: .constant(nil))
 }
 
 // MARK: - 能量徽章

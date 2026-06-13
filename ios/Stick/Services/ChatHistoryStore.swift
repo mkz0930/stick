@@ -28,7 +28,7 @@ final class ChatHistoryStore: ObservableObject {
     static let shared = ChatHistoryStore()
 
     private let key = "stick.chat.history.v1"
-    private let maxMessages = 50
+    private let maxMessages = 200
 
     @Published private(set) var messages: [PersistedChatMessage] = []
 

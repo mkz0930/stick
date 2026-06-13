@@ -5,7 +5,7 @@ import SwiftUI
 import WidgetKit
 #endif
 
-/// 主 app ↔ Widget 共享状态。App Group: `group.com.example.stick`
+/// 主 app ↔ Widget 共享状态。App Group: `group.com.zdeer.testaiear`
 struct SharedStickState: Codable, Equatable {
     /// 状态名（walk / sit / sleep），也用作 widget 路由
     var stateRaw: String
@@ -38,7 +38,7 @@ struct SharedStickState: Codable, Equatable {
 
 /// 读写 App Group UserDefaults 的薄封装
 enum SharedStateStore {
-    static let appGroupID = "group.com.example.stick"
+    static let appGroupID = "group.com.zdeer.testaiear"
     private static let key = "stick.currentState.v1"
 
     static var defaults: UserDefaults? {
@@ -58,6 +58,32 @@ enum SharedStateStore {
             defaults.set(data, forKey: key)
         }
         // Widget 暂时屏蔽；恢复 widget 后再启用 reloadAllTimelines()
+    }
+
+    // MARK: - Widget → App：pending chat seed
+    // widget 上的 AppIntent 写入预填文案；主 app 启动 / 进入前台时读出并打开 chat
+
+    private static let pendingChatSeedKey = "stick.pendingChatSeed.v1"
+
+    /// widget 上的 OpenChatIntent 调 perform() 时写入
+    static func writePendingChatSeed(_ seed: String) {
+        guard !seed.isEmpty else { return }
+        print("[SharedStateStore] writePendingChatSeed '\(seed)' suite=\(String(describing: defaults))")
+        defaults?.set(seed, forKey: pendingChatSeedKey)
+    }
+
+    /// 主 app 读出后立即清空，避免下次启动重复打开
+    static func readAndClearPendingChatSeed() -> String? {
+        let d = defaults
+        print("[SharedStateStore] readAndClear suite=\(String(describing: d)) suitePath?")
+        guard let seed = d?.string(forKey: pendingChatSeedKey),
+              !seed.isEmpty else {
+            print("[SharedStateStore] no pending seed")
+            return nil
+        }
+        print("[SharedStateStore] read seed: \(seed)")
+        d?.removeObject(forKey: pendingChatSeedKey)
+        return seed
     }
 }
 
