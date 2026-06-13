@@ -411,12 +411,6 @@ struct ContentView: View {
             WidgetCenter.shared.reloadAllTimelines()
             #endif
         }
-        .onOpenURL { url in
-            // widget tap 深链：stick://chat?state=xxx → 打开聊天
-            if url.host == "chat" {
-                openChat("")
-            }
-        }
         .sheet(isPresented: $showFilm) {
             MiniFilmShareSheet(isPresented: $showFilm)
                 .presentationBackground(Color.black)
