@@ -313,20 +313,29 @@ struct MenuRow: View {
     let item: MenuItem
 
     var body: some View {
-        HStack(spacing: 18) {
-            Image(systemName: item.icon)
-                .font(.system(size: 22, weight: .light))
-                .foregroundColor(Theme.navy)
-                .frame(width: 32)
+        HStack(spacing: 16) {
+            // 图标 — 跟 DeviceRow 一致: 32x32 圆角矩形 + 18pt light icon
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(StickState.walk.accent.opacity(0.14))
+                Image(systemName: item.icon)
+                    .font(.system(size: 18, weight: .light))
+                    .foregroundColor(StickState.walk.accent)
+            }
+            .frame(width: 32, height: 32)
+
             Text(item.title)
-                .font(.system(size: 17))
+                .font(.system(size: 16))
                 .foregroundColor(Theme.navy)
+
             Spacer()
+
+            // chevron — 跟 DeviceRow 状态指示一致: 9pt bold
             Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .regular))
+                .font(.system(size: 9, weight: .bold))
                 .foregroundColor(Theme.mist)
         }
-        .frame(minHeight: 56)
+        .frame(minHeight: 40)
         .contentShape(Rectangle())
     }
 }
