@@ -89,6 +89,7 @@ struct PersonalView: View {
                             .buttonStyle(.plain)
                         }
                     }
+                    .padding(.horizontal, 20)
                     .padding(.top, 24)
 
                     Rectangle()
