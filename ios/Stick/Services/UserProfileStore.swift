@@ -29,7 +29,7 @@ final class UserProfileStore: ObservableObject {
     private let countKey = "stick.userprofile.count.v1"
 
     init() {
-        profile = UserDefaults.standard.string(forKey: profileKey) ?? ""
+        profile = UserDefaults.standard.string(forKey: profileKey) ?? "职场白领"
         userMessageCount = UserDefaults.standard.integer(forKey: countKey)
     }
 

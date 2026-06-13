@@ -81,6 +81,11 @@ struct ContentView: View {
         return s > 0
     }
 
+    /// 判断 chatSeed 是否为 widget 风险提醒触发（格式：久坐风险提醒:XX分钟）
+    private func isWidgetRiskSeed(_ seed: String) -> Bool {
+        seed.hasPrefix("久坐风险提醒:")
+    }
+
     /// 上午 + 状态好 = 兴奋 UI。
     /// 上午 06:00–12:00 之内只有 .walk（07:00–08:30 通勤）是真正"好"的状态，
     /// 其余时段（睡 / 坐）状态不健康，不应触发兴奋装饰。
@@ -302,6 +307,7 @@ struct ContentView: View {
                 ChatOverlay(
                     state: displayState,
                     initialText: chatSeed,
+                    riskSeed: isWidgetRiskSeed(chatSeed) ? chatSeed : nil,
                     targetScrollId: targetScrollId,
                     scrollTrigger: scrollTrigger,
                     onClose: { showChat = false }
@@ -316,13 +322,11 @@ struct ContentView: View {
                     openChat("")
                 }
             }
-            .onChange(of: pendingChatSeed) { _, new in
+            .onChange(of: pendingChatSeed) { _, newSeed in
                 // widget 点击 → 打开 chat（预填 seed）→ 清空避免重复触发
-                guard let seed = new, !seed.isEmpty else { return }
+                guard let seed = newSeed, !seed.isEmpty else { return }
                 openChat(seed)
-                DispatchQueue.main.async {
-                    pendingChatSeed = nil
-                }
+                pendingChatSeed = nil
             }
     }
 

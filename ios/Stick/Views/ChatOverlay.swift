@@ -1,6 +1,39 @@
 import SwiftUI
 import UIKit
 
+/// 今日健康数据统计（从 HealthStore 实时计算）
+@MainActor
+private struct TodayHealthStats {
+    let sitMinutes: Int
+    let walkMinutes: Int
+    let sleepMinutes: Int
+    let standMinutes: Int
+    let totalSteps: Int
+    let avgHeartRate: Int
+
+    init() {
+        let snapshots = HealthStore.shared.today
+        var sit = 0, walk = 0, sleep = 0, stand = 0, steps = 0, hrSum = 0, hrCount = 0
+        for s in snapshots {
+            switch s.bodyState {
+            case "sit": sit += 1
+            case "walk": walk += 1
+            case "sleep": sleep += 1
+            case "stand": stand += 1
+            default: break
+            }
+            steps += s.stepCount ?? 0
+            if let hr = s.heartRate { hrSum += Int(hr); hrCount += 1 }
+        }
+        self.sitMinutes = sit
+        self.walkMinutes = walk
+        self.sleepMinutes = sleep
+        self.standMinutes = stand
+        self.totalSteps = steps
+        self.avgHeartRate = hrCount > 0 ? hrSum / hrCount : 72
+    }
+}
+
 /// Chat 底栏（v2）：直接叠在主页底部，跟主界面无缝融合。
 /// - 默认高度 ≈ 220pt（header 32pt + 消息列表 + inputBar 44pt）
 /// - 消息多时 list 可滚；inputBar 永远贴底
@@ -8,6 +41,8 @@ import UIKit
 struct ChatOverlay: View {
     let state: StickState
     let initialText: String
+    /// 来自 widget 风险提醒的 seed（如"久坐风险提醒"），触发专属风险科普流程
+    var riskSeed: String? = nil
     /// 初始从 PersonalView 点击历史记录时，滚动到这个 UUID 对应的消息位置
     var targetScrollId: UUID? = nil
     /// 滚动触发器：外部每次历史导航 +1，overlay 用 onChange 响应（不重建 overlay）
@@ -28,10 +63,10 @@ struct ChatOverlay: View {
     @ObservedObject private var userProfile = UserProfileStore.shared
 
     private let suggestedQuestions: [String] = [
-        "我刚坐了一上午，怎么办？",
+        "我刚坐了一上午",
         "眼睛干涩怎么缓解？",
-        "午饭后困得不行，有什么办法？",
-        "睡前总刷手机，怎么改？",
+        "午饭后困得不行",
+        "睡前总刷手机",
     ]
 
     var body: some View {
@@ -113,9 +148,16 @@ struct ChatOverlay: View {
                     self.pendingScrollId = self.messages.last?.id
                 }
             }
-            input = initialText
-            if !initialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                send()
+            // widget 风险提醒触发：预填输入框 + 走专属风险科普流程（AI 自动回答）
+            if let seed = riskSeed, !seed.isEmpty {
+                input = initialText
+                generateRiskAnalysis(seed: seed)
+            } else {
+                // 普通 chat seed：作为用户消息发送
+                input = initialText
+                if !initialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    send()
+                }
             }
             // 调试用: 启动时强制打开历史 popover
             if ProcessInfo.processInfo.environment["STICK_OPEN_HISTORY_POPOVER"] != nil {
@@ -605,22 +647,60 @@ struct ChatOverlay: View {
         }
     }
 
-    /// 调用 LLM 总结用户最近 3 条消息，更新用户画像
+    /// 根据上一条 AI 回复生成 1-3 条追问
+    private func generateSuggestions(for messageId: UUID) {
+        guard let idx = messages.firstIndex(where: { $0.id == messageId }),
+              messages[idx].role == .assistant,
+              !messages[idx].content.isEmpty else { return }
+
+        let responseContent = messages[idx].content
+
+        Task {
+            let suggestions = await fetchSuggestions(from: responseContent)
+            await MainActor.run {
+                if let i = self.messages.firstIndex(where: { $0.id == messageId }) {
+                    self.messages[i].suggestions = suggestions
+                }
+            }
+        }
+    }
+
+    private func fetchSuggestions(from response: String) async -> [String] {
+        let prompt = """
+        基于以下AI健康助手的回复，生成1-3条用户可能会追问的问题。
+        要求：
+        - 每条不超过20字
+        - 自然、口语化，像用户真的在问
+        - 列出问题即可，不要编号，不要解释
+
+        AI回复：
+        \(response)
+
+        追问（1-3条）：
+        """
+
+        do {
+            let result = try await LLMService.sendMessage(prompt, context: "生成追问建议")
+            let lines = result.components(separatedBy: "\n")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .prefix(3)
+            return Array(lines)
+        } catch {
+            return []
+        }
+    }
+
+    /// 调用 LLM 总结用户最近消息，更新用户画像。新对话优先，覆盖旧画像
     private func summarizeUserProfile() async {
         let recentUserMessages = messages
             .filter { $0.role == .user }
             .suffix(10)
             .map(\.content)
 
-        let oldProfile = userProfile.profile
-
         var prompt = "你是一个用户画像分析助手。请根据以下用户的对话历史，总结用户的画像信息。"
         prompt += "包括但不限于：用户的身体状况、健康需求、生活习惯、行为模式等。"
-        prompt += "请用简洁的中文总结（50字以内）。\n\n"
-
-        if !oldProfile.isEmpty {
-            prompt += "原有的用户画像：\n\(oldProfile)\n\n"
-        }
+        prompt += "请用简洁的中文总结（200字以内），直接输出结论，不要解释过程。\n\n"
 
         prompt += "最近 \(recentUserMessages.count) 条用户消息：\n"
         for (i, msg) in recentUserMessages.enumerated() {
@@ -660,15 +740,135 @@ struct ChatOverlay: View {
             .map { "用户: \($0.content)" }
             .joined(separator: "\n")
 
-        return profileBlock + """
+        // 今日健康数据
+        let stats = TodayHealthStats()
+        let healthBlock = """
+        【今日健康数据】
+        - 久坐: \(stats.sitMinutes) 分钟
+        - 行走: \(stats.walkMinutes) 分钟
+        - 站立: \(stats.standMinutes) 分钟
+        - 睡眠: \(stats.sleepMinutes) 分钟
+        - 步数: \(stats.totalSteps) 步
+        - 平均心率: \(stats.avgHeartRate) bpm
+        """
+
+        return profileBlock + healthBlock + """
+
         【用户最近问题】
         \(recentUserMsgs)
 
         - 当前时间: \(time) (\(period))
         - 当前姿态: \(state.actionPhrase) (\(state.englishName))
-        - 用户类型: 办公室白领
+        - 用户类型: 职场白领
         - 备注: 给出符合该时段 + 该姿态的即时可行建议
         """
+    }
+
+    // MARK: - Widget 风险提醒专属流程
+
+    /// 久坐时长（分钟），由 riskSeed 解析而来
+    private var sedentaryMinutes: Int {
+        // riskSeed 格式: "久坐风险提醒:XX分钟"
+        guard let seed = riskSeed,
+              seed.hasPrefix("久坐风险提醒:"),
+              let minStr = seed.split(separator: ":").last,
+              let min = Int(minStr) else { return 30 }
+        return min
+    }
+
+    /// 构建 widget 风险提醒的 system prompt
+    private func buildRiskContext(seed: String) -> String {
+        let time = StickState.formatMinute(StickState.minutesOfDay(.now))
+        let hour = Calendar.current.component(.hour, from: .now)
+        let period: String
+        switch hour {
+        case 5..<11:  period = "上午"
+        case 11..<14: period = "中午"
+        case 14..<18: period = "下午"
+        case 18..<22: period = "晚上"
+        default:      period = "深夜"
+        }
+
+        if seed.hasPrefix("久坐风险提醒") {
+            let mins = sedentaryMinutes
+            let hours = mins / 60
+            let remain = mins % 60
+            let durationText = hours > 0 ? "\(hours)小时\(remain)分钟" : "\(mins)分钟"
+
+            let stats = TodayHealthStats()
+            return """
+            【用户当前状态】
+            - 当前时间: \(time) (\(period))
+            - 当前姿态: \(state.actionPhrase)
+            - 久坐时长: \(durationText)
+            - 今日久坐累计: \(stats.sitMinutes) 分钟
+            - 今日行走累计: \(stats.walkMinutes) 分钟
+            - 今日步数: \(stats.totalSteps) 步
+            - 平均心率: \(stats.avgHeartRate) bpm
+            - 用户类型: 职场白领
+
+            【本次对话目标】
+            用户点击了久坐风险提醒卡片，这是一个健康科普+即时行动建议的场景。
+            请严格按以下结构回复：
+
+            1. 【风险科普】先用1-2句话解释久坐\(durationText)对身体的具体危害（要具体、可感知，不要笼统）
+            2. 【当前状态分析】结合时间、姿态、今日久坐累计，简述用户此刻的身体感受
+            3. 【立刻可以做的动作】给出2-4条马上就能做、没有阻力的动作，每条10字以内，格式：「动作名称 · 具体描述」
+
+            示例：「扩胸3下 · 双手背后握拳，向后展开胸部，重复3次」
+
+            【语气要求】
+            - 温暖、口语化，像朋友提醒你动一动
+            - 不要说教，不要给医疗建议
+            - 总字数 ≤ 300字
+            """
+        }
+
+        // 默认通用风险提醒
+        return """
+        【用户当前状态】
+        - 当前时间: \(time) (\(period))
+        - 当前姿态: \(state.actionPhrase)
+        - 用户类型: 职场白领
+
+        【本次对话目标】
+        用户点击了健康风险提醒卡片，请给出风险科普和2-4条立刻能做的动作建议。
+
+        1. 【风险科普】1-2句话解释当前健康风险
+        2. 【立刻能做的动作】2-4条无阻力的即时行动
+
+        语气温暖口语化，总字数 ≤ 300字
+        """
+    }
+
+    /// 生成 widget 风险提醒的 AI 分析（直接输出，不作为用户消息）
+    private func generateRiskAnalysis(seed: String) {
+        isStreaming = true
+
+        let assistantId = UUID()
+        messages.append(ChatMessage(id: assistantId, role: .assistant, content: ""))
+
+        let ctx = buildRiskContext(seed: seed)
+        streamTask = Task {
+            do {
+                for try await chunk in LLMService.sendMessageStream(seed, context: ctx) {
+                    if Task.isCancelled { break }
+                    await MainActor.run {
+                        if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
+                            messages[idx].content += chunk
+                        }
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
+                        let err = (error as? LLMError)?.errorDescription ?? error.localizedDescription
+                        messages[idx].content = "⚠️ \(err)"
+                    }
+                }
+            }
+            await MainActor.run { isStreaming = false }
+        }
     }
 }
 
@@ -679,11 +879,13 @@ struct ChatMessage: Identifiable, Equatable {
     let id: UUID
     let role: Role
     var content: String
+    var suggestions: [String] = []
 
-    init(id: UUID = UUID(), role: Role, content: String) {
+    init(id: UUID = UUID(), role: Role, content: String, suggestions: [String] = []) {
         self.id = id
         self.role = role
         self.content = content
+        self.suggestions = suggestions
     }
 }
 

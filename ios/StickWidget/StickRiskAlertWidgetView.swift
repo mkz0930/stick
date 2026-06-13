@@ -1,5 +1,6 @@
 import SwiftUI
 import WidgetKit
+import AppIntents
 
 // MARK: - 2x2 久坐血小板风险 Widget
 // 血管横截面 + 血小板随时间累积 → 血栓风险
@@ -25,31 +26,112 @@ struct RiskAlertProvider: TimelineProvider {
     }
 }
 
+// MARK: - AppIntent：点击 widget 弹久坐风险告警 sheet
+// 走 App Intents 路径不弹 "在 'Stick' 中打开?" 系统确认框
+
+struct OpenRiskAlertIntent: AppIntent {
+    static var title: LocalizedStringResource = "打开久坐风险告警"
+    static var description = IntentDescription("直接弹出久坐风险告警 sheet")
+
+    @Parameter(title: "久坐分钟")
+    var sitDurationMinutes: Int
+
+    @Parameter(title: "心率")
+    var heartRate: Int
+
+    init() {
+        self.sitDurationMinutes = 0
+        self.heartRate = 0
+    }
+
+    init(sitDurationMinutes: Int, heartRate: Int) {
+        self.sitDurationMinutes = sitDurationMinutes
+        self.heartRate = heartRate
+    }
+
+    static var openAppWhenRun: Bool = true
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        // 写 chat seed 格式 → 主 app 走 drainPendingChatSeed → openChat → ChatOverlay
+        // riskSeed 格式 "久坐风险提醒:XX分钟" 触发 ChatOverlay.generateRiskAnalysis（AI 自动回答）
+        SharedStateStore.writePendingChatSeed("久坐风险提醒:\(sitDurationMinutes)分钟")
+        return .result()
+    }
+}
+
+// MARK: - AppIntent：点击 widget 聊天入口 → 打开风险科普对话
+// 写 seed 到 SharedState，主 app 读取后打开 ChatOverlay，走专属风险科普 prompt
+
+struct OpenChatIntent: AppIntent {
+    static var title: LocalizedStringResource = "打开健康助手"
+    static var description = IntentDescription("打开聊天，触发健康风险科普流程")
+
+    @Parameter(title: "Seed")
+    var seed: String
+
+    init() {
+        self.seed = ""
+    }
+
+    init(seed: String) {
+        self.seed = seed
+    }
+
+    static var openAppWhenRun: Bool = true
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        SharedStateStore.writePendingChatSeed(seed)
+        return .result()
+    }
+}
+
 // MARK: - View
 
 struct StickRiskAlertWidgetView: View {
     let entry: StickRiskAlertEntry
 
     var body: some View {
-        VStack(spacing: 0) {
-            // 标题居中大字
-            Text("久坐")
-                .font(.system(size: 56, weight: .heavy, design: .rounded))
-                .foregroundColor(Color(red: 0.10, green: 0.10, blue: 0.12))
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
+        ZStack(alignment: .bottomTrailing) {
+            // 主入口：点击久坐区域 → 打开 chat，预填 seed 并触发风险科普流程
+            Button(intent: OpenChatIntent(
+                seed: "久坐风险提醒:\(entry.sitDurationMinutes)分钟"
+            )) {
+                VStack(spacing: 0) {
+                    Text("久坐")
+                        .font(.system(size: 56, weight: .heavy, design: .rounded))
+                        .foregroundColor(Color(red: 0.10, green: 0.10, blue: 0.12))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
 
-            // 血管图（填满剩余空间）
-            VesselCanvas(duration: entry.sitDurationMinutes)
-                .background(Color.red.opacity(0.1)) // DEBUG: 确认 canvas 区域
+                    VesselCanvas(duration: entry.sitDurationMinutes)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 160)
+                }
+            }
+            .buttonStyle(.plain)
 
+            // 辅助入口：右下角聊天按钮 → 同样打开风险科普对话
+            Button(intent: OpenChatIntent(
+                seed: "久坐风险提醒:\(entry.sitDurationMinutes)分钟"
+            )) {
+                Image(systemName: "bubble.left.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 32, height: 32)
+                    .background(Color(red: 0.79, green: 0.16, blue: 0.0))
+                    .clipShape(Circle())
+                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+            }
+            .padding(.trailing, 12)
+            .padding(.bottom, 12)
         }
         .padding(.horizontal, 24)
         .padding(.top, 28)
         .padding(.bottom, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 1.0, green: 0.97, blue: 0.91)) // #FFF7E8
-        .widgetURL(URL(string: "stick://chat?seed=" + ("久坐风险".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")))
+        .background(Color(red: 1.0, green: 0.97, blue: 0.91))
     }
 }
 
@@ -226,4 +308,3 @@ struct StickRiskAlertWidgetView_Previews: PreviewProvider {
             .previewContext(WidgetPreviewContext(family: .systemSmall))
     }
 }
-

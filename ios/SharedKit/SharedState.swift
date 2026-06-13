@@ -5,7 +5,7 @@ import SwiftUI
 import WidgetKit
 #endif
 
-/// 主 app ↔ Widget 共享状态。App Group: `group.com.zdeer.testaiear`
+/// 主 app ↔ Widget 共享状态。App Group: `group.com.example.stick`
 struct SharedStickState: Codable, Equatable {
     /// 状态名（walk / sit / sleep），也用作 widget 路由
     var stateRaw: String
@@ -60,8 +60,32 @@ enum SharedStateStore {
         // Widget 暂时屏蔽；恢复 widget 后再启用 reloadAllTimelines()
     }
 
+    // MARK: - Widget → App：pending risk alert（OpenRiskAlertIntent 写，主 app 读）
+    // 写：widget 上点 OpenRiskAlertIntent → 写 sitDuration + heartRate
+    // 读：主 app 进入前台时 → 解析 → 弹 WidgetRiskAlertSheet
+    // （绕开 widgetURL 的 "在 'Stick' 中打开?" 系统确认框）
+
+    private static let pendingRiskAlertKey = "stick.pendingRiskAlert.v1"
+
+    static func writePendingRiskAlert(sitDurationMinutes: Int, heartRate: Int) {
+        let payload: [String: Int] = [
+            "sitDurationMinutes": sitDurationMinutes,
+            "heartRate": heartRate,
+        ]
+        defaults?.set(payload, forKey: pendingRiskAlertKey)
+    }
+
+    static func readAndClearPendingRiskAlert() -> (sitDurationMinutes: Int, heartRate: Int)? {
+        guard let payload = defaults?.dictionary(forKey: pendingRiskAlertKey) as? [String: Int],
+              let duration = payload["sitDurationMinutes"],
+              let heartRate = payload["heartRate"]
+        else { return nil }
+        defaults?.removeObject(forKey: pendingRiskAlertKey)
+        return (duration, heartRate)
+    }
+
     // MARK: - Widget → App：pending chat seed
-    // widget 上的 AppIntent 写入预填文案；主 app 启动 / 进入前台时读出并打开 chat
+    // widget 上的 OpenChatIntent 写 shared state；主 app 启动 / 进入前台时读出并打开 chat
 
     private static let pendingChatSeedKey = "stick.pendingChatSeed.v1"
 
