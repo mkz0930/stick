@@ -20,6 +20,8 @@ struct PersonalView: View {
     @ObservedObject var chatHistory: ChatHistoryStore
     /// 点击历史消息 → 打开 chat 并滚动到该消息位置
     var onHistoryTap: ((UUID) -> Void)? = nil
+    /// 点击 widget 卡片 → 关闭个人面板并打开聊天
+    var onOpenChat: (() -> Void)? = nil
 
     @State private var showSpecialists: Bool = false
     @State private var showDataRecord: Bool = false
@@ -129,8 +131,9 @@ struct PersonalView: View {
         .sheet(isPresented: $showWidgetPreview) {
             WidgetGalleryView(onOpenChat: {
                 showWidgetPreview = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    onClose()
+                // 延迟一点关 panel，避免和 gallery dismiss 动画撞
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    onOpenChat?()
                 }
             })
             .presentationDetents([.large])
