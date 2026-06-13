@@ -20,6 +20,20 @@
                ReferencedContainer = "container:Stick.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "T40000000000000000000001"
+               BuildableName = "StickWidget.appex"
+               BlueprintName = "StickWidget"
+               ReferencedContainer = "container:Stick.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction

@@ -8,8 +8,12 @@ import SwiftUI
 @main
 struct StickWidgetBundle: WidgetBundle {
     var body: some Widget {
-        StickWidget()         // 2x2  · 状态 + 火柴人 + 心率
-        StickMediumWidget()   // 4x2  · 心情趋势 + 状态告警
+        StickWidget()                       // 2x2  · 状态 + 火柴人 + 心率
+        StickMediumWidget()                 // 4x2  · 心情趋势 + 状态告警
+        StickRiskAlertWidget()              // 2x2  · 久坐血小板沉积风险告警
+        StickPostWorkoutWidget()            // 2x2  · 运动后冰水 5 步因果链告警
+        StickSedentaryLegDMWidget()         // 2x2  · 久坐钩子 · 腿给你发了一条私信
+        StickSedentaryWaistShowWidget()     // 2x2  · 久坐钩子 · 今晚腰会演哪一出
     }
 }
 
@@ -36,5 +40,57 @@ struct StickMediumWidget: Widget {
         .configurationDisplayName("Stick")
         .description("4x2 · 心情 + 告警")
         .supportedFamilies([.systemMedium])
+    }
+}
+
+// MARK: - 2x2 风险告警 widget（久坐血小板沉积）
+
+struct StickRiskAlertWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "StickRiskAlertWidget", provider: RiskAlertProvider()) { entry in
+            StickRiskAlertWidgetView(entry: entry)
+        }
+        .configurationDisplayName("Stick 风险")
+        .description("久坐血小板沉积风险 · 提示动动")
+        .supportedFamilies([.systemSmall])
+    }
+}
+
+// MARK: - 2x2 运动后冰水告警 widget（5 步因果链）
+
+struct StickPostWorkoutWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "StickPostWorkoutWidget", provider: PostWorkoutProvider()) { entry in
+            StickPostWorkoutWidgetView(entry: entry)
+        }
+        .configurationDisplayName("Stick 运动后")
+        .description("刚运动完 · 别灌冰水 · 5 步因果链")
+        .supportedFamilies([.systemSmall])
+    }
+}
+
+// MARK: - 2x2 久坐点击钩子 · 腿给你发了一条私信
+
+struct StickSedentaryLegDMWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "StickSedentaryLegDMWidget", provider: LegDMProvider()) { entry in
+            StickSedentaryLegDMWidgetView(entry: entry)
+        }
+        .configurationDisplayName("Stick 腿私信")
+        .description("久坐钩子 · 腿给你发了一条私信")
+        .supportedFamilies([.systemSmall])
+    }
+}
+
+// MARK: - 2x2 久坐点击钩子 · 今晚腰会演哪一出
+
+struct StickSedentaryWaistShowWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "StickSedentaryWaistShowWidget", provider: WaistShowProvider()) { entry in
+            StickSedentaryWaistShowWidgetView(entry: entry)
+        }
+        .configurationDisplayName("Stick 腰演出")
+        .description("久坐钩子 · 今晚腰会演哪一出")
+        .supportedFamilies([.systemSmall])
     }
 }
