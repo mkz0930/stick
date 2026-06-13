@@ -68,21 +68,14 @@ enum SharedStateStore {
     /// widget 上的 OpenChatIntent 调 perform() 时写入
     static func writePendingChatSeed(_ seed: String) {
         guard !seed.isEmpty else { return }
-        print("[SharedStateStore] writePendingChatSeed '\(seed)' suite=\(String(describing: defaults))")
         defaults?.set(seed, forKey: pendingChatSeedKey)
     }
 
     /// 主 app 读出后立即清空，避免下次启动重复打开
     static func readAndClearPendingChatSeed() -> String? {
-        let d = defaults
-        print("[SharedStateStore] readAndClear suite=\(String(describing: d)) suitePath?")
-        guard let seed = d?.string(forKey: pendingChatSeedKey),
-              !seed.isEmpty else {
-            print("[SharedStateStore] no pending seed")
-            return nil
-        }
-        print("[SharedStateStore] read seed: \(seed)")
-        d?.removeObject(forKey: pendingChatSeedKey)
+        guard let seed = defaults?.string(forKey: pendingChatSeedKey),
+              !seed.isEmpty else { return nil }
+        defaults?.removeObject(forKey: pendingChatSeedKey)
         return seed
     }
 }
