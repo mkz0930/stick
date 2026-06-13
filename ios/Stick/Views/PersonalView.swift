@@ -473,10 +473,11 @@ struct MenuRow: View {
             }
             .frame(width: 32, height: 32)
 
-            // 标题 — 16pt medium navy（semibold 太重，regular 太轻；
-            // medium 是中等权重，跟 section 标题 14pt slate 区分开）
+            // 标题 — 跟对话记录行同款：13pt regular serif navy
+            // （跟 1级 section 标题 14pt slate 区分 — section 是背景层，
+            //  menu/action 行是内容层，统一 serif 字体家族）
             Text(item.title)
-                .font(.system(size: 16, weight: .medium))
+                .font(.system(size: 13, weight: .regular, design: .serif))
                 .foregroundColor(Theme.navy)
                 .lineLimit(1)
 
