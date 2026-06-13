@@ -209,46 +209,45 @@ private struct MoodLine: View {
             // 状态色小点（跟 FeatureLine 一致）
             Circle()
                 .fill(dotColor)
-                .frame(width: 6, height: 6)
+                .frame(width: 5, height: 5)
 
-            // mono 标签 — 字号 11pt（跟 FeatureLine 一致）
+            // mono 标签 — 缩小 11→9pt 跟 BODY 节奏一致
             Text("MOOD")
-                .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
                 .tracking(0.8)
                 .foregroundColor(Theme.slate)
                 .lineLimit(1)
-                .frame(width: 80, alignment: .leading)
+                .frame(width: 68, alignment: .leading)
 
             // 心情曲线 — 已删除（用户要求）
 
-            // 数值 — 字号 17pt（**跟 FeatureLine 数值列完全一致**）
-            // 放在 78pt 固定列宽内左对齐 → 跨行"92 bpm / 18 min / 27"垂直对齐到同一条线
-            HStack(spacing: 2) {
+            // 数值 — 缩小 17→13pt（之前比 BODY 还大，现在反一下：
+            // BODY 是第 1 行视觉焦点，MOOD 退到次级）
+            HStack(alignment: .firstTextBaseline, spacing: 1) {
                 Text("\(Int(moodScore))")
-                    .font(.system(size: 17, weight: .heavy, design: .rounded))
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
                     .foregroundColor(dotColor)
                     .monospacedDigit()
                     .lineLimit(1)
                 Text("/100")
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundColor(Theme.mist)
+                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                    .foregroundColor(Theme.slate)
             }
-            .frame(width: 78, alignment: .leading)
 
-            // 副标 — 字号 11pt（**"82/100" 后面**：先文字描述 "专注"，后状态 "FOCUS"）
+            // 副标 — 缩小 11→10pt regular（去掉 heavy，节省视觉重量）
             HStack(spacing: 6) {
                 Text(info.text)
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: .regular, design: .rounded))
                     .foregroundColor(Theme.navy)
                     .lineLimit(1)
                 Text(statusText)
-                    .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
                     .tracking(0.6)
                     .foregroundColor(dotColor)
                     .lineLimit(1)
             }
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, 2)
     }
 }
 
@@ -350,31 +349,31 @@ private struct BodyScoreLine: View {
         HStack(spacing: 8) {
             Circle()
                 .fill(color)
-                .frame(width: 5, height: 5)
+                .frame(width: 6, height: 6)
 
             Text("BODY")
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
                 .tracking(0.8)
                 .foregroundColor(Theme.slate)
                 .lineLimit(1)
                 .frame(width: 68, alignment: .leading)
 
-            // 大数字 + /100
+            // 大数字 + /100（**第 1 行视觉重点**，字号比 FeatureLine 数值还大）
             HStack(alignment: .firstTextBaseline, spacing: 1) {
                 Text("\(intScore)")
-                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
                     .foregroundColor(color)
                 Text("/100")
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundColor(Theme.slate)
             }
 
             Text(tier)
-                .font(.system(size: 10, weight: .semibold, design: .serif))
+                .font(.system(size: 12, weight: .semibold, design: .serif))
                 .foregroundColor(color)
                 .lineLimit(1)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 3)
     }
 }
 
