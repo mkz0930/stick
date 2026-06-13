@@ -16,32 +16,6 @@ struct StickWidgetBundle: WidgetBundle {
     }
 }
 
-// MARK: - 2x2 小 widget
-
-struct StickWidget: Widget {
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "StickWidget", provider: StickProvider()) { entry in
-            StickWidgetView(entry: entry)
-        }
-        .configurationDisplayName("Stick")
-        .description("2x2 · 状态 + 心率")
-        .supportedFamilies([.systemSmall])
-    }
-}
-
-// MARK: - 4x2 中 widget
-
-struct StickMediumWidget: Widget {
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "StickMediumWidget", provider: StickProvider()) { entry in
-            StickMediumWidgetView(entry: entry)
-        }
-        .configurationDisplayName("Stick")
-        .description("4x2 · 心情 + 告警")
-        .supportedFamilies([.systemMedium])
-    }
-}
-
 // MARK: - 2x2 风险告警 widget（久坐血小板沉积）
 
 struct StickRiskAlertWidget: Widget {
@@ -55,15 +29,3 @@ struct StickRiskAlertWidget: Widget {
     }
 }
 
-// MARK: - 2x2 运动后冰水告警 widget（5 步因果链）
-
-struct StickPostWorkoutWidget: Widget {
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "StickPostWorkoutWidget", provider: PostWorkoutProvider()) { entry in
-            StickPostWorkoutWidgetView(entry: entry)
-        }
-        .configurationDisplayName("Stick 运动后")
-        .description("刚运动完 · 别灌冰水 · 5 步因果链")
-        .supportedFamilies([.systemSmall])
-    }
-}

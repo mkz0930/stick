@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stick · 腰断了 · 撩人版</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;0,800;1,400;1,800&family=JetBrains+Mono:wght@400;500;700;800&family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans SC', -apple-system, sans-serif;
+    background: #0a0d14;
+    color: #e8ecf0;
+    min-height: 100vh;
+    padding: 56px 32px 96px;
+  }
+
+  .header {
+    max-width: 900px;
+    margin: 0 auto 40px;
+    border-bottom: 1px solid #1c2230;
+    padding-bottom: 24px;
+  }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 2px; color: #ff9f7f;
+    text-transform: uppercase;
+  }
+  .header h1 {
+    font-family: 'Newsreader', serif;
+    font-size: 42px; font-weight: 800;
+    letter-spacing: -0.5px; color: #fff;
+    margin-top: 6px;
+    line-height: 1.1;
+  }
+  .header h1 em { font-style: italic; color: #ff9f7f; }
+
+  .subheader {
+    max-width: 900px;
+    margin: 0 auto 48px;
+    font-family: 'Newsreader', serif;
+    font-size: 18px; font-weight: 400;
+    line-height: 1.65;
+    color: #aab4c5;
+  }
+  .subheader strong { color: #fff7e6; font-weight: 600; }
+  .subheader em { font-style: italic; color: #ff9f7f; }
+
+  /* ============================================ */
+  /* 2x2 Widget grid                              */
+  /* ============================================ */
+  .grid {
+    max-width: 900px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .card {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.35);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .card:hover {
+    transform: translateY(-4px) rotate(-0.6deg);
+    box-shadow: 0 24px 56px rgba(0,0,0,0.45);
+  }
+
+  .card-inner {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    padding: 14px;
+  }
+  .card-top {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .time-badge {
+    font-family: 'Newsreader', serif;
+    font-size: 16px; font-weight: 800;
+    line-height: 1; letter-spacing: -0.5px;
+  }
+  .sit-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px; font-weight: 700;
+    opacity: 0.7;
+  }
+  .card-stage {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .card-say {
+    font-family: 'ZCOOL KuaiLe', 'Newsreader', serif;
+    font-weight: 900;
+    text-align: center;
+    line-height: 1.05;
+    letter-spacing: -0.3px;
+    margin-bottom: 2px;
+  }
+  .card-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5px; font-weight: 600;
+    text-align: center;
+    opacity: 0.65;
+  }
+
+  /* =================================================== */
+  /* Card 1 — 腰在尖叫 🔥                             */
+  /* =================================================== */
+  .c1 { background: linear-gradient(160deg, #ff9a56 0%, #ff6240 55%, #d92027 100%); }
+  .c1 .time-badge { color: #fff; }
+  .c1 .sit-count  { color: rgba(255,255,255,0.75); }
+  .c1 .card-say   { color: #fff; font-size: 22px; text-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .c1 .card-sub   { color: rgba(255,255,255,0.8); }
+  .c1-body { animation: c1-shake 0.5s ease-in-out infinite; }
+  @keyframes c1-shake {
+    0%, 100% { transform: rotate(-3deg) translateY(0); }
+    50%       { transform: rotate(3deg)  translateY(-3px); }
+  }
+  .c1-spark {
+    position: absolute;
+    width: 6px; height: 6px;
+    background: #fff700;
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    animation: c1-flicker 0.4s ease-in-out infinite;
+  }
+  .c1-spark:nth(1) { top: 18%; left: 12%; animation-delay: 0s; }
+  .c1-spark:nth(2) { top: 12%; right: 18%; animation-delay: 0.15s; }
+  .c1-spark:nth(3) { top: 35%; left: 6%; animation-delay: 0.3s; }
+  @keyframes c1-flicker {
+    0%, 100% { opacity: 0.2; transform: scale(0.6) rotate(0deg); }
+    50%       { opacity: 1;   transform: scale(1.1) rotate(20deg); }
+  }
+
+  /* =================================================== */
+  /* Card 2 — 给我按按 💆‍♀️                             */
+  /* =================================================== */
+  .c2 { background: radial-gradient(circle at 50% 40%, #ffe4d6 0%, #ffbfa0 60%, #ff8060 100%); }
+  .c2 .time-badge { color: #8a3010; }
+  .c2 .sit-count  { color: rgba(138,48,16,0.7); }
+  .c2 .card-say   { color: #8a3010; font-size: 21px; }
+  .c2 .card-sub   { color: rgba(138,48,16,0.75); }
+  .c2-body { animation: c2-bounce 1.2s ease-in-out infinite; }
+  @keyframes c2-bounce {
+    0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+    50%       { transform: translateY(-5px) rotate(1.5deg); }
+  }
+  .c2-hands {
+    position: absolute;
+    animation: c2-hand-wave 0.8s ease-in-out infinite alternate;
+  }
+  @keyframes c2-hand-wave {
+    0%   { transform: rotate(-8deg) translateY(0); }
+    100% { transform: rotate(8deg)  translateY(-4px); }
+  }
+
+  /* =================================================== */
+  /* Card 3 — 今晚腰会演哪一出 🌙                     */
+  /* =================================================== */
+  .c3 { background: linear-gradient(180deg, #1a1030 0%, #2d1b52 50%, #1a0e2a 100%); }
+  .c3 .time-badge { color: #d4aaff; }
+  .c3 .sit-count  { color: rgba(212,170,255,0.7); }
+  .c3 .card-say   { color: #d4aaff; font-size: 18px; text-shadow: 0 0 12px rgba(212,170,255,0.4); }
+  .c3 .card-sub   { color: rgba(212,170,255,0.65); }
+  .c3-body { animation: c3-float 2.5s ease-in-out infinite; }
+  @keyframes c3-float {
+    0%, 100% { transform: translateY(0) rotate(-1deg); }
+    50%       { transform: translateY(-6px) rotate(1deg); }
+  }
+  .c3-star {
+    position: absolute;
+    color: #fff;
+    font-size: 8px;
+    animation: c3-twinkle 2s ease-in-out infinite;
+  }
+  .c3-star:nth(1) { top: 10%; left: 14%; animation-delay: 0s; }
+  .c3-star:nth(2) { top: 20%; right: 12%; animation-delay: 0.7s; }
+  .c3-star:nth(3) { top: 38%; left: 6%; animation-delay: 1.4s; }
+  @keyframes c3-twinkle {
+    0%, 100% { opacity: 0.15; transform: scale(0.5); }
+    50%       { opacity: 1;   transform: scale(1.2); }
+  }
+  .c3-q { position: absolute; top: 8%; right: 16%; font-size: 16px; color: #d4aaff; font-family: 'Newsreader', serif; font-style: italic; animation: c3-float 2.5s ease-in-out infinite; }
+
+  /* =================================================== */
+  /* Card 4 — 腰：救命 🆘                             */
+  /* =================================================== */
+  .c4 { background: linear-gradient(160deg, #fff0e0 0%, #ff8060 55%, #cc1a1a 100%); }
+  .c4 .time-badge { color: #cc1a1a; }
+  .c4 .sit-count  { color: rgba(204,26,26,0.7); }
+  .c4 .card-say   { color: #cc1a1a; font-size: 22px; text-shadow: 0 1px 0 rgba(255,255,255,0.4); }
+  .c4 .card-sub   { color: rgba(204,26,26,0.75); }
+  .c4-body { animation: c4-pulse 0.7s ease-in-out infinite; }
+  @keyframes c4-pulse {
+    0%, 100% { transform: scale(1); }
+    50%       { transform: scale(1.06); }
+  }
+  .c4-sweat {
+    position: absolute;
+    width: 4px; height: 7px;
+    background: #5bb8ff;
+    border-radius: 50% 50% 50% 50% / 30% 30% 70% 70%;
+    animation: c4-drop 1s ease-in infinite;
+  }
+  .c4-sweat:nth(1) { top: 22%; left: 18%; animation-delay: 0s; }
+  .c4-sweat:nth(2) { top: 18%; right: 20%; animation-delay: 0.4s; }
+  @keyframes c4-drop {
+    0%   { transform: translateY(0);    opacity: 1; }
+    100% { transform: translateY(14px); opacity: 0; }
+  }
+  .c4-siren {
+    position: absolute;
+    width: 100%; height: 100%;
+    border: 2px solid rgba(255,80,80,0.3);
+    border-radius: 28px;
+    animation: c4-ring 1s ease-in-out infinite;
+  }
+  @keyframes c4-ring {
+    0%, 100% { opacity: 0.2; transform: scale(1); }
+    50%       { opacity: 0.6; transform: scale(1.02); }
+  }
+
+  /* =================================================== */
+  /* Label row under grid                           */
+  /* =================================================== */
+  .label-row {
+    max-width: 900px;
+    margin: 24px auto 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .card-label {
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: #6b7689;
+    letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  .card-label b {
+    display: block; font-size: 14px;
+    font-family: 'Newsreader', serif;
+    margin-bottom: 2px;
+    color: #aab4c5;
+  }
+  .card-label em {
+    color: #ff9f7f;
+    font-family: 'ZCOOL KuaiLe', serif;
+    font-size: 12px; letter-spacing: 0.5px;
+    font-style: normal;
+  }
+
+  /* =================================================== */
+  /* Large 1:1 showcase                             */
+  /* =================================================== */
+  .section-header {
+    max-width: 900px;
+    margin: 72px auto 32px;
+    display: flex; align-items: baseline; gap: 18px;
+    border-top: 1px solid #1c2230;
+    padding-top: 32px;
+  }
+  .section-header h2 {
+    font-family: 'Newsreader', serif;
+    font-size: 28px; font-weight: 800; color: #fff; letter-spacing: -0.3px;
+  }
+
+  .large-grid {
+    max-width: 900px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 18px;
+  }
+  .large-card {
+    aspect-ratio: 1;
+    border-radius: 28px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.3);
+  }
+  .lc-inner {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    padding: 16px;
+  }
+  .lc-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 1.5px; padding: 4px 10px;
+    border-radius: 20px;
+    align-self: flex-start;
+  }
+  .lc-time {
+    position: absolute; top: 16px; right: 18px;
+    font-family: 'Newsreader', serif;
+    font-size: 28px; font-weight: 800;
+    line-height: 1; letter-spacing: -1px;
+  }
+  .lc-time .sub { font-size: 10px; opacity: 0.5; font-family: 'JetBrains Mono', monospace; margin-left: 2px; }
+  .lc-figure {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .lc-say {
+    font-family: 'ZCOOL KuaiLe', 'Newsreader', serif;
+    font-weight: 900;
+    font-size: 26px; line-height: 1.05; letter-spacing: -0.5px;
+  }
+  .lc-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; font-weight: 600;
+    opacity: 0.65; margin-top: 4px;
+  }
+
+  /* Large variants */
+  .lc-scream { background: linear-gradient(160deg, #ff9a56 0%, #ff6240 55%, #d92027 100%); }
+  .lc-scream .lc-badge  { background: rgba(255,255,255,0.25); color: #fff; }
+  .lc-scream .lc-time   { color: #fff; }
+  .lc-scream .lc-say     { color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .lc-scream .lc-sub     { color: rgba(255,255,255,0.75); }
+  .lc-scream .lc-figure svg { animation: c1-shake 0.5s ease-in-out infinite; }
+
+  .lc-massage { background: radial-gradient(circle at 50% 40%, #ffe4d6 0%, #ffbfa0 60%, #ff8060 100%); }
+  .lc-massage .lc-badge  { background: rgba(255,255,255,0.6); color: #8a3010; }
+  .lc-massage .lc-time   { color: #8a3010; }
+  .lc-massage .lc-say     { color: #8a3010; }
+  .lc-massage .lc-sub     { color: rgba(138,48,16,0.75); }
+  .lc-massage .lc-figure svg { animation: c2-bounce 1.2s ease-in-out infinite; }
+
+  .lc-night { background: linear-gradient(180deg, #1a1030 0%, #2d1b52 50%, #1a0e2a 100%); }
+  .lc-night .lc-badge  { background: rgba(212,170,255,0.2); color: #d4aaff; }
+  .lc-night .lc-time   { color: #d4aaff; }
+  .lc-night .lc-say     { color: #d4aaff; text-shadow: 0 0 12px rgba(212,170,255,0.4); }
+  .lc-night .lc-sub     { color: rgba(212,170,255,0.65); }
+  .lc-night .lc-figure svg { animation: c3-float 2.5s ease-in-out infinite; }
+
+  .lc-sos { background: linear-gradient(160deg, #fff0e0 0%, #ff8060 55%, #cc1a1a 100%); }
+  .lc-sos .lc-badge  { background: rgba(255,255,255,0.4); color: #cc1a1a; }
+  .lc-sos .lc-time   { color: #cc1a1a; }
+  .lc-sos .lc-say     { color: #cc1a1a; text-shadow: 0 1px 0 rgba(255,255,255,0.4); }
+  .lc-sos .lc-sub     { color: rgba(204,26,26,0.75); }
+  .lc-sos .lc-figure svg { animation: c4-pulse 0.7s ease-in-out infinite; }
+  .lc-sos::after {
+    content: '';
+    position: absolute; inset: 0;
+    border: 2px solid rgba(255,80,80,0.35);
+    border-radius: 28px;
+    animation: c4-ring 1s ease-in-out infinite;
+  }
+
+  .footer {
+    max-width: 900px;
+    margin: 80px auto 0;
+    padding-top: 28px;
+    border-top: 1px solid #1c2230;
+    display: flex; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #6b7689;
+  }
+  .footer b { color: #aab4c5; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="eyebrow">Widget · 2×2 · Waist Break</div>
+  <h1>腰断了 · <em>撩人</em> 版</h1>
+</div>
+
+<div class="subheader">
+  久坐不只伤腰，还伤"感情"。换种说法——<strong>腰不只是腰，腰是女朋友</strong>：坐久了它在<em>尖叫</em>，想按摩它在<em>撒娇</em>，睡前担心它<em>今晚演出</em>，真的不行了就<em>发求救信号</em>。4 张卡，每张一个情绪。
+</div>
+
+<!-- ============================================ -->
+<!-- 2×2 Grid                                     -->
+<!-- ============================================ -->
+<div class="grid">
+
+  <!-- Card 1: 腰在尖叫 -->
+  <div class="card c1">
+    <div class="card-inner">
+      <div class="card-top">
+        <span class="time-badge">坐太久<span class="sub">腰在叫</span></span>
+        <span class="sit-count">腰 · 🔥</span>
+      </div>
+      <div class="card-stage">
+        <div class="c1-spark"></div>
+        <div class="c1-spark"></div>
+        <div class="c1-spark"></div>
+        <div class="c1-body">
+          <svg viewBox="0 0 100 100" width="110" height="110">
+            <!-- torso / waist area (the hurting part) -->
+            <rect x="30" y="50" width="40" height="28" rx="6" fill="#ff6240" stroke="#1a1a1a" stroke-width="2.5"/>
+            <!-- crack line on waist (pain) -->
+            <path d="M45 52 L55 62 M55 52 L45 62" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+            <!-- head -->
+            <circle cx="50" cy="35" r="22" fill="#ffe5cc" stroke="#1a1a1a" stroke-width="2.5"/>
+            <!-- screaming eyes (wide open) -->
+            <ellipse cx="40" cy="33" rx="5" ry="6" fill="#1a1a1a"/>
+            <ellipse cx="60" cy="33" rx="5" ry="6" fill="#1a1a1a"/>
+            <circle cx="41" cy="31" r="1.5" fill="#fff"/>
+            <circle cx="61" cy="31" r="1.5" fill="#fff"/>
+            <!-- raised eyebrows (distress) -->
+            <path d="M33 22 Q40 19 47 24" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <path d="M53 24 Q60 19 67 22" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <!-- screaming mouth (O) -->
+            <ellipse cx="50" cy="46" rx="6" ry="7" fill="#1a1a1a"/>
+            <ellipse cx="50" cy="45" rx="4" ry="4" fill="#c0392b"/>
+            <!-- sweat drops -->
+            <ellipse cx="28" cy="36" rx="2" ry="4" fill="#5bb8ff" opacity="0.8"/>
+            <ellipse cx="72" cy="30" rx="2" ry="4" fill="#5bb8ff" opacity="0.8"/>
+            <!-- arms up (distress) -->
+            <line x1="30" y1="55" x2="16" y2="40" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="70" y1="55" x2="84" y2="40" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="14" cy="38" r="4" fill="#ffe5cc" stroke="#1a1a1a" stroke-width="2"/>
+            <circle cx="86" cy="38" r="4" fill="#ffe5cc" stroke="#1a1a1a" stroke-width="2"/>
+            <!-- legs -->
+            <line x1="40" y1="78" x2="38" y2="96" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="60" y1="78" x2="62" y2="96" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+      <div class="card-say">腰在尖叫!</div>
+      <div class="card-sub">动动吧求你了</div>
+    </div>
+  </div>
+
+  <!-- Card 2: 给我按按 -->
+  <div class="card c2">
+    <div class="card-inner">
+      <div class="card-top">
+        <span class="time-badge">腰累了<span class="sub">按摩</span></span>
+        <span class="sit-count">腰 · 💆</span>
+      </div>
+      <div class="card-stage">
+        <div class="c2-hands">
+          <svg viewBox="0 0 100 100" width="110" height="110">
+            <!-- head (relaxed, eyes closed, smile) -->
+            <circle cx="50" cy="32" r="22" fill="#ffe5cc" stroke="#1a1a1a" stroke-width="2.5"/>
+            <!-- closed relaxed eyes (happy) -->
+            <path d="M36 30 Q40 34 44 30" stroke="#1a1a1a" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <path d="M56 30 Q60 34 64 30" stroke="#1a1a1a" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <!-- blush -->
+            <ellipse cx="34" cy="40" rx="4.5" ry="2.5" fill="#ff8a9c" opacity="0.65"/>
+            <ellipse cx="66" cy="40" rx="4.5" ry="2.5" fill="#ff8a9c" opacity="0.65"/>
+            <!-- gentle smile -->
+            <path d="M42 44 Q50 50 58 44" stroke="#1a1a1a" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <!-- torso / waist -->
+            <rect x="30" y="52" width="40" height="26" rx="6" fill="#ffbfa0" stroke="#1a1a1a" stroke-width="2.5"/>
+            <!-- small heart on waist -->
+            <path d="M46 66 Q46 62 50 62 Q54 62 54 66 Q54 70 50 73 Q46 70 46 66 Z" fill="#ff5b78" opacity="0.8"/>
+            <!-- hands pressing on waist -->
+            <ellipse cx="24" cy="64" rx="6" ry="5" fill="#ffe5cc" stroke="#1a1a1a" stroke-width="2"/>
+            <ellipse cx="76" cy="64" rx="6" ry="5" fill="#ffe5cc" stroke="#1a1a1a" stroke-width="2"/>
+            <!-- fingers pressing in -->
+            <line x1="28" y1="62" x2="32" y2="58" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="72" y1="62" x2="68" y2="58" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round"/>
+            <!-- legs -->
+            <line x1="40" y1="78" x2="38" y2="96" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="60" y1="78" x2="62" y2="96" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+      <div class="card-say">给我按按~</div>
+      <div class="card-sub">腰酸死了</div>
+    </div>
+  </div>
+
+  <!-- Card 3: 今晚腰会演哪一出 -->
+  <div class="card c3">
+    <div class="card-inner">
+      <div class="card-top">
+        <span class="time-badge">今晚<span class="sub">悬念</span></span>
+        <span class="sit-count">腰 · 🌙</span>
+      </div>
+      <div class="card-stage">
+        <div class="c3-star">✦</div>
+        <div class="c3-star">✦</div>
+        <div class="c3-star">✦</div>
+        <div class="c3-q">?</div>
+        <div class="c3-body">
+          <svg viewBox="0 0 100 100" width="110" height="110">
+            <!-- torso / waist with mysterious aura -->
+            <ellipse cx="50" cy="65" rx="24" ry="18" fill="#3d2060" stroke="#d4aaff" stroke-width="2" opacity="0.9"/>
+            <!-- waist crack line -->
+            <path d="M42 58 Q50 65 58 58" stroke="#d4aaff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-dasharray="3,3"/>
+            <!-- head (mysterious half-lit) -->
+            <circle cx="50" cy="30" r="22" fill="#2d1b52" stroke="#d4aaff" stroke-width="2.5"/>
+            <!-- one mysterious eye -->
+            <ellipse cx="40" cy="28" rx="4" ry="5" fill="#d4aaff" opacity="0.9"/>
+            <circle cx="41" cy="27" r="1.5" fill="#fff"/>
+            <!-- other eye (half-closed, mysterious) -->
+            <path d="M56 26 Q60 30 64 26" stroke="#d4aaff" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <!-- raised flirty eyebrow on visible eye -->
+            <path d="M54 20 Q60 17 66 20" stroke="#d4aaff" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+            <!-- smirk -->
+            <path d="M44 40 Q50 44 56 40" stroke="#d4aaff" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <!-- arms crossed mysteriously -->
+            <line x1="30" y1="52" x2="70" y2="52" stroke="#d4aaff" stroke-width="2" stroke-linecap="round"/>
+            <line x1="32" y1="52" x2="26" y2="46" stroke="#d4aaff" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="68" y1="52" x2="74" y2="46" stroke="#d4aaff" stroke-width="2.5" stroke-linecap="round"/>
+            <!-- legs (crossed, confident) -->
+            <line x1="40" y1="78" x2="38" y2="96" stroke="#d4aaff" stroke-width="2" stroke-linecap="round"/>
+            <line x1="60" y1="78" x2="64" y2="96" stroke="#d4aaff" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+      <div class="card-say">今晚腰会演哪一出?</div>
+      <div class="card-sub">坐等看戏</div>
+    </div>
+  </div>
+
+  <!-- Card 4: 腰：救命 -->
+  <div class="card c4">
+    <div class="card-inner">
+      <div class="card-top">
+        <span class="time-badge">腰 · SOS<span class="sub">求救</span></span>
+        <span class="sit-count">腰 · 🆘</span>
+      </div>
+      <div class="card-stage">
+        <div class="c4-siren"></div>
+        <div class="c4-sweat"></div>
+        <div class="c4-sweat"></div>
+        <div class="c4-body">
+          <svg viewBox="0 0 100 100" width="110" height="110">
+            <!-- head (panicked) -->
+            <circle cx="50" cy="33" r="22" fill="#fff0e0" stroke="#1a1a1a" stroke-width="2.5"/>
+            <!-- X eyes (distress) -->
+            <line x1="35" y1="28" x2="43" y2="36" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="43" y1="28" x2="35" y2="36" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="57" y1="28" x2="65" y2="36" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="65" y1="28" x2="57" y2="36" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+            <!-- worried eyebrows -->
+            <path d="M32 22 Q40 18 48 24" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <path d="M52 24 Q60 18 68 22" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <!-- wavy panicked mouth -->
+            <path d="M40 46 Q44 42 48 46 Q52 50 56 46" stroke="#1a1a1a" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <!-- big sweat drop -->
+            <path d="M72 22 Q76 18 76 26 Q76 32 72 32 Q68 32 68 26 Q68 18 72 22 Z" fill="#5bb8ff" opacity="0.9"/>
+            <!-- torso (red urgent) -->
+            <rect x="30" y="52" width="40" height="26" rx="6" fill="#ff6040" stroke="#1a1a1a" stroke-width="2.5"/>
+            <!-- SOS text on waist -->
+            <text x="50" y="67" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" font-weight="800" fill="#fff">SOS</text>
+            <!-- arms thrown up (helpless) -->
+            <line x1="30" y1="55" x2="14" y2="42" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="70" y1="55" x2="86" y2="42" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="12" cy="40" r="4.5" fill="#fff0e0" stroke="#1a1a1a" stroke-width="2"/>
+            <circle cx="88" cy="40" r="4.5" fill="#fff0e0" stroke="#1a1a1a" stroke-width="2"/>
+            <!-- legs -->
+            <line x1="40" y1="78" x2="38" y2="96" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="60" y1="78" x2="62" y2="96" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+      <div class="card-say">腰:SOS!</div>
+      <div class="card-sub">救命啊不行了</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================ -->
+<!-- Label row                                     -->
+<!-- ============================================ -->
+<div class="label-row">
+  <div class="card-label"><b>腰在尖叫</b><em>救命啊要断了</em></div>
+  <div class="card-label"><b>给我按按</b><em>腰酸死了要按摩</em></div>
+  <div class="card-label"><b>今晚演哪出</b><em>我的腰有戏</em></div>
+  <div class="card-label"><b>腰:SOS!</b><em>彻底报警了</em></div>
+</div>
+
+<!-- ============================================ -->
+<!-- Large 1:1 showcase                           -->
+<!-- ============================================ -->
+<div class="section-header">
+  <h2>1:1 放大版</h2>
+</div>
+
+<div class="large-grid">
+
+  <div class="large-card lc-scream">
+    <div class="lc-inner">
+      <div class="lc-badge">腰在尖叫</div>
+      <div class="lc-time">坐太久<span class="sub">腰在叫</span></div>
+      <div class="lc-figure">
+        <svg viewBox="0 0 100 100" width="90%" height="90%">
+          <rect x="30" y="50" width="40" height="28" rx="6" fill="#ff6240" stroke="#1a1a1a" stroke-width="2.5"/>
+          <path d="M45 52 L55 62 M55 52 L45 62" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+          <circle cx="50" cy="35" r="22" fill="#ffe5cc" stroke="#1a1a1a" stroke-width="2.5"/>
+          <ellipse cx="40" cy="33" rx="5" ry="6" fill="#1a1a1a"/>
+          <ellipse cx="60" cy="33" rx="5" ry="6" fill="#1a1a1a"/>
+          <circle cx="41" cy="31" r="1.5" fill="#fff"/>
+          <circle cx="61" cy="31" r="1.5" fill="#fff"/>
+          <path d="M33 22 Q40 19 47 24" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          <path d="M53 24 Q60 19 67 22" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          <ellipse cx="50" cy="46" rx="6" ry="7" fill="#1a1a1a"/>
+          <ellipse cx="50" cy="45" rx="4" ry="4" fill="#c0392b"/>
+          <ellipse cx="28" cy="36" rx="2" ry="4" fill="#5bb8ff" opacity="0.8"/>
+          <ellipse cx="72" cy="30" rx="2" ry="4" fill="#5bb8ff" opacity="0.8"/>
+          <line x1="30" y1="55" x2="16" y2="40" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="70" y1="55" x2="84" y2="40" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="14" cy="38" r="4" fill="#ffe5cc" stroke="#1a1a1a" stroke-width="2"/>
+          <circle cx="86" cy="38" r="4" fill="#ffe5cc" stroke="#1a1a1a" stroke-width="2"/>
+          <line x1="40" y1="78" x2="38" y2="96" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="60" y1="78" x2="62" y2="96" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="lc-say">腰在尖叫!</div>
+      <div class="lc-sub">动动吧求你了</div>
+    </div>
+  </div>
+
+  <div class="large-card lc-massage">
+    <div class="lc-inner">
+      <div class="lc-badge">给我按按</div>
+      <div class="lc-time">腰累了<span class="sub">要按摩</span></div>
+      <div class="lc-figure">
+        <svg viewBox="0 0 100 100" width="90%" height="90%">
+          <circle cx="50" cy="32" r="22" fill="#ffe5cc" stroke="#1a1a1a" stroke-width="2.5"/>
+          <path d="M36 30 Q40 34 44 30" stroke="#1a1a1a" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+          <path d="M56 30 Q60 34 64 30" stroke="#1a1a1a" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+          <ellipse cx="34" cy="40" rx="4.5" ry="2.5" fill="#ff8a9c" opacity="0.65"/>
+          <ellipse cx="66" cy="40" rx="4.5" ry="2.5" fill="#ff8a9c" opacity="0.65"/>
+          <path d="M42 44 Q50 50 58 44" stroke="#1a1a1a" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <rect x="30" y="52" width="40" height="26" rx="6" fill="#ffbfa0" stroke="#1a1a1a" stroke-width="2.5"/>
+          <path d="M46 66 Q46 62 50 62 Q54 62 54 66 Q54 70 50 73 Q46 70 46 66 Z" fill="#ff5b78" opacity="0.8"/>
+          <ellipse cx="24" cy="64" rx="6" ry="5" fill="#ffe5cc" stroke="#1a1a1a" stroke-width="2"/>
+          <ellipse cx="76" cy="64" rx="6" ry="5" fill="#ffe5cc" stroke="#1a1a1a" stroke-width="2"/>
+          <line x1="28" y1="62" x2="32" y2="58" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="72" y1="62" x2="68" y2="58" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="40" y1="78" x2="38" y2="96" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="60" y1="78" x2="62" y2="96" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="lc-say">给我按按~</div>
+      <div class="lc-sub">腰酸死了</div>
+    </div>
+  </div>
+
+  <div class="large-card lc-night">
+    <div class="lc-inner">
+      <div class="lc-badge">今晚演哪出</div>
+      <div class="lc-time">悬念<span class="sub">我的腰</span></div>
+      <div class="lc-figure">
+        <svg viewBox="0 0 100 100" width="90%" height="90%">
+          <ellipse cx="50" cy="65" rx="24" ry="18" fill="#3d2060" stroke="#d4aaff" stroke-width="2" opacity="0.9"/>
+          <path d="M42 58 Q50 65 58 58" stroke="#d4aaff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-dasharray="3,3"/>
+          <circle cx="50" cy="30" r="22" fill="#2d1b52" stroke="#d4aaff" stroke-width="2.5"/>
+          <ellipse cx="40" cy="28" rx="4" ry="5" fill="#d4aaff" opacity="0.9"/>
+          <circle cx="41" cy="27" r="1.5" fill="#fff"/>
+          <path d="M56 26 Q60 30 64 26" stroke="#d4aaff" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M54 20 Q60 17 66 20" stroke="#d4aaff" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+          <path d="M44 40 Q50 44 56 40" stroke="#d4aaff" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <line x1="30" y1="52" x2="70" y2="52" stroke="#d4aaff" stroke-width="2" stroke-linecap="round"/>
+          <line x1="32" y1="52" x2="26" y2="46" stroke="#d4aaff" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="68" y1="52" x2="74" y2="46" stroke="#d4aaff" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="40" y1="78" x2="38" y2="96" stroke="#d4aaff" stroke-width="2" stroke-linecap="round"/>
+          <line x1="60" y1="78" x2="64" y2="96" stroke="#d4aaff" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="lc-say">今晚腰会演哪一出?</div>
+      <div class="lc-sub">坐等看戏</div>
+    </div>
+  </div>
+
+  <div class="large-card lc-sos">
+    <div class="lc-inner">
+      <div class="lc-badge">腰:SOS!</div>
+      <div class="lc-time">求救<span class="sub">彻底报警</span></div>
+      <div class="lc-figure">
+        <svg viewBox="0 0 100 100" width="90%" height="90%">
+          <circle cx="50" cy="33" r="22" fill="#fff0e0" stroke="#1a1a1a" stroke-width="2.5"/>
+          <line x1="35" y1="28" x2="43" y2="36" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="43" y1="28" x2="35" y2="36" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="57" y1="28" x2="65" y2="36" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="65" y1="28" x2="57" y2="36" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M32 22 Q40 18 48 24" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          <path d="M52 24 Q60 18 68 22" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          <path d="M40 46 Q44 42 48 46 Q52 50 56 46" stroke="#1a1a1a" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+          <path d="M72 22 Q76 18 76 26 Q76 32 72 32 Q68 32 68 26 Q68 18 72 22 Z" fill="#5bb8ff" opacity="0.9"/>
+          <rect x="30" y="52" width="40" height="26" rx="6" fill="#ff6040" stroke="#1a1a1a" stroke-width="2.5"/>
+          <text x="50" y="67" text-anchor="middle" font-family="monospace" font-size="8" font-weight="800" fill="#fff">SOS</text>
+          <line x1="30" y1="55" x2="14" y2="42" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="70" y1="55" x2="86" y2="42" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="12" cy="40" r="4.5" fill="#fff0e0" stroke="#1a1a1a" stroke-width="2"/>
+          <circle cx="88" cy="40" r="4.5" fill="#fff0e0" stroke="#1a1a1a" stroke-width="2"/>
+          <line x1="40" y1="78" x2="38" y2="96" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="60" y1="78" x2="62" y2="96" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="lc-say">腰:SOS!</div>
+      <div class="lc-sub">救命啊不行了</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <div>Stick · 2×2 Waist Break Widget · 撩人版</div>
+  <div>4 撩人模版 · 腰不只是腰 · 腰是女朋友</div>
+</div>
+
+</body>
+</html>
