@@ -142,7 +142,7 @@ struct ContentView: View {
         }
     }
 
-    /// 颈椎压力过大提醒的可见度（0..1）。弯角 > 98° 开始出现，> 130° 完全显示。
+    /// 腰椎压力过大提醒的可见度（0..1）。弯角 > 98° 开始出现，> 130° 完全显示。
     private var neckWarningOpacity: Double {
         let t = figureTiredness
         if t <= 0.6 { return 0 }
@@ -641,9 +641,9 @@ struct ContentView: View {
     }
 }
 
-// MARK: - 颈椎压力 AI 分析报告
+// MARK: - 腰椎压力 AI 分析报告
 
-/// 用户点击"颈椎压力过大"徽章后弹出的 sheet。
+/// 用户点击"腰椎压力过大"徽章后弹出的 sheet。
 /// 根据当前 tiredness 等级（0..1）和 head 弯曲角度（20° + 130°×t）生成 AI 分析报告。
 /// 内容为本地模拟（没接 LLM），但风格、风险评估、建议都根据 level 动态生成。
 private struct NeckPressureReportView: View {
@@ -674,13 +674,13 @@ private struct NeckPressureReportView: View {
     private var analysisBody: String {
         switch tiredness {
         case ..<0.5:
-            return "过去 30 分钟你的头部前倾角度维持在 \(Int(bendAngle))° 左右，颈椎承受的额外压力约为正常直立姿势的 1.5 倍。当前属于轻度疲劳，建议每小时起身活动 2-3 分钟，避免进一步累积。"
+            return "过去 30 分钟你的头部前倾角度维持在 \(Int(bendAngle))° 左右，腰椎承受的额外压力约为正常直立姿势的 1.5 倍。当前属于轻度疲劳，建议每小时起身活动 2-3 分钟，避免进一步累积。"
         case ..<0.7:
-            return "过去 1.5 小时内你的头部持续前倾 \(Int(bendAngle))°，相当于在颈椎上挂了约 12 公斤的沙袋（正常直立约 4.5 公斤）。这个角度会导致颈后肌群持续紧张，肩部也开始代偿。建议立刻做一组颈部拉伸，并把屏幕抬高到视线平行位置。"
+            return "过去 1.5 小时内你的头部持续前倾 \(Int(bendAngle))°，相当于在腰椎上挂了约 12 公斤的沙袋（正常直立约 4.5 公斤）。这个角度会导致腰后肌群持续紧张，肩部也开始代偿。建议立刻做一组腰部拉伸，并把屏幕抬高到视线平行位置。"
         case ..<0.85:
-            return "⚠️ 高风险：你的头部已经前倾 \(Int(bendAngle))° 长达近 \(String(format: "%.1f", durationHours)) 小时。颈椎承受的压力是正常的 3 倍以上（约 15-18 公斤），相当于一个 6 岁小孩坐在你的脖子上。椎间盘突出、肩颈僵硬、头晕恶心的风险显著上升。请立刻：① 离开工位 ② 做 5 分钟米字操 ③ 调整显示器高度 ④ 之后每 30 分钟强制起身。"
+            return "⚠️ 高风险：你的头部已经前倾 \(Int(bendAngle))° 长达近 \(String(format: "%.1f", durationHours)) 小时。腰椎承受的压力是正常的 3 倍以上（约 15-18 公斤），相当于一个 6 岁小孩坐在你的腰上。椎间盘突出、肩腰僵硬、头晕恶心的风险显著上升。请立刻：① 离开工位 ② 做 5 分钟米字操 ③ 调整显示器高度 ④ 之后每 30 分钟强制起身。"
         default:
-            return "🚨 严重警告：头部前倾达到 \(Int(bendAngle))°，已经进入可能造成颈椎反弓的角度。肌肉韧带长期被牵拉、椎动脉供血受影响，风险包括：颈椎曲度变直、椎间盘突出、神经根压迫、头晕手麻。不要再继续这个姿势。建议立即离开屏幕，去做专业理疗或就医检查。如果只是暂时性疲劳，请至少：① 缓慢做颈部米字操 ② 热敷颈后 15 分钟 ③ 把椅子降低让视线平视屏幕。"
+            return "🚨 严重警告：头部前倾达到 \(Int(bendAngle))°，已经进入可能造成腰椎反弓的角度。肌肉韧带长期被牵拉、椎动脉供血受影响，风险包括：腰椎曲度变直、椎间盘突出、神经根压迫、头晕手麻。不要再继续这个姿势。建议立即离开屏幕，去做专业理疗或就医检查。如果只是暂时性疲劳，请至少：① 缓慢做腰部米字操 ② 热敷腰后 15 分钟 ③ 把椅子降低让视线平视屏幕。"
         }
     }
 
@@ -935,7 +935,7 @@ private struct StageHeroView: View {
                                 HStack(spacing: 4) {
                                     Image(systemName: "exclamationmark.triangle.fill")
                                         .font(.system(size: 10, weight: .heavy))
-                                    Text("颈椎压力过大")
+                                    Text("腰椎压力过大")
                                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                                         .tracking(0.4)
                                     Image(systemName: "chevron.right")
