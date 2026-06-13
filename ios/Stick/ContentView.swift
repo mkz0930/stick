@@ -934,11 +934,6 @@ private struct StageHeroView: View {
                     .padding(.bottom, 0)
                     .id(state)
                     .transition(.opacity)
-                // 无数据时叠加一个半透明"暂无数据"水印
-                if hasNoData {
-                    noDataStage
-                        .transition(.opacity)
-                }
 
                 // 颈椎压力过大提醒（左上角；tiredness > 0.6 开始淡入；点击弹 AI 报告）
                 if neckWarningOpacity > 0.01 {
@@ -982,10 +977,7 @@ private struct StageHeroView: View {
                                 SleepAlertChip(count: 2, onTap: onSleepAlert)
                                     .transition(.scale.combined(with: .opacity))
                             }
-                            if hasNoData {
-                                noDataBadge
                             }
-                        }
                         // CONF xx% · 无数据 副标已去掉
                     }
                 }

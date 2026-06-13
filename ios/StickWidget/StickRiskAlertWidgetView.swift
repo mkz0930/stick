@@ -93,27 +93,17 @@ struct StickRiskAlertWidgetView: View {
     let entry: StickRiskAlertEntry
 
     var body: some View {
-        // 按 widget-platelet-v3.html 设计：标题 + 血管图上下布局
-        Button(intent: OpenChatIntent(seed: "久坐风险提醒:\(entry.sitDurationMinutes)分钟")) {
-            VStack(spacing: 14) {
-                // 标题区
-                Text("久坐")
-                    .font(.system(size: 56, weight: .black))
-                    .foregroundColor(Color(red: 0.10, green: 0.10, blue: 0.12))
-                    .tracking(-2)  // letter-spacing: -2px
-
-                // 血管图：宽度撑满，高度按 2:1 比例自动计算（匹配 HTML vessel-svg: width:100%; height:auto）
-                VesselCanvas(duration: entry.sitDurationMinutes)
-                    .frame(maxWidth: .infinity)
-                    .aspectRatio(2/1, contentMode: .fit)
-            }
+        // 诊断测试：最简单 Text widget
+        VStack {
+            Text("STICK")
+                .font(.system(size: 40, weight: .black))
+                .foregroundColor(.red)
+            Text("DIAG TEST")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.blue)
         }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 24)
-        .padding(.top, 28)
-        .padding(.bottom, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 1.0, green: 0.97, blue: 0.91))
+        .background(Color.yellow)
     }
 }
 
