@@ -33,6 +33,8 @@
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>读取健康数据用于展示你的身体状态</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>写入健康数据用于展示和同步你的身体状态</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

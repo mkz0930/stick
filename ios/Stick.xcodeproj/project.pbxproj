@@ -53,8 +53,8 @@
 		B50000000000000000000004 /* SleepReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000005 /* SleepReportView.swift */; };
 		B50000000000000000000006 /* ChatOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000004 /* ChatOverlay.swift */; };
 		B50000000000000000000007 /* StickRiskAlertWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000011 /* StickRiskAlertWidgetView.swift */; };
-		B50000000000000000000011 /* PlateletCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000011 /* PlateletCardView.swift */; };
-			B50000000000000000000009 /* WidgetRiskAlertSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000006 /* WidgetRiskAlertSheet.swift */; };
+		B50000000000000000000009 /* WidgetRiskAlertSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000006 /* WidgetRiskAlertSheet.swift */; };
+		B60000000000000000000001 /* StickWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F40000000000000000000020 /* StickWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -106,10 +106,33 @@
 		F40000000000000000000030 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F50000000000000000000001 /* WidgetPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetPreviewView.swift; sourceTree = "<group>"; };
 		F50000000000000000000004 /* ChatOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOverlay.swift; sourceTree = "<group>"; };
-		F50000000000000000000011 /* PlateletCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlateletCardView.swift; sourceTree = "<group>"; };
 		F50000000000000000000005 /* SleepReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepReportView.swift; sourceTree = "<group>"; };
-			F50000000000000000000006 /* WidgetRiskAlertSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetRiskAlertSheet.swift; sourceTree = "<group>"; };
+		F50000000000000000000006 /* WidgetRiskAlertSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetRiskAlertSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXContainerItemProxy section */
+		X10000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = R10000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = T40000000000000000000001;
+			remoteInfo = StickWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		P100000000000000000000006 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B60000000000000000000001 /* StickWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		P10000000000000000000002 /* Frameworks */ = {
@@ -191,7 +214,7 @@
 				F50000000000000000000001 /* WidgetPreviewView.swift */,
 				F50000000000000000000004 /* ChatOverlay.swift */,
 				F50000000000000000000005 /* SleepReportView.swift */,
-					F50000000000000000000006 /* WidgetRiskAlertSheet.swift */,
+				F50000000000000000000006 /* WidgetRiskAlertSheet.swift */,
 				F10000000000000000000014 /* AIAnalysisView.swift */,
 				F10000000000000000000015 /* AlertsPanel.swift */,
 				F10000000000000000000016 /* AlertDetailView.swift */,
@@ -251,11 +274,12 @@
 				P10000000000000000000003 /* Sources */,
 				P10000000000000000000002 /* Frameworks */,
 				P10000000000000000000004 /* Resources */,
-				P100000000000000000000005 /* Embed Widget */,
+				P100000000000000000000006 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				D10000000000000000000001 /* PBXTargetDependency */,
 			);
 			name = Stick;
 			productName = Stick;
@@ -334,24 +358,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		P100000000000000000000005 /* Embed Widget */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Embed Widget";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "set -e\nmkdir -p \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/PlugIns\"\ncp -R \"${TARGET_BUILD_DIR}/StickWidget.appex\" \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/PlugIns/\"\n";
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -398,7 +404,7 @@
 				B10000000000000000000026 /* Views/ShareSheet.swift in Sources */,
 				B50000000000000000000001 /* WidgetPreviewView.swift in Sources */,
 				B50000000000000000000007 /* StickRiskAlertWidgetView.swift in Sources */,
-					B50000000000000000000009 /* WidgetRiskAlertSheet.swift in Sources */,
+				B50000000000000000000009 /* WidgetRiskAlertSheet.swift in Sources */,
 				B29900000000000000000A13 /* UserProfileStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -414,6 +420,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D10000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = T40000000000000000000001 /* StickWidget */;
+			targetProxy = X10000000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		C10000000000000000000001 /* Debug */ = {
@@ -553,6 +567,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Stick/Info.plist;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "读取健康数据用于展示你的身体状态";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "写入健康数据用于展示和同步你的身体状态";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -585,6 +600,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LLM_API_KEY = "$(STICK_LLM_API_KEY)";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "读取健康数据用于展示你的身体状态";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "写入健康数据用于展示和同步你的身体状态";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
