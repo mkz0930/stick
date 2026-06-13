@@ -15,6 +15,7 @@ struct DayTimelineView: View {
     @State private var hasInteracted: Bool = false   // 用户拖动后永久隐藏 hint
     @State private var pulse: Double = 0             // 0..1 循环，驱动 active 段脉冲
     @State private var autoResetWorkItem: DispatchWorkItem? = nil  // 10s 无操作自动回 now
+    @State private var showPlayback: Bool = false    // 24h 回放 sheet
 
     private let dayMinutes: CGFloat = 1440
     private let trackWidth: CGFloat = 4        // 极细线（竖线宽度）
@@ -22,8 +23,8 @@ struct DayTimelineView: View {
     private let thumbSize: CGFloat = 14        // 圆环缩小
     private let segmentGap: CGFloat = 0.8
     private let snapStep: Int = 5          // 5 分钟一格
-    private let lineAlpha: Double = 0.5        // 竖线半透明
-    private let thumbAlpha: Double = 0.65      // 圆环半透明
+    private let lineAlpha: Double = 0.65       // 竖线半透明 (稍亮，跟动画同色系)
+    private let thumbAlpha: Double = 0.85      // 圆环半透明
 
     // MARK: - 派生
 
@@ -58,7 +59,8 @@ struct DayTimelineView: View {
     // MARK: - body
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 12) {
+            shareButton
             track
                 .frame(width: thumbSize, height: trackLength)
             // 竖线下方：短时间灰色显示
@@ -67,6 +69,8 @@ struct DayTimelineView: View {
                 .tracking(0.4)
                 .foregroundColor(Theme.slate.opacity(0.55))
                 .monospacedDigit()
+                .lineLimit(1)
+                .fixedSize()
                 .contentTransition(.numericText())
                 .animation(.easeInOut(duration: 0.2), value: displayDate)
         }
@@ -92,9 +96,33 @@ struct DayTimelineView: View {
                 .presentationDragIndicator(.visible)
                 .presentationBackgroundInteraction(.disabled)
         }
+        .fullScreenCover(isPresented: $showPlayback) {
+            DayPlaybackSheet(schedule: schedule)
+        }
     }
 
     // MARK: - 子视图
+
+    /// 竖线上方的小分享按钮（点开 → 1-day 回放 sheet，播完后可分享）
+    private var shareButton: some View {
+        Button {
+            showPlayback = true
+        } label: {
+            Image(systemName: "play.rectangle")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(Theme.slate.opacity(0.55))
+                .frame(width: 16, height: 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Theme.slate.opacity(0.06))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var shareMessage: String {
+        "我在 Stick 上的当前状态 · \(displayState.englishName) · \(formatClockOnly(displayDate))"
+    }
 
     private var header: some View {
         HStack(alignment: .center) {
