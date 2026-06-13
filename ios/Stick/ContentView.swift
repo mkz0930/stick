@@ -412,9 +412,10 @@ struct ContentView: View {
             #endif
         }
         .onOpenURL { url in
-            // widget tap 深链：stick://open?state=walk|sit|sleep
-            // （.widgetURL 已经把状态带回来，这里只是占位接收）
-            _ = url
+            // widget tap 深链：stick://chat?state=xxx → 打开聊天
+            if url.host == "chat" {
+                openChat("")
+            }
         }
         .sheet(isPresented: $showFilm) {
             MiniFilmShareSheet(isPresented: $showFilm)
