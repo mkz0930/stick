@@ -30,10 +30,10 @@ SIM=$(xcrun simctl list devices available | grep "iPhone 17 " | head -1 | awk -F
 APP=$(find ~/Library/Developer/Xcode/DerivedData -name "Stick.app" -path "*Debug-iphonesimulator*" | head -1)
 xcrun simctl boot "$SIM" 2>/dev/null
 xcrun simctl install "$SIM" "$APP"
-xcrun simctl launch "$SIM" com.stick.app
+xcrun simctl launch "$SIM" com.stick.app.van
 ```
 
-要求 Xcode 15+（实测 Xcode 26.5，iOS 17+ deployment target）。
+要求 Xcode 15+（实测 Xcode 26.5，iOS 17+ deployment target）。注意 bundle ID 是 `com.stick.app.van`，不是 `com.stick.app`。
 
 ## iOS 架构
 
@@ -43,12 +43,8 @@ ios/Stick/
 ├── ContentView.swift                主舞台 + 布局；@State 持有 now / scrubMinute
 ├── Models/
 │   └── StickState.swift             enum: walk / sit / stand + 24h daySchedule + current(at:)
-└── Views/
-    ├── StickFigureView.swift        Canvas 画火柴人（240×320 坐标系，等比缩放）
-    ├── TimelineView.swift           24h 可拖动时间线（带 scrubbing 状态）
-    ├── TopBarView.swift             顶栏：汉堡 + 标题 + LIVE
-    ├── FeatureRow.swift             底部 3 个功能卡
-    └── InputBar.swift               底部输入栏
+├── Views/                           SwiftUI 视图（见上文）
+└── Services/                        @MainActor ObservableObject 业务服务（HealthKit / LLM / AI 分析等）
 ```
 
 **关键设计选择：**
@@ -73,8 +69,51 @@ ios/Stick/
 - **添加新状态**：(1) `StickState` 加 case + 派生属性 (2) `daySchedule` 加 segment (3) `StickFigureView` 加 `drawXxx` 函数 (4) `drawScene` switch 加 case 画场景 (5) `drawFigure` 路由加 case
 - **时刻表修改**：在 `StickState.daySchedule` 直接改分钟数即可。所有 1440 分钟必须覆盖到，否则 `current()` 会 fall back 到 `.stand`。
 - **bg / accent 颜色**：直接用 `state.accent` 派生，**不要**在调用方硬编码
-- **pbxproj**：手写版，新增/重命名 .swift 需同步改 `PBXBuildFile / PBXFileReference / PBXGroup / PBXSourcesBuildPhase` 四处（**没有** xcodegen/tuist 依赖）
+- **pbxproj**：手写版，新增/重命名 .swift 需同步改 `PBXBuildFile / PBXFileReference / PBXGroup / PBXSourcesBuildPhase` 四处（**没有** xcodegen/tuist 依赖）。Widget target 的文件 ID 固定 24 字符（如 `B40000000000000000000012`）。
 - **Preview Assets 路径含空格**会有 asset reader warning，不影响 build
+
+## Widget 扩展（StickWidget）
+
+```
+ios/StickWidget/
+├── StickWidget.swift              Widget bundle 入口
+├── StickRiskAlertWidgetView.swift 2×2 久坐血小板风险 widget
+└── WidgetPreviewView.swift        app 内预览 widget 效果
+```
+
+- **App ↔ Widget 通信**：通过 App Group (`group.com.zdeer.testaiear`) 的 UserDefaults 共享状态。Widget 写入，App 启动时读取。
+- **Widget 点击**：使用 `Button(intent: OpenRiskAlertIntent(...))` 触发 AppIntent，不弹 "在 Stick 中打开?" 系统确认框。
+- **OpenRiskAlertIntent**：定义在 `StickRiskAlertWidgetView.swift`（或 SharedKit），同时被 widget target 和主 app target 编译。`perform()` 在 widget 进程运行，调用 `SharedStateStore.writePendingRiskAlert()`。
+- **Timeline 更新**：每 5 分钟刷新一次。
+
+## SharedKit（跨 target 共享代码）
+
+```
+ios/SharedKit/
+├── SharedState.swift    Theme 色板 + SharedStickState + SharedStateStore
+└── OpenChatIntent.swift AppIntent（主 app 用，widget 侧另有同名 struct）
+```
+
+- `SharedStateStore`：App Group UserDefaults 读写，key 为 `pendingRiskAlert`。
+- SharedKit 被主 app 和 widget 两个 target 编译，Intent 文件在两边的 import 路径相同。
+
+## 健康相关服务
+
+```
+ios/Stick/Services/
+├── HealthKitService.swift   HealthKit 数据拉取（心率/步数/睡眠等）
+├── HealthAnalyzer.swift     历史健康数据异常分析
+├── AIRiskAnalyzer.swift     AI 实时风险分析
+├── AISleepAnalyzer.swift    AI 睡眠分析
+└── StateInference.swift     多信号融合推断体态（走/坐/站/睡）
+```
+
+- `HealthKitService` 每 30 秒轮询一次，合并进 UI 状态。
+- `AlertAggregator` 聚合 AI 实时风险和历史分析，驱动 `AlertsPanel`。
+
+## App 入口与 Sheet
+
+`StickApp.swift` 是 `@main` 入口，`scenePhase == .active` 时从 App Group 读取 widget 写入的 pending alert，有值则弹出 `WidgetRiskAlertSheet`。
 
 ## 后续方向
 
