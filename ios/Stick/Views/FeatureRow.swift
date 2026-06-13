@@ -207,13 +207,13 @@ private struct MoodLine: View {
                 .fill(dotColor)
                 .frame(width: 5, height: 5)
 
-            // mono 标签 — 缩小 11→9pt 跟 BODY 节奏一致
-            Text("MOOD")
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
+            // mono 标签 — "MOOD" → "心情得分"（4 个中文字，跟"身体状态得分"对称）
+            Text("心情得分")
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
                 .tracking(0.8)
                 .foregroundColor(Theme.slate)
                 .lineLimit(1)
-                .frame(width: 68, alignment: .leading)
+                .frame(width: 90, alignment: .leading)
 
             // 心情曲线 — 已删除（用户要求）
 
@@ -348,11 +348,11 @@ private struct BodyScoreLine: View {
                 .frame(width: 6, height: 6)
 
             Text("身体状态得分")
-                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .font(.system(size: 13, weight: .bold, design: .monospaced))
                 .tracking(0.8)
                 .foregroundColor(Theme.slate)
                 .lineLimit(1)
-                .frame(width: 100, alignment: .leading)
+                .frame(width: 120, alignment: .leading)
 
             // 大数字 + /100（**第 1 行视觉重点**，字号比 FeatureLine 数值还大）
             HStack(alignment: .firstTextBaseline, spacing: 1) {
