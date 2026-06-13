@@ -209,24 +209,23 @@ private struct MoodLine: View {
 
             // mono 标签 — "MOOD" → "心情得分"（4 个中文字，跟"身体状态得分"对称）
             Text("心情得分")
-                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
                 .tracking(0.8)
                 .foregroundColor(Theme.slate)
                 .lineLimit(1)
-                .frame(width: 90, alignment: .leading)
+                .frame(width: 80, alignment: .leading)
 
             // 心情曲线 — 已删除（用户要求）
 
-            // 数值 — 缩小 17→13pt（之前比 BODY 还大，现在反一下：
-            // BODY 是第 1 行视觉焦点，MOOD 退到次级）
+            // 数值 — 13→11pt（再缩一档，跟下面 3rd 行 FeatureLine 节奏一致）
             HStack(alignment: .firstTextBaseline, spacing: 1) {
                 Text("\(Int(moodScore))")
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
                     .foregroundColor(dotColor)
                     .monospacedDigit()
                     .lineLimit(1)
                 Text("/100")
-                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                    .font(.system(size: 8, weight: .medium, design: .monospaced))
                     .foregroundColor(Theme.slate)
             }
 
@@ -356,10 +355,10 @@ private struct BodyScoreLine: View {
             // 大数字 + /100（**第 1 行视觉重点**，字号比 FeatureLine 数值还大）
             HStack(alignment: .firstTextBaseline, spacing: 1) {
                 Text("\(intScore)")
-                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .font(.system(size: 35, weight: .heavy, design: .rounded))
                     .foregroundColor(color)
                 Text("/100")
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .font(.system(size: 14, weight: .medium, design: .monospaced))
                     .foregroundColor(Theme.slate)
             }
             // [tier 文字去掉 — 颜色 + 数字已经传达档位信息]
@@ -402,13 +401,13 @@ private struct FeatureLine: View {
                 .fill(isLocked ? Theme.mist.opacity(0.5) : accent)
                 .frame(width: 6, height: 6)
 
-            // mono 标签（等宽对齐）— 字体加大到 11pt
+            // mono 标签（等宽对齐）— 缩小到 9pt 跟 MOOD 节奏一致
             Text(metric.label)
-                .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
                 .tracking(0.8)
                 .foregroundColor(isLocked ? Theme.mist : Theme.slate)
                 .lineLimit(1)
-                .frame(width: 80, alignment: .leading)
+                .frame(width: 70, alignment: .leading)
 
             // 心率专属：ECG 动画波形 (锁定时不再画)
             if isHeartRate && !isLocked {
@@ -416,30 +415,30 @@ private struct FeatureLine: View {
                     .frame(width: 52, height: 18)
             }
 
-            // 数值 / 锁图标（**等宽列对齐 + 字号 17pt 统一**）
+            // 数值 / 锁图标（**等宽列对齐 + 字号 11pt 统一**）
             // 坐姿秒表（SEDENTARY 行）用 live 文本覆盖硬编码值
             Group {
                 if isLocked {
                     HStack(spacing: 3) {
                         Image(systemName: "lock.fill")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.system(size: 9, weight: .semibold))
                         Text("—")
-                            .font(.system(size: 17, weight: .heavy, design: .rounded))
+                            .font(.system(size: 11, weight: .heavy, design: .rounded))
                     }
                     .foregroundColor(Theme.mist)
                 } else {
                     Text(displayValue)
-                        .font(.system(size: 17, weight: .heavy, design: .rounded))
+                        .font(.system(size: 11, weight: .heavy, design: .rounded))
                         .foregroundColor(isEmpty ? Theme.mist : Theme.navy)
                         .lineLimit(1)
                         .monospacedDigit()  // 数字宽度固定，跨行对齐
                 }
             }
-            .frame(width: 78, alignment: .leading)  // **固定列宽 78pt**，所有数值左对齐
+            .frame(width: 60, alignment: .leading)
 
-            // 副标 (灰显时用 availability.hint; 正常时用 metric.desc) — 字体加大到 11pt
+            // 副标 (灰显时用 availability.hint; 正常时用 metric.desc) — 9pt 缩小
             Text(isLocked ? availability.hint : metric.desc)
-                .font(.system(size: 11, weight: .regular, design: .serif))
+                .font(.system(size: 9, weight: .regular, design: .serif))
                 .foregroundColor(Theme.mist)
                 .lineLimit(1)
         }
