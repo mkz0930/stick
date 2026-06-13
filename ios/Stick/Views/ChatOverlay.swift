@@ -22,6 +22,8 @@ struct ChatOverlay: View {
     @State private var scrollToBottom: Bool = false   // true=auto-scroll(anchor:.bottom) false=history导航(anchor:.top)
     /// 发送消息后，滚动到这条用户消息的位置（用于发送完毕立即定位到用户问题）
     @State private var pendingScrollToUserMsgId: UUID? = nil
+    /// 标记：初始加载完历史消息后，需要自动滚到底部
+    @State private var needsInitialScroll: Bool = false
     @State private var keyboardVisible: Bool = false  // 键盘是否可见
     /// 上次已处理的 scrollTrigger 值（用于去重）
     @State private var lastHandledTrigger: Int = 0
@@ -36,11 +38,11 @@ struct ChatOverlay: View {
     ]
 
     var body: some View {
-        // 用 GeometryReader 读父高度, 卡片固定在底部 95% (上方留 5%)
+        // 用 GeometryReader 读父高度, 全屏显示
         GeometryReader { geo in
             ZStack(alignment: .bottom) {
                 Color.clear
-                cardContent(height: geo.size.height * 0.95)
+                cardContent(height: geo.size.height)
             }
         }   // GeometryReader
         // 键盘弹出/收起时自动滚到底部
@@ -58,7 +60,7 @@ struct ChatOverlay: View {
         }
     }
 
-    /// 卡片本体 (95% 高) — 内部 header / 消息 / input 由内层 VStack 撑开
+    /// 卡片本体 (全屏) — 内部 header / 消息 / input 由内层 VStack 撑开
     @ViewBuilder
     private func cardContent(height: CGFloat) -> some View {
         VStack(spacing: 0) {
@@ -73,19 +75,7 @@ struct ChatOverlay: View {
                 .frame(height: 60)
                 .ignoresSafeArea(edges: .bottom)
         }
-        .background(
-            // 只圆顶部两角，底部贴边 (展开后全圆)
-            UnevenRoundedRectangle(
-                cornerRadii: .init(
-                    topLeading: 14,
-                    bottomLeading: 0,
-                    bottomTrailing: 0,
-                    topTrailing: 14
-                ),
-                style: .continuous
-            )
-            .fill(Theme.card)
-        )
+        .background(Theme.card)
         .overlay(
             UnevenRoundedRectangle(
                 cornerRadii: .init(
@@ -98,8 +88,6 @@ struct ChatOverlay: View {
             )
             .stroke(Theme.border, lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.10), radius: 0, y: 0)
-        .padding(.horizontal, 12)         // 水平留白
         .frame(height: height)
         .onAppear {
             // 从持久化 store 恢复历史 messages
@@ -114,12 +102,16 @@ struct ChatOverlay: View {
             }
             // 初始滚动（overlay 首次出现时触发）
             if let targetId = targetScrollId {
-                // 初始滚动也要走 debounce 逻辑，手动设 lastHandledTrigger
+                // 有目标消息ID（从历史点击导航过来）→ 滚动到该消息
                 self.scrollToBottom = false
                 lastHandledTrigger = scrollTrigger
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                     self.pendingScrollId = targetId
                 }
+            } else if !messages.isEmpty {
+                // 无目标ID（普通打开）→ 滚到底部显示最新消息
+                self.scrollToBottom = true
+                self.needsInitialScroll = true
             }
             input = initialText
             if !initialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -299,6 +291,16 @@ struct ChatOverlay: View {
                                 }
                             }
                             self.pendingScrollId = nil
+                        }
+                        .onChange(of: needsInitialScroll) { needsScroll in
+                            // 初始加载完历史消息后，等待一帧再滚动
+                            guard needsScroll else { return }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                if let last = self.messages.last {
+                                    self.pendingScrollId = last.id
+                                }
+                                self.needsInitialScroll = false
+                            }
                         }
                         .onTapGesture {
                             // 点击消息区 → 滚到底部

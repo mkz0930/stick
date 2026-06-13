@@ -23,8 +23,6 @@
 		B10000000000000000000019 /* AlertsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000015 /* AlertsPanel.swift */; };
 		B10000000000000000000020 /* AlertDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000016 /* AlertDetailView.swift */; };
 		B10000000000000000000021 /* Views/WidgetGalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000017 /* Views/WidgetGalleryView.swift */; };
-		B10000000000000000000022 /* Views/SedentaryScienceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000018 /* Views/SedentaryScienceView.swift */; };
-		B10000000000000000000050 /* Views/WidgetScienceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000050 /* Views/WidgetScienceViews.swift */; };
 		B10000000000000000000023 /* Views/ChatHistoryDemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000019 /* Views/ChatHistoryDemoView.swift */; };
 		B10000000000000000000026 /* Views/ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001B /* Views/ShareSheet.swift */; };
 		B10000000000000000000024 /* Views/DayPlaybackSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001A /* Views/DayPlaybackSheet.swift */; };
@@ -87,8 +85,6 @@
 		F10000000000000000000015 /* AlertsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsPanel.swift; sourceTree = "<group>"; };
 		F10000000000000000000016 /* AlertDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertDetailView.swift; sourceTree = "<group>"; };
 		F10000000000000000000017 /* Views/WidgetGalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/WidgetGalleryView.swift; sourceTree = "<group>"; };
-		F10000000000000000000018 /* Views/SedentaryScienceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SedentaryScienceView.swift; sourceTree = "<group>"; };
-		F10000000000000000000050 /* Views/WidgetScienceViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/WidgetScienceViews.swift; sourceTree = "<group>"; };
 		F10000000000000000000019 /* Views/ChatHistoryDemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ChatHistoryDemoView.swift; sourceTree = "<group>"; };
 		F1000000000000000000001B /* Views/ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ShareSheet.swift; sourceTree = "<group>"; };
 		F1000000000000000000001A /* Views/DayPlaybackSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DayPlaybackSheet.swift; sourceTree = "<group>"; };
@@ -167,8 +163,6 @@
 				F10000000000000000000011 /* Preview Content/Preview Assets.xcassets */,
 				F10000000000000000000013 /* Views/SleepAlertChip.swift */,
 				F10000000000000000000017 /* Views/WidgetGalleryView.swift */,
-				F10000000000000000000018 /* Views/SedentaryScienceView.swift */,
-				F10000000000000000000050 /* Views/WidgetScienceViews.swift */,
 				F10000000000000000000019 /* Views/ChatHistoryDemoView.swift */,
 				F1000000000000000000001A /* Views/DayPlaybackSheet.swift */,
 				F1000000000000000000001B /* Views/ShareSheet.swift */,
@@ -414,9 +408,7 @@
 				B29900000000000000000A0B /* AISleepAnalyzer.swift in Sources */,
 				B10000000000000000000019 /* AlertsPanel.swift in Sources */,
 				B10000000000000000000020 /* AlertDetailView.swift in Sources */,
-				B10000000000000000000022 /* Views/SedentaryScienceView.swift in Sources */,
 				B10000000000000000000021 /* Views/WidgetGalleryView.swift in Sources */,
-				B10000000000000000000050 /* Views/WidgetScienceViews.swift in Sources */,
 				B10000000000000000000023 /* Views/ChatHistoryDemoView.swift in Sources */,
 				B10000000000000000000024 /* Views/DayPlaybackSheet.swift in Sources */,
 				B10000000000000000000026 /* Views/ShareSheet.swift in Sources */,

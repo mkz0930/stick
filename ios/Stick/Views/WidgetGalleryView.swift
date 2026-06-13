@@ -7,30 +7,8 @@ import WidgetKit
 
 struct WidgetGalleryView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var scienceTarget: ScienceTarget? = nil
     /// 点击任意卡片：关掉 gallery，打开聊天
     var onOpenChat: () -> Void = {}
-
-    /// 6 个 widget 各自要打开的科普页
-    enum ScienceTarget: Identifiable {
-        case sedentary           // 2 个 risk card
-        case sedentaryHook       // 腿私信 / 腰演出 钩子卡
-        case postWorkoutIceWater // 运动后冰水
-        case walking             // WALK 状态卡
-        case sitting             // SIT 状态卡
-        case sedentaryMood       // 4x2 久坐心情
-
-        var id: String {
-            switch self {
-            case .sedentary:           return "sedentary"
-            case .sedentaryHook:       return "sedentaryhook"
-            case .postWorkoutIceWater: return "icewater"
-            case .walking:             return "walking"
-            case .sitting:             return "sitting"
-            case .sedentaryMood:       return "sedentarymood"
-            }
-        }
-    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -42,7 +20,7 @@ struct WidgetGalleryView: View {
                         Text("Widget Gallery")
                             .font(.system(size: 22, weight: .bold, design: .serif))
                             .foregroundColor(.white)
-                        Text("所有 2×2 / 4×2 widget 真机渲染 · 点击卡片看科普")
+                        Text("所有 2×2 / 4×2 widget 真机渲染 · 点击卡片打开聊天")
                             .font(.system(size: 12))
                             .foregroundColor(Color(white: 0.6))
                     }
@@ -205,34 +183,6 @@ struct WidgetGalleryView: View {
                     .background(Circle().fill(Color(white: 0.2)))
             }
             .padding(16)
-        }
-        .sheet(item: $scienceTarget) { target in
-            switch target {
-            case .sedentary:
-                SedentaryScienceView()
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-            case .sedentaryHook:
-                SedentaryScienceView()
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-            case .postWorkoutIceWater:
-                PostWorkoutIceWaterScienceView()
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-            case .walking:
-                WalkingScienceView()
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-            case .sitting:
-                SittingScienceView()
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-            case .sedentaryMood:
-                SedentaryMoodScienceView()
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-            }
         }
     }
 

@@ -21,6 +21,7 @@ struct FeatureRow: View {
     var onAlertTap: (UnifiedAlert) -> Void = { _ in }
     var onLockTap: () -> Void = { }   // 点击锁 → 跳添加设备界面
     var onSedentaryTap: () -> Void = { }  // 点击坐姿秒表 → 跳坐姿详情/起身提醒
+    var onCardTap: () -> Void = { }   // 点击卡片主体 → 打开对话
 
     @State private var isExpanded: Bool = false
     @State private var alertsDetailExpanded: Bool = false
@@ -97,6 +98,7 @@ struct FeatureRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.easeInOut(duration: 0.35), value: moodLine)
         .animation(.easeInOut(duration: 0.28), value: isExpanded)
+        .onTapGesture { onCardTap() }
     }
 
     /// 左下角小按键：chevron + "more / less" 文字

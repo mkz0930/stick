@@ -249,6 +249,39 @@ private func drawWalk(ctx: inout GraphicsContext, stroke: Color, fill: Color, jo
     drawEllipse(ctx: &ctx, rect: head, fill: fill, stroke: stroke, width: w, alpha: lineAlpha)
     ctx.transform = saved
 
+    // 表情：仅在 **心情不好时**显示（mood != excited/normal 时） — 闭眼 + 愁眉 + 嘴角下垂
+    // 心情好（excited/normal/calm/good）时整个脸保持空白，不画任何表情
+    let showSadFace = (mood != .excited) && !isExcited
+    if showSadFace {
+        // 闭眼（两条向下弧线，眼角下垂带泪意）
+        strokeCurve(ctx: &ctx,
+                    from: CGPoint(x: 99, y: 76),
+                    to:   CGPoint(x: 107, y: 78),
+                    control: CGPoint(x: 103, y: 80),
+                    color: stroke, width: 1.3, alpha: lineAlpha)
+        // 右眼：对称
+        strokeCurve(ctx: &ctx,
+                    from: CGPoint(x: 117, y: 78),
+                    to:   CGPoint(x: 125, y: 76),
+                    control: CGPoint(x: 121, y: 80),
+                    color: stroke, width: 1.3, alpha: lineAlpha)
+        // 眉头：两根向中间下斜的细线（忧愁）
+        strokeLine(ctx: &ctx,
+                   from: CGPoint(x: 98, y: 70),
+                   to:   CGPoint(x: 105, y: 73),
+                   color: stroke.opacity(0.7), width: 1.1, alpha: lineAlpha)
+        strokeLine(ctx: &ctx,
+                   from: CGPoint(x: 126, y: 73),
+                   to:   CGPoint(x: 119, y: 70),
+                   color: stroke.opacity(0.7), width: 1.1, alpha: lineAlpha)
+        // 嘴角下垂：中央到两侧向上拱（∩ 形 = 悲伤）
+        strokeCurve(ctx: &ctx,
+                    from: CGPoint(x: 106, y: 92),
+                    to:   CGPoint(x: 118, y: 92),
+                    control: CGPoint(x: 112, y: 88),
+                    color: stroke, width: 1.4, alpha: lineAlpha)
+    }
+
     // 颈椎
     strokeCurve(ctx: &ctx, from: CGPoint(x: 113, y: 105), to: CGPoint(x: 111, y: 128),
                 control: CGPoint(x: 111, y: 116), color: stroke, width: w, alpha: lineAlpha)
@@ -382,9 +415,9 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
     // （稍后在函数内追加调用）
 
     // 头/颈参数（声明提前，后面 right arm 之后再画头，让头画在手臂之上）
-    let headTiltExtra: Double = isTired ? tiredness * 130.0 : 0  // peak 时 20°+130°=150°（头翻过去）
-    let headShiftY: CGFloat = isTired ? CGFloat(tiredness) * 95 : 0   // 头往下沉 95px
-    let headShiftX: CGFloat = isTired ? CGFloat(tiredness) * 35 : 0   // 头往屏幕方向靠 35px
+    let headTiltExtra: Double = isTired ? tiredness * 10.0 : 0   // peak 时 20°+10°=30°（不夸张）
+    let headShiftY: CGFloat = isTired ? CGFloat(tiredness) * 12 : 0   // 头往下沉 12px
+    let headShiftX: CGFloat = isTired ? CGFloat(tiredness) * 6 : 0   // 头往屏幕方向靠 6px
     let headCenter = CGPoint(x: 108, y: 75)
     let head = CGRect(x: headCenter.x - 24, y: headCenter.y - 30, width: 48, height: 60)
     let tiltAngle = Angle.degrees(20 + headTiltExtra).radians

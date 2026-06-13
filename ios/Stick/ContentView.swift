@@ -500,7 +500,8 @@ struct ContentView: View {
                         sitDurationText: sitDurationText,  // ← live 坐姿秒表
                         onAlertTap: handleAlertTap,
                         onLockTap: { showDevicePicker = true },
-                        onSedentaryTap: { showSedentaryDetail = true }
+                        onSedentaryTap: { showSedentaryDetail = true },
+                        onCardTap: { showChat = true }
                     )
                     .padding(.horizontal, 20)
                     .padding(.bottom, 6)
@@ -911,15 +912,16 @@ private struct StageHeroView: View {
         VStack(alignment: .leading, spacing: 0) {
             // 舞台区（火柴人 + 透明背景，跟整页一个底色）
             ZStack {
+                // 永远画小人（让用户看到 30° 低头 + 低落表情等所有视觉）
+                StickFigureView(state: state, mood: mood, tiredness: tiredness, neckWarning: neckWarningOpacity)
+                    .padding(.horizontal, 4)
+                    .padding(.top, 0)
+                    .padding(.bottom, 0)
+                    .id(state)
+                    .transition(.opacity)
+                // 无数据时叠加一个半透明"暂无数据"水印
                 if hasNoData {
                     noDataStage
-                        .transition(.opacity)
-                } else {
-                    StickFigureView(state: state, mood: mood, tiredness: tiredness, neckWarning: neckWarningOpacity)
-                        .padding(.horizontal, 4)
-                        .padding(.top, 0)
-                        .padding(.bottom, 0)
-                        .id(state)
                         .transition(.opacity)
                 }
 
