@@ -415,6 +415,7 @@
 				B10000000000000000000019 /* AlertsPanel.swift in Sources */,
 				B10000000000000000000020 /* AlertDetailView.swift in Sources */,
 				B10000000000000000000022 /* Views/SedentaryScienceView.swift in Sources */,
+				B10000000000000000000021 /* Views/WidgetGalleryView.swift in Sources */,
 				B10000000000000000000050 /* Views/WidgetScienceViews.swift in Sources */,
 				B10000000000000000000023 /* Views/ChatHistoryDemoView.swift in Sources */,
 				B10000000000000000000024 /* Views/DayPlaybackSheet.swift in Sources */,

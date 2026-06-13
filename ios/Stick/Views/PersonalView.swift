@@ -127,7 +127,7 @@ struct PersonalView: View {
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showWidgetPreview) {
-            AnyView(Text("Widget Gallery (disabled)"))
+            WidgetGalleryView()
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }

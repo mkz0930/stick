@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UserNotifications
 
 // MARK: - 久坐科普界面
@@ -24,6 +25,7 @@ struct SedentaryScienceView: View {
                         header
                         dangersSection
                         actionsSection
+                        nearbyMassageSection
                         addReminderCard.id("bottom")
                         Spacer(minLength: 30)
                     }
@@ -211,6 +213,72 @@ struct SedentaryScienceView: View {
         )
     }
 
+    // MARK: - 附近按摩服务
+
+    private let massageServices: [MassageService] = [
+        MassageService(emoji: "💆", name: "中医推拿馆", distance: "距你 800m", tag: "腰间盘突出", color: Color(red: 0.95, green: 0.50, blue: 0.05)),
+        MassageService(emoji: "🧴", name: "盲人按摩（总店）", distance: "距你 1.2km", tag: "肩颈腰背", color: Color(red: 0.92, green: 0.34, blue: 0.20)),
+        MassageService(emoji: "🏥", name: "三甲医院康复科", distance: "距你 2.1km", tag: "专业诊疗", color: Color(red: 0.20, green: 0.50, blue: 0.85)),
+        MassageService(emoji: "🧍", name: "Fit24 智能按摩", distance: "距你 500m", tag: "筋膜枪 + 热敷", color: Color(red: 0.02, green: 0.59, blue: 0.41)),
+    ]
+
+    private var nearbyMassageSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionLabel("附近按摩服务", emoji: "📍", color: Color(red: 0.92, green: 0.34, blue: 0.05))
+            Text("腰背持续酸痛？专业按摩 + 诊疗才是根本")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(Color(red: 0.42, green: 0.45, blue: 0.52))
+                .padding(.bottom, 2)
+            VStack(spacing: 8) {
+                ForEach(massageServices) { svc in
+                    massageCard(svc)
+                }
+            }
+        }
+    }
+
+    private func massageCard(_ svc: MassageService) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10).fill(svc.color.opacity(0.12))
+                Text(svc.emoji).font(.system(size: 20))
+            }
+            .frame(width: 44, height: 44)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(svc.color, lineWidth: 1.5)
+            )
+            VStack(alignment: .leading, spacing: 2) {
+                Text(svc.name)
+                    .font(.system(size: 14, weight: .heavy))
+                    .foregroundColor(Color(red: 0.10, green: 0.15, blue: 0.25))
+                HStack(spacing: 6) {
+                    Text(svc.distance)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(svc.color)
+                    Text("·")
+                        .foregroundColor(Color(red: 0.62, green: 0.65, blue: 0.72))
+                    Text(svc.tag)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color(red: 0.42, green: 0.45, blue: 0.52))
+                }
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 9, weight: .heavy))
+                .foregroundColor(Color(red: 0.62, green: 0.65, blue: 0.72))
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color.white)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color(red: 0.10, green: 0.15, blue: 0.25), lineWidth: 2.5)
+        )
+    }
+
     // MARK: - 一键添加提醒
 
     private var addReminderCard: some View {
@@ -383,6 +451,15 @@ struct SedentaryScienceView: View {
             showAddSuccess = true
         }
     }
+}
+
+struct MassageService: Identifiable {
+    let id = UUID()
+    let emoji: String
+    let name: String
+    let distance: String
+    let tag: String
+    let color: Color
 }
 
 enum NotificationAuth {
