@@ -25,160 +25,24 @@ struct WidgetGalleryView: View {
                             .foregroundColor(Color(white: 0.6))
                     }
 
-                    // 2x2 widgets — 重点是久坐风险（先展示 2 个）
+                    // 久坐血小板 widget (V3 血管图)
                     VStack(alignment: .leading, spacing: 16) {
-                        sectionLabel("2×2 · systemSmall · 久坐风险告警 (新) · 点我")
+                        sectionLabel("久坐血小板 · 点我看「久坐风险」")
                         HStack(spacing: 14) {
                             VStack(spacing: 6) {
-                                RiskWidgetMock(minutes: 45, level: .mid)
-                                    .frame(width: 158, height: 158)
-                                    .clipShape(RoundedRectangle(cornerRadius: 22))
-                                    .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
-                                    .onTapGesture {
-                                        onOpenChat("")
-                                        dismiss()
-                                    }
-                                Text("中风险 · 45 分")
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundColor(Color(red: 0.95, green: 0.50, blue: 0.05))
-                            }
-                            VStack(spacing: 6) {
-                                RiskWidgetMock(minutes: 65, level: .high)
+                                SedentaryPlateletWidget()
                                     .frame(width: 158, height: 158)
                                     .clipShape(RoundedRectangle(cornerRadius: 22))
                                     .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
                                     .onTapGesture {
                                         dismiss()
-                                        onOpenChat("")
+                                        onOpenChat("久坐风险")
                                     }
-                                Text("高风险 · 65 分")
+                                Text("血小板堆积")
                                     .font(.system(size: 10, weight: .semibold))
-                                    .foregroundColor(Color(red: 0.90, green: 0.20, blue: 0.15))
+                                    .foregroundColor(Color(red: 0.79, green: 0.17, blue: 0.0))
                             }
                         }
-                    }
-
-                    // 运动后冰水告警（5 步因果链） — 实际 widget view 复用
-                    VStack(alignment: .leading, spacing: 16) {
-                        sectionLabel("2×2 · systemSmall · 运动后冰水告警 (新) · 点我")
-                        HStack(spacing: 14) {
-                            VStack(spacing: 6) {
-                                ZStack {
-                                    LinearGradient(
-                                        colors: [
-                                            Color(red: 0.957, green: 0.965, blue: 0.949),
-                                            Color(red: 0.863, green: 0.890, blue: 0.863)
-                                        ],
-                                        startPoint: .top, endPoint: .bottom
-                                    )
-                                    StickPostWorkoutWidgetView(
-                                        entry: StickPostWorkoutEntry(date: .now)
-                                    )
-                                }
-                                .frame(width: 158, height: 158)
-                                .clipShape(RoundedRectangle(cornerRadius: 22))
-                                .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
-                                .onTapGesture {
-                                    dismiss()
-                                    onOpenChat("")
-                                }
-                                Text("冰水 → 晕厥 · 5 步")
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundColor(Color(red: 0.92, green: 0.34, blue: 0.20))
-                            }
-                            Spacer()
-                        }
-                    }
-
-                    // 久坐钩子 · 点击卡片
-                    VStack(alignment: .leading, spacing: 16) {
-                        sectionLabel("2×2 · systemSmall · 久坐点击钩子 (新) · 来自 HTML")
-                        HStack(spacing: 14) {
-                            VStack(spacing: 6) {
-                                ZStack {
-                                    LinearGradient(
-                                        colors: [
-                                            Color(red: 0.682, green: 0.894, blue: 1.000),
-                                            Color(red: 0.365, green: 0.588, blue: 1.000)
-                                        ],
-                                        startPoint: .topLeading, endPoint: .bottomTrailing
-                                    )
-                                    StickSedentaryLegDMWidgetView(
-                                        entry: StickSedentaryLegDMEntry(date: .now)
-                                    )
-                                }
-                                .frame(width: 158, height: 158)
-                                .clipShape(RoundedRectangle(cornerRadius: 22))
-                                .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
-                                .onTapGesture {
-                                    dismiss()
-                                    onOpenChat("")
-                                }
-                                Text("腿私信 · 钩子卡")
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundColor(Color(red: 0.58, green: 0.78, blue: 1.00))
-                            }
-                            VStack(spacing: 6) {
-                                ZStack {
-                                    LinearGradient(
-                                        colors: [
-                                            Color(red: 0.682, green: 0.894, blue: 1.000),
-                                            Color(red: 0.365, green: 0.588, blue: 1.000)
-                                        ],
-                                        startPoint: .topLeading, endPoint: .bottomTrailing
-                                    )
-                                    StickSedentaryWaistShowWidgetView(
-                                        entry: StickSedentaryWaistShowEntry(date: .now)
-                                    )
-                                }
-                                .frame(width: 158, height: 158)
-                                .clipShape(RoundedRectangle(cornerRadius: 22))
-                                .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
-                                .onTapGesture {
-                                    dismiss()
-                                    onOpenChat("")
-                                }
-                                Text("腰演出 · 钩子卡")
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundColor(Color(red: 0.58, green: 0.78, blue: 1.00))
-                            }
-                        }
-                    }
-
-                    // 腰断了 widget
-                    VStack(alignment: .leading, spacing: 16) {
-                        sectionLabel("2×2 · 腰断了 · 点我问「腰疼怎么办」")
-                        HStack(spacing: 14) {
-                            VStack(spacing: 6) {
-                                BrokenBackWidget()
-                                    .frame(width: 158, height: 158)
-                                    .clipShape(RoundedRectangle(cornerRadius: 22))
-                                    .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
-                                    .onTapGesture {
-                                        dismiss()
-                                        onOpenChat("腰疼怎么办")
-                                    }
-                                Text("腰断了 · 求助")
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundColor(Color(red: 1.0, green: 0.48, blue: 0.30))
-                            }
-                        }
-                    }
-
-                    // 4x2 widget
-                    VStack(alignment: .leading, spacing: 16) {
-                        sectionLabel("4×2 · systemMedium · 点我")
-                        MediumWidgetMock()
-                            .frame(width: 338, height: 158)
-                            .clipShape(RoundedRectangle(cornerRadius: 22))
-                            .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
-                            .onTapGesture {
-                                dismiss()
-                                onOpenChat("")
-                            }
-                        Text("SIT · 心情 + 告警")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.white.opacity(0.55))
                     }
 
                     Spacer(minLength: 20)
@@ -941,5 +805,170 @@ struct BrokenBackFigure: View {
             ctx.stroke(Path(ellipseIn: CGRect(x: bubbleX - 22, y: bubbleY - 8, width: 44, height: 20)),
                        with: .color(stroke), lineWidth: 1.5)
         }
+    }
+}
+
+// MARK: - 久坐血小板 Widget (V3 血管图)
+
+struct SedentaryPlateletWidget: View {
+    @State private var phase: Double = 0
+
+    var body: some View {
+        ZStack {
+            Color(red: 1.0, green: 0.97, blue: 0.91)   // #FFF7E8
+
+            VStack(spacing: 0) {
+                // 顶栏: 久坐标题 + 提醒
+                HStack {
+                    Text("久坐")
+                        .font(.system(size: 16, weight: .black))
+                        .foregroundColor(Color(red: 0.10, green: 0.15, blue: 0.25))
+                    Spacer()
+                    Text("120' 血栓!")
+                        .font(.system(size: 9, weight: .black, design: .monospaced))
+                        .foregroundColor(Color(red: 1.0, green: 0.30, blue: 0.18))
+                }
+                .padding(.horizontal, 10)
+                .padding(.top, 8)
+
+                // 血管 + 血小板
+                PlateletVessel(phase: phase)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 100)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+            }
+        }
+        .onAppear {
+            withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false)) {
+                phase = 6.28
+            }
+        }
+    }
+}
+
+// MARK: - 血管 + 血小板 Canvas
+
+struct PlateletVessel: View {
+    let phase: Double
+
+    var body: some View {
+        Canvas { ctx, size in
+            let stroke = Color(red: 0.10, green: 0.15, blue: 0.25)
+            let pulse = 0.5 + 0.5 * sin(phase * 3.0)
+            let throbPulse = 0.5 + 0.5 * sin(phase * 5.0)
+
+            // 血管外壁 (左上角略圆, 右上角略圆, 右下角略圆, 左下角略圆)
+            let vesselH: CGFloat = 44
+            let vesselY = size.height * 0.30
+            let vesselRect = CGRect(x: 8, y: vesselY, width: size.width - 16, height: vesselH)
+            let outerPath = Path(roundedRect: vesselRect, cornerRadius: 6)
+            ctx.fill(outerPath, with: .color(Color(red: 1.0, green: 0.89, blue: 0.82)))
+            ctx.stroke(outerPath, with: .color(stroke), lineWidth: 1.5)
+
+            // 血管内壁
+            let innerRect = vesselRect.insetBy(dx: 4, dy: 6)
+            let innerPath = Path(roundedRect: innerRect, cornerRadius: 4)
+            ctx.fill(innerPath, with: .color(Color(red: 1.0, green: 0.80, blue: 0.66)))
+
+            // 时间刻度 (0', 30', 60', 90', 120')
+            let ticks = [(0, "0'"), (15, "30'"), (40, "60'"), (65, "90'"), (88, "120'")]
+            for (i, tick) in ticks.enumerated() {
+                let xRatio = CGFloat(tick.0) / 100.0
+                let x = 8 + (size.width - 16) * xRatio
+                let isCritical = tick.1 == "120'"
+                let tickColor = isCritical ? Color(red: 1.0, green: 0.30, blue: 0.18) : stroke.opacity(0.3)
+                let lineWidth: CGFloat = isCritical ? 1.0 : 0.5
+                ctx.stroke(Path { p in
+                    p.move(to: CGPoint(x: x, y: vesselY - 4))
+                    p.addLine(to: CGPoint(x: x, y: vesselY + vesselH + 4))
+                }, with: .color(tickColor), style: StrokeStyle(lineWidth: lineWidth, dash: [1.5, 2]))
+            }
+
+            // 时间标签
+            let labelY = vesselY - 7
+            let fontSize: CGFloat = 7
+            for tick in ticks {
+                let xRatio = CGFloat(tick.0) / 100.0
+                let x = 8 + (size.width - 16) * xRatio
+                let isCritical = tick.1 == "120'"
+                let labelColor = isCritical ? Color(red: 1.0, green: 0.30, blue: 0.18) : stroke.opacity(0.6)
+                let text = Text(tick.1)
+                    .font(.system(size: fontSize, weight: isCritical ? .black : .bold, design: .monospaced))
+                    .foregroundColor(labelColor)
+                ctx.draw(text, at: CGPoint(x: x, y: labelY))
+            }
+
+            // 血小板 - 0' 位置: 1 颗
+            drawPlatelet(ctx: ctx, stroke: stroke,
+                         pos: CGPoint(x: 8 + (size.width - 16) * 0.0, y: vesselY + vesselH/2),
+                         radius: 4)
+
+            // 血小板 - 30' 位置: 3 颗
+            let x30 = 8 + (size.width - 16) * 0.15
+            drawPlatelet(ctx: ctx, stroke: stroke,
+                         pos: CGPoint(x: x30, y: vesselY + vesselH/2 - 4), radius: 3.5)
+            drawPlatelet(ctx: ctx, stroke: stroke,
+                         pos: CGPoint(x: x30 + 8, y: vesselY + vesselH/2 + 3), radius: 3)
+            drawPlatelet(ctx: ctx, stroke: stroke,
+                         pos: CGPoint(x: x30 - 8, y: vesselY + vesselH/2 + 3), radius: 2.5)
+
+            // 血小板 - 60' 位置: 6 颗
+            let x60 = 8 + (size.width - 16) * 0.40
+            let platelets60: [(CGFloat, CGFloat, CGFloat)] = [
+                (0, -5, 3.5), (6, 0, 4), (3, 6, 3.5),
+                (-4, 0, 2.5), (10, -2, 2.5), (-2, 5, 2.5)
+            ]
+            for (dx, dy, r) in platelets60 {
+                drawPlatelet(ctx: ctx, stroke: stroke,
+                             pos: CGPoint(x: x60 + dx, y: vesselY + vesselH/2 + dy), radius: r)
+            }
+
+            // 血小板 - 90' 位置: 10+ 颗
+            let x90 = 8 + (size.width - 16) * 0.65
+            let platelets90: [(CGFloat, CGFloat, CGFloat)] = [
+                (0, -6, 3.5), (7, -3, 3.5), (-3, 0, 3.5),
+                (10, 4, 3.5), (4, 5, 3.2), (-8, 4, 2.5),
+                (12, -1, 2.5), (-1, 7, 2.2), (8, -7, 2.2)
+            ]
+            for (dx, dy, r) in platelets90 {
+                drawPlatelet(ctx: ctx, stroke: stroke,
+                             pos: CGPoint(x: x90 + dx, y: vesselY + vesselH/2 + dy), radius: r)
+            }
+
+            // 血栓! 120' 位置 (砖红)
+            let x120 = 8 + (size.width - 16) * 0.88
+            let thrombusCenter = CGPoint(x: x120, y: vesselY + vesselH/2)
+            let platelets120: [(CGFloat, CGFloat, CGFloat)] = [
+                (-3, -8, 3.2), (3, -5, 3.2), (-2, 0, 3.5),
+                (4, 4, 3.2), (-4, 6, 3.2), (6, 6, 2.5),
+                (8, 0, 2.2), (2, -10, 2.2), (10, 8, 2)
+            ]
+            for (dx, dy, r) in platelets120 {
+                ctx.fill(Path(ellipseIn: CGRect(x: thrombusCenter.x + dx - r, y: thrombusCenter.y + dy - r, width: r*2, height: r*2)),
+                         with: .color(Color(red: 0.79, green: 0.17, blue: 0.0)))
+                ctx.stroke(Path(ellipseIn: CGRect(x: thrombusCenter.x + dx - r, y: thrombusCenter.y + dy - r, width: r*2, height: r*2)),
+                           with: .color(stroke), lineWidth: 1.2)
+            }
+
+            // 血栓! 爆炸标 (在血管下方)
+            let boomY = vesselY + vesselH + 12
+            let boomR: CGFloat = 10
+            ctx.fill(Path(ellipseIn: CGRect(x: x120 - boomR, y: boomY - boomR, width: boomR*2, height: boomR*2)),
+                     with: .color(Color(red: 1.0, green: 0.30, blue: 0.18).opacity(0.7 + 0.3 * throbPulse)))
+            ctx.stroke(Path(ellipseIn: CGRect(x: x120 - boomR, y: boomY - boomR, width: boomR*2, height: boomR*2)),
+                       with: .color(stroke), lineWidth: 1.5)
+            let boomText = Text("血栓!")
+                .font(.system(size: 7, weight: .black))
+                .foregroundColor(.white)
+            ctx.draw(boomText, at: CGPoint(x: x120, y: boomY + 1))
+        }
+    }
+
+    private func drawPlatelet(ctx: GraphicsContext, stroke: Color, pos: CGPoint, radius: CGFloat) {
+        ctx.fill(Path(ellipseIn: CGRect(x: pos.x - radius, y: pos.y - radius, width: radius*2, height: radius*2)),
+                 with: .color(Color(red: 1.0, green: 0.30, blue: 0.18)))
+        ctx.stroke(Path(ellipseIn: CGRect(x: pos.x - radius, y: pos.y - radius, width: radius*2, height: radius*2)),
+                   with: .color(stroke), lineWidth: 1.2)
     }
 }

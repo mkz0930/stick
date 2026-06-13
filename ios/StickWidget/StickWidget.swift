@@ -1,9 +1,13 @@
 import WidgetKit
 import SwiftUI
 
-// MARK: - Widget Bundle (两个 widget 共存)
-// 实际渲染在 StickWidgetView.swift / StickMediumWidgetView.swift
-// widget target 和主 app 共享这两份 view 文件。
+// MARK: - Widget Bundle (六个 widget 共存)
+// 实际渲染在 StickWidgetView.swift / StickMediumWidgetView.swift / ... / 各 widget view
+// widget target 和主 app 共享这些 view 文件。
+//
+// ⚠️ 不再使用 `Link(destination: stick://...)`：iOS 对自定义 URL scheme 每次都弹
+// 「在 'Stick' 中打开?」系统弹窗，体验割裂。所有 widget 改为不可点（点 widget 只进
+// widget 库，不进 app）。如需重新打开 app，从主屏点 Stick 图标即可。
 
 @main
 struct StickWidgetBundle: WidgetBundle {
@@ -22,9 +26,7 @@ struct StickWidgetBundle: WidgetBundle {
 struct StickWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "StickWidget", provider: StickProvider()) { entry in
-            Link(destination: URL(string: "stick://science/walking")!) {
-                StickWidgetView(entry: entry)
-            }
+            StickWidgetView(entry: entry)
         }
         .configurationDisplayName("Stick")
         .description("2x2 · 状态 + 心率")
@@ -37,9 +39,7 @@ struct StickWidget: Widget {
 struct StickMediumWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "StickMediumWidget", provider: StickProvider()) { entry in
-            Link(destination: URL(string: "stick://science/sedentarymood")!) {
-                StickMediumWidgetView(entry: entry)
-            }
+            StickMediumWidgetView(entry: entry)
         }
         .configurationDisplayName("Stick")
         .description("4x2 · 心情 + 告警")
@@ -52,9 +52,7 @@ struct StickMediumWidget: Widget {
 struct StickRiskAlertWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "StickRiskAlertWidget", provider: RiskAlertProvider()) { entry in
-            Link(destination: URL(string: "stick://science/sedentary")!) {
-                StickRiskAlertWidgetView(entry: entry)
-            }
+            StickRiskAlertWidgetView(entry: entry)
         }
         .configurationDisplayName("Stick 风险")
         .description("久坐血小板沉积风险 · 提示动动")
@@ -67,9 +65,7 @@ struct StickRiskAlertWidget: Widget {
 struct StickPostWorkoutWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "StickPostWorkoutWidget", provider: PostWorkoutProvider()) { entry in
-            Link(destination: URL(string: "stick://science/icewater")!) {
-                StickPostWorkoutWidgetView(entry: entry)
-            }
+            StickPostWorkoutWidgetView(entry: entry)
         }
         .configurationDisplayName("Stick 运动后")
         .description("刚运动完 · 别灌冰水 · 5 步因果链")
@@ -82,9 +78,7 @@ struct StickPostWorkoutWidget: Widget {
 struct StickSedentaryLegDMWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "StickSedentaryLegDMWidget", provider: LegDMProvider()) { entry in
-            Link(destination: URL(string: "stick://science/sedentaryhook")!) {
-                StickSedentaryLegDMWidgetView(entry: entry)
-            }
+            StickSedentaryLegDMWidgetView(entry: entry)
         }
         .configurationDisplayName("Stick 腿私信")
         .description("久坐钩子 · 腿给你发了一条私信")
@@ -97,9 +91,7 @@ struct StickSedentaryLegDMWidget: Widget {
 struct StickSedentaryWaistShowWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "StickSedentaryWaistShowWidget", provider: WaistShowProvider()) { entry in
-            Link(destination: URL(string: "stick://science/sedentaryhook")!) {
-                StickSedentaryWaistShowWidgetView(entry: entry)
-            }
+            StickSedentaryWaistShowWidgetView(entry: entry)
         }
         .configurationDisplayName("Stick 腰演出")
         .description("久坐钩子 · 今晚腰会演哪一出")
