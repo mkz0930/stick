@@ -127,9 +127,14 @@ struct PersonalView: View {
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showWidgetPreview) {
-            WidgetGalleryView()
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
+            WidgetGalleryView(onOpenChat: {
+                showWidgetPreview = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    onClose()
+                }
+            })
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: shareItems)
