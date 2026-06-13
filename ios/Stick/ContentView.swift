@@ -294,10 +294,8 @@ struct ContentView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            mainContent
-
-            if showChat && !Self.isRunningForPreviews {
+        mainContent
+            .overlay {
                 ChatOverlay(
                     state: displayState,
                     initialText: chatSeed,
@@ -306,11 +304,15 @@ struct ContentView: View {
                     onClose: { showChat = false }
                 )
                 .id(chatKey)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .opacity(showChat ? 1 : 0)
             }
-        }
-        .ignoresSafeArea(edges: .bottom)
-        .animation(.easeInOut(duration: 0.28), value: showChat)
+            .ignoresSafeArea(edges: .bottom)
+            .onAppear {
+                // 调试用：env STICK_TEST_OPEN_CHAT=1 → 启动时自动开 chat
+                if ProcessInfo.processInfo.environment["STICK_TEST_OPEN_CHAT"] != nil {
+                    openChat("")
+                }
+            }
     }
 
     /// 主页（被外层 ZStack 包了一层）— GeometryReader + 个人面板
@@ -350,10 +352,10 @@ struct ContentView: View {
                         scrollTrigger += 1
                         withAnimation(.easeInOut(duration: 0.28)) { showChat = true }
                     },
-                    onOpenChat: {
+                    onOpenChat: { seed in
                         // 关掉个人面板，打开聊天
                         withAnimation(.easeInOut(duration: 0.32)) { showPersonal = false }
-                        openChat("")
+                        openChat(seed)
                     }
                 )
                 .frame(width: panelWidth)

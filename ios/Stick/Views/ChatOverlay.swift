@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Chat 底栏（v2）：直接叠在主页底部，跟主界面无缝融合。
 /// - 默认高度 ≈ 220pt（header 32pt + 消息列表 + inputBar 44pt）
@@ -20,10 +21,6 @@ struct ChatOverlay: View {
     @State private var showHistoryPopover: Bool = false
     @State private var pendingScrollId: UUID? = nil   // 点击历史 → 滚动定位
     @State private var scrollToBottom: Bool = false   // true=auto-scroll(anchor:.bottom) false=history导航(anchor:.top)
-    /// 发送消息后，滚动到这条用户消息的位置（用于发送完毕立即定位到用户问题）
-    @State private var pendingScrollToUserMsgId: UUID? = nil
-    /// 标记：初始加载完历史消息后，需要自动滚到底部
-    @State private var needsInitialScroll: Bool = false
     @State private var keyboardVisible: Bool = false  // 键盘是否可见
     /// 上次已处理的 scrollTrigger 值（用于去重）
     @State private var lastHandledTrigger: Int = 0
@@ -111,7 +108,10 @@ struct ChatOverlay: View {
             } else if !messages.isEmpty {
                 // 无目标ID（普通打开）→ 滚到底部显示最新消息
                 self.scrollToBottom = true
-                self.needsInitialScroll = true
+                // 延迟滚动：等 LazyVStack 渲染完再执行
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    self.pendingScrollId = self.messages.last?.id
+                }
             }
             input = initialText
             if !initialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -291,16 +291,6 @@ struct ChatOverlay: View {
                                 }
                             }
                             self.pendingScrollId = nil
-                        }
-                        .onChange(of: needsInitialScroll) { needsScroll in
-                            // 初始加载完历史消息后，等待一帧再滚动
-                            guard needsScroll else { return }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                if let last = self.messages.last {
-                                    self.pendingScrollId = last.id
-                                }
-                                self.needsInitialScroll = false
-                            }
                         }
                         .onTapGesture {
                             // 点击消息区 → 滚到底部
