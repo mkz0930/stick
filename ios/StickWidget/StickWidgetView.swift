@@ -115,7 +115,6 @@ struct StickWidgetView: View {
             }
             .padding(10)
         }
-        .widgetURL(URL(string: "stick://chat?state=\(s.stateRaw)"))
         .containerBackground(for: .widget) {
             LinearGradient(
                 colors: [Theme.bgTop, ambientTint(t: entry.date)],

@@ -13,9 +13,6 @@ import WidgetKit
 /// 状态来源：`StickState.current(at: now)`。
 /// 拖动时间线时 `scrubOffset` 临时覆盖，UI 全程跟着更新。
 struct ContentView: View {
-    /// 从 DeepLink / widget tap 触发，打开聊天
-    @Binding var openChatFromDeepLink: Bool
-
     // HealthKit + HealthAuth 在 Xcode Preview (Canvas) 里会让预览变卡甚至 5s 超时
     // (HKHealthStore 构造 + 真实 framework import)。Preview 注入 Noop 替代，真 app
     // runtime 仍然用真 shared 单例。
@@ -314,12 +311,6 @@ struct ContentView: View {
         }
         .ignoresSafeArea(edges: .bottom)
         .animation(.easeInOut(duration: 0.28), value: showChat)
-        .onChange(of: openChatFromDeepLink) { _, newValue in
-            if newValue {
-                openChat("")
-                openChatFromDeepLink = false
-            }
-        }
     }
 
     /// 主页（被外层 ZStack 包了一层）— GeometryReader + 个人面板
@@ -1257,7 +1248,7 @@ private struct ContentViewPreviewStub: View {
 }
 
 #Preview {
-    ContentView(openChatFromDeepLink: .constant(false))
+    ContentView()
 }
 
 // MARK: - 能量徽章
