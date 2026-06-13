@@ -463,12 +463,13 @@ struct MenuRow: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            // 图标 — 32x32 圆角矩形 + 18pt medium icon（walk 绿色）
+            // 图标 — 32x32 圆角矩形 + 15pt medium icon（浅绿底 + walk 绿 icon）
+            // 32-15=17pt 总 padding（每边 ~8.5pt），icon 不贴边
             ZStack {
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(StickState.walk.accent.opacity(0.14))
+                    .fill(Color(red: 0.86, green: 0.95, blue: 0.88))
                 Image(systemName: item.icon)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 15, weight: .medium))
                     .foregroundColor(StickState.walk.accent)
             }
             .frame(width: 32, height: 32)
