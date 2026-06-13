@@ -130,7 +130,6 @@ struct PersonalView: View {
         }
         .sheet(isPresented: $showWidgetPreview) {
             WidgetGalleryView(onOpenChat: { seed in
-                // Gallery 自己已经 dismiss 了，这里只触发父级回调
                 onOpenChat?(seed)
             })
             .presentationDetents([.large])

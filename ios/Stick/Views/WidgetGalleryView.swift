@@ -35,8 +35,8 @@ struct WidgetGalleryView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 22))
                                     .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
                                     .onTapGesture {
-                                        dismiss()
                                         onOpenChat("")
+                                        dismiss()
                                     }
                                 Text("中风险 · 45 分")
                                     .font(.system(size: 10, weight: .semibold))
