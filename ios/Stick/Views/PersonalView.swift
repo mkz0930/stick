@@ -23,6 +23,8 @@ struct PersonalView: View {
     @State private var showDataRecord: Bool = false
     @State private var showWidgetPreview: Bool = false
     @State private var devicesExpanded: Bool = false   // 设备列表展开/收起（默认收起，只显示 1 个）
+    @State private var chatHistoryExpanded: Bool = false   // 对话记录展开/收起（默认收起，只显示 2 条）
+    @State private var suggestionsExpanded: Bool = false  // 健康建议展开/收起（默认收起，只显示 2 个）
 
     private let menus: [MenuItem] = [
         MenuItem(icon: "clock.arrow.circlepath", title: "数据记录"),
@@ -264,14 +266,18 @@ struct PersonalView: View {
 
     // MARK: - 对话记录
 
-    /// 最近 N 条 user 提问（按时间倒序）
+    /// 最近 N 条 user 提问（按时间倒序）— 全部
     private var recentUserPrompts: [PersistedChatMessage] {
         Array(
             chatHistory.messages
                 .filter { $0.role == "user" }
                 .sorted { $0.timestamp > $1.timestamp }
-                .prefix(5)
         )
+    }
+
+    /// 默认只显示前 2 条
+    private var visibleUserPrompts: [PersistedChatMessage] {
+        chatHistoryExpanded ? recentUserPrompts : Array(recentUserPrompts.prefix(2))
     }
 
     private var chatHistorySection: some View {
@@ -309,7 +315,7 @@ struct PersonalView: View {
                     }
                     .frame(minHeight: 40)
                 } else {
-                    ForEach(Array(recentUserPrompts.enumerated()), id: \.offset) { idx, msg in
+                    ForEach(Array(visibleUserPrompts.enumerated()), id: \.offset) { idx, msg in
                         HStack(alignment: .top, spacing: 10) {
                             Image(systemName: "bubble.left.fill")
                                 .font(.system(size: 12, weight: .medium))
@@ -325,12 +331,34 @@ struct PersonalView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .padding(.vertical, 8)
-                        if idx < recentUserPrompts.count - 1 {
+                        if idx < visibleUserPrompts.count - 1 {
                             Rectangle()
                                 .fill(Theme.borderSoft)
                                 .frame(height: 0.5)
                                 .padding(.leading, 28)
                         }
+                    }
+
+                    // 折叠/展开按钮（总条数 > 2 时显示）
+                    if recentUserPrompts.count > 2 {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.22)) {
+                                chatHistoryExpanded.toggle()
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(chatHistoryExpanded
+                                     ? "收起"
+                                     : "展开 \(recentUserPrompts.count - 2) 条")
+                                    .font(.system(size: 11, weight: .semibold))
+                                Image(systemName: chatHistoryExpanded ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: 9, weight: .bold))
+                            }
+                            .foregroundColor(StickState.walk.accent)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -344,6 +372,11 @@ struct PersonalView: View {
         Suggestion(icon: "drop.fill",       color: Color(red: 0.40, green: 0.65, blue: 0.95), title: "补充水分",   desc: "今日饮水量不足 1L, 目标 2L"),
         Suggestion(icon: "moon.zzz.fill",   color: Color(red: 0.55, green: 0.50, blue: 0.85), title: "早睡",       desc: "最佳入睡时间为 22:30"),
     ]
+
+    /// 默认只显示前 2 个建议
+    private var visibleSuggestions: [Suggestion] {
+        suggestionsExpanded ? suggestions : Array(suggestions.prefix(2))
+    }
 
     private var taskSection: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -361,14 +394,36 @@ struct PersonalView: View {
             .padding(.bottom, 18)
 
             VStack(spacing: 0) {
-                ForEach(Array(suggestions.enumerated()), id: \.offset) { idx, s in
+                ForEach(Array(visibleSuggestions.enumerated()), id: \.offset) { idx, s in
                     SuggestionRow(suggestion: s)
-                    if idx < suggestions.count - 1 {
+                    if idx < visibleSuggestions.count - 1 {
                         Rectangle()
                             .fill(Theme.borderSoft)
                             .frame(height: 0.5)
                             .padding(.leading, 50)
                     }
+                }
+
+                // 折叠/展开按钮（总条数 > 2 时显示）
+                if suggestions.count > 2 {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            suggestionsExpanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(suggestionsExpanded
+                                 ? "收起"
+                                 : "展开 \(suggestions.count - 2) 个")
+                                .font(.system(size: 11, weight: .semibold))
+                            Image(systemName: suggestionsExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 9, weight: .bold))
+                        }
+                        .foregroundColor(StickState.walk.accent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
 
