@@ -49,20 +49,16 @@ struct FeatureRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // ① 身体打分（**第 1 行**，跟心率/心情区分）
+            // ① 身体状态得分（视觉焦点，22pt 数字）
             BodyScoreLine(score: bodyScore, color: bodyScoreColor)
-            // ② 心率
-            if let hr = heartRateMetric {
-                FeatureLine(metric: hr, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap)
+            // ② 心情（默认可见，自带 0-100 分数，13pt 数字）
+            if let m = moodLine {
+                MoodLine(info: m, accent: state.accent, moodScore: moodScore)
             }
-            // ② 对应状态的核心数据
+            // ③ 对应状态的核心数据（心率隐藏到展开区 — 3 行限制）
             if let ss = stateSpecificMetric {
                 FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap)
             }
-            // ③ 心情 — [暂时隐藏，3 行限制]
-            // if let m = moodLine {
-            //     MoodLine(info: m, accent: state.accent, moodScore: moodScore)
-            // }
             // ④ 展开后：剩下的指标行 + 异常计数
             if isExpanded {
                 ForEach(hiddenMetrics, id: \.label) { m in
