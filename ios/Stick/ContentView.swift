@@ -56,6 +56,10 @@ struct ContentView: View {
     @State private var chatSeed: String = ""
     @State private var chatKey: Int = 0
     @State private var inputDraft: String = ""
+    /// 点击历史记录 → 滚动到该消息的 UUID
+    @State private var targetScrollId: UUID? = nil
+    /// 滚动触发器：每次历史导航 +1，overlay 用 onChange 响应（不重建 overlay）
+    @State private var scrollTrigger: Int = 0
 
     private var displayOffset: Int {
         scrubOffset ?? 0
@@ -297,6 +301,8 @@ struct ContentView: View {
                 ChatOverlay(
                     state: displayState,
                     initialText: chatSeed,
+                    targetScrollId: targetScrollId,
+                    scrollTrigger: scrollTrigger,
                     onClose: { showChat = false }
                 )
                 .id(chatKey)
@@ -338,7 +344,12 @@ struct ContentView: View {
                     openWidgetPreview: $openWidgetPreview,
                     deviceSet: $deviceSet,
                     healthAuth: healthAuth,
-                    chatHistory: chatHistory
+                    chatHistory: chatHistory,
+                    onHistoryTap: { id in
+                        targetScrollId = id
+                        scrollTrigger += 1
+                        withAnimation(.easeInOut(duration: 0.28)) { showChat = true }
+                    }
                 )
                 .frame(width: panelWidth)
                 .offset(x: showPersonal ? 0 : -panelWidth)
@@ -410,6 +421,10 @@ struct ContentView: View {
         }
         .sheet(item: $selectedAlert) { a in
             alertDetailView(for: a)
+                .presentationDetents([.medium, .large])        // 弹到底 + 拖到中间
+                .presentationDragIndicator(.visible)            // 顶部小横条
+                .presentationBackgroundInteraction(.enabled(upThrough: .medium))  // 半屏时点外部能交互主页
+                .presentationCornerRadius(28)                  // 顶部圆角
         }
         .sheet(isPresented: $showSleepReport) {
             SleepReportView(onClose: { showSleepReport = false })
@@ -1049,7 +1064,7 @@ private struct StageHeroView: View {
                     Circle()
                         .stroke(Theme.slate.opacity(0.25), style: StrokeStyle(lineWidth: 1.2, dash: [3, 3]))
                         .frame(width: 56, height: 56)
-                    Image(systemName: "iphone.badge.plus")
+                    Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 22, weight: .light))
                         .foregroundColor(Theme.slate.opacity(0.35))
                 }
