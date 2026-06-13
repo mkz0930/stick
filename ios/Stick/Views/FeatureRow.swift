@@ -59,10 +59,10 @@ struct FeatureRow: View {
             if let ss = stateSpecificMetric {
                 FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap)
             }
-            // ③ 心情
-            if let m = moodLine {
-                MoodLine(info: m, accent: state.accent, moodScore: moodScore)
-            }
+            // ③ 心情 — [暂时隐藏，3 行限制]
+            // if let m = moodLine {
+            //     MoodLine(info: m, accent: state.accent, moodScore: moodScore)
+            // }
             // ④ 展开后：剩下的指标行 + 异常计数
             if isExpanded {
                 ForEach(hiddenMetrics, id: \.label) { m in
@@ -351,12 +351,12 @@ private struct BodyScoreLine: View {
                 .fill(color)
                 .frame(width: 6, height: 6)
 
-            Text("BODY")
+            Text("身体状态得分")
                 .font(.system(size: 11, weight: .bold, design: .monospaced))
                 .tracking(0.8)
                 .foregroundColor(Theme.slate)
                 .lineLimit(1)
-                .frame(width: 68, alignment: .leading)
+                .frame(width: 100, alignment: .leading)
 
             // 大数字 + /100（**第 1 行视觉重点**，字号比 FeatureLine 数值还大）
             HStack(alignment: .firstTextBaseline, spacing: 1) {
