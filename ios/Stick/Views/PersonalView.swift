@@ -18,6 +18,8 @@ struct PersonalView: View {
     @Binding var deviceSet: Set<DeviceID>
     @ObservedObject var healthAuth: HealthAuthService
     @ObservedObject var chatHistory: ChatHistoryStore
+    /// 点击历史消息 → 打开 chat 并滚动到该消息位置
+    var onHistoryTap: ((UUID) -> Void)? = nil
 
     @State private var showSpecialists: Bool = false
     @State private var showDataRecord: Bool = false
@@ -124,7 +126,7 @@ struct PersonalView: View {
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showWidgetPreview) {
-            WidgetGalleryView()
+            AnyView(Text("Widget Gallery (disabled)"))
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
@@ -316,21 +318,26 @@ struct PersonalView: View {
                     .frame(minHeight: 40)
                 } else {
                     ForEach(Array(visibleUserPrompts.enumerated()), id: \.offset) { idx, msg in
-                        HStack(alignment: .top, spacing: 10) {
-                            Image(systemName: "bubble.left.fill")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(StickState.walk.accent)
-                                .frame(width: 18)
-                                .padding(.top, 2)
-                            Text(msg.content)
-                                .font(.system(size: 13, weight: .regular, design: .serif))
-                                .foregroundColor(Theme.navy)
-                                .lineLimit(2)
-                                .lineSpacing(1.5)
-                                .multilineTextAlignment(.leading)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                        Button {
+                            onHistoryTap?(msg.id)
+                        } label: {
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: "bubble.left.fill")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(StickState.walk.accent)
+                                    .frame(width: 18)
+                                    .padding(.top, 2)
+                                Text(msg.content)
+                                    .font(.system(size: 13, weight: .regular, design: .serif))
+                                    .foregroundColor(Theme.navy)
+                                    .lineLimit(2)
+                                    .lineSpacing(1.5)
+                                    .multilineTextAlignment(.leading)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(.vertical, 8)
                         }
-                        .padding(.vertical, 8)
+                        .buttonStyle(.plain)
                         if idx < visibleUserPrompts.count - 1 {
                             Rectangle()
                                 .fill(Theme.borderSoft)
@@ -456,23 +463,26 @@ struct MenuRow: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            // 图标 — 跟 DeviceRow 一致: 32x32 圆角矩形 + 18pt light icon
+            // 图标 — 32x32 圆角矩形 + 18pt medium icon（walk 绿色）
             ZStack {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(StickState.walk.accent.opacity(0.14))
                 Image(systemName: item.icon)
-                    .font(.system(size: 18, weight: .light))
+                    .font(.system(size: 18, weight: .medium))
                     .foregroundColor(StickState.walk.accent)
             }
             .frame(width: 32, height: 32)
 
+            // 标题 — 16pt medium navy（semibold 太重，regular 太轻；
+            // medium 是中等权重，跟 section 标题 14pt slate 区分开）
             Text(item.title)
-                .font(.system(size: 16))
+                .font(.system(size: 16, weight: .medium))
                 .foregroundColor(Theme.navy)
+                .lineLimit(1)
 
             Spacer()
 
-            // chevron — 跟 DeviceRow 状态指示一致: 9pt bold
+            // chevron — 9pt bold mist（右侧动作指示）
             Image(systemName: "chevron.right")
                 .font(.system(size: 9, weight: .bold))
                 .foregroundColor(Theme.mist)
