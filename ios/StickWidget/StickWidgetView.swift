@@ -224,26 +224,42 @@ struct PulsingDot: View {
     let t: Double
     let bpm: Int
 
+    private var period: Double {
+        60.0 / Double(max(40, bpm))
+    }
+
+    private var phase: Double {
+        (t.truncatingRemainder(dividingBy: period)) / period
+    }
+
+    private var ringScale: CGFloat {
+        let pulse = max(0, 0.5 - abs(phase - 0.5)) * 2
+        return 1.0 + 0.6 * pulse
+    }
+
+    private var ringOpacity: Double {
+        1.0 - phase
+    }
+
+    /// 双脉冲（收缩-舒张）：0..0.15 缩、0.15..0.3 弹回、其余舒张
+    private var dotScale: CGFloat {
+        if phase < 0.15 { return 1.0 - 0.35 * (phase / 0.15) }
+        if phase < 0.30 { return 0.65 + 0.35 * ((phase - 0.15) / 0.15) }
+        return 1.0
+    }
+
     var body: some View {
-        let period = 60.0 / Double(max(40, bpm))
-        let phase = (t.truncatingRemainder(dividingBy: period)) / period
-        // 双脉冲（收缩-舒张）：0..0.15 缩、0.15..0.3 弹回、其余舒张
-        let scale: CGFloat = {
-            if phase < 0.15 { return 1.0 - 0.35 * (phase / 0.15) }
-            if phase < 0.30 { return 0.65 + 0.35 * ((phase - 0.15) / 0.15) }
-            return 1.0
-        }()
         ZStack {
             // 外环呼吸
             Circle()
                 .stroke(color.opacity(0.35), lineWidth: 1)
                 .frame(width: 12, height: 12)
-                .scaleEffect(1.0 + 0.6 * max(0, 0.5 - abs(phase - 0.5)) * 2)
-                .opacity(1.0 - phase)
+                .scaleEffect(ringScale)
+                .opacity(ringOpacity)
             Circle()
                 .fill(color)
                 .frame(width: 8, height: 8)
-                .scaleEffect(scale)
+                .scaleEffect(dotScale)
         }
     }
 }
@@ -299,96 +315,95 @@ struct AnimatedMiniFigure: View {
         }
     }
 
+    private func polarPoint(x: CGFloat, y: CGFloat, length: CGFloat, degrees: CGFloat) -> CGPoint {
+        let radians = Double(degrees) * .pi / 180
+        return CGPoint(
+            x: x + length * CGFloat(cos(radians)),
+            y: y + length * CGFloat(sin(radians))
+        )
+    }
+
+    private func strokeLine(
+        ctx: inout GraphicsContext,
+        from: CGPoint,
+        to: CGPoint,
+        stroke: Color,
+        lineWidth: CGFloat
+    ) {
+        var path = Path()
+        path.move(to: from)
+        path.addLine(to: to)
+        ctx.stroke(path, with: .color(stroke), lineWidth: lineWidth)
+    }
+
+    private func walkAngles(for frame: Int) -> (lArm: CGFloat, rArm: CGFloat, lLeg: CGFloat, rLeg: CGFloat) {
+        switch frame {
+        case 0:  return (-20, 20, -25, 25)
+        case 1:  return (0, 0, -10, 10)
+        case 2:  return (20, -20, 25, -25)
+        default: return (0, 0, 10, -10)
+        }
+    }
+
+    private func strokeWalkLeg(
+        ctx: inout GraphicsContext,
+        hip: CGPoint,
+        angle: CGFloat,
+        stroke: Color,
+        lineWidth: CGFloat
+    ) {
+        let kneeLen: CGFloat = 6
+        let footLen: CGFloat = 8
+        let knee = polarPoint(x: hip.x, y: hip.y + 4, length: kneeLen, degrees: angle)
+        let foot = polarPoint(x: knee.x, y: knee.y + 4, length: footLen, degrees: angle + 20)
+        var path = Path()
+        path.move(to: hip)
+        path.addLine(to: knee)
+        path.addLine(to: foot)
+        ctx.stroke(path, with: .color(stroke), lineWidth: lineWidth)
+    }
+
     // 走：4 帧步行循环，每帧腿/臂位置不同
     private func drawWalk(ctx: inout GraphicsContext, midX: CGFloat, size: CGSize, stroke: Color, w: CGFloat, t: Double) {
         // 周期 0.7s（≈ 90 步/分）
         let cycle = 0.7
         let phase = (t.truncatingRemainder(dividingBy: cycle)) / cycle
-        // 4 帧索引
         let frame = Int(phase * 4) % 4
-        // 身体轻微上下
-        let bob = abs(sin(phase * .pi * 2)) * 1.2
+        let bob = CGFloat(abs(sin(phase * .pi * 2)) * 1.2)
+        let angles = walkAngles(for: frame)
 
-        // 头
         ctx.fill(
             Path(ellipseIn: CGRect(x: midX - 6, y: 2 - bob, width: 12, height: 12)),
             with: .color(stroke)
         )
 
-        // 身体
-        ctx.stroke(
-            Path { p in
-                p.move(to: CGPoint(x: midX, y: 14 - bob))
-                p.addLine(to: CGPoint(x: midX, y: 32 - bob))
-            },
-            with: .color(stroke), lineWidth: w
+        strokeLine(
+            ctx: &ctx,
+            from: CGPoint(x: midX, y: 14 - bob),
+            to: CGPoint(x: midX, y: 32 - bob),
+            stroke: stroke,
+            lineWidth: w
         )
 
-        // 双臂（前后摆动）
-        let larmAngle: CGFloat
-        let rarmAngle: CGFloat
-        switch frame {
-        case 0:  larmAngle =  -20; rarmAngle =  20
-        case 1:  larmAngle =    0; rarmAngle =   0
-        case 2:  larmAngle =   20; rarmAngle = -20
-        default: larmAngle =    0; rarmAngle =   0
-        }
-        ctx.stroke(
-            Path { p in
-                p.move(to: CGPoint(x: midX, y: 20 - bob))
-                p.addLine(to: CGPoint(x: midX + 8 * cos(larmAngle * .pi / 180),
-                                      y: 20 - bob + 8 * sin(larmAngle * .pi / 180) + 2))
-            },
-            with: .color(stroke), lineWidth: w
+        let shoulder = CGPoint(x: midX, y: 20 - bob)
+        strokeLine(
+            ctx: &ctx,
+            from: shoulder,
+            to: polarPoint(x: shoulder.x, y: shoulder.y + 2, length: 8, degrees: angles.lArm),
+            stroke: stroke,
+            lineWidth: w
         )
-        ctx.stroke(
-            Path { p in
-                p.move(to: CGPoint(x: midX, y: 20 - bob))
-                p.addLine(to: CGPoint(x: midX + 8 * cos(rarmAngle * .pi / 180),
-                                      y: 20 - bob + 8 * sin(rarmAngle * .pi / 180) + 2))
-            },
-            with: .color(stroke), lineWidth: w
+        strokeLine(
+            ctx: &ctx,
+            from: shoulder,
+            to: polarPoint(x: shoulder.x, y: shoulder.y + 2, length: 8, degrees: angles.rArm),
+            stroke: stroke,
+            lineWidth: w
         )
 
-        // 双腿（前后摆）
-        let lAng: CGFloat
-        let rAng: CGFloat
-        switch frame {
-        case 0:  lAng =  -25; rAng =  25
-        case 1:  lAng =  -10; rAng =  10
-        case 2:  lAng =   25; rAng = -25
-        default: lAng =   10; rAng = -10
-        }
-        let hipY: CGFloat = 32 - bob
-        let kneeLen: CGFloat = 6
-        let footLen: CGFloat = 8
-
-        // 左腿
-        let lKneeX = midX + kneeLen * cos(lAng * .pi / 180)
-        let lKneeY = hipY + kneeLen * sin(lAng * .pi / 180) + 4
-        let lFootX = lKneeX + footLen * cos((lAng + 20) * .pi / 180)
-        let lFootY = lKneeY + footLen * sin((lAng + 20) * .pi / 180) + 4
-        ctx.stroke(
-            Path { p in
-                p.move(to: CGPoint(x: midX, y: hipY))
-                p.addLine(to: CGPoint(x: lKneeX, y: lKneeY))
-                p.addLine(to: CGPoint(x: lFootX, y: lFootY))
-            },
-            with: .color(stroke), lineWidth: w
-        )
-        // 右腿
-        let rKneeX = midX + kneeLen * cos(rAng * .pi / 180)
-        let rKneeY = hipY + kneeLen * sin(rAng * .pi / 180) + 4
-        let rFootX = rKneeX + footLen * cos((rAng + 20) * .pi / 180)
-        let rFootY = rKneeY + footLen * sin((rAng + 20) * .pi / 180) + 4
-        ctx.stroke(
-            Path { p in
-                p.move(to: CGPoint(x: midX, y: hipY))
-                p.addLine(to: CGPoint(x: rKneeX, y: rKneeY))
-                p.addLine(to: CGPoint(x: rFootX, y: rFootY))
-            },
-            with: .color(stroke), lineWidth: w
-        )
+        let hip = CGPoint(x: midX, y: 32 - bob)
+        strokeWalkLeg(ctx: &ctx, hip: hip, angle: angles.lLeg, stroke: stroke, lineWidth: w)
+        strokeWalkLeg(ctx: &ctx, hip: hip, angle: angles.rLeg, stroke: stroke, lineWidth: w)
     }
 
     // 坐：身体随呼吸起伏，警告时变成橙色叹号

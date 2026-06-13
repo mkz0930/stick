@@ -454,14 +454,26 @@ struct MediumWidgetMock: View {
 struct GalleryPulsingDot: View {
     let color: Color
     @State private var phase: Double = 0
+
+    private var ringScale: CGFloat {
+        let pulse = max(0, 0.5 - abs(phase - 0.5)) * 2
+        return 1.0 + 0.6 * pulse
+    }
+
+    private var ringOpacity: Double {
+        1.0 - phase
+    }
+
     var body: some View {
         ZStack {
             Circle()
                 .stroke(color.opacity(0.35), lineWidth: 1)
                 .frame(width: 12, height: 12)
-                .scaleEffect(1.0 + 0.6 * max(0, 0.5 - abs(phase - 0.5)) * 2)
-                .opacity(1.0 - phase)
-            Circle().fill(color).frame(width: 8, height: 8)
+                .scaleEffect(ringScale)
+                .opacity(ringOpacity)
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
         }
         .onAppear {
             withAnimation(.linear(duration: 1.0).repeatForever(autoreverses: false)) {
