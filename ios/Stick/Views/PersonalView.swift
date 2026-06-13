@@ -186,8 +186,8 @@ struct PersonalView: View {
             // 标题 + 副操作
             HStack {
                 Text("连接智能设备")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(Theme.navy)
+                    .font(.system(size: 14))
+                    .foregroundColor(Theme.slate)
                 Spacer()
                 Text("\(deviceSet.count) / \(DeviceID.allCases.count) 在线")
                     .font(.system(size: 10, weight: .bold, design: .monospaced))
@@ -391,7 +391,7 @@ struct PersonalView: View {
                         .foregroundColor(StickState.walk.accent)
                 }
             }
-            .padding(.bottom, 18)
+            .padding(.bottom, 10)
 
             VStack(spacing: 0) {
                 ForEach(Array(visibleSuggestions.enumerated()), id: \.offset) { idx, s in
@@ -788,32 +788,32 @@ struct SuggestionRow: View {
 
     var body: some View {
         Button {} label: {
-            HStack(spacing: 14) {
-                // 图标 (圆角方块 + 彩色淡底)
+            HStack(spacing: 12) {
+                // 图标 (圆角方块 + 彩色淡底) — 缩小 38→32
                 ZStack {
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 7)
                         .fill(suggestion.color.opacity(0.12))
                     Image(systemName: suggestion.icon)
-                        .font(.system(size: 18, weight: .medium))
+                        .font(.system(size: 16, weight: .medium))
                         .foregroundColor(suggestion.color)
                 }
-                .frame(width: 38, height: 38)
+                .frame(width: 32, height: 32)
 
                 // 文字
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(suggestion.title)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(Theme.navy)
                     Text(suggestion.desc)
-                        .font(.system(size: 12))
+                        .font(.system(size: 11))
                         .foregroundColor(Theme.slate)
-                        .lineLimit(2)
+                        .lineLimit(1)
                 }
 
                 Spacer()
             }
-            .frame(minHeight: 56)
-            .padding(.vertical, 6)
+            .frame(minHeight: 40)
+            .padding(.vertical, 3)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
