@@ -19,6 +19,9 @@ struct ChatOverlay: View {
     @State private var streamTask: Task<Void, Never>?
     @State private var showHistoryPopover: Bool = false
     @State private var pendingScrollId: UUID? = nil   // 点击历史 → 滚动定位
+    @State private var scrollToBottom: Bool = false   // true=auto-scroll(anchor:.bottom) false=history导航(anchor:.top)
+    /// 发送消息后，滚动到这条用户消息的位置（用于发送完毕立即定位到用户问题）
+    @State private var pendingScrollToUserMsgId: UUID? = nil
     @State private var keyboardVisible: Bool = false  // 键盘是否可见
     /// 上次已处理的 scrollTrigger 值（用于去重）
     @State private var lastHandledTrigger: Int = 0
@@ -45,8 +48,8 @@ struct ChatOverlay: View {
             keyboardVisible = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 if let last = messages.last {
-                    // 触发 scrollTo（通过 @State 变量驱动）
-                    pendingScrollId = last.id
+                    self.scrollToBottom = true
+                    self.pendingScrollId = last.id
                 }
             }
         }
@@ -112,6 +115,7 @@ struct ChatOverlay: View {
             // 初始滚动（overlay 首次出现时触发）
             if let targetId = targetScrollId {
                 // 初始滚动也要走 debounce 逻辑，手动设 lastHandledTrigger
+                self.scrollToBottom = false
                 lastHandledTrigger = scrollTrigger
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                     self.pendingScrollId = targetId
@@ -134,6 +138,7 @@ struct ChatOverlay: View {
             guard newTrigger > self.lastHandledTrigger else { return }
             self.lastHandledTrigger = newTrigger
             guard let targetId = self.targetScrollId else { return }
+            self.scrollToBottom = false
             // 等一帧让 LazyVStack 渲染完，再滚动
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 self.pendingScrollId = targetId
@@ -243,44 +248,67 @@ struct ChatOverlay: View {
                         }
                     }
                 } else {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 10) {
-                            ForEach(messages) { msg in
-                                MessageRow(message: msg, state: state)
-                                    .id(msg.id)
-                            }
-                            if isStreaming {
-                                HStack(spacing: 5) {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                        .tint(state.accent)
-                                    Text("正在生成建议…")
-                                        .font(.system(size: 14, weight: .regular))
-                                        .foregroundColor(Theme.slate)
+                    ScrollViewReader { msgProxy in
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 10) {
+                                ForEach(messages) { msg in
+                                    MessageRow(message: msg, state: state)
+                                        .id(msg.id)
                                 }
-                                .padding(.leading, 4)
+                                if isStreaming {
+                                    HStack(spacing: 5) {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                            .tint(state.accent)
+                                        Text("正在生成建议…")
+                                            .font(.system(size: 14, weight: .regular))
+                                            .foregroundColor(Theme.slate)
+                                    }
+                                    .padding(.leading, 4)
+                                    .id("streaming")
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                        }
+                        .onChange(of: isStreaming) { _, streaming in
+                            // 流式输出结束后（streaming 从 true→false），自动滚到底部显示最新回复
+                            if !streaming, let last = messages.last {
+                                self.scrollToBottom = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                    self.pendingScrollId = last.id
+                                }
                             }
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                    }
-                    .onChange(of: isStreaming) { _, streaming in
-                        // 流式输出结束后（streaming 从 true→false），自动滚到底部显示最新回复
-                        if !streaming, let last = messages.last {
-                            withAnimation(.easeOut(duration: 0.2)) {
-                                proxy.scrollTo(last.id, anchor: .bottom)
+                        .onChange(of: messages.last?.content) { _ in
+                            // 流式输出过程中，每个 chunk 到来时都实时滚到底部
+                            guard self.isStreaming, let last = messages.last else { return }
+                            let anchor: UnitPoint = .bottom
+                            DispatchQueue.main.async {
+                                withAnimation(.easeOut(duration: 0.15)) {
+                                    msgProxy.scrollTo(last.id, anchor: anchor)
+                                }
+                            }
+                        }
+                        .onChange(of: pendingScrollId) { newId in
+                            guard let id = newId else { return }
+                            let anchor: UnitPoint = self.scrollToBottom ? .bottom : .top
+                            DispatchQueue.main.async {
+                                withAnimation(.easeOut(duration: 0.35)) {
+                                    msgProxy.scrollTo(id, anchor: anchor)
+                                }
+                            }
+                            self.pendingScrollId = nil
+                        }
+                        .onTapGesture {
+                            // 点击消息区 → 滚到底部
+                            if let last = messages.last {
+                                self.scrollToBottom = true
+                                self.pendingScrollId = last.id
                             }
                         }
                     }
                 }
-            }
-            // 点击历史 chip / popover 行 → 滚动到该消息 (不重新发送)
-            .onChange(of: pendingScrollId) { newId in
-                guard let id = newId else { return }
-                withAnimation(.easeOut(duration: 0.35)) {
-                    proxy.scrollTo(id, anchor: .top)
-                }
-                pendingScrollId = nil
             }
         }
         .padding(.horizontal, 12)
@@ -340,7 +368,8 @@ struct ChatOverlay: View {
                     ForEach(recentUserPrompts) { msg in
                         Button {
                             // 滚动定位到该消息 (不重新发送)
-                            pendingScrollId = msg.id
+                            self.scrollToBottom = false
+                            self.pendingScrollId = msg.id
                         } label: {
                             HStack(spacing: 5) {
                                 Circle()
@@ -423,7 +452,8 @@ struct ChatOverlay: View {
     private func historyRow(_ msg: PersistedChatMessage) -> some View {
         Button {
             // 滚动定位到该消息 (不重新发送)
-            pendingScrollId = msg.id
+            self.scrollToBottom = false
+            self.pendingScrollId = msg.id
             showHistoryPopover = false
         } label: {
             HStack(alignment: .top, spacing: 8) {
@@ -537,9 +567,14 @@ struct ChatOverlay: View {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
 
-        messages.append(ChatMessage(role: .user, content: text))
+        let userMsgId = UUID()
+        messages.append(ChatMessage(id: userMsgId, role: .user, content: text))
         input = ""
         print("[ChatOverlay] send(): user msg added, total msgs now: \(messages.count)")
+
+        // 立即滚动到刚发出的用户问题位置
+        self.scrollToBottom = false
+        self.pendingScrollId = userMsgId
 
         // 记录用户消息，每 3 条触发一次用户画像总结
         let shouldSummarize = UserProfileStore.shared.recordUserMessage()

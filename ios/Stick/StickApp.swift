@@ -3,13 +3,23 @@ import SwiftUI
 @main
 struct StickApp: App {
     @State private var deepLinkDestination: DeepLinkDestination?
+    /// 来自 widget/DeepLink 的打开聊天指令
+    @State private var openChatFromDeepLink: Bool = false
 
     var body: some Scene {
         WindowGroup {
-            DeepLinkHandler(destination: $deepLinkDestination)
-                .onOpenURL { url in
-                    deepLinkDestination = DeepLinkDestination(url: url)
+            DeepLinkHandler(
+                destination: $deepLinkDestination,
+                openChatFromDeepLink: $openChatFromDeepLink
+            )
+            .onOpenURL { url in
+                if url.host == "chat" {
+                    // widget tap → 打开聊天
+                    openChatFromDeepLink = true
+                } else if let dest = DeepLinkDestination(url: url) {
+                    deepLinkDestination = dest
                 }
+            }
         }
     }
 }
@@ -42,6 +52,7 @@ enum DeepLinkDestination {
 
 struct DeepLinkHandler: View {
     @Binding var destination: DeepLinkDestination?
+    @Binding var openChatFromDeepLink: Bool
     @State private var showSheet = false
 
     var body: some View {
@@ -50,7 +61,7 @@ struct DeepLinkHandler: View {
             if let dest = destination {
                 ScienceView(destination: dest, onDismiss: { destination = nil })
             } else {
-                ContentView()
+                ContentView(openChatFromDeepLink: $openChatFromDeepLink)
             }
         }
         .onChange(of: destination) { _, newValue in

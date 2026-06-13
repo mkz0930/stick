@@ -8,6 +8,8 @@ import WidgetKit
 struct WidgetGalleryView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var scienceTarget: ScienceTarget? = nil
+    /// 点击任意卡片：关掉 gallery，打开聊天
+    var onOpenChat: () -> Void = {}
 
     /// 6 个 widget 各自要打开的科普页
     enum ScienceTarget: Identifiable {
@@ -54,7 +56,7 @@ struct WidgetGalleryView: View {
                                     .frame(width: 158, height: 158)
                                     .clipShape(RoundedRectangle(cornerRadius: 22))
                                     .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
-                                    .onTapGesture { scienceTarget = .sedentary }
+                                    .onTapGesture { onOpenChat() }
                                 Text("中风险 · 45 分")
                                     .font(.system(size: 10, weight: .semibold))
                                     .foregroundColor(Color(red: 0.95, green: 0.50, blue: 0.05))
@@ -64,7 +66,7 @@ struct WidgetGalleryView: View {
                                     .frame(width: 158, height: 158)
                                     .clipShape(RoundedRectangle(cornerRadius: 22))
                                     .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
-                                    .onTapGesture { scienceTarget = .sedentary }
+                                    .onTapGesture { onOpenChat() }
                                 Text("高风险 · 65 分")
                                     .font(.system(size: 10, weight: .semibold))
                                     .foregroundColor(Color(red: 0.90, green: 0.20, blue: 0.15))
@@ -92,7 +94,7 @@ struct WidgetGalleryView: View {
                                 .frame(width: 158, height: 158)
                                 .clipShape(RoundedRectangle(cornerRadius: 22))
                                 .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
-                                .onTapGesture { scienceTarget = .postWorkoutIceWater }
+                                .onTapGesture { onOpenChat() }
                                 Text("冰水 → 晕厥 · 5 步")
                                     .font(.system(size: 10, weight: .semibold))
                                     .foregroundColor(Color(red: 0.92, green: 0.34, blue: 0.20))
@@ -121,7 +123,7 @@ struct WidgetGalleryView: View {
                                 .frame(width: 158, height: 158)
                                 .clipShape(RoundedRectangle(cornerRadius: 22))
                                 .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
-                                .onTapGesture { scienceTarget = .sedentaryHook }
+                                .onTapGesture { onOpenChat() }
                                 Text("腿私信 · 钩子卡")
                                     .font(.system(size: 10, weight: .semibold))
                                     .foregroundColor(Color(red: 0.58, green: 0.78, blue: 1.00))
@@ -142,7 +144,7 @@ struct WidgetGalleryView: View {
                                 .frame(width: 158, height: 158)
                                 .clipShape(RoundedRectangle(cornerRadius: 22))
                                 .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
-                                .onTapGesture { scienceTarget = .sedentaryHook }
+                                .onTapGesture { onOpenChat() }
                                 Text("腰演出 · 钩子卡")
                                     .font(.system(size: 10, weight: .semibold))
                                     .foregroundColor(Color(red: 0.58, green: 0.78, blue: 1.00))
@@ -159,7 +161,7 @@ struct WidgetGalleryView: View {
                                     .frame(width: 158, height: 158)
                                     .clipShape(RoundedRectangle(cornerRadius: 22))
                                     .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
-                                    .onTapGesture { scienceTarget = .walking }
+                                    .onTapGesture { onOpenChat() }
                                 Text("WALK · 状态卡")
                                     .font(.system(size: 10, weight: .semibold))
                                     .foregroundColor(.white.opacity(0.55))
@@ -169,7 +171,7 @@ struct WidgetGalleryView: View {
                                     .frame(width: 158, height: 158)
                                     .clipShape(RoundedRectangle(cornerRadius: 22))
                                     .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
-                                    .onTapGesture { scienceTarget = .sitting }
+                                    .onTapGesture { onOpenChat() }
                                 Text("SIT · 状态卡")
                                     .font(.system(size: 10, weight: .semibold))
                                     .foregroundColor(.white.opacity(0.55))
@@ -184,7 +186,7 @@ struct WidgetGalleryView: View {
                             .frame(width: 338, height: 158)
                             .clipShape(RoundedRectangle(cornerRadius: 22))
                             .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
-                            .onTapGesture { scienceTarget = .sedentaryMood }
+                            .onTapGesture { onOpenChat() }
                         Text("SIT · 心情 + 告警")
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(.white.opacity(0.55))

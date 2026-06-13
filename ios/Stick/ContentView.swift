@@ -13,6 +13,9 @@ import WidgetKit
 /// 状态来源：`StickState.current(at: now)`。
 /// 拖动时间线时 `scrubOffset` 临时覆盖，UI 全程跟着更新。
 struct ContentView: View {
+    /// 从 DeepLink / widget tap 触发，打开聊天
+    @Binding var openChatFromDeepLink: Bool
+
     // HealthKit + HealthAuth 在 Xcode Preview (Canvas) 里会让预览变卡甚至 5s 超时
     // (HKHealthStore 构造 + 真实 framework import)。Preview 注入 Noop 替代，真 app
     // runtime 仍然用真 shared 单例。
@@ -311,6 +314,12 @@ struct ContentView: View {
         }
         .ignoresSafeArea(edges: .bottom)
         .animation(.easeInOut(duration: 0.28), value: showChat)
+        .onChange(of: openChatFromDeepLink) { _, newValue in
+            if newValue {
+                openChat("")
+                openChatFromDeepLink = false
+            }
+        }
     }
 
     /// 主页（被外层 ZStack 包了一层）— GeometryReader + 个人面板
@@ -712,7 +721,7 @@ private struct NeckPressureReportView: View {
             return [
                 "立即停止所有屏幕工作",
                 "去最近的医院或理疗店做一次专业评估",
-                "近期考虑颈椎 X 光 / MRI 检查",
+                "近期考虑腰椎 X 光 / MRI 检查",
                 "暂停高强度脑力工作至少 1 天",
                 "如伴随手麻、头晕、恶心，立即就医",
                 "工位全面改造：升降桌 + 显示器支架 + 人体工学椅",
@@ -763,7 +772,7 @@ private struct NeckPressureReportView: View {
                     sectionHeader("当前数据")
                     dataRow("头部前倾角度", "\(Int(bendAngle))°")
                     dataRow("不良姿势持续", String(format: "%.1f 小时", durationHours))
-                    dataRow("颈椎承受压力", "约 \(Int(4.5 + tiredness * 18)) kg")
+                    dataRow("腰椎承受压力", "约 \(Int(4.5 + tiredness * 18)) kg")
                     dataRow("疲劳强度", "\(Int(tiredness * 100))%")
 
                     sectionHeader("AI 分析")
@@ -817,7 +826,7 @@ private struct NeckPressureReportView: View {
                 .padding(16)
             }
             .background(Theme.bgTop.ignoresSafeArea())
-            .navigationTitle("颈椎压力分析")
+            .navigationTitle("腰椎压力分析")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -1252,7 +1261,7 @@ private struct ContentViewPreviewStub: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(openChatFromDeepLink: .constant(false))
 }
 
 // MARK: - 能量徽章
