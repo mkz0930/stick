@@ -21,6 +21,7 @@ struct PersonalView: View {
     @State private var showSpecialists: Bool = false
     @State private var showDataRecord: Bool = false
     @State private var showWidgetPreview: Bool = false
+    @State private var devicesExpanded: Bool = false   // 设备列表展开/收起（默认收起，只显示前 3 个）
 
     private let menus: [MenuItem] = [
         MenuItem(icon: "clock.arrow.circlepath", title: "数据记录"),
@@ -109,21 +110,9 @@ struct PersonalView: View {
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showWidgetPreview) {
-            // WidgetPreviewView 已废弃 → 简单占位
-            VStack(spacing: 12) {
-                Text("Widget 预览")
-                    .font(.system(size: 17, weight: .heavy, design: .serif))
-                    .foregroundColor(Theme.navy)
-                Text("在主 app 通过 ChatOverlay 体验 widget 效果")
-                    .font(.system(size: 12))
-                    .foregroundColor(Theme.slate)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(40)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Theme.bgTop.ignoresSafeArea())
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
+            WidgetGalleryView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .onChange(of: openSpecialists) { _, newValue in
             if newValue { showSpecialists = true; openSpecialists = false }
@@ -193,7 +182,9 @@ struct PersonalView: View {
             }
 
             VStack(spacing: 0) {
-                ForEach(Array(allDevices.enumerated()), id: \.offset) { idx, dev in
+                // 默认只显示前 2 个，展开后看全部
+                let visibleDevices = devicesExpanded ? allDevices : Array(allDevices.prefix(2))
+                ForEach(Array(visibleDevices.enumerated()), id: \.offset) { idx, dev in
                     DeviceRow(
                         device: dev,
                         capabilities: dev.idEnum.capabilities,
@@ -216,12 +207,32 @@ struct PersonalView: View {
                             toggleDevice(dev.idEnum)
                         }
                     }
-                    if idx < allDevices.count - 1 {
+                    if idx < visibleDevices.count - 1 {
                         Rectangle()
                             .fill(Theme.borderSoft)
                             .frame(height: 0.5)
                             .padding(.leading, 54)
                     }
+                }
+
+                // 折叠/展开按钮（设备 > 2 时显示）
+                if allDevices.count > 2 {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            devicesExpanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(devicesExpanded ? "收起" : "展开 \(allDevices.count - 2) 个")
+                                .font(.system(size: 11, weight: .semibold))
+                            Image(systemName: devicesExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 9, weight: .bold))
+                        }
+                        .foregroundColor(StickState.walk.accent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
