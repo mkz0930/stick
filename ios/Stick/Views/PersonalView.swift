@@ -21,7 +21,7 @@ struct PersonalView: View {
     @State private var showSpecialists: Bool = false
     @State private var showDataRecord: Bool = false
     @State private var showWidgetPreview: Bool = false
-    @State private var devicesExpanded: Bool = false   // 设备列表展开/收起（默认收起，只显示前 3 个）
+    @State private var devicesExpanded: Bool = false   // 设备列表展开/收起（默认收起，只显示 1 个）
 
     private let menus: [MenuItem] = [
         MenuItem(icon: "clock.arrow.circlepath", title: "数据记录"),
@@ -182,8 +182,8 @@ struct PersonalView: View {
             }
 
             VStack(spacing: 0) {
-                // 默认只显示前 2 个，展开后看全部
-                let visibleDevices = devicesExpanded ? allDevices : Array(allDevices.prefix(2))
+                // 默认只显示 1 个（iPhone），展开后看全部
+                let visibleDevices = devicesExpanded ? allDevices : Array(allDevices.prefix(1))
                 ForEach(Array(visibleDevices.enumerated()), id: \.offset) { idx, dev in
                     DeviceRow(
                         device: dev,
@@ -215,15 +215,15 @@ struct PersonalView: View {
                     }
                 }
 
-                // 折叠/展开按钮（设备 > 2 时显示）
-                if allDevices.count > 2 {
+                // 折叠/展开按钮（设备 > 1 时显示）
+                if allDevices.count > 1 {
                     Button {
                         withAnimation(.easeInOut(duration: 0.22)) {
                             devicesExpanded.toggle()
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text(devicesExpanded ? "收起" : "展开 \(allDevices.count - 2) 个")
+                            Text(devicesExpanded ? "收起" : "展开 \(allDevices.count - 1) 个")
                                 .font(.system(size: 11, weight: .semibold))
                             Image(systemName: devicesExpanded ? "chevron.up" : "chevron.down")
                                 .font(.system(size: 9, weight: .bold))
