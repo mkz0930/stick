@@ -355,10 +355,10 @@ private struct BodyScoreLine: View {
             // 大数字 + /100（**第 1 行视觉重点**，字号比 FeatureLine 数值还大）
             HStack(alignment: .firstTextBaseline, spacing: 1) {
                 Text("\(intScore)")
-                    .font(.system(size: 35, weight: .heavy, design: .rounded))
+                    .font(.system(size: 45, weight: .heavy, design: .rounded))
                     .foregroundColor(color)
                 Text("/100")
-                    .font(.system(size: 14, weight: .medium, design: .monospaced))
+                    .font(.system(size: 16, weight: .medium, design: .monospaced))
                     .foregroundColor(Theme.slate)
             }
             // [tier 文字去掉 — 颜色 + 数字已经传达档位信息]
