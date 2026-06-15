@@ -100,10 +100,10 @@ struct StickRiskAlertWidgetView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("久坐 \(entry.sitDurationMinutes) 分钟")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.black)
                     Text("心率 \(entry.heartRate) bpm")
                         .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.gray)
                 }
                 Spacer()
                 Button(intent: OpenRiskAlertIntent(sitDurationMinutes: entry.sitDurationMinutes, heartRate: entry.heartRate)) {
@@ -191,7 +191,7 @@ private struct VesselCanvas: View {
                 ]
                 for m in markers {
                     let x = sx(m.x)
-                    let color = m.isWarn ? plateletRed : dark.opacity(0.3)
+                    let color = m.isWarn ? plateletRed : dark.opacity(0.55)
                     var line = Path()
                     line.move(to: CGPoint(x: x, y: sy(55)))
                     line.addLine(to: CGPoint(x: x, y: sy(145)))
@@ -203,14 +203,14 @@ private struct VesselCanvas: View {
                     let label = Text(m.label)
                         .font(.system(size: 11 * scaleX, weight: m.isWarn ? .heavy : .bold,
                                      design: .monospaced))
-                        .foregroundColor(m.isWarn ? plateletRed : dark.opacity(0.6))
+                        .foregroundColor(m.isWarn ? plateletRed : dark.opacity(0.8))
                     ctx.draw(label, at: CGPoint(x: x, y: sy(48)), anchor: .center)
 
                     // "正常" 在血管下方 (SVG y=158)
                     if m.x == 55 {
                         let normalLabel = Text("正常")
                             .font(.system(size: 9 * scaleX, weight: .bold, design: .monospaced))
-                            .foregroundColor(dark.opacity(0.5))
+                            .foregroundColor(dark.opacity(0.7))
                         ctx.draw(normalLabel, at: CGPoint(x: x, y: sy(158)), anchor: .center)
                     }
                 }
