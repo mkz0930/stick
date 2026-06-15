@@ -120,6 +120,10 @@ private struct AlertsSection: View {
     @Binding var isExpanded: Bool
     var onAlertTap: (UnifiedAlert) -> Void = { _ in }
 
+    // 去掉 @State var alertsDetailExpanded — 用父组件传进来的 @Binding var isExpanded 即可
+    // 之前错误地声明了 @State shadow 了 binding，导致 header toggle 操作的是本地 state，
+    // 而 FeatureRow.expandToggle 设置的 alertsDetailExpanded 绑定更新触达不到这里。
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             // 头部
