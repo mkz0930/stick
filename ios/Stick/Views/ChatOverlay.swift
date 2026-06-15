@@ -132,7 +132,8 @@ struct ChatOverlay: View {
                     ChatMessage(
                         id: m.id,
                         role: m.role == "user" ? .user : .assistant,
-                        content: m.content
+                        content: m.content,
+                        suggestions: m.suggestions
                     )
                 }
             }
@@ -190,12 +191,13 @@ struct ChatOverlay: View {
         }
         .onDisappear {
             streamTask?.cancel()
-            // 把当前 messages 写回 store
+            // 把当前 messages 写回 store（包含推荐主题）
             let newHistory = messages.map { m in
                 PersistedChatMessage(
                     id: m.id,
                     role: m.role == .user ? "user" : "assistant",
-                    content: m.content
+                    content: m.content,
+                    suggestions: m.role == .assistant ? m.suggestions : []
                 )
             }
             print("[ChatOverlay] onDisappear: saving \(newHistory.count) messages, user msgs: \(newHistory.filter { $0.role == "user" }.count)")
