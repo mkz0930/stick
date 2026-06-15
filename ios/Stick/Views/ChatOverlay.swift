@@ -571,6 +571,13 @@ struct ChatOverlay: View {
 
     // MARK: - 输入栏（参考首页 InputBar 样式）
 
+    private struct InputFeature: Identifiable {
+        let id = UUID()
+        let icon: String
+        let title: String
+        let seed: String
+    }
+
     private let features: [InputFeature] = [
         InputFeature(icon: "cross.case.fill",    title: "AI 诊室",   seed: "AI 医生问诊"),
         InputFeature(icon: "doc.text.fill",      title: "报告解读",  seed: "解读我的健康报告"),
