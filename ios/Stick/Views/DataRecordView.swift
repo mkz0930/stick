@@ -49,6 +49,10 @@ final class DataRecordViewModel: ObservableObject {
         Int(today.compactMap { $0.activeEnergy }.reduce(0, +).rounded())
     }
 
+    var sitMinutes: Int {
+        today.filter { $0.bodyState == "sit" }.count
+    }
+
     var sleepMinutes: Int {
         let sleeps = today.filter { $0.bodyState == "sleep" }
         guard let first = sleeps.first?.timestamp, let last = sleeps.last?.timestamp else { return 0 }
@@ -280,14 +284,24 @@ struct DataRecordView: View {
                     )
                 }
 
-                // 久坐记录 (单卡, 紧跟运动/饮食)
+                // 久坐记录 (单卡)
                 DashboardCard(
                     icon: "figure.seated.side",
                     iconColor: Color(red: 0.92, green: 0.55, blue: 0.20),
                     title: "久坐记录",
-                    sub: "暂无数据",
-                    value: "--",
-                    valueUnit: "分钟/天"
+                    sub: "今日累计",
+                    value: "\(vm.sitMinutes)",
+                    valueUnit: "分钟"
+                )
+
+                // 心情记录 (单卡)
+                DashboardCard(
+                    icon: "face.smiling",
+                    iconColor: Color(red: 0.55, green: 0.75, blue: 0.50),
+                    title: "心情记录",
+                    sub: "来自对话分析",
+                    value: BodyMetricsStore.shared.mood ?? "--",
+                    valueUnit: ""
                 )
 
                 // 身材管理 (通栏)
