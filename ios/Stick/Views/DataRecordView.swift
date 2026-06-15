@@ -39,7 +39,7 @@ final class DataRecordViewModel: ObservableObject {
     }
 
     var totalSteps: Int {
-        today.compactMap { $0.stepCount }.reduce(0, +)
+        today.last?.stepCount ?? 0
     }
 
     var totalEnergy: Int {
