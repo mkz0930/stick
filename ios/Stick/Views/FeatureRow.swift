@@ -19,6 +19,7 @@ struct FeatureRow: View {
     let bodyScoreColor: Color
     let unifiedAlerts: [UnifiedAlert]
     let sitDurationText: String?      // 坐姿秒表 live MM:SS（sit 状态时为 "47:23" 这种，非 sit 时 nil）
+    let todaySteps: Int               // 今日累计步数（HealthKit；模拟器 demo 注入 8000+）
     @Binding var isExpanded: Bool       // 状态提升到 ContentView，让小人也能淡出
     var onAlertTap: (UnifiedAlert) -> Void = { _ in }
     var onLockTap: () -> Void = { }   // 点击锁 → 跳添加设备界面
@@ -58,6 +59,7 @@ struct FeatureRow: View {
                 if let m = moodLine {
                     StressLine(info: m, accent: state.accent, stressScore: stressScore)
                 }
+                StepsLine(steps: todaySteps)
                 if let ss = stateSpecificMetric {
                     FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap)
                 }
@@ -250,6 +252,86 @@ private struct StressLine: View {
     }
 }
 
+// MARK: - 今日步数（独立行 — 不在 state.metrics 里，单独从 HealthKit 拉）
+
+/// 紧凑单行：色点 + "今日步数" 标签 + 步数数值 + 进度备注（"目标 10,000" / "差 X 步"）
+/// 颜色按今日完成度 4 档：<25% 灰 / <50% 蓝 / <100% 橙 / ≥100% 绿
+private struct StepsLine: View {
+    let steps: Int
+    private let goal: Int = 10_000
+
+    /// 颜色按步数完成度（跟 StressLine 同套 4 档体系）
+    private var dotColor: Color {
+        let pct = Double(steps) / Double(goal)
+        switch pct {
+        case ..<0.25: return Color(red: 0.65, green: 0.68, blue: 0.74)   // 灰  起步
+        case ..<0.50: return Color(red: 0.30, green: 0.55, blue: 0.85)   // 蓝  进行中
+        case ..<1.00: return Color(red: 0.92, green: 0.55, blue: 0.20)   // 橙  接近目标
+        default:      return Color(red: 0.20, green: 0.65, blue: 0.45)   // 绿  达成
+        }
+    }
+
+    /// 步数数值字符串（千分位逗号）
+    private var stepsText: String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.groupingSeparator = ","
+        return f.string(from: NSNumber(value: steps)) ?? "\(steps)"
+    }
+
+    /// 备注（"目标 10,000" / "还差 1,766 步" / "已达成 +234"）
+    private var noteText: String {
+        if steps >= goal {
+            return "已达成 +\(stepsText)"
+        }
+        let remain = goal - steps
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.groupingSeparator = ","
+        let remainText = f.string(from: NSNumber(value: remain)) ?? "\(remain)"
+        return "还差 \(remainText) 步"
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // 状态色小点
+            Circle()
+                .fill(dotColor)
+                .frame(width: 6, height: 6)
+
+            // 主标签 — 15pt bold rounded（固定 60pt 宽，跨行对齐）
+            Text("今日步数")
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundColor(Theme.slate)
+                .lineLimit(1)
+                .frame(width: 60, alignment: .leading)
+                .fixedSize(horizontal: true, vertical: false)
+
+            // 主数值 — 15pt heavy rounded（**固定 80pt 列宽** — 跟其它数值起点对齐）
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(stepsText)
+                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                    .foregroundColor(dotColor)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                Text("步")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundColor(Theme.slate)
+            }
+            .frame(width: 80, alignment: .leading)
+            .fixedSize(horizontal: true, vertical: false)
+
+            // 备注 — 11pt regular（小一档，灰；剩余空间填满）
+            Text(noteText)
+                .font(.system(size: 11, weight: .regular, design: .rounded))
+                .foregroundColor(Theme.mist)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 3)
+    }
+}
+
 /// 白天心情曲线：根据当前状态画 4 小时内的典型心情走势（无动画，纯静态）
 private struct MoodSparkline: View {
     let kind: MoodLineInfo.Spark
@@ -327,9 +409,6 @@ private struct MoodSparkline: View {
 }
 
 // MARK: - 身体打分（第 1 行专用 — 跟 FeatureLine / MoodLine 同视觉风格）
-
-/// 紧凑单行：色点 + BODY 标签 + 大数字 + /100 + 副标
-/// 颜色由 `bodyScoreColor` 传（4 档绿/黄绿/橙/红）。
 private struct BodyScoreLine: View {
     let score: Double           // 0..100
     let color: Color

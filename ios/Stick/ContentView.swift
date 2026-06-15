@@ -502,6 +502,7 @@ struct ContentView: View {
                         bodyScoreColor: energyColor,
                         unifiedAlerts: unifiedAlerts,
                         sitDurationText: sitDurationText,
+                        todaySteps: todayStepsAsync,
                         isExpanded: $featureRowExpanded,
                         onAlertTap: handleAlertTap,
                         onLockTap: { showDevicePicker = true },
