@@ -34,54 +34,6 @@ final class ChatHistoryStore: ObservableObject {
 
     init() {
         load()
-        // 首次启动 (无历史) 时 demo 注入示例对话 — 让用户能看到 ChatOverlay 历史区
-        if messages.isEmpty {
-            messages = demoSeed()
-            save()
-        }
-    }
-
-    /// 示例对话 (首次启动 demo)
-    private func demoSeed() -> [PersistedChatMessage] {
-        let now = Date()
-        return [
-            PersistedChatMessage(
-                role: "user",
-                content: "我刚坐了一上午，怎么办？",
-                timestamp: now.addingTimeInterval(-3600)
-            ),
-            PersistedChatMessage(
-                role: "assistant",
-                content: """
-                久坐超过 1 小时颈椎和腰椎压力骤增。建议：
-
-                · 立即起身活动 5 分钟（去接水/上厕所）
-                · 做 3 次颈部米字操（每个方向停留 3 秒）
-                · 调整坐姿：屏幕与眼睛同高，肘部 90°
-
-                长期建议：每坐 45 分钟设闹钟强制起身。
-                """,
-                timestamp: now.addingTimeInterval(-3580)
-            ),
-            PersistedChatMessage(
-                role: "user",
-                content: "眼睛干涩怎么缓解？",
-                timestamp: now.addingTimeInterval(-1800)
-            ),
-            PersistedChatMessage(
-                role: "assistant",
-                content: """
-                屏幕盯久了泪膜蒸发过快，试试 20-20-20 法则：
-
-                · 每 20 分钟看 20 英尺（约 6 米）外
-                · 持续 20 秒以上
-                · 主动多眨眼（每分钟 15-20 次）
-
-                物理缓解：温毛巾敷眼 1 分钟 / 桌面放加湿器。
-                """,
-                timestamp: now.addingTimeInterval(-1780)
-            ),
-        ]
     }
 
     // MARK: - 增删改

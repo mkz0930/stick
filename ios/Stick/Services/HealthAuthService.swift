@@ -62,7 +62,7 @@ final class HealthAuthService: ObservableObject {
             return .notSupported
         }
 
-        // 0. 优先查本地 HealthStore.shared (HealthKitDemoData 降级写入) — 7d 内有数据 → hasData
+        // 0. 优先查本地 HealthStore.shared — 7d 内有数据 → hasData
         if hasLocalData(for: metric) {
             return .hasData
         }

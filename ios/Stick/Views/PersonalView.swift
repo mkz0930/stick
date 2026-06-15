@@ -200,13 +200,11 @@ struct PersonalView: View {
                         healthStatuses: healthAuth.statuses,
                         deviceSet: deviceSet
                     ) {
-                        // iPhone + 未授权 → 真实授权 + 注入 demo 数据 + 抓取 + 刷新
+                        // iPhone + 未授权 → 真实授权 + 抓取 + 刷新
                         if dev.idEnum == .iPhone && !dev.isAuthorized {
                             Task {
                                 await HealthKitService.shared.requestAuthorization()
                                 HealthKitService.shared.startAutoCapture(interval: 60)
-                                // 模拟器上没数据时, 自动注入过去 7 天样本 (用户首次 demo 体验)
-                                await HealthKitDemoData.shared.injectIfNeeded()
                                 healthAuth.refresh()
                                 // 1.5s 后再 refresh 一次 (HKHealthStore.save 写入完成需要时间)
                                 try? await Task.sleep(nanoseconds: 1_500_000_000)

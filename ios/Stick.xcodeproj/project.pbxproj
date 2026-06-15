@@ -23,7 +23,6 @@
 		B10000000000000000000019 /* AlertsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000015 /* AlertsPanel.swift */; };
 		B10000000000000000000020 /* AlertDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000016 /* AlertDetailView.swift */; };
 		B10000000000000000000021 /* Views/WidgetGalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000017 /* Views/WidgetGalleryView.swift */; };
-		B10000000000000000000023 /* Views/ChatHistoryDemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000019 /* Views/ChatHistoryDemoView.swift */; };
 		B10000000000000000000024 /* Views/DayPlaybackSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001A /* Views/DayPlaybackSheet.swift */; };
 		B10000000000000000000026 /* Views/ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001B /* Views/ShareSheet.swift */; };
 		B19900000000000000000099 /* PersonalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19900000000000000000099 /* PersonalView.swift */; };
@@ -40,7 +39,6 @@
 		B29900000000000000000A09 /* AIRiskAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A09 /* AIRiskAnalyzer.swift */; };
 		B29900000000000000000A0A /* AlertAggregator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A0A /* AlertAggregator.swift */; };
 		B29900000000000000000A0B /* AISleepAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A0B /* AISleepAnalyzer.swift */; };
-		B29900000000000000000A10 /* HealthKitDemoData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A10 /* HealthKitDemoData.swift */; };
 		B29900000000000000000A11 /* ChatHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A11 /* ChatHistoryStore.swift */; };
 		B29900000000000000000A12 /* ChatHistoryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A12 /* ChatHistoryListView.swift */; };
 		B29900000000000000000A13 /* UserProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A13 /* UserProfileStore.swift */; };
@@ -99,7 +97,6 @@
 		F10000000000000000000015 /* AlertsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsPanel.swift; sourceTree = "<group>"; };
 		F10000000000000000000016 /* AlertDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertDetailView.swift; sourceTree = "<group>"; };
 		F10000000000000000000017 /* Views/WidgetGalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/WidgetGalleryView.swift; sourceTree = "<group>"; };
-		F10000000000000000000019 /* Views/ChatHistoryDemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ChatHistoryDemoView.swift; sourceTree = "<group>"; };
 		F1000000000000000000001A /* Views/DayPlaybackSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DayPlaybackSheet.swift; sourceTree = "<group>"; };
 		F1000000000000000000001B /* Views/ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ShareSheet.swift; sourceTree = "<group>"; };
 		F10000000000000000000051 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -117,7 +114,6 @@
 		F29900000000000000000A09 /* AIRiskAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRiskAnalyzer.swift; sourceTree = "<group>"; };
 		F29900000000000000000A0A /* AlertAggregator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertAggregator.swift; sourceTree = "<group>"; };
 		F29900000000000000000A0B /* AISleepAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISleepAnalyzer.swift; sourceTree = "<group>"; };
-		F29900000000000000000A10 /* HealthKitDemoData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitDemoData.swift; sourceTree = "<group>"; };
 		F29900000000000000000A11 /* ChatHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryStore.swift; sourceTree = "<group>"; };
 		F29900000000000000000A12 /* ChatHistoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryListView.swift; sourceTree = "<group>"; };
 		F29900000000000000000A13 /* UserProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfileStore.swift; sourceTree = "<group>"; };
@@ -184,7 +180,6 @@
 				F10000000000000000000011 /* Preview Content/Preview Assets.xcassets */,
 				F10000000000000000000013 /* Views/SleepAlertChip.swift */,
 				F10000000000000000000017 /* Views/WidgetGalleryView.swift */,
-				F10000000000000000000019 /* Views/ChatHistoryDemoView.swift */,
 				F1000000000000000000001A /* Views/DayPlaybackSheet.swift */,
 				F1000000000000000000001B /* Views/ShareSheet.swift */,
 				F10000000000000000000051 /* Info.plist */,
@@ -242,7 +237,6 @@
 				F29900000000000000000A07 /* DeviceCapabilities.swift */,
 				F29900000000000000000A08 /* HealthAuthService.swift */,
 				F29900000000000000000A09 /* AIRiskAnalyzer.swift */,
-				F29900000000000000000A10 /* HealthKitDemoData.swift */,
 				F29900000000000000000A11 /* ChatHistoryStore.swift */,
 				F29900000000000000000A12 /* ChatHistoryListView.swift */,
 				F29900000000000000000A13 /* UserProfileStore.swift */,
@@ -395,7 +389,6 @@
 				B50000000000000000000006 /* ChatOverlay.swift in Sources */,
 				B50000000000000000000004 /* SleepReportView.swift in Sources */,
 				B29900000000000000000A09 /* AIRiskAnalyzer.swift in Sources */,
-				B29900000000000000000A10 /* HealthKitDemoData.swift in Sources */,
 				B29900000000000000000A11 /* ChatHistoryStore.swift in Sources */,
 				B29900000000000000000A12 /* ChatHistoryListView.swift in Sources */,
 				B10000000000000000000018 /* AIAnalysisView.swift in Sources */,
@@ -404,7 +397,6 @@
 				B10000000000000000000019 /* AlertsPanel.swift in Sources */,
 				B10000000000000000000020 /* AlertDetailView.swift in Sources */,
 				B10000000000000000000021 /* Views/WidgetGalleryView.swift in Sources */,
-				B10000000000000000000023 /* Views/ChatHistoryDemoView.swift in Sources */,
 				B10000000000000000000024 /* Views/DayPlaybackSheet.swift in Sources */,
 				B10000000000000000000026 /* Views/ShareSheet.swift in Sources */,
 				B50000000000000000000007 /* StickRiskAlertWidgetView.swift in Sources */,

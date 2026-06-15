@@ -464,31 +464,13 @@ struct ContentView: View {
             guard !Self.isRunningForPreviews else { return }
             // 启动 HealthKit 抓取 (1 分钟一次, 写到本地)
             Task {
-                #if targetEnvironment(simulator)
-                // 模拟器: 跳过 requestAuthorization (会无限阻塞等用户点弹窗), 直接注入 demo 数据
-                // 标 isAuthorized=true → PersonalView iPhone 行显示已授权（黑）
-                HealthKitService.shared.isAuthorized = true
-                HealthKitService.shared.startAutoCapture(interval: 60)
-                await HealthKitDemoData.shared.injectIfNeeded()
-                inference = HealthKitService.shared.currentInference
-                #else
                 // 真机: 弹系统授权弹窗
                 await HealthKitService.shared.requestAuthorization()
                 HealthKitService.shared.startAutoCapture(interval: 60)
                 inference = HealthKitService.shared.currentInference
-                // 授权弹窗关闭后立即刷新授权状态（不等 1.5s 延迟）
-                healthAuth.refresh()
-                #endif
             }
             // 检查各 metric 真实授权状态 (有/无/拒绝)
             healthAuth.refresh()
-            // 注入数据写入需要时间, 1.5s / 3s 后再 refresh 确认
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                healthAuth.refresh()
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                healthAuth.refresh()
-            }
         }
     }
 
