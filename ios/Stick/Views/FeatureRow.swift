@@ -251,7 +251,7 @@ private struct AlertItemRow: View {
                     .frame(width: 4, height: 4)
 
                 Text(alert.title)
-                    .font(.system(size: 12, weight: .regular, design: .rounded))
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundColor(Theme.navy)
                     .lineLimit(1)
 
@@ -259,7 +259,7 @@ private struct AlertItemRow: View {
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundColor(Theme.slate.opacity(0.7))
+                    .foregroundColor(Theme.mist)
             }
             .padding(.vertical, 1)
             .contentShape(Rectangle())
@@ -358,15 +358,14 @@ private struct StressLine: View {
             .frame(width: 80, alignment: .leading)
             .fixedSize(horizontal: true, vertical: false)
 
-            // 备注 — 11pt regular（小一档，作为信息补充；剩余空间填满）
+            // 备注 — 11pt medium（清晰易读）
             HStack(spacing: 6) {
                 Text(info.text)
-                    .font(.system(size: 11, weight: .regular, design: .rounded))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundColor(Theme.navy)
                     .lineLimit(1)
                 Text(statusText)
                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    .tracking(0.4)
                     .foregroundColor(dotColor)
                     .lineLimit(1)
             }
@@ -467,7 +466,7 @@ private struct StepsLine: View {
 
             // 备注 — 11pt regular（小一档，灰；剩余空间填满）
             Text(noteText)
-                .font(.system(size: 11, weight: .regular, design: .rounded))
+                .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundColor(Theme.slate)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -642,9 +641,9 @@ private struct FeatureLine: View {
             .frame(width: 44, height: 44)
             .contentShape(Rectangle())
 
-            // 状态色小点 (灰显时变灰)
+            // 状态色小点 (灰显时用 mist)
             Circle()
-                .fill(isLocked ? Theme.mist.opacity(0.5) : accent)
+                .fill(isLocked ? Theme.mist : accent)
                 .frame(width: 6, height: 6)
 
             // 主标签 — 15pt bold rounded（固定 60pt 宽，跨行对齐）
@@ -680,7 +679,7 @@ private struct FeatureLine: View {
 
             // 备注 — 11pt regular（小一档，灰；剩余空间填满）
             Text(isLocked ? availability.hint : metric.desc)
-                .font(.system(size: 11, weight: .regular, design: .rounded))
+                .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundColor(Theme.slate)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
