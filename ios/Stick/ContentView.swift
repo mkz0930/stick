@@ -539,7 +539,7 @@ struct ContentView: View {
                         .opacity(featureRowExpanded ? 0.32 : 1.0)
                         .animation(.easeInOut(duration: 0.28), value: featureRowExpanded)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 400)
+                        .frame(height: 470)
 
                         DayTimelineView(
                             schedule: StickState.daySchedule,
@@ -548,7 +548,7 @@ struct ContentView: View {
                             showDevicePicker: $showDevicePicker
                         )
                         .frame(width: 50)
-                        .frame(height: 400)
+                        .frame(height: 470)
                     }
                     .padding(.leading, 16)
                     .padding(.trailing, 4)
