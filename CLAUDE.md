@@ -16,6 +16,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## 工作流规范（强制）
+
+### 任务委派
+
+- **每个任务都通过 subagent 完成**（`general-purpose` / `Explore` / `Plan` 等），main agent 只做验收
+- 禁止 main agent 直接动手写代码 / 跑 build 命令 —— 一律委派 subagent
+- 简单到中等任务同样适用，不要因为「很简短」就跳过委派
+- main agent 收到任务后：brief subagent → 等结果 → 核对产物 → 必要时再委派修正
+
+### 隔离与版本控制
+
+- **每个 subagent 必须在自己的 git worktree 里改代码**（`isolation: "worktree"`），避免多 subagent 并行时的代码冲突
+- subagent 不在 main 分支上直接修改，必须在独立 worktree 的分支上工作
+- 每次合入都要有 **git commit 记录**（描述任务 + 关键变更），保留完整轨迹，防止丢工作
+- 合入 main 前 main agent 要看 diff / 跑 build 验证
+
+---
+
 ## 运行 iOS app
 
 ```bash
