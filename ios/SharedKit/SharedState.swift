@@ -38,7 +38,7 @@ struct SharedStickState: Codable, Equatable {
 
 /// 读写 App Group UserDefaults 的薄封装
 enum SharedStateStore {
-    static let appGroupID = "group.com.zdeer.testaiear"
+    static let appGroupID = "group.com.stick.app.h"
     private static let key = "stick.currentState.v1"
 
     static var defaults: UserDefaults? {
