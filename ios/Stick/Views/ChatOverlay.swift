@@ -78,6 +78,13 @@ struct ChatOverlay: View {
             ZStack(alignment: .bottom) {
                 Color.clear
                 cardContent(height: geo.size.height)
+
+                // 透明蒙层：拦截所有点击用于收键盘（放在 cardContent 上面，挡住空白区域）
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        dismissKeyboard()
+                    }
             }
         }   // GeometryReader
         // 键盘弹出/收起时自动滚到底部
@@ -93,6 +100,12 @@ struct ChatOverlay: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             keyboardVisible = false
         }
+    }
+
+    /// 收起键盘的统一入口
+    private func dismissKeyboard() {
+        inputFocused = false
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     /// 卡片本体 (全屏) — 内部 header / 消息 / input 由内层 VStack 撑开
