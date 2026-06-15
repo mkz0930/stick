@@ -875,11 +875,13 @@ struct ChatOverlay: View {
 
     private func fetchSuggestions(from response: String) async -> [String] {
         let prompt = """
-        基于下方AI健康助手回复内容，输出1-3条用户接下来真实想执行/深入了解的主动意图
+        基于下方AI健康助手回复内容，输出1-3条用户接下来真实想执行/深入了解的意图。
+        输出格式：必须以"如何"开头，如"如何改善久坐不适"、"如何缓解眼睛干涩"。
         硬性规则：
-        1. 单条文字≤20个字
-        2. 严禁问号、禁止疑问句；全部使用行动句式，参考格式：了解下XX、试试XX、查看XX
-        3. 仅罗列文本，不带序号、注释、说明文字
+        1. 单条≤20个字，必须以"如何"开头
+        2. 禁止问号、禁止疑问句、禁止"试试某动作"等泛化占位词
+        3. 必须输出具体可执行的动作，不要笼统描述
+        4. 仅罗列文本，不带序号、注释、说明文字
         AI健康助手回复内容：
         \(response)
         """
@@ -891,11 +893,12 @@ struct ChatOverlay: View {
             for line in lines {
                 var s = line.trimmingCharacters(in: .whitespacesAndNewlines)
                 if s.isEmpty { continue }
-                if s.contains("追问") { continue }
+                if s.contains("追问") || s.contains("建议") { continue }
                 s = s.replacingOccurrences(of: "^[0-9]+[.)、\\s]+", with: "", options: .regularExpression)
                 s = s.replacingOccurrences(of: "[？?]+$", with: "", options: .regularExpression)
                 s = s.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !s.isEmpty {
+                // 必须以"如何"开头，且不含泛化占位词
+                if s.count >= 4 && !s.contains("某动作") && !s.contains("某个") && !s.contains("具体") {
                     suggestions.append(s)
                 }
                 if suggestions.count >= 3 { break }
