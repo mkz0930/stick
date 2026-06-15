@@ -28,6 +28,7 @@ struct PersonalView: View {
     @State private var showWidgetPreview: Bool = false
     @State private var devicesExpanded: Bool = false   // 设备列表展开/收起（默认收起，只显示 1 个）
     @State private var chatHistoryExpanded: Bool = false   // 对话记录展开/收起（默认收起，只显示 2 条）
+    @State private var showClearConfirm: Bool = false   // 清空对话记录二次确认弹窗
 
     private let menus: [MenuItem] = [
         MenuItem(icon: "clock.arrow.circlepath", title: "数据记录"),
@@ -267,6 +268,11 @@ struct PersonalView: View {
         showShareSheet = true
     }
 
+    /// 清空所有对话记录（不可恢复）
+    private func clearChatHistory() {
+        chatHistory.clear()
+    }
+
     /// 格式化为可读文本（按时间顺序）
     private func formatChatAsText() -> String {
         let df = DateFormatter()
@@ -357,6 +363,21 @@ struct PersonalView: View {
                         .foregroundColor(StickState.walk.accent)
                 }
                 .padding(.leading, 6)
+                // 清空按钮 (放最右, 警示色, 避免误触)
+                Button {
+                    showClearConfirm = true
+                } label: {
+                    HStack(spacing: 2) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 10, weight: .heavy))
+                        Text("清空")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundColor(Color(red: 0.93, green: 0.20, blue: 0.20))
+                }
+                .padding(.leading, 6)
+                .disabled(recentUserPrompts.isEmpty)
+                .opacity(recentUserPrompts.isEmpty ? 0.4 : 1)
             }
             .padding(.bottom, 12)
 
@@ -425,6 +446,15 @@ struct PersonalView: View {
                     }
                 }
             }
+        }
+        // 清空对话记录二次确认弹窗 (防止误触)
+        .alert("清空所有对话记录？", isPresented: $showClearConfirm) {
+            Button("取消", role: .cancel) {}
+            Button("清空", role: .destructive) {
+                clearChatHistory()
+            }
+        } message: {
+            Text("将永久删除全部 \(chatHistory.loadedMessages.count) 条消息，此操作不可恢复。")
         }
     }
 }
