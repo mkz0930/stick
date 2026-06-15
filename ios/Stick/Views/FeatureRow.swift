@@ -28,8 +28,28 @@ struct FeatureRow: View {
 
     @State private var alertsDetailExpanded: Bool = false
     @State private var pinnedMetricIds: Set<String> = []
+    @State private var autoCollapseTimer: Timer? = nil
 
     private let pinnedMetricsKey = "stick.pinned.metrics"
+
+    // MARK: - 10秒无操作自动收起
+
+    private func resetAutoCollapseTimer(expanded: Binding<Bool>, alertsBinding: Binding<Bool>) {
+        autoCollapseTimer?.invalidate()
+        autoCollapseTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: false) { _ in
+            DispatchQueue.main.async {
+                withAnimation(.easeInOut(duration: 0.28)) {
+                    expanded.wrappedValue = false
+                    alertsBinding.wrappedValue = false
+                }
+            }
+        }
+    }
+
+    private func cancelAutoCollapseTimer() {
+        autoCollapseTimer?.invalidate()
+        autoCollapseTimer = nil
+    }
 
     private func loadPinned() {
         if let data = UserDefaults.standard.data(forKey: pinnedMetricsKey),
@@ -123,8 +143,17 @@ struct FeatureRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.easeInOut(duration: 0.35), value: moodLine)
         .animation(.easeInOut(duration: 0.28), value: isExpanded)
-        .onTapGesture { onCardTap() }
-        .onAppear { loadPinned() }
+        .onTapGesture {
+            onCardTap()
+            resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded)
+        }
+        .onAppear {
+            loadPinned()
+            if isExpanded { resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded) }
+        }
+        .onDisappear {
+            cancelAutoCollapseTimer()
+        }
     }
 
     /// 左下角按键：chevron + "more / less" 文字，整行可点
@@ -133,6 +162,11 @@ struct FeatureRow: View {
             withAnimation(.easeInOut(duration: 0.28)) {
                 isExpanded.toggle()
                 if !isExpanded { alertsDetailExpanded = false }
+            }
+            if isExpanded {
+                resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded)
+            } else {
+                cancelAutoCollapseTimer()
             }
         } label: {
             HStack(spacing: 4) {
