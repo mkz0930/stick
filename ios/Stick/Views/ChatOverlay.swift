@@ -116,10 +116,6 @@ struct ChatOverlay: View {
             Spacer(minLength: 0)
             DashedDivider()
             inputBar
-            // 底色 footer：与 card 同色，延伸到屏幕最底（覆盖 home indicator 区域）
-            Theme.card
-                .frame(height: 60)
-                .ignoresSafeArea(edges: .bottom)
         }
         .background(Theme.card)
         // 点 cardContent 任意空白处 → 收键盘（TextField / Button / 内层 ScrollView 的手势优先，会先吃掉它们的 tap）
@@ -646,6 +642,7 @@ struct ChatOverlay: View {
                 cameraButton
             }
         }
+        .padding(.bottom, 8)
     }
 
     private var inputPill: some View {
