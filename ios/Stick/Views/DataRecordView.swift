@@ -288,6 +288,8 @@ private struct BodyCard: View {
                 .foregroundColor(Theme.mist)
 
             HStack(alignment: .top, spacing: 0) {
+                bodyColumn("--", "身高/cm")
+                Spacer()
                 bodyColumn("--", "体重/KG")
                 Spacer()
                 bodyColumn("--", "BMI·暂无")
