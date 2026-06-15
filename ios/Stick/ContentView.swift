@@ -291,10 +291,11 @@ struct ContentView: View {
         )
     }
 
-    /// 今日累计步数：把 today 数组里所有非 nil 的 stepCount 求和。
-    /// 30s 一次 captureSnapshot() → HealthStore.shared.today 更新 → @ObservedObject 触发重渲。
+    /// 今日累计步数：取最后一条 snapshot 的 stepCount（全天累计值）。
+    /// 每条 snapshot 的 stepCount = recentSum(dayStart→now)，是全天累计而非增量，
+    /// 所以取最新一条即为今日总步数，无需 sum。
     private var todaySteps: Int {
-        healthStore.today.compactMap(\.stepCount).reduce(0, +)
+        healthStore.today.last?.stepCount ?? 0
     }
 
     /// 点击异常行：AI 实时报告 → AIAnalysisView；其他 → AlertDetailView
