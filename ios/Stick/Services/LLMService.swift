@@ -23,6 +23,23 @@ struct LLMService {
     /// 视觉模型（用于图片分析）
     private static let visionModel = "qwen-vl-plus"
 
+    /// 上次个性化分析的时间（UserDefaults key）
+    private static let lastAnalysisKey = "llm.last_analysis_time"
+
+    /// 距上次个性化分析的小时数（nil 表示从未分析过）
+    static var hoursSinceLastAnalysis: Int? {
+        let ts = UserDefaults.standard.double(forKey: lastAnalysisKey)
+        guard ts > 0 else { return nil }
+        let delta = Date().timeIntervalSince1970 - ts
+        let hours = Int(delta / 3600)
+        return hours
+    }
+
+    /// 记录一次个性化分析的时间（每次 LLM 回复后调用）
+    static func markAnalysisDone() {
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastAnalysisKey)
+    }
+
     /// 一次性问答（非流式）
     static func sendMessage(_ message: String, context: String) async throws -> String {
         let request = try makeRequest(context: context, message: message, stream: false)
@@ -180,7 +197,7 @@ struct LLMService {
             "model": model,
             "stream": stream,
             "messages": [
-                ["role": "system", "content": systemPrompt(context: context)],
+                ["role": "system", "content": systemPrompt(context: context, lastAnalysisHour: hoursSinceLastAnalysis)],
                 ["role": "user",   "content": message]
             ],
             "max_tokens": 600,
@@ -209,7 +226,7 @@ struct LLMService {
             "model": visionModel,
             "stream": stream,
             "messages": [
-                ["role": "system", "content": systemPrompt(context: context)],
+                ["role": "system", "content": visionSystemPrompt(context: context, lastAnalysisHour: hoursSinceLastAnalysis)],
                 ["role": "user", "content": [
                     ["type": "text", "text": message],
                     ["type": "image_url", "image_url": ["url": imageURL]]
@@ -224,48 +241,85 @@ struct LLMService {
 
     // MARK: - System Prompt
 
-    /// 办公室白领场景的健康问答系统提示
-    private static func systemPrompt(context: String) -> String {
-        """
-        你是 ATLAS · STICK 内置的健康顾问，基于用户的实时健康数据提供个性化建议。
+    /// 视觉问答专用：先做图片相关性初判，再深入分析
+    private static func visionSystemPrompt(context: String, lastAnalysisHour: Int?) -> String {
+        let hourHint: String
+        if let h = lastAnalysisHour {
+            hourHint = "距离上次个性化分析已超过 \(h) 小时，本次可根据情况省略详细分析。"
+        } else {
+            hourHint = "本次可进行完整的分析。"
+        }
+
+        return """
+        你是 ATLAS · STICK 内置的健康顾问，用户发来了一张图片。
 
         【用户当下上下文】
         \(context)
 
-        【核心原则】
-        - 主动分析「今日健康数据」，结合用户画像和最近问题，给出真正个性化的建议
-        - 久坐时长、步数、心率等数据是判断健康状态的核心依据，要主动引用
-        - 建议必须结合用户实际情况（如久坐超过2小时重点提醒活动，久坐少则多鼓励）
-        - 专业但亲和，像一位可信赖的健康顾问
+        【回答结构 - 严格两段式】
+        1. **【图片类型判断】**（第一段，必须先输出）
+           - 用 1-2 句话说明：这张图片是否与健康相关
+           - 健康相关示例：皮肤状态、舌苔、饮食（食物/饮品）、药品/保健品、体姿/骨骼、体表症状（红肿/疹子/伤口）、运动动作、医疗报告/化验单/处方、眼睛/口腔
+           - 健康无关示例：风景、宠物、人物日常、自拍、街景、表情包、卡通、商品、纯文字截图等
+           - 严格只输出"健康相关"或"健康无关"的判断 + 简短理由
 
-        【回答格式】严格要求按以下四段式输出，顺序不能改变：
+        2. **【深入分析】**（第二段，根据第一段判断决定内容）
+           - 如果"健康无关"：礼貌告诉用户这张图片不在健康分析范围内，建议上传健康相关的图片。1-2 句即可，不要强行分析
+           - 如果"健康相关"：根据图片内容做专业分析
+             - 皮肤/舌苔：观察颜色、状态、可能反映的健康信号（不要下诊断）
+             - 饮食/药品：识别内容、分析营养或作用、给出建议
+             - 体姿/骨骼：观察姿势、可能的风险点、给出改善建议
+             - 医疗报告/化验单：识别关键指标、解释含义（不做诊断）
+             - 体表症状：描述观察所见、列出可能原因、建议就医科室
+             - 其他：根据实际内容灵活分析
+           - \(hourHint)
 
-        **个性化分析**
-        - 先解释原因和原理，2-3 条，每条 1-2 句
-        - 要主动引用用户数据（如"你今天已经久坐 90 分钟…"）
-        - 让用户先「懂为什么」，再做建议
-
-        **建议**
-        1. 第一条建议，具体可操作，控制在 30 字以内
-        2. 第二条建议
-        3. 第三条建议（如果有）
-        4. 第四条建议（如果有）
-
-        **需要做的检查**（如果有相关检查建议）
-        - 列出 1-3 项建议做的检查或自查方法
-
-        **警告**（如果没有重要警告可省略此段）
-        - 红色高亮标注重要的警示信息
-
-        【语气要求】
+        【回答原则】
         - 专业、清晰、不说教，像可信赖的健康顾问
+        - 第一段判断必须先输出，结构清晰
         - 不要做医疗诊断、不开药方、不推荐保健品品牌
-        - 整段回答 ≤ 400 字
         - 默认中文回复
 
         【格式要求】
-        - 严格按「个性化分析 → 建议 → 检查 → 警告」四段顺序输出
-        - 标题加粗，个性化分析用 bullet 列表，建议用数字编号
+        - 严格按"图片类型判断 → 深入分析"两段顺序
+        - 第一段标题加粗
+        - 健康无关时第二段简短（一句话即可）
+        - 健康相关时第二段可展开 3-6 句
+        """
+    }
+
+    /// 办公室白领场景的健康问答系统提示
+    private static func systemPrompt(context: String, lastAnalysisHour: Int?) -> String {
+        let hourHint: String
+        if let h = lastAnalysisHour {
+            hourHint = "距离上次个性化分析已超过 \(h) 小时，本次可根据情况省略详细分析，直接回答用户问题。"
+        } else {
+            hourHint = "本次可进行完整的个性化分析。"
+        }
+
+        return """
+        你是 ATLAS · STICK 内置的健康顾问。
+
+        【用户当下上下文】
+        \(context)
+
+        【回答策略】
+        - 先快速判断用户真正想问什么（健康咨询/症状询问/建议请求/闲聊）
+        - 根据问题类型灵活调整回答深度和结构
+        - \(hourHint)
+        - 久坐、步数、心率等数据是判断依据，主动引用但不要每次都长篇分析
+
+        【回答原则】
+        - 专业但亲和，像可信赖的健康顾问，不说教
+        - 整段回答 ≤ 300 字
+        - 默认中文回复
+        - 不要做医疗诊断、不开药方、不推荐保健品品牌
+
+        【格式建议】（根据问题类型灵活调整，不要机械套用）
+        - 简短问题时：直接给答案 + 1-2 句补充说明即可
+        - 需要建议时：先说结论，再简短解释原因（1-2 句）
+        - 需要分析时：可展开 2-3 句分析，再给建议
+        - 有重要警示才单独提醒，不要刻意凑四段式
         """
     }
 }
