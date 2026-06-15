@@ -122,6 +122,12 @@ struct ChatOverlay: View {
             .stroke(Theme.border, lineWidth: 1)
         )
         .frame(height: height)
+        // 点 cardContent 任意空白处 → 收键盘（TextField / Button / 内层 ScrollView 的手势优先，会先吃掉它们的 tap）
+        .onTapGesture {
+            inputFocused = false
+            // UIKit 兜底
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
         .onAppear {
             // 检查短期标签是否过期
             UserInterestTagStore.shared.resetShortTermIfExpired()
