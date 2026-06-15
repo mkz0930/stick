@@ -12,6 +12,8 @@ struct InputBar: View {
     var onOpenChat: (_ seed: String) -> Void
     /// 直接打开相机拍照（可选）
     var onOpenCamera: (() -> Void)? = nil
+    /// 右侧 + 按钮的点击回调（nil 时 fallback 到 onOpenChat("") 保持兼容）
+    var onPlusTap: (() -> Void)? = nil
     /// 聊天历史最后一条用户问题 — 输入框 placeholder 显示, 提示有记录
     var lastHistoryPrompt: String? = nil
 
@@ -99,9 +101,9 @@ struct InputBar: View {
                     onOpenChat(text)
                 }
 
-            // 右侧: + 按钮 (圆形描边)
+            // 右侧: + 按钮 (圆形描边) — 打开相册/相机选图，发给 LLM 视觉分析
             Button {
-                onOpenChat("")
+                if let onPlus = onPlusTap { onPlus() } else { onOpenChat("") }
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 18, weight: .semibold))

@@ -47,6 +47,8 @@ struct ChatOverlay: View {
     var targetScrollId: UUID? = nil
     /// 滚动触发器：外部每次历史导航 +1，overlay 用 onChange 响应（不重建 overlay）
     var scrollTrigger: Int = 0
+    /// true 时 onAppear 自动打开相册/相机选图，发送给 LLM 视觉分析（主页 + 按钮触发）
+    var pendingPhotoUpload: Bool = false
     var onClose: () -> Void
 
     @State private var messages: [ChatMessage] = []
@@ -133,6 +135,14 @@ struct ChatOverlay: View {
             // 自动弹出键盘（延迟 0.1s，等 overlay 动画完成后再弹）
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 self.inputFocused = true
+            }
+            // 主页 + 按钮触发：自动打开相册/相机选图，发送给 LLM 视觉分析
+            if pendingPhotoUpload {
+                textBeforeCamera = "请分析这张图片中的健康相关内容"
+                // 延迟到键盘弹出后再开 ImagePicker，避免 UI 冲突
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    showCamera = true
+                }
             }
 
             // 从持久化 store 恢复历史 messages

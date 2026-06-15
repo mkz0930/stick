@@ -64,6 +64,8 @@ struct ContentView: View {
     @State private var chatSeed: String = ""
     @State private var chatKey: Int = 0
     @State private var inputDraft: String = ""
+    /// 主页 + 按钮触发：开 chat + 标记让 ChatOverlay 自动打开相册/相机选图
+    @State private var chatPendingPhoto: Bool = false
     /// 点击历史记录 → 滚动到该消息的 UUID
     @State private var targetScrollId: UUID? = nil
     /// 滚动触发器：每次历史导航 +1，overlay 用 onChange 响应（不重建 overlay）
@@ -324,9 +326,11 @@ struct ContentView: View {
                     riskSeed: isWidgetRiskSeed(chatSeed) ? chatSeed : nil,
                     targetScrollId: targetScrollId,
                     scrollTrigger: scrollTrigger,
+                    pendingPhotoUpload: chatPendingPhoto,
                     onClose: {
                         dismissKeyboard()
                         showChat = false
+                        chatPendingPhoto = false   // 重置标记，下次开 chat 不再自动开图
                     }
                 )
                 .id(chatKey)
@@ -594,6 +598,7 @@ struct ContentView: View {
                         text: $inputDraft,
                         onOpenChat: openChat,
                         onOpenCamera: openCamera,
+                        onPlusTap: openChatWithPhoto,
                         lastHistoryPrompt: chatHistory.messages.last(where: { $0.role == "user" })?.content
                     )
                     .padding(.horizontal, 16)
@@ -605,6 +610,14 @@ struct ContentView: View {
     private func openChat(_ seed: String) {
         chatSeed = seed
         chatKey += 1
+        showChat = true
+    }
+
+    /// InputBar + 按钮触发：开 chat + 让 ChatOverlay 自动打开相册/相机选图给 LLM 视觉分析
+    private func openChatWithPhoto() {
+        chatSeed = ""
+        chatKey += 1
+        chatPendingPhoto = true
         showChat = true
     }
 
