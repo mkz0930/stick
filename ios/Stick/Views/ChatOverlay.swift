@@ -353,6 +353,7 @@ struct ChatOverlay: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                         }
+                        .scrollDismissesKeyboard(.interactively)
                         .onChange(of: isStreaming) { _, streaming in
                             // 流式输出结束后（streaming 从 true→false），自动滚到底部显示最新回复
                             if !streaming, let last = messages.last {
