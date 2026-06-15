@@ -27,6 +27,22 @@ struct FeatureRow: View {
     var onCardTap: () -> Void = { }   // 点击卡片主体 → 打开对话
 
     @State private var alertsDetailExpanded: Bool = false
+    @State private var pinnedMetricIds: Set<String> = []
+
+    private let pinnedMetricsKey = "stick.pinned.metrics"
+
+    private func loadPinned() {
+        if let data = UserDefaults.standard.data(forKey: pinnedMetricsKey),
+           let ids = try? JSONDecoder().decode(Set<String>.self, from: data) {
+            pinnedMetricIds = ids
+        }
+    }
+
+    private func savePinned() {
+        if let data = try? JSONEncoder().encode(pinnedMetricIds) {
+            UserDefaults.standard.set(data, forKey: pinnedMetricsKey)
+        }
+    }
 
     /// 3 个指标中"心率"那行（任意位置）
     private var heartRateMetric: Metric? {
@@ -54,24 +70,50 @@ struct FeatureRow: View {
         VStack(alignment: .leading, spacing: 8) {
             // ① 身体状态得分（**唯一默认可见** — 视觉锤）
             BodyScoreLine(score: bodyScore, color: bodyScoreColor)
-            // ② 展开后：心情 + 状态专属 + 隐藏指标
+
             if isExpanded {
+                // 展开态：所有行 + 📌 切换按钮
                 if let m = moodLine {
-                    StressLine(info: m, accent: state.accent, stressScore: stressScore)
+                    StressLine(info: m, accent: state.accent, stressScore: stressScore, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 }
-                StepsLine(steps: todaySteps)
+                StepsLine(steps: todaySteps, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 if let ss = stateSpecificMetric {
-                    FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap)
+                    FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 }
                 ForEach(hiddenMetrics, id: \.label) { m in
-                    FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap)
+                    FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 }
                 // 异常摘要 — 折叠默认显示前 2 项，>2 项时显示 chevron 可展开看全部
                 if !unifiedAlerts.isEmpty {
                     AlertsSection(
                         alerts: unifiedAlerts,
                         isExpanded: $alertsDetailExpanded,
-                        onAlertTap: onAlertTap
+                        onAlertTap: onAlertTap,
+                        pinnedIds: $pinnedMetricIds,
+                        onPinToggle: savePinned
+                    )
+                }
+            } else {
+                // 折叠态：只显示固定行
+                if let m = moodLine, pinnedMetricIds.contains("stress") {
+                    StressLine(info: m, accent: state.accent, stressScore: stressScore, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                }
+                if pinnedMetricIds.contains("steps") {
+                    StepsLine(steps: todaySteps, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                }
+                if let ss = stateSpecificMetric, pinnedMetricIds.contains(ss.label) {
+                    FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                }
+                ForEach(hiddenMetrics.filter { pinnedMetricIds.contains($0.label) }, id: \.label) { m in
+                    FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                }
+                if pinnedMetricIds.contains("alerts") && !unifiedAlerts.isEmpty {
+                    AlertsSection(
+                        alerts: unifiedAlerts,
+                        isExpanded: $alertsDetailExpanded,
+                        onAlertTap: onAlertTap,
+                        pinnedIds: $pinnedMetricIds,
+                        onPinToggle: savePinned
                     )
                 }
             }
@@ -82,6 +124,7 @@ struct FeatureRow: View {
         .animation(.easeInOut(duration: 0.35), value: moodLine)
         .animation(.easeInOut(duration: 0.28), value: isExpanded)
         .onTapGesture { onCardTap() }
+        .onAppear { loadPinned() }
     }
 
     /// 左下角按键：chevron + "more / less" 文字，整行可点
@@ -119,6 +162,10 @@ private struct AlertsSection: View {
     let alerts: [UnifiedAlert]
     @Binding var isExpanded: Bool
     var onAlertTap: (UnifiedAlert) -> Void = { _ in }
+    var pinnedIds: Binding<Set<String>>
+    var onPinToggle: () -> Void = { }
+
+    private let metricId = "alerts"
 
     // 去掉 @State var alertsDetailExpanded — 用父组件传进来的 @Binding var isExpanded 即可
     // 之前错误地声明了 @State shadow 了 binding，导致 header toggle 操作的是本地 state，
@@ -133,6 +180,20 @@ private struct AlertsSection: View {
                 }
             } label: {
                 HStack(spacing: 14) {
+                    // 📌 固定按钮
+                    Button {
+                        if pinnedIds.wrappedValue.contains(metricId) {
+                            pinnedIds.wrappedValue.remove(metricId)
+                        } else if pinnedIds.wrappedValue.count < 3 {
+                            pinnedIds.wrappedValue.insert(metricId)
+                        }
+                        onPinToggle()
+                    } label: {
+                        Image(systemName: pinnedIds.wrappedValue.contains(metricId) ? "pin.fill" : "pin")
+                            .font(.system(size: 11))
+                            .foregroundColor(pinnedIds.wrappedValue.contains(metricId) ? Theme.navy : Theme.mist)
+                    }
+
                     Circle()
                         .fill(alerts.first?.severity.color ?? Theme.mist)
                         .frame(width: 6, height: 6)
@@ -225,6 +286,10 @@ private struct StressLine: View {
     let info: MoodLineInfo
     let accent: Color
     let stressScore: Double      // 0..100, 高=大压力（与 moodScore 反向）
+    var pinnedIds: Binding<Set<String>>
+    var onPinToggle: () -> Void = { }
+
+    private let metricId = "stress"
 
     /// 颜色按 stressScore 数值 4 档（与 mood 相反方向）
     private var dotColor: Color {
@@ -248,6 +313,20 @@ private struct StressLine: View {
 
     var body: some View {
         HStack(spacing: 10) {
+            // 📌 固定按钮
+            Button {
+                if pinnedIds.wrappedValue.contains(metricId) {
+                    pinnedIds.wrappedValue.remove(metricId)
+                } else if pinnedIds.wrappedValue.count < 3 {
+                    pinnedIds.wrappedValue.insert(metricId)
+                }
+                onPinToggle()
+            } label: {
+                Image(systemName: pinnedIds.wrappedValue.contains(metricId) ? "pin.fill" : "pin")
+                    .font(.system(size: 11))
+                    .foregroundColor(pinnedIds.wrappedValue.contains(metricId) ? Theme.navy : Theme.mist)
+            }
+
             // 状态色小点（跟 FeatureLine 一致）
             Circle()
                 .fill(dotColor)
@@ -299,7 +378,11 @@ private struct StressLine: View {
 /// 颜色按今日完成度 4 档：<25% 灰 / <50% 蓝 / <100% 橙 / ≥100% 绿
 private struct StepsLine: View {
     let steps: Int
+    var pinnedIds: Binding<Set<String>>
+    var onPinToggle: () -> Void = { }
+
     private let goal: Int = 10_000
+    private let metricId = "steps"
 
     /// 颜色按步数完成度（跟 StressLine 同套 4 档体系）
     private var dotColor: Color {
@@ -335,6 +418,20 @@ private struct StepsLine: View {
 
     var body: some View {
         HStack(spacing: 10) {
+            // 📌 固定按钮
+            Button {
+                if pinnedIds.wrappedValue.contains(metricId) {
+                    pinnedIds.wrappedValue.remove(metricId)
+                } else if pinnedIds.wrappedValue.count < 3 {
+                    pinnedIds.wrappedValue.insert(metricId)
+                }
+                onPinToggle()
+            } label: {
+                Image(systemName: pinnedIds.wrappedValue.contains(metricId) ? "pin.fill" : "pin")
+                    .font(.system(size: 11))
+                    .foregroundColor(pinnedIds.wrappedValue.contains(metricId) ? Theme.navy : Theme.mist)
+            }
+
             // 状态色小点
             Circle()
                 .fill(dotColor)
@@ -499,11 +596,14 @@ private struct FeatureLine: View {
     let sitDurationText: String?      // 坐姿秒表 live（覆盖 SEDENTARY 行的硬编码值）
     var onLockTap: () -> Void = { }
     var onSedentaryTap: () -> Void = { }
+    var pinnedIds: Binding<Set<String>>
+    var onPinToggle: () -> Void = { }
 
     @State private var showLockHint: Bool = false
 
     private var isHeartRate: Bool { metric.label == "HEART RATE" }
     private var isSedentary: Bool { metric.label == "SEDENTARY" }
+    private var metricId: String { metric.label }
 
     /// 优先用 live 坐姿秒表（SEDENTARY 行），否则用硬编码 metric.value
     private var displayValue: String { sitDurationText ?? metric.value }
@@ -520,6 +620,20 @@ private struct FeatureLine: View {
 
     var body: some View {
         HStack(spacing: 10) {
+            // 📌 固定按钮
+            Button {
+                if pinnedIds.wrappedValue.contains(metricId) {
+                    pinnedIds.wrappedValue.remove(metricId)
+                } else if pinnedIds.wrappedValue.count < 3 {
+                    pinnedIds.wrappedValue.insert(metricId)
+                }
+                onPinToggle()
+            } label: {
+                Image(systemName: pinnedIds.wrappedValue.contains(metricId) ? "pin.fill" : "pin")
+                    .font(.system(size: 11))
+                    .foregroundColor(pinnedIds.wrappedValue.contains(metricId) ? Theme.navy : Theme.mist)
+            }
+
             // 状态色小点 (灰显时变灰)
             Circle()
                 .fill(isLocked ? Theme.mist.opacity(0.5) : accent)
