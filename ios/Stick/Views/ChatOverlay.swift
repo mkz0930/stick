@@ -672,8 +672,8 @@ struct ChatOverlay: View {
             }
             .buttonStyle(.plain)
 
-            TextField("继续问点健康相关…", text: $input, axis: .vertical)
-                .lineLimit(1...2)
+            TextField("继续问点健康相关…", text: $input)
+                .lineLimit(1)
                 .tint(Theme.navy)
                 .foregroundColor(Theme.navy)
                 .font(.system(size: 15, weight: .regular))
