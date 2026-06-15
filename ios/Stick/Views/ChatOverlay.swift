@@ -1024,7 +1024,6 @@ struct ChatOverlay: View {
         let systemBlock = """
         - 当前时间: \(time) (\(period))
         - 当前姿态: \(state.actionPhrase) (\(state.englishName))
-        - 用户类型: 职场白领
         - 备注: 给出符合该时段 + 该姿态的即时可行建议
         """
 
@@ -1076,7 +1075,6 @@ struct ChatOverlay: View {
             - 今日行走累计: \(stats.walkMinutes) 分钟
             - 今日步数: \(stats.totalSteps) 步
             - 平均心率: \(stats.avgHeartRate) bpm
-            - 用户类型: 职场白领
 
             【本次对话目标】
             用户点击了久坐风险提醒卡片，这是一个健康科普+即时行动建议的场景。
@@ -1100,7 +1098,6 @@ struct ChatOverlay: View {
         【用户当前状态】
         - 当前时间: \(time) (\(period))
         - 当前姿态: \(state.actionPhrase)
-        - 用户类型: 职场白领
 
         【本次对话目标】
         用户点击了健康风险提醒卡片，请给出风险科普和2-4条立刻能做的动作建议。
