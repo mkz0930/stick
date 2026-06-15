@@ -124,6 +124,12 @@ struct ChatOverlay: View {
             .stroke(Theme.border, lineWidth: 1)
         )
         .frame(height: height)
+        // 点 cardContent 任意空白处 → 收键盘（TextField / Button / 内层 ScrollView 的手势优先，会先吃掉它们的 tap）
+        .onTapGesture {
+            inputFocused = false
+            // UIKit 兜底
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
         .onAppear {
             // 检查短期标签是否过期
             UserInterestTagStore.shared.resetShortTermIfExpired()
@@ -361,11 +367,14 @@ struct ChatOverlay: View {
                             self.pendingScrollId = nil
                         }
                         .onTapGesture {
-                            // 点击消息区 → 滚到底部
+                            // 点击消息区 → 滚到底部 + 收键盘
                             if let last = messages.last {
                                 self.scrollToBottom = true
                                 self.pendingScrollId = last.id
                             }
+                            inputFocused = false
+                            // UIKit 兜底
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                         }
                     }
                 }
@@ -793,6 +802,8 @@ struct ChatOverlay: View {
         }
 
         inputFocused = false
+        // UIKit 兜底：iOS TextField(axis: .vertical) + .focused() 偶有不响应
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     /// 直接发送文字（不经过 input 框，用于意图按钮）
