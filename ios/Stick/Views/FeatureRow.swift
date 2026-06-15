@@ -66,29 +66,13 @@ struct FeatureRow: View {
                 ForEach(hiddenMetrics, id: \.label) { m in
                     FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap)
                 }
-                // 异常摘要
+                // 异常摘要 — 折叠默认显示前 2 项，>2 项时显示 chevron 可展开看全部
                 if !unifiedAlerts.isEmpty {
-                    if alertsDetailExpanded {
-                        ForEach(Array(unifiedAlerts.enumerated()), id: \.offset) { idx, alert in
-                            AlertsLine(
-                                top: alert,
-                                totalCount: unifiedAlerts.count,
-                                isFirst: idx == 0
-                            ) { onAlertTap(alert) }
-                        }
-                    } else {
-                        if let top = unifiedAlerts.first {
-                            AlertsLine(
-                                top: top,
-                                totalCount: unifiedAlerts.count,
-                                isFirst: true
-                            ) {
-                                withAnimation(.easeInOut(duration: 0.25)) {
-                                    alertsDetailExpanded = true
-                                }
-                            }
-                        }
-                    }
+                    AlertsSection(
+                        alerts: unifiedAlerts,
+                        isExpanded: $alertsDetailExpanded,
+                        onAlertTap: onAlertTap
+                    )
                 }
             }
             // 展开/折叠按键
@@ -123,41 +107,102 @@ struct FeatureRow: View {
     }
 }
 
-// MARK: - 异常提示行（单行紧凑，不展开）
+// MARK: - 异常提示 section（可折叠：默认前 2 项，>2 项可展开全部）
 
-/// 单行异常提示：色点 + 标签 + 计数 + 最严重项标题。
-/// 点击整行 → onAlertTap，由调用方决定弹什么详情。
-private struct AlertsLine: View {
-    let top: UnifiedAlert
-    let totalCount: Int
-    var isFirst: Bool = true   // 第一条显示 "ALERTS · N 项" 标题，后续只显示标题
+/// 异常 section：
+///  - 头部：色点 + "异常提示" + "N 项" + chevron（仅 N > 2 时显示）
+///  - 列表：折叠时显示前 2 项；展开时显示全部
+///  - 头部点击 → 折叠/展开（仅 N > 2 时有反应）
+///  - 单项点击 → onAlertTap（弹详情 / AI 报告）
+private struct AlertsSection: View {
+    let alerts: [UnifiedAlert]
+    @Binding var isExpanded: Bool
+    var onAlertTap: (UnifiedAlert) -> Void = { _ in }
+
+    private let collapsedLimit = 2
+    private var isExpandable: Bool { alerts.count > collapsedLimit }
+
+    /// 当前应该展示的项（折叠时前 2，展开时全部）
+    private var visibleAlerts: [UnifiedAlert] {
+        isExpanded ? alerts : Array(alerts.prefix(collapsedLimit))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // 头部
+            Button {
+                guard isExpandable else { return }
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(alerts.first?.severity.color ?? Theme.mist)
+                        .frame(width: 6, height: 6)
+
+                    Text("异常提示")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundColor(Theme.slate)
+                        .lineLimit(1)
+                        .frame(width: 60, alignment: .leading)
+                        .fixedSize(horizontal: true, vertical: false)
+
+                    Text("\(alerts.count) 项")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundColor(alerts.first?.severity.color ?? Theme.mist)
+                        .frame(width: 80, alignment: .leading)
+                        .fixedSize(horizontal: true, vertical: false)
+
+                    if isExpandable {
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(Theme.slate)
+                    }
+
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+
+            // 列表项
+            ForEach(visibleAlerts, id: \.id) { alert in
+                AlertItemRow(alert: alert) {
+                    onAlertTap(alert)
+                }
+            }
+        }
+    }
+}
+
+/// 单个异常项：缩进 + 小色点 + 标题 + chevron-right
+private struct AlertItemRow: View {
+    let alert: UnifiedAlert
     var onTap: () -> Void
 
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 8) {
+                // 缩进：与 header 文字起点对齐（6pt 色点 + 8pt 间距 = 14pt）
+                Color.clear.frame(width: 14)
+
                 Circle()
-                    .fill(top.severity.color)
-                    .frame(width: 5, height: 5)
+                    .fill(alert.severity.color.opacity(0.7))
+                    .frame(width: 4, height: 4)
 
-                if isFirst {
-                    Text("异常提示")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
-                        .foregroundColor(Theme.slate)
-                        .lineLimit(1)
-                        .frame(width: 80, alignment: .leading)
-
-                    Text("\(totalCount) 项")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
-                        .foregroundColor(top.severity.color)
-                }
-
-                Text(top.title)
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                Text(alert.title)
+                    .font(.system(size: 12, weight: .regular, design: .rounded))
                     .foregroundColor(Theme.navy)
                     .lineLimit(1)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(Theme.mist.opacity(0.6))
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, 1)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
