@@ -324,7 +324,10 @@ struct ContentView: View {
                     riskSeed: isWidgetRiskSeed(chatSeed) ? chatSeed : nil,
                     targetScrollId: targetScrollId,
                     scrollTrigger: scrollTrigger,
-                    onClose: { showChat = false }
+                    onClose: {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        showChat = false
+                    }
                 )
                 .id(chatKey)
                 .opacity(showChat ? 1 : 0)
