@@ -537,21 +537,20 @@ private struct FeatureLine: View {
 
             // 主数值 / 锁图标（**固定 80pt 列宽** — 跟 StressLine 数值起点对齐）
             // 坐姿秒表（SEDENTARY 行）用 live 文本覆盖硬编码值
-            Group {
-                if isLocked {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(Theme.mist)
-                } else {
-                    Text(displayValue)
-                        .font(.system(size: 15, weight: .heavy, design: .rounded))
-                        .foregroundColor(isEmpty ? Theme.mist : Theme.navy)
-                        .lineLimit(1)
-                        .monospacedDigit()  // 数字宽度固定，跨行对齐
-                }
+            // lock 和 text 分别 frame，避免 fixedSize 把 lock 缩到 11pt 导致列内错位
+            if isLocked {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Theme.mist)
+                    .frame(width: 80, alignment: .leading)
+            } else {
+                Text(displayValue)
+                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                    .foregroundColor(isEmpty ? Theme.mist : Theme.navy)
+                    .lineLimit(1)
+                    .monospacedDigit()  // 数字宽度固定，跨行对齐
+                    .frame(width: 80, alignment: .leading)
             }
-            .frame(width: 80, alignment: .leading)
-            .fixedSize(horizontal: true, vertical: false)
 
             // 备注 — 11pt regular（小一档，灰；剩余空间填满）
             Text(isLocked ? availability.hint : metric.desc)
