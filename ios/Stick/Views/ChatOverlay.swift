@@ -567,26 +567,40 @@ struct ChatOverlay: View {
 
     private var inputBar: some View {
         HStack(spacing: 8) {
-            HStack(spacing: 6) {
+            // 左侧：语音按钮（36pt 圆形 navy 1.4 stroke，跟 InputBar voice 一样）
+            Button {
+                // TODO: 语音功能（暂时 noop）
+            } label: {
+                Image(systemName: "wave.3.right")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(Theme.navy)
+                    .frame(width: 36, height: 36)
+                    .overlay(
+                        Circle().stroke(Theme.navy.opacity(0.85), lineWidth: 1.4)
+                    )
+            }
+            .buttonStyle(.plain)
+
+            // 中间：pill 输入区（capsule + white + 0.5pt border + 56pt 高）
+            HStack(spacing: 0) {
                 TextField("继续问点健康相关…", text: $input, axis: .vertical)
                     .lineLimit(1...2)
                     .tint(Theme.navy)
                     .foregroundColor(Theme.navy)
-                    .accentColor(Theme.navy)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(size: 15, weight: .regular))
                     .disabled(isStreaming)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
             }
-            .frame(minHeight: 44)
-            .padding(.horizontal, 12)
+            .frame(height: 56)
             .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Theme.bgTop)
+                Capsule().fill(Color.white)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(Theme.border, lineWidth: 1)
+                Capsule().stroke(Theme.border, lineWidth: 0.5)
             )
 
+            // 右侧：send 按钮（capsule + accent fill，保留主操作视觉）
             Button {
                 send()
             } label: {
@@ -595,8 +609,7 @@ struct ChatOverlay: View {
                     .foregroundColor(.white)
                     .frame(width: 44, height: 44)
                     .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(isStreaming ? Theme.mist : state.accent)
+                        Capsule().fill(isStreaming ? Theme.mist : state.accent)
                     )
             }
             .buttonStyle(.plain)
