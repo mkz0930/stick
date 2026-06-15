@@ -64,6 +64,8 @@ struct ChatOverlay: View {
     @ObservedObject private var userProfile = UserProfileStore.shared
     @State private var showCamera: Bool = false
     @State private var capturedImage: UIImage?
+    /// 打开相机前保存用户已输入的文本，拍照完成后拼图片一起发给 LLM
+    @State private var textBeforeCamera: String = ""
 
     private let suggestedQuestions: [String] = [
         "我刚坐了一上午",
@@ -215,8 +217,12 @@ struct ChatOverlay: View {
         }
         .onChange(of: capturedImage) { _, newImage in
             if let image = newImage, let data = image.jpegData(compressionQuality: 0.7) {
-                input = "请分析这张图片中的健康相关问题"
+                // 优先用拍照前用户已输入的文本，没有则用默认消息
+                let textToSend = textBeforeCamera.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .isEmpty ? "请分析这张图片中的健康相关内容" : textBeforeCamera
+                input = textToSend
                 send(imageData: data)
+                textBeforeCamera = ""
             }
         }
     }
@@ -598,7 +604,7 @@ struct ChatOverlay: View {
     private let features: [InputFeature] = [
         InputFeature(icon: "cross.case.fill",    title: "AI 诊室",   seed: "AI 医生问诊"),
         InputFeature(icon: "doc.text.fill",      title: "报告解读",  seed: "解读我的健康报告"),
-        InputFeature(icon: "camera.viewfinder",  title: "拍皮肤",    seed: "拍照分析我的皮肤状态"),
+        InputFeature(icon: "camera.viewfinder",  title: "拍食物",    seed: "拍照分析我的饮食状态"),
         InputFeature(icon: "person.badge.plus",  title: "就医",      seed: "推荐合适的医院和科室"),
         InputFeature(icon: "fork.knife",         title: "饮食建议",  seed: "推荐健康饮食方案"),
     ]
@@ -610,8 +616,14 @@ struct ChatOverlay: View {
                 HStack(spacing: 8) {
                     ForEach(features) { f in
                         Button {
-                            input = f.seed
-                            send()
+                            if f.title == "报告解读" {
+                                // 报告解读：保留当前输入 + 打开相机，拍照后一起发送
+                                textBeforeCamera = input
+                                showCamera = true
+                            } else {
+                                input = f.seed
+                                send()
+                            }
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: f.icon)
@@ -696,6 +708,7 @@ struct ChatOverlay: View {
 
     private var cameraButton: some View {
         Button {
+            textBeforeCamera = input
             showCamera = true
         } label: {
             ZStack(alignment: .topTrailing) {
