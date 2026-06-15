@@ -157,12 +157,12 @@ struct DataRecordView: View {
         .background(RoundedRectangle(cornerRadius: 12).fill(Theme.card).overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.border, lineWidth: 1)))
     }
 
-    /// 每次打开 DataRecordView 时调 LLM, 基于今日 HealthSnapshot 生成一句 30 字以内的洞察
+    /// 每次打开 DataRecordView 时调 LLM，基于今日健康数据+用户画像生成一句 20 字以内的洞察
     private func generateInsight() async {
         isLoadingInsight = true
         defer { isLoadingInsight = false }
         let context = buildInsightContext()
-        let message = "请基于以上今日健康数据，输出一句洞察，30 字以内，专注最值得关注的一件事。直接给句子，不要标题，不要 emoji，不要说教。"
+        let message = "请基于以上今日健康数据，输出一句洞察，20 字以内，专注最值得关注的一件事。直接给句子，不要标题，不要 emoji，不要说教。"
         do {
             let raw = try await LLMService.sendMessage(message, context: context)
             let cleaned = raw
@@ -170,7 +170,7 @@ struct DataRecordView: View {
                 .replacingOccurrences(of: "\n", with: " ")
                 .replacingOccurrences(of: "\"", with: "")
             // 简单截断: 60 字符 ≈ 30 中文字 + 标点
-            insight = cleaned.count > 60 ? String(cleaned.prefix(60)) : cleaned
+            insight = cleaned.count > 40 ? String(cleaned.prefix(40)) : cleaned
         } catch {
             insight = ""
             print("[DataRecordView] generateInsight failed: \(error)")
@@ -197,7 +197,8 @@ struct DataRecordView: View {
             if let e  = s.activeEnergy { energy += e }
         }
         let avgHR = hrCount > 0 ? Int(hrSum / Double(hrCount)) : 0
-        return """
+        let profile = UserProfileStore.shared.profile
+        var ctx = """
         今日健康数据：
         - 步数: \(steps) 步
         - 久坐: \(sit) 分钟
@@ -207,6 +208,10 @@ struct DataRecordView: View {
         - 平均心率: \(avgHR) bpm
         - 活动能量: \(Int(energy)) 千卡
         """
+        if !profile.isEmpty {
+            ctx += "\n\n用户画像：\(profile)"
+        }
+        return ctx
     }
 
     private func todayDateString() -> String {
