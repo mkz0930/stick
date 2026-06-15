@@ -444,7 +444,7 @@ private struct StepsLine: View {
                 .frame(width: 6, height: 6)
 
             // 主标签 — 15pt bold rounded（固定 60pt 宽，跨行对齐）
-            Text("今日步数")
+            Text("步数")
                 .font(.system(size: 15, weight: .bold, design: .rounded))
                 .foregroundColor(Theme.slate)
                 .lineLimit(1)

@@ -27,6 +27,8 @@ final class HealthStore: ObservableObject {
         all.append(snapshot)
         let key = Calendar.current.startOfDay(for: snapshot.timestamp)
         today = all.filter { Calendar.current.startOfDay(for: $0.timestamp) == key }
+        // 同步更新每日步数累计
+        DailyStepsStore.shared.updateTodaySteps(from: all)
         save()
     }
 
