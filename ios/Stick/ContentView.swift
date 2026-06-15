@@ -524,8 +524,8 @@ struct ContentView: View {
 
                 // ② ScrollView 内容（小人 + 时间轴；在下层）
                 let scrollContent = VStack(spacing: 0) {
-                    // 为 FeatureRow 折叠态预留高度（70pt）
-                    Color.clear.frame(height: 70)
+                    // 为 FeatureRow 折叠态预留高度（150pt — 小人 + 时间轴整体下移 80pt，大小不变）
+                    Color.clear.frame(height: 150)
 
                     HStack(alignment: .top, spacing: 10) {
                         StageHeroView(
