@@ -928,7 +928,7 @@ private struct StageHeroView: View {
                 // 永远画小人（让用户看到 30° 低头 + 低落表情等所有视觉）
                 StickFigureView(state: state, mood: mood, tiredness: tiredness, neckWarning: neckWarningOpacity)
                     .padding(.horizontal, 4)
-                    .padding(.top, 70)
+                    .padding(.top, 150)
                     .padding(.bottom, 0)
                     .id(state)
                     .transition(.opacity)
