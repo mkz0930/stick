@@ -797,6 +797,9 @@ struct ChatOverlay: View {
             }
             await MainActor.run { isStreaming = false }
 
+            // 记录本次分析时间（一小时内的后续回复不再做个性化长分析）
+            LLMService.markAnalysisDone()
+
             // 流结束后生成追问建议
             await generateSuggestions(for: assistantId)
 
