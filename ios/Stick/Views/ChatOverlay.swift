@@ -62,6 +62,8 @@ struct ChatOverlay: View {
     @FocusState private var inputFocused: Bool
     @ObservedObject private var history = ChatHistoryStore.shared
     @ObservedObject private var userProfile = UserProfileStore.shared
+    @State private var showCamera: Bool = false
+    @State private var capturedImage: UIImage?
 
     private let suggestedQuestions: [String] = [
         "我刚坐了一上午",
@@ -202,6 +204,16 @@ struct ChatOverlay: View {
             }
             print("[ChatOverlay] onDisappear: saving \(newHistory.count) messages, user msgs: \(newHistory.filter { $0.role == "user" }.count)")
             history.replaceAll(with: newHistory)
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            ImagePicker(image: $capturedImage)
+                .ignoresSafeArea()
+        }
+        .onChange(of: capturedImage) { _, newImage in
+            if newImage != nil {
+                input = "已拍摄照片"
+                send()
+            }
         }
     }
 
@@ -676,8 +688,7 @@ struct ChatOverlay: View {
 
     private var cameraButton: some View {
         Button {
-            input = "拍照识别"
-            send()
+            showCamera = true
         } label: {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: "camera.fill")
@@ -758,7 +769,7 @@ struct ChatOverlay: View {
             await MainActor.run { isStreaming = false }
 
             // 流结束后生成追问建议
-            generateSuggestions(for: assistantId)
+            await generateSuggestions(for: assistantId)
 
             // 每 3 条用户消息总结一次用户画像
             if shouldSummarize {
@@ -810,7 +821,7 @@ struct ChatOverlay: View {
             }
             await MainActor.run { self.isStreaming = false }
 
-            generateSuggestions(for: assistantId)
+            await generateSuggestions(for: assistantId)
 
             if shouldSummarize {
                 await self.summarizeUserProfile()
@@ -819,39 +830,15 @@ struct ChatOverlay: View {
     }
 
     /// 根据用户兴趣标签生成 1-3 条推荐话题
-    private func generateSuggestions(for messageId: UUID) {
+    private func generateSuggestions(for messageId: UUID) async {
         guard let idx = messages.firstIndex(where: { $0.id == messageId }),
               messages[idx].role == .assistant else { return }
 
-        // 短期 top3 + 长期 top3 合并去重，取前 3 条
-        let shortTags = UserInterestTagStore.shared.topShortTermTags(limit: 3)
-        let longTags = UserInterestTagStore.shared.topLongTermTags(limit: 3)
-        var combined = shortTags
-        for tag in longTags where !combined.contains(tag) {
-            combined.append(tag)
-        }
-        let tags = Array(combined.prefix(3))
+        let response = messages[idx].content
+        let suggestions = await fetchSuggestions(from: response)
 
-        let suggestions: [String]
-        if tags.isEmpty {
-            suggestions = ["如何改善久坐不适", "如何缓解眼睛干涩", "如何提高睡眠质量"]
-        } else {
-            suggestions = tags.map { tag in
-                switch tag {
-                case "眼部健康":   return "如何缓解眼睛干涩"
-                case "骨骼健康":   return "如何改善颈椎腰椎不适"
-                case "睡眠问题":   return "如何提高睡眠质量"
-                case "心血管":     return "如何保护心血管健康"
-                case "消化系统":   return "如何改善肠胃不适"
-                case "运动健身":   return "如何科学安排运动"
-                case "情绪压力":   return "如何缓解工作压力"
-                case "饮食营养":   return "如何均衡饮食营养"
-                default:           return "如何改善\(tag)"
-                }
-            }
-        }
-
-        if let i = self.messages.firstIndex(where: { $0.id == messageId }) {
+        await MainActor.run {
+            guard let i = self.messages.firstIndex(where: { $0.id == messageId }) else { return }
             var updated = self.messages
             updated[i].suggestions = suggestions
             self.messages = updated
@@ -878,11 +865,8 @@ struct ChatOverlay: View {
             for line in lines {
                 var s = line.trimmingCharacters(in: .whitespacesAndNewlines)
                 if s.isEmpty { continue }
-                // 跳过含"追问"的标题行
                 if s.contains("追问") { continue }
-                // 去掉开头的编号 "1. " "1)" "1、" 等
                 s = s.replacingOccurrences(of: "^[0-9]+[.)、\\s]+", with: "", options: .regularExpression)
-                // 去掉结尾的问号
                 s = s.replacingOccurrences(of: "[？?]+$", with: "", options: .regularExpression)
                 s = s.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !s.isEmpty {
@@ -890,10 +874,14 @@ struct ChatOverlay: View {
                 }
                 if suggestions.count >= 3 { break }
             }
-            return suggestions
+            return suggestions.isEmpty ? defaultSuggestions : suggestions
         } catch {
-            return []
+            return defaultSuggestions
         }
+    }
+
+    private var defaultSuggestions: [String] {
+        ["如何改善久坐不适", "如何缓解眼睛干涩", "如何提高睡眠质量"]
     }
 
     /// 调用 LLM 总结用户最近消息，更新用户画像。新对话优先，覆盖旧画像
@@ -1109,7 +1097,7 @@ struct ChatOverlay: View {
             }
 
             // 流结束后生成追问建议
-            generateSuggestions(for: assistantId)
+            await generateSuggestions(for: assistantId)
         }
     }
 }
@@ -1312,5 +1300,48 @@ struct DashedDivider: View {
                     style: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
         }
         .frame(height: 0.5)
+    }
+}
+
+// MARK: - 相机拍照
+
+struct ImagePicker: UIViewControllerRepresentable {
+    @Binding var image: UIImage?
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        if UIImagePickerController.isSourceTypeAvailable(.camera) {
+            picker.sourceType = .camera
+        } else {
+            picker.sourceType = .photoLibrary
+        }
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: ImagePicker
+
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.image = image
+            }
+            parent.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
     }
 }
