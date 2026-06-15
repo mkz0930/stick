@@ -325,7 +325,7 @@ struct ContentView: View {
                     targetScrollId: targetScrollId,
                     scrollTrigger: scrollTrigger,
                     onClose: {
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        dismissKeyboard()
                         showChat = false
                     }
                 )
@@ -344,6 +344,12 @@ struct ContentView: View {
                 guard let seed = newSeed, !seed.isEmpty else { return }
                 openChat(seed)
                 pendingChatSeed = nil
+            }
+            .onChange(of: showChat) { _, isShowing in
+                // 关闭 ChatOverlay 时强制收键盘；打开时不需要主动弹（依赖 ChatOverlay 内部 onAppear）
+                if !isShowing {
+                    dismissKeyboard()
+                }
             }
             .fullScreenCover(isPresented: $showCamera) {
                 ImagePicker(image: $capturedImage)
@@ -605,6 +611,11 @@ struct ContentView: View {
 
     private func openCamera() {
         showCamera = true
+    }
+
+    /// 强制收起系统键盘
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     // MARK: - 背景（v6 米色渐变 + 弱网格 + 状态柔光）
