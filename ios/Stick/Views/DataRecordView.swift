@@ -10,10 +10,12 @@ import Combine
 final class DataRecordViewModel: ObservableObject {
     @Published var today: [HealthSnapshot] = []
     @Published var insights: [HealthInsight] = []
+    @Published private(set) var userProfile: String = ""
 
     private var cancellables = Set<AnyCancellable>()
 
     init() {
+        userProfile = UserProfileStore.shared.profile
         refresh()
         HealthStore.shared.$today
             .receive(on: RunLoop.main)
@@ -26,6 +28,7 @@ final class DataRecordViewModel: ObservableObject {
     }
 
     func refresh() {
+        userProfile = UserProfileStore.shared.profile
         HealthStore.shared.refreshToday()
         let snaps = HealthStore.shared.today
         today = snaps
@@ -112,6 +115,14 @@ struct DataRecordView: View {
                 Text(todayDateString())
                     .font(.system(size: 13))
                     .foregroundColor(Theme.slate)
+            }
+            if !vm.userProfile.isEmpty {
+                Text(vm.userProfile)
+                    .font(.system(size: 13))
+                    .foregroundColor(Theme.navy)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Theme.navy.opacity(0.06)))
             }
             Text(insightSummary)
                 .font(.system(size: 13))
