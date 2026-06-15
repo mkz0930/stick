@@ -76,6 +76,12 @@ struct ChatOverlay: View {
         // 用 GeometryReader 读父高度, 全屏显示
         GeometryReader { geo in
             ZStack(alignment: .bottom) {
+                // 底层透明 UIView：cancelsTouchesInView=false，点击空白处收键盘但不阻挡子视图交互
+                DismissingKeyboardView {
+                    dismissKeyboard()
+                }
+                .frame(width: geo.size.width, height: geo.size.height)
+
                 cardContent(height: geo.size.height)
             }
         }   // GeometryReader
@@ -1385,6 +1391,39 @@ struct ImagePicker: UIViewControllerRepresentable {
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             parent.dismiss()
+        }
+    }
+}
+
+// MARK: - UIKit 收键盘手势（不阻挡子视图交互）
+
+/// 透明背景 UIView，接收点击事件用于收起键盘
+/// cancelsTouchesInView = false 保证点击不会阻挡下层 TextField/Button 的交互
+private struct DismissingKeyboardView: UIViewRepresentable {
+    let onTap: () -> Void
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
+        tap.cancelsTouchesInView = false
+        view.addGestureRecognizer(tap)
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onTap)
+    }
+
+    class Coordinator {
+        let onTap: () -> Void
+        init(_ onTap: @escaping () -> Void) { self.onTap = onTap }
+        @objc func handleTap(_ sender: UITapGestureRecognizer) {
+            if sender.state == .ended {
+                onTap()
+            }
         }
     }
 }
