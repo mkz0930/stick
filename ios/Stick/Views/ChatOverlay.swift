@@ -59,8 +59,6 @@ struct ChatOverlay: View {
     @State private var keyboardVisible: Bool = false  // 键盘是否可见
     /// 上次已处理的 scrollTrigger 值（用于去重）
     @State private var lastHandledTrigger: Int = 0
-    /// 用户消息提取的标签，key=messageId（onDisappear 时写入 PersistedChatMessage）
-    @State private var pendingTags: [UUID: [String]] = [:]
     @FocusState private var inputFocused: Bool
     @ObservedObject private var history = ChatHistoryStore.shared
     @ObservedObject private var userProfile = UserProfileStore.shared
@@ -192,14 +190,12 @@ struct ChatOverlay: View {
         }
         .onDisappear {
             streamTask?.cancel()
-            // 把当前 messages 写回 store（包含 tags 和 suggestions）
+            // 把当前 messages 写回 store
             let newHistory = messages.map { m in
                 PersistedChatMessage(
                     id: m.id,
                     role: m.role == .user ? "user" : "assistant",
-                    content: m.content,
-                    tags: m.role == .user ? (pendingTags[m.id] ?? []) : [],
-                    suggestions: m.role == .assistant ? m.suggestions : []
+                    content: m.content
                 )
             }
             print("[ChatOverlay] onDisappear: saving \(newHistory.count) messages, user msgs: \(newHistory.filter { $0.role == "user" }.count)")
@@ -569,62 +565,11 @@ struct ChatOverlay: View {
         return Color(red: 0.85, green: 0.85, blue: 0.88)
     }
 
-    // MARK: - 输入栏（参考首页 InputBar 样式）
-
-    private let features: [InputFeature] = [
-        InputFeature(icon: "cross.case.fill",    title: "AI 诊室",   seed: "AI 医生问诊"),
-        InputFeature(icon: "doc.text.fill",      title: "报告解读",  seed: "解读我的健康报告"),
-        InputFeature(icon: "camera.viewfinder",  title: "拍皮肤",    seed: "拍照分析我的皮肤状态"),
-        InputFeature(icon: "person.badge.plus",  title: "就医",      seed: "推荐合适的医院和科室"),
-        InputFeature(icon: "fork.knife",         title: "饮食建议",  seed: "推荐健康饮食方案"),
-    ]
+    // MARK: - 输入栏
 
     private var inputBar: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // 1. 顶部 feature chips (横向滚动)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(features) { f in
-                        Button {
-                            input = f.seed
-                            send()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: f.icon)
-                                    .font(.system(size: 14, weight: .medium))
-                                Text(f.title)
-                                    .font(.system(size: 14, weight: .medium))
-                                    .lineLimit(1)
-                            }
-                            .foregroundColor(Theme.navy)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(
-                                Capsule().fill(Color.white)
-                            )
-                            .overlay(
-                                Capsule().stroke(Theme.border, lineWidth: 0.5)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 2)
-            }
-
-            // 2. 底部 input pill + 相机按钮
-            HStack(spacing: 8) {
-                inputPill
-                cameraButton
-            }
-        }
-    }
-
-    // MARK: - Pill 输入条
-
-    private var inputPill: some View {
-        HStack(spacing: 0) {
-            // 左侧: 语音按钮 (圆形描边)
+        HStack(spacing: 8) {
+            // 左侧：语音按钮（36pt 圆形 navy 1.4 stroke，跟 InputBar voice 一样）
             Button {
                 // TODO: 语音功能（暂时 noop）
             } label: {
@@ -638,75 +583,45 @@ struct ChatOverlay: View {
             }
             .buttonStyle(.plain)
 
-            // 中间: TextField
-            TextField("继续问点健康相关…", text: $input, axis: .vertical)
-                .lineLimit(1...2)
-                .tint(Theme.navy)
-                .foregroundColor(Theme.navy)
-                .font(.system(size: 15, weight: .regular))
-                .disabled(isStreaming)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .focused($inputFocused)
-                .submitLabel(.send)
-                .onSubmit { send() }
-
-            // 右侧: + 按钮 (圆形描边)
-            Button {
-                // TODO: 扩展功能（暂时 noop）
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 18, weight: .semibold))
+            // 中间：pill 输入区（capsule + white + 0.5pt border + 56pt 高）
+            HStack(spacing: 0) {
+                TextField("继续问点健康相关…", text: $input, axis: .vertical)
+                    .lineLimit(1...2)
+                    .tint(Theme.navy)
                     .foregroundColor(Theme.navy)
-                    .frame(width: 36, height: 36)
-                    .overlay(
-                        Circle().stroke(Theme.navy.opacity(0.85), lineWidth: 1.4)
+                    .font(.system(size: 15, weight: .regular))
+                    .disabled(isStreaming)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .focused($inputFocused)
+                    .submitLabel(.send)
+                    .onSubmit { send() }
+            }
+            .frame(height: 56)
+            .background(
+                Capsule().fill(Color.white)
+            )
+            .overlay(
+                Capsule().stroke(Theme.border, lineWidth: 0.5)
+            )
+
+            // 右侧：send 按钮（capsule + accent fill，保留主操作视觉）
+            Button {
+                send()
+            } label: {
+                Image(systemName: isStreaming ? "stop.fill" : "arrow.up")
+                    .font(.system(size: 16, weight: .heavy))
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+                    .background(
+                        Capsule().fill(isStreaming ? Theme.mist : state.accent)
                     )
             }
             .buttonStyle(.plain)
+            .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isStreaming)
         }
-        .frame(height: 56)
-        .background(
-            Capsule().fill(Color.white)
-        )
-        .overlay(
-            Capsule().stroke(Theme.border, lineWidth: 0.5)
-        )
-    }
-
-    // MARK: - 相机按钮 (独立圆形 + 右上角小星)
-
-    private var cameraButton: some View {
-        Button {
-            input = "拍照识别"
-            send()
-        } label: {
-            ZStack(alignment: .topTrailing) {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundColor(Theme.navy)
-                    .frame(width: 56, height: 56)
-                    .background(
-                        Circle().fill(Color.white)
-                    )
-                    .overlay(
-                        Circle().stroke(Theme.border, lineWidth: 0.5)
-                    )
-
-                Image(systemName: "sparkle")
-                    .font(.system(size: 9, weight: .heavy))
-                    .foregroundColor(Color(red: 0.45, green: 0.30, blue: 0.95))
-                    .padding(3)
-                    .background(
-                        Circle().fill(Color.white)
-                    )
-                    .overlay(
-                        Circle().stroke(Theme.border, lineWidth: 0.3)
-                    )
-                    .offset(x: 4, y: -2)
-            }
-        }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 
     // MARK: - 发送 / 取消
@@ -731,8 +646,6 @@ struct ChatOverlay: View {
         let tags = TopicExtractor.extract(from: text)
         UserInterestTagStore.shared.record(tags: tags)
         UserInterestTagStore.shared.resetShortTermIfExpired()
-        // 暂存 tags，onDisappear 时写入持久化
-        pendingTags[userMsgId] = tags
 
         isStreaming = true
 
@@ -787,8 +700,6 @@ struct ChatOverlay: View {
         let tags = TopicExtractor.extract(from: text)
         UserInterestTagStore.shared.record(tags: tags)
         UserInterestTagStore.shared.resetShortTermIfExpired()
-        // 暂存 tags，onDisappear 时写入持久化
-        pendingTags[userMsgId] = tags
         isStreaming = true
 
         let assistantId = UUID()

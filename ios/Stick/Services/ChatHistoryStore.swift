@@ -14,16 +14,14 @@ struct PersistedChatMessage: Codable, Identifiable, Equatable {
     let role: String         // "user" / "assistant"
     let content: String
     let timestamp: Date
-    let tags: [String]       // 本次消息提取的标签（user 消息才有）
-    let suggestions: [String] // 推荐主题（assistant 消息才有）
+    let tags: [String]       // 本次消息提取的标签
 
-    init(id: UUID = UUID(), role: String, content: String, timestamp: Date = Date(), tags: [String] = [], suggestions: [String] = []) {
+    init(id: UUID = UUID(), role: String, content: String, timestamp: Date = Date(), tags: [String] = []) {
         self.id = id
         self.role = role
         self.content = content
         self.timestamp = timestamp
         self.tags = tags
-        self.suggestions = suggestions
     }
 }
 
