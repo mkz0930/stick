@@ -77,16 +77,14 @@ struct ChatOverlay: View {
         GeometryReader { geo in
             ZStack(alignment: .bottom) {
                 cardContent()
-
-                // 顶层透明 UIView：cancelsTouchesInView=false
-                // 点空白处（没命中子 view）时收键盘；命中子 view 时让事件穿透
-                DismissingKeyboardView {
-                    dismissKeyboard()
-                }
-                .frame(width: geo.size.width, height: geo.size.height)
-                .allowsHitTesting(true)
             }
         }   // GeometryReader
+        // 整 chat 范围：simultaneousGesture 让点击穿透到子 view，
+        // 同时触发收键盘
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            TapGesture().onEnded { dismissKeyboard() }
+        )
         // 键盘弹出/收起时自动滚到底部
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             keyboardVisible = true
