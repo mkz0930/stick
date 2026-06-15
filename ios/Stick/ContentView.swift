@@ -558,7 +558,7 @@ struct ContentView: View {
                             scrubOffset: $scrubOffset,
                             showDevicePicker: $showDevicePicker
                         )
-                        .frame(width: 22)
+                        .frame(width: 50)
                         .frame(height: 400)
                     }
                     .padding(.leading, 16)

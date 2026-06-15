@@ -105,19 +105,18 @@ struct FeatureRow: View {
                 if !isExpanded { alertsDetailExpanded = false }
             }
         } label: {
-            HStack(spacing: 3) {
-                Text(isExpanded ? "LESS" : "MORE")
-                    .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                    .tracking(1.2)
-                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                    .font(.system(size: 8, weight: .heavy))
+            HStack(spacing: 4) {
+                Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
+                    .font(.system(size: 14, weight: .medium))
+                Text(isExpanded ? "收起" : "更多")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
             }
             .foregroundColor(Theme.slate)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 10)
         }
         .buttonStyle(.plain)
-        .frame(maxWidth: .infinity, alignment: .leading)  // 靠左
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -139,16 +138,14 @@ private struct AlertsLine: View {
                     .frame(width: 5, height: 5)
 
                 if isFirst {
-                    Text("ALERTS")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .tracking(0.8)
+                    Text("异常提示")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
                         .foregroundColor(Theme.slate)
                         .lineLimit(1)
-                        .frame(width: 68, alignment: .leading)
+                        .frame(width: 80, alignment: .leading)
 
                     Text("\(totalCount) 项")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .tracking(0.3)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
                         .foregroundColor(top.severity.color)
                 }
 
@@ -191,10 +188,10 @@ private struct MoodLine: View {
 
     private var statusText: String {
         switch info.tone {
-        case .good:    return "STABLE"
-        case .calm:    return "FOCUS"
-        case .warn:    return "WARN"
-        case .excited: return "PEAK"
+        case .good:    return "平稳"
+        case .calm:    return "专注"
+        case .warn:    return "警告"
+        case .excited: return "兴奋"
         }
     }
 

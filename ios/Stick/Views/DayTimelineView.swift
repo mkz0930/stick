@@ -59,13 +59,17 @@ struct DayTimelineView: View {
     // MARK: - body
 
     var body: some View {
-        VStack(spacing: 12) {
-            shareButton
+        VStack(spacing: 20) {
+            HStack(spacing: 0) {
+                shareButton
+                Spacer(minLength: 0)
+            }
+            .frame(width: 22, alignment: .leading)
             track
                 .frame(width: thumbSize, height: trackLength)
             // 竖线下方：短时间灰色显示
             Text(formatClockOnly(displayDate))
-                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                .font(.system(size: 15, weight: .semibold, design: .monospaced))
                 .tracking(0.4)
                 .foregroundColor(Theme.slate.opacity(0.55))
                 .monospacedDigit()
@@ -103,18 +107,18 @@ struct DayTimelineView: View {
 
     // MARK: - 子视图
 
-    /// 竖线上方的小分享按钮（点开 → 1-day 回放 sheet，播完后可分享）
+    /// 竖线上方的分享按钮（点开 → 1-day 回放 sheet，播完后可分享）
     private var shareButton: some View {
         Button {
             showPlayback = true
         } label: {
             Image(systemName: "play.rectangle")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(Theme.slate.opacity(0.55))
-                .frame(width: 16, height: 16)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(Theme.slate.opacity(0.7))
+                .frame(width: 22, height: 22)
                 .background(
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Theme.slate.opacity(0.06))
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Theme.slate.opacity(0.1))
                 )
         }
         .buttonStyle(.plain)
