@@ -117,22 +117,24 @@ final class HealthKitService: ObservableObject {
 
     // MARK: - 抓取
 
-    /// 抓取一次最近 60 秒的数据 → 合成快照
+    /// 抓取一次全天累计数据 → 合成快照（步数/距离/楼层从当日 00:00 起累计）
     func captureSnapshot() async -> HealthSnapshot {
         let now = Date()
         let from = now.addingTimeInterval(-60)
+        let dayStart = Calendar.current.startOfDay(for: now)
         async let hr    = recentAverage(.heartRate, from: from, unit: HKUnit.count().unitDivided(by: .minute()))
-        async let steps = recentSum(.stepCount, from: from, unit: .count())
+        // 步数：全天累计（直接从 dayStart 起，避免漏计）
+        async let steps = recentSum(.stepCount, from: dayStart, unit: .count())
         async let energy = recentSum(.activeEnergyBurned, from: from, unit: .kilocalorie())
         async let hrv   = recentAverage(.heartRateVariabilitySDNN, from: from, unit: HKUnit.secondUnit(with: .milli))
         // 累计型: 站立小时 / 锻炼分钟 / 正念分钟 — 取今日累计
-        let dayStart = Calendar.current.startOfDay(for: now)
         async let stand = recentSum(.appleStandTime, from: dayStart, unit: .hour())
         async let exercise = recentSum(.appleExerciseTime, from: dayStart, unit: .minute())
-        async let mindful = recentSum(.appleExerciseTime, from: dayStart, unit: .minute())  // fallback: 用 exerciseTime
+        async let mindful = recentSum(.appleExerciseTime, from: dayStart, unit: .minute())  // fallback: exerciseTime
         async let resp = recentAverage(.respiratoryRate, from: from, unit: HKUnit.count().unitDivided(by: .minute()))
-        async let dist = recentSum(.distanceWalkingRunning, from: from, unit: .meter())
-        async let flights = recentSum(.flightsClimbed, from: from, unit: .count())
+        // 距离和爬楼也应是全天累计
+        async let dist = recentSum(.distanceWalkingRunning, from: dayStart, unit: .meter())
+        async let flights = recentSum(.flightsClimbed, from: dayStart, unit: .count())
         // 静息心率: 当日平均
         async let rhr = recentAverage(.restingHeartRate, from: dayStart, unit: HKUnit.count().unitDivided(by: .minute()))
 
