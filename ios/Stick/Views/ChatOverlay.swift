@@ -822,10 +822,12 @@ struct ChatOverlay: View {
                 }
                 // 流结束后 flush 剩余 buffer
                 await flushBuffer()
-                // 解析食物记录并存储
+                // 解析食物记录并存储；同时从用户看的回复里剥掉 [FOOD] 行
                 if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
                     await MainActor.run {
                         parseAndStoreFoodEntry(from: messages[idx].content)
+                        // 剥掉 [FOOD] 行（结构化数据，不展示给用户）
+                        messages[idx].content = stripFoodLine(messages[idx].content)
                     }
                 }
             } catch {
@@ -873,6 +875,14 @@ struct ChatOverlay: View {
         default: meal = FoodLogStore.mealType()
         }
         FoodLogStore.shared.addEntry(meal: meal, foodName: foodName, calories: calories == 0 ? nil : calories)
+    }
+
+    /// 从 LLM 回复中剥掉 [FOOD] 行（结构化数据，不展示给用户）
+    private func stripFoodLine(_ text: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: "\\n?\\[FOOD\\][^\\n]*") else { return text }
+        let range = NSRange(text.startIndex..., in: text)
+        return regex.stringByReplacingMatches(in: text, range: range, withTemplate: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// 直接发送文字（不经过 input 框，用于意图按钮）
@@ -992,7 +1002,7 @@ struct ChatOverlay: View {
         \(userContext.isEmpty ? "" : "\(userContext)")AI 最新回复：
         \(response)
 
-        【预测方向】（三类话题混合输出 2-3 条）
+        【预测方向】（三类话题混合输出 2-3 条）或者其他方向也可以
         1. **追问细节**：用户想继续追问 AI 提到的某个点（贴合 AI 给的具体内容）
         2. **立刻执行**：用户想马上执行的动作解析（贴合 AI 给的实操建议）
         3. **继续探索**：用户想继续探索的相关方向（结合用户画像和上下文，可以稍微发散到相邻话题）
@@ -1002,16 +1012,12 @@ struct ChatOverlay: View {
         - 单条 ≤ 18 字
         - 严禁问号、严禁"试试"、"了解下"、"如何"开头的疑问句
         - 必须是用户**会输入**的具体短句，不是抽象话题标签
-        - 三类话题可以混合，不强制每类都出现
+        - 三类话题可以混合，不强制每类都出现，也可以是相关的话题，必须用户关心的
 
         【风格示例】
-        - 午饭后确实困怎么办
-        - 深呼吸具体怎么做
         - 膝盖有点酸是不是要补钙
         - 跑步和快走哪个更适合我
-        - 每天 8 小时睡眠够吗
         - 肩颈也跟着痛怎么缓解
-        - 站久了小腿酸正常吗
 
         硬性规则：
         1. 只输出 2-3 条，每条独占一行
