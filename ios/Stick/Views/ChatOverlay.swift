@@ -102,8 +102,9 @@ struct ChatOverlay: View {
         }
     }
 
-    /// 收起键盘的统一入口
+    /// 收起键盘的统一入口（仅在键盘可见时才生效，避免无谓的 responder chain 遍历）
     private func dismissKeyboard() {
+        guard keyboardVisible else { return }
         inputFocused = false
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
@@ -135,8 +136,8 @@ struct ChatOverlay: View {
             }
 
             // 从持久化 store 恢复历史 messages
-            if !history.messages.isEmpty {
-                messages = history.messages.map { m in
+            if !history.loadedMessages.isEmpty {
+                messages = history.loadedMessages.map { m in
                     ChatMessage(
                         id: m.id,
                         role: m.role == "user" ? .user : .assistant,
