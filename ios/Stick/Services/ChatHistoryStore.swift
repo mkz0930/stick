@@ -33,31 +33,64 @@ final class ChatHistoryStore: ObservableObject {
 
     private let key = "stick.chat.history.v1"
     private let maxMessages = 200
+    private let pageSize = 10
 
-    @Published private(set) var messages: [PersistedChatMessage] = []
+    /// 全量历史（持久化，懒加载）
+    @Published private(set) var allMessages: [PersistedChatMessage] = []
+
+    /// 当前展示的消息（分页加载）
+    @Published private(set) var loadedMessages: [PersistedChatMessage] = []
+
+    /// 是否还有更早的消息可加载
+    var hasMore: Bool { loadedCount < allMessages.count }
+
+    /// 当前已加载的条数
+    var loadedCount: Int { loadedMessages.count }
 
     init() {
         load()
     }
 
+    /// 初始加载最近 pageSize 条
+    func loadInitial() {
+        loadedMessages = Array(allMessages.suffix(pageSize))
+    }
+
+    /// 加载更早的消息（追加 N 条）
+    func loadMore() {
+        guard hasMore else { return }
+        let start = max(0, allMessages.count - loadedCount - pageSize)
+        let end = allMessages.count - loadedCount
+        let earlier = Array(allMessages[start..<end])
+        loadedMessages.insert(contentsOf: earlier, at: 0)
+    }
+
     // MARK: - 增删改
 
     func append(_ msg: PersistedChatMessage) {
-        messages.append(msg)
-        if messages.count > maxMessages {
-            messages.removeFirst(messages.count - maxMessages)
+        allMessages.append(msg)
+        if allMessages.count > maxMessages {
+            allMessages.removeFirst(allMessages.count - maxMessages)
+        }
+        // 新消息追加到展示列表
+        loadedMessages.append(msg)
+        if loadedMessages.count > maxMessages {
+            loadedMessages.removeFirst(loadedMessages.count - maxMessages)
         }
         save()
     }
 
     func clear() {
-        messages = []
+        allMessages = []
+        loadedMessages = []
         save()
     }
 
     /// 用新消息列表整体替换 (用于 ChatOverlay.onDisappear 写回)
     func replaceAll(with newMessages: [PersistedChatMessage]) {
-        messages = Array(newMessages.suffix(maxMessages))
+        allMessages = Array(newMessages.suffix(maxMessages))
+        // 保持 loadedMessages 同步截断
+        loadedMessages = Array(allMessages.suffix(loadedCount))
         save()
     }
 
@@ -65,9 +98,9 @@ final class ChatHistoryStore: ObservableObject {
 
     private func save() {
         do {
-            let data = try JSONEncoder().encode(messages)
+            let data = try JSONEncoder().encode(allMessages)
             UserDefaults.standard.set(data, forKey: key)
-            print("[ChatHistoryStore] save(): \(messages.count) msgs, user msgs: \(messages.filter { $0.role == "user" }.count)")
+            print("[ChatHistoryStore] save(): \(allMessages.count) msgs")
         } catch {
             print("[ChatHistoryStore] save failed: \(error)")
         }
@@ -76,8 +109,8 @@ final class ChatHistoryStore: ObservableObject {
     private func load() {
         guard let data = UserDefaults.standard.data(forKey: key) else { return }
         do {
-            messages = try JSONDecoder().decode([PersistedChatMessage].self, from: data)
-            print("[ChatHistoryStore] load(): \(messages.count) msgs loaded, user msgs: \(messages.filter { $0.role == "user" }.count)")
+            allMessages = try JSONDecoder().decode([PersistedChatMessage].self, from: data)
+            print("[ChatHistoryStore] load(): \(allMessages.count) msgs loaded")
         } catch {
             print("[ChatHistoryStore] load failed: \(error)")
         }

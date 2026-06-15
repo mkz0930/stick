@@ -146,6 +146,7 @@ struct ChatOverlay: View {
             }
 
             // 从持久化 store 恢复历史 messages
+            history.loadInitial()
             if !history.loadedMessages.isEmpty {
                 messages = history.loadedMessages.map { m in
                     ChatMessage(
@@ -287,7 +288,7 @@ struct ChatOverlay: View {
         ScrollViewReader { proxy in
             VStack(alignment: .leading, spacing: 14) {
                 // 1) 对话记录 (从 ChatHistoryStore 拉最近 3 条 user 问题) — 一直显示在顶部
-                if !history.messages.isEmpty {
+                if !history.loadedMessages.isEmpty {
                     historySection
                 }
 
@@ -405,7 +406,7 @@ struct ChatOverlay: View {
     /// 最近 3 条 user 问题 (按时间倒序)
     private var recentUserPrompts: [PersistedChatMessage] {
         Array(
-            history.messages
+            history.loadedMessages
                 .filter { $0.role == "user" }
                 .sorted { $0.timestamp > $1.timestamp }
                 .prefix(3)
@@ -414,7 +415,7 @@ struct ChatOverlay: View {
 
     /// 对话计数: 只算 user 消息 (每条 user = 1 个对话, 不算 assistant 回复)
     private var userPromptCount: Int {
-        history.messages.filter { $0.role == "user" }.count
+        history.loadedMessages.filter { $0.role == "user" }.count
     }
 
     private var historySection: some View {
@@ -489,7 +490,7 @@ struct ChatOverlay: View {
     /// 完整历史 popover (按时间倒序, 最多 50 条 — ChatHistoryStore 限制)
     @ViewBuilder
     private var historyPopoverContent: some View {
-        let allPrompts = history.messages
+        let allPrompts = history.loadedMessages
             .filter { $0.role == "user" }
             .sorted { $0.timestamp > $1.timestamp }
         VStack(alignment: .leading, spacing: 0) {
@@ -786,27 +787,40 @@ struct ChatOverlay: View {
         let ctx = buildContext()
         streamTask = Task {
             do {
-                if let imgData = imageData {
-                    // 带图片的视觉问答
-                    for try await chunk in LLMService.sendMessageStreamWithImage(text, context: ctx, imageData: imgData) {
-                        if Task.isCancelled { break }
-                        await MainActor.run {
-                            if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
-                                messages[idx].content += chunk
-                            }
-                        }
-                    }
-                } else {
-                    // 纯文本问答
-                    for try await chunk in LLMService.sendMessageStream(text, context: ctx) {
-                        if Task.isCancelled { break }
-                        await MainActor.run {
-                            if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
-                                messages[idx].content += chunk
-                            }
+                // 100ms 节流：合并 LLM 流式 chunks，减少 SwiftUI 整列表 re-render
+                let flushInterval: TimeInterval = 0.1
+                var buffer = ""
+                var lastFlush = Date()
+
+                let flushBuffer: @Sendable () async -> Void = {
+                    guard !buffer.isEmpty else { return }
+                    let toFlush = buffer
+                    buffer = ""
+                    await MainActor.run {
+                        if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
+                            messages[idx].content += toFlush
                         }
                     }
                 }
+
+                let stream: AsyncThrowingStream<String, Error> = {
+                    if let imgData = imageData {
+                        return LLMService.sendMessageStreamWithImage(text, context: ctx, imageData: imgData)
+                    } else {
+                        return LLMService.sendMessageStream(text, context: ctx)
+                    }
+                }()
+
+                for try await chunk in stream {
+                    if Task.isCancelled { break }
+                    buffer += chunk
+                    if Date().timeIntervalSince(lastFlush) >= flushInterval {
+                        await flushBuffer()
+                        lastFlush = Date()
+                    }
+                }
+                // 流结束后 flush 剩余 buffer
+                await flushBuffer()
             } catch {
                 await MainActor.run {
                     if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
@@ -858,14 +872,31 @@ struct ChatOverlay: View {
         let ctx = buildContext()
         streamTask = Task {
             do {
-                for try await chunk in LLMService.sendMessageStream(text, context: ctx) {
-                    if Task.isCancelled { break }
+                // 100ms 节流：合并 chunks 减少 re-render
+                let flushInterval: TimeInterval = 0.1
+                var buffer = ""
+                var lastFlush = Date()
+
+                let flushBuffer: @Sendable () async -> Void = {
+                    guard !buffer.isEmpty else { return }
+                    let toFlush = buffer
+                    buffer = ""
                     await MainActor.run {
                         if let idx = self.messages.firstIndex(where: { $0.id == assistantId }) {
-                            self.messages[idx].content += chunk
+                            self.messages[idx].content += toFlush
                         }
                     }
                 }
+
+                for try await chunk in LLMService.sendMessageStream(text, context: ctx) {
+                    if Task.isCancelled { break }
+                    buffer += chunk
+                    if Date().timeIntervalSince(lastFlush) >= flushInterval {
+                        await flushBuffer()
+                        lastFlush = Date()
+                    }
+                }
+                await flushBuffer()
             } catch {
                 await MainActor.run {
                     if let idx = self.messages.firstIndex(where: { $0.id == assistantId }) {

@@ -599,7 +599,7 @@ struct ContentView: View {
                         onOpenChat: openChat,
                         onOpenCamera: openCamera,
                         onPlusTap: openChatWithPhoto,
-                        lastHistoryPrompt: chatHistory.messages.last(where: { $0.role == "user" })?.content
+                        lastHistoryPrompt: chatHistory.loadedMessages.last(where: { $0.role == "user" })?.content
                     )
                     .padding(.horizontal, 16)
                 }

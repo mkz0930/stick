@@ -276,11 +276,11 @@ struct PersonalView: View {
         var lines: [String] = []
         lines.append("═══ Stick 对话记录 ═══")
         lines.append("导出时间：\(df.string(from: Date()))")
-        lines.append("消息总数：\(chatHistory.messages.count)")
+        lines.append("消息总数：\(chatHistory.loadedMessages.count)")
         lines.append("")
 
         // 按时间正序（从早到晚）
-        let ordered = chatHistory.messages.sorted { $0.timestamp < $1.timestamp }
+        let ordered = chatHistory.loadedMessages.sorted { $0.timestamp < $1.timestamp }
         for (i, msg) in ordered.enumerated() {
             let role = msg.role == "user" ? "👤 我" : "🤖 AI"
             let time = df.string(from: msg.timestamp)
@@ -308,7 +308,7 @@ struct PersonalView: View {
     /// 最近 N 条 user 提问（按时间倒序）— 全部
     private var recentUserPrompts: [PersistedChatMessage] {
         Array(
-            chatHistory.messages
+            chatHistory.loadedMessages
                 .filter { $0.role == "user" }
                 .sorted { $0.timestamp > $1.timestamp }
         )
@@ -329,8 +329,8 @@ struct PersonalView: View {
                     .font(.system(size: 14))
                     .foregroundColor(Theme.slate)
                 Spacer()
-                if !chatHistory.messages.isEmpty {
-                    Text("\(chatHistory.messages.filter { $0.role == "user" }.count) 条")
+                if !chatHistory.loadedMessages.isEmpty {
+                    Text("\(chatHistory.loadedMessages.filter { $0.role == "user" }.count) 条")
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .tracking(0.4)
                         .foregroundColor(Theme.slate)
