@@ -879,7 +879,20 @@ struct ChatOverlay: View {
               messages[idx].role == .assistant else { return }
 
         let response = messages[idx].content
-        let suggestions = await fetchSuggestions(from: response)
+
+        // 用户上一条消息（追问的来源）
+        let userLastMessage: String? = {
+            if let pos = messages.firstIndex(where: { $0.id == messageId }), pos > 0 {
+                let prev = messages[messages.index(messages.startIndex, offsetBy: pos - 1)]
+                if prev.role == .user { return prev.content }
+            }
+            return nil
+        }()
+
+        let suggestions = await fetchSuggestions(
+            from: response,
+            userLastMessage: userLastMessage
+        )
 
         await MainActor.run {
             guard let i = self.messages.firstIndex(where: { $0.id == messageId }) else { return }
@@ -891,9 +904,20 @@ struct ChatOverlay: View {
         }
     }
 
-    private func fetchSuggestions(from response: String) async -> [String] {
+    private func fetchSuggestions(from response: String, userLastMessage: String?) async -> [String] {
+        var userContext = ""
+        if let last = userLastMessage {
+            userContext += "用户上一条消息：\(last)\n"
+        }
+        let profile = UserProfileStore.shared.profile
+        if !profile.isEmpty {
+            userContext += "用户画像：\(profile)\n"
+        }
+
         let prompt = """
-        基于下方AI健康助手回复内容，输出1-3条用户接下来真实想执行/深入了解的意图。
+        基于下方内容，输出1-3条用户接下来可能想深入了解的话题。
+        \(userContext.isEmpty ? "" : "\(userContext)\n")AI助手回复：
+        \(response)
         格式灵活，参考以下任一风格：
         - 如何改善久坐不适
         - 试试站立休息片刻
@@ -901,11 +925,9 @@ struct ChatOverlay: View {
         - 查看更多睡眠建议
         硬性规则：
         1. 单条≤20个字
-        2. 禁止问号、禁止疑问句、禁止"试试某动作"等泛化占位词
-        3. 必须输出具体可执行的动作，不要笼统描述
+        2. 禁止"建议"字样、禁止问号、禁止疑问句、禁止泛化占位词
+        3. 必须输出具体可执行的动作
         4. 仅罗列文本，不带序号、注释、说明文字
-        AI健康助手回复内容：
-        \(response)
         """
 
         do {
@@ -920,7 +942,7 @@ struct ChatOverlay: View {
                 s = s.replacingOccurrences(of: "[？?]+$", with: "", options: .regularExpression)
                 s = s.trimmingCharacters(in: .whitespacesAndNewlines)
                 // 过滤泛化占位词
-                if s.count >= 4 && !s.contains("某动作") && !s.contains("某个") && !s.contains("具体") && !s.contains("各种") {
+                if s.count >= 4 && !s.contains("某动作") && !s.contains("某个") && !s.contains("具体") && !s.contains("各种") && !s.contains("建议") {
                     suggestions.append(s)
                 }
                 if suggestions.count >= 3 { break }
