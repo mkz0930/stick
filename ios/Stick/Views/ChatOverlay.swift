@@ -763,6 +763,9 @@ struct ChatOverlay: View {
         UserInterestTagStore.shared.record(tags: tags)
         UserInterestTagStore.shared.resetShortTermIfExpired()
 
+        // 从用户输入中提取身体数据（身高/体重/血压/血糖等）
+        BodyMetricsStore.shared.extract(from: text)
+
         isStreaming = true
 
         let assistantId = UUID()
@@ -829,6 +832,9 @@ struct ChatOverlay: View {
         let tags = TopicExtractor.extract(from: text)
         UserInterestTagStore.shared.record(tags: tags)
         UserInterestTagStore.shared.resetShortTermIfExpired()
+
+        // 从用户输入中提取身体数据
+        BodyMetricsStore.shared.extract(from: text)
         isStreaming = true
 
         let assistantId = UUID()

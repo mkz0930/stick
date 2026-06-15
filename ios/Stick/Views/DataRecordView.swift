@@ -218,7 +218,10 @@ struct DataRecordView: View {
                     icon: "figure.arms.open",
                     iconColor: Theme.dashBody,
                     title: "身材管理",
-                    sub: "暂无数据"
+                    sub: "暂无数据",
+                    heightCm: BodyMetricsStore.shared.heightCm,
+                    weightKg: BodyMetricsStore.shared.weightKg,
+                    bodyFatPct: BodyMetricsStore.shared.bodyFatPct
                 )
 
                 // 第三 + 第四行: 2x2 健康生命体征 (血压/血糖 + 血氧/心率)
@@ -315,6 +318,19 @@ private struct BodyCard: View {
     let iconColor: Color
     let title: String
     let sub: String
+    let heightCm: Double?
+    let weightKg: Double?
+    let bodyFatPct: Double?
+
+    private var bmi: Double? {
+        guard let h = heightCm, let w = weightKg, h > 0 else { return nil }
+        return w / ((h / 100) * (h / 100))
+    }
+
+    private func fmt(_ value: Double?, _ unit: String) -> String {
+        guard let v = value else { return "--" }
+        return String(format: "%.1f", v) + unit
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -331,13 +347,13 @@ private struct BodyCard: View {
                 .foregroundColor(Theme.mist)
 
             HStack(alignment: .top, spacing: 0) {
-                bodyColumn("--", "身高/cm")
+                bodyColumn(fmt(heightCm, ""), "身高/cm")
                 Spacer()
-                bodyColumn("--", "体重/KG")
+                bodyColumn(fmt(weightKg, ""), "体重/KG")
                 Spacer()
-                bodyColumn("--", "BMI·暂无")
+                bodyColumn(bmi.map { String(format: "%.1f", $0) } ?? "--", "BMI")
                 Spacer()
-                bodyColumn("--", "体脂率·暂无")
+                bodyColumn(fmt(bodyFatPct, ""), "体脂率/%")
             }
         }
         .padding(12)
