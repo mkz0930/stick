@@ -10,6 +10,8 @@ struct InputBar: View {
     let state: StickState
     @Binding var text: String
     var onOpenChat: (_ seed: String) -> Void
+    /// 直接打开相机拍照（可选）
+    var onOpenCamera: (() -> Void)? = nil
     /// 聊天历史最后一条用户问题 — 输入框 placeholder 显示, 提示有记录
     var lastHistoryPrompt: String? = nil
 
@@ -124,7 +126,11 @@ struct InputBar: View {
 
     private var cameraButton: some View {
         Button {
-            onOpenChat("拍照识别")
+            if let cb = onOpenCamera {
+                cb()
+            } else {
+                onOpenChat("拍照识别")
+            }
         } label: {
             ZStack(alignment: .topTrailing) {
                 // 相机主体

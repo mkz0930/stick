@@ -210,9 +210,9 @@ struct ChatOverlay: View {
                 .ignoresSafeArea()
         }
         .onChange(of: capturedImage) { _, newImage in
-            if newImage != nil {
-                input = "已拍摄照片"
-                send()
+            if let image = newImage, let data = image.jpegData(compressionQuality: 0.7) {
+                input = "请分析这张图片中的健康相关问题"
+                send(imageData: data)
             }
         }
     }
@@ -720,13 +720,15 @@ struct ChatOverlay: View {
 
     // MARK: - 发送 / 取消
 
-    private func send() {
+    private func send(imageData: Data? = nil) {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
 
         let userMsgId = UUID()
-        messages.append(ChatMessage(id: userMsgId, role: .user, content: text))
+        messages.append(ChatMessage(id: userMsgId, role: .user, content: text, imageData: imageData))
         input = ""
+        // 清空已拍照的图片
+        capturedImage = nil
         print("[ChatOverlay] send(): user msg added, total msgs now: \(messages.count)")
 
         // 立即滚动到刚发出的用户问题位置
@@ -749,11 +751,24 @@ struct ChatOverlay: View {
         let ctx = buildContext()
         streamTask = Task {
             do {
-                for try await chunk in LLMService.sendMessageStream(text, context: ctx) {
-                    if Task.isCancelled { break }
-                    await MainActor.run {
-                        if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
-                            messages[idx].content += chunk
+                if let imgData = imageData {
+                    // 带图片的视觉问答
+                    for try await chunk in LLMService.sendMessageStreamWithImage(text, context: ctx, imageData: imgData) {
+                        if Task.isCancelled { break }
+                        await MainActor.run {
+                            if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
+                                messages[idx].content += chunk
+                            }
+                        }
+                    }
+                } else {
+                    // 纯文本问答
+                    for try await chunk in LLMService.sendMessageStream(text, context: ctx) {
+                        if Task.isCancelled { break }
+                        await MainActor.run {
+                            if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
+                                messages[idx].content += chunk
+                            }
                         }
                     }
                 }
@@ -1110,12 +1125,15 @@ struct ChatMessage: Identifiable, Equatable {
     let role: Role
     var content: String
     var suggestions: [String] = []
+    /// 用户消息可选带的图片数据
+    var imageData: Data? = nil
 
-    init(id: UUID = UUID(), role: Role, content: String, suggestions: [String] = []) {
+    init(id: UUID = UUID(), role: Role, content: String, suggestions: [String] = [], imageData: Data? = nil) {
         self.id = id
         self.role = role
         self.content = content
         self.suggestions = suggestions
+        self.imageData = imageData
     }
 }
 
@@ -1129,18 +1147,27 @@ struct MessageRow: View {
     var body: some View {
         switch message.role {
         case .user:
-            HStack {
+            HStack(alignment: .bottom) {
                 Spacer(minLength: 32)
-                Text(message.content)
-                    .font(.system(size: 16, weight: .medium))
-                    .lineSpacing(4)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Theme.navy)
-                    )
+                VStack(alignment: .trailing, spacing: 6) {
+                    if let imageData = message.imageData, let uiImage = UIImage(data: imageData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: 200, maxHeight: 200)
+                            .cornerRadius(8)
+                    }
+                    Text(message.content)
+                        .font(.system(size: 16, weight: .medium))
+                        .lineSpacing(4)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Theme.navy)
+                        )
+                }
             }
         case .assistant:
             VStack(alignment: .leading, spacing: 7) {

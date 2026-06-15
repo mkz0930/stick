@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
@@ -67,6 +68,8 @@ struct ContentView: View {
     @State private var targetScrollId: UUID? = nil
     /// 滚动触发器：每次历史导航 +1，overlay 用 onChange 响应（不重建 overlay）
     @State private var scrollTrigger: Int = 0
+    @State private var showCamera: Bool = false
+    @State private var capturedImage: UIImage?
 
     private var displayOffset: Int {
         scrubOffset ?? 0
@@ -339,6 +342,10 @@ struct ContentView: View {
                 openChat(seed)
                 pendingChatSeed = nil
             }
+            .fullScreenCover(isPresented: $showCamera) {
+                ImagePicker(image: $capturedImage)
+                    .ignoresSafeArea()
+            }
     }
 
     /// 主页（被外层 ZStack 包了一层）— GeometryReader + 个人面板
@@ -578,6 +585,7 @@ struct ContentView: View {
                         state: displayState,
                         text: $inputDraft,
                         onOpenChat: openChat,
+                        onOpenCamera: openCamera,
                         lastHistoryPrompt: chatHistory.messages.last(where: { $0.role == "user" })?.content
                     )
                     .padding(.horizontal, 16)
@@ -590,6 +598,10 @@ struct ContentView: View {
         chatSeed = seed
         chatKey += 1
         showChat = true
+    }
+
+    private func openCamera() {
+        showCamera = true
     }
 
     // MARK: - 背景（v6 米色渐变 + 弱网格 + 状态柔光）

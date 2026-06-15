@@ -20,10 +20,81 @@ struct LLMService {
     }()
     /// 调用的 Qwen 模型。DashScope 兼容接口下选 qwen-plus（中文效果稳定，长度合适）
     private static let model = "qwen-plus"
+    /// 视觉模型（用于图片分析）
+    private static let visionModel = "qwen-vl-plus"
 
     /// 一次性问答（非流式）
     static func sendMessage(_ message: String, context: String) async throws -> String {
         let request = try makeRequest(context: context, message: message, stream: false)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            throw LLMError.httpError(statusCode: code)
+        }
+        let r = try JSONDecoder().decode(LLMResponse.self, from: data)
+        guard let content = r.choices.first?.message.content, !content.isEmpty else {
+            throw LLMError.noContent
+        }
+        return content
+    }
+
+    /// 带图片的流式问答（视觉模型）
+    static func sendMessageStreamWithImage(
+        _ message: String,
+        context: String,
+        imageData: Data
+    ) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let request = try makeVisionRequest(context: context, message: message, imageData: imageData, stream: true)
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                    guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+                        throw LLMError.httpError(statusCode: code)
+                    }
+
+                    var gotAnyChunk = false
+                    for try await line in bytes.lines {
+                        if Task.isCancelled { break }
+                        guard line.hasPrefix("data: ") else { continue }
+                        let jsonStr = String(line.dropFirst(6))
+                        if jsonStr == "[DONE]" { break }
+                        if let data = jsonStr.data(using: .utf8),
+                           let chunk = try? JSONDecoder().decode(StreamResponse.self, from: data),
+                           let content = chunk.choices.first?.delta.content,
+                           !content.isEmpty {
+                            gotAnyChunk = true
+                            continuation.yield(content)
+                        }
+                    }
+                    if !gotAnyChunk {
+                        let fallback = try await sendMessageWithImage(message, context: context, imageData: imageData)
+                        if !fallback.isEmpty {
+                            let chunkSize = 2
+                            var idx = fallback.startIndex
+                            while idx < fallback.endIndex {
+                                let next = fallback.index(idx, offsetBy: chunkSize, limitedBy: fallback.endIndex) ?? fallback.endIndex
+                                let piece = String(fallback[idx..<next])
+                                continuation.yield(piece)
+                                if Task.isCancelled { break }
+                                try? await Task.sleep(nanoseconds: 25_000_000)
+                                idx = next
+                            }
+                        }
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// 带图片的一次性问答
+    static func sendMessageWithImage(_ message: String, context: String, imageData: Data) async throws -> String {
+        let request = try makeVisionRequest(context: context, message: message, imageData: imageData, stream: false)
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             let code = (response as? HTTPURLResponse)?.statusCode ?? 0
@@ -115,6 +186,37 @@ struct LLMService {
             "max_tokens": 600,
             "temperature": 0.75,
             "top_p": 0.8
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        return request
+    }
+
+    /// 构建视觉模型请求（带图片）
+    private static func makeVisionRequest(context: String, message: String, imageData: Data, stream: Bool) throws -> URLRequest {
+        guard let url = URL(string: "\(baseURL)/chat/completions") else {
+            throw LLMError.invalidURL
+        }
+        let base64Image = imageData.base64EncodedString()
+        let imageURL = "data:image/jpeg;base64,\(base64Image)"
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 120  // 图片较大，超时时间加倍
+
+        let body: [String: Any] = [
+            "model": visionModel,
+            "stream": stream,
+            "messages": [
+                ["role": "system", "content": systemPrompt(context: context)],
+                ["role": "user", "content": [
+                    ["type": "text", "text": message],
+                    ["type": "image_url", "image_url": ["url": imageURL]]
+                ]]
+            ],
+            "max_tokens": 800,
+            "temperature": 0.75
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         return request

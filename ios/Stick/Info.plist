@@ -31,6 +31,10 @@
 	<string>1</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>拍照分析你的皮肤状态，记录健康相关的照片</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>选择照片进行分析</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>读取健康数据用于展示你的身体状态，包括步数、心率、睡眠等</string>
 	<key>NSHealthUpdateUsageDescription</key>
