@@ -16,7 +16,17 @@ struct StickApp: App {
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active { drainPendingChatSeed() }
                 }
-                .onAppear { drainPendingChatSeed() }
+                .onAppear {
+                    drainPendingChatSeed()
+                    // 监听 widget 写 seed 的跨进程通知（即使 app 在前台也能收到）
+                    SharedStateStore.observePendingChatSeed {
+                        drainPendingChatSeed()
+                    }
+                    // 调试用：模拟 widget 点击（写 seed → drain）
+                    if let seed = ProcessInfo.processInfo.environment["STICK_TEST_WIDGET_SEED"], !seed.isEmpty {
+                        SharedStateStore.writePendingChatSeed(seed)
+                    }
+                }
         }
     }
 

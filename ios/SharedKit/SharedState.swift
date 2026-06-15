@@ -88,11 +88,20 @@ enum SharedStateStore {
     // widget 上的 OpenChatIntent 写 shared state；主 app 启动 / 进入前台时读出并打开 chat
 
     private static let pendingChatSeedKey = "stick.pendingChatSeed.v1"
+    /// Darwin 通知名：widget 写完 seed 后广播，主 app 即使已在前台也能收到
+    static let pendingChatSeedNotifyName = "com.stick.app.pendingChatSeed"
 
     /// widget 上的 OpenChatIntent 调 perform() 时写入
     static func writePendingChatSeed(_ seed: String) {
         guard !seed.isEmpty else { return }
         defaults?.set(seed, forKey: pendingChatSeedKey)
+        // 跨进程通知：即使主 app 已经在前台，也能立即唤醒 drain
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        CFNotificationCenterPostNotification(
+            center,
+            CFNotificationName(pendingChatSeedNotifyName as CFString),
+            nil, nil, true
+        )
     }
 
     /// 主 app 读出后立即清空，避免下次启动重复打开
@@ -101,6 +110,32 @@ enum SharedStateStore {
               !seed.isEmpty else { return nil }
         defaults?.removeObject(forKey: pendingChatSeedKey)
         return seed
+    }
+
+    /// 主 app 监听 widget 写入事件（即使在前台也能收到）
+    static func observePendingChatSeed(_ handler: @escaping () -> Void) {
+        let observer = Unmanaged.passUnretained(ObserverBox(handler)).toOpaque()
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        CFNotificationCenterAddObserver(
+            center,
+            observer,
+            { _, observer, _, _, _ in
+                guard let observer else { return }
+                let box = Unmanaged<ObserverBox>.fromOpaque(observer).takeUnretainedValue()
+                DispatchQueue.main.async {
+                    box.handler()
+                }
+            },
+            pendingChatSeedNotifyName as CFString,
+            nil,
+            .deliverImmediately
+        )
+    }
+
+    /// 用于跨进程回调持有闭包
+    private final class ObserverBox {
+        let handler: () -> Void
+        init(_ handler: @escaping () -> Void) { self.handler = handler }
     }
 }
 
