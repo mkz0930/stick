@@ -47,6 +47,7 @@
 		B29900000000000000000A16 /* UserInterestTagStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A16 /* UserInterestTagStore.swift */; };
 		B29900000000000000000A17 /* DailyStepsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A17 /* DailyStepsStore.swift */; };
 		B299000000000000000000A18 /* BodyMetricsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A18 /* BodyMetricsStore.swift */; };
+		B299000000000000000000A19 /* FoodLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A19 /* FoodLogStore.swift */; };
 		B40000000000000000000001 /* StickWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000001 /* StickWidget.swift */; };
 		B40000000000000000000010 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
 		B40000000000000000000011 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
@@ -127,6 +128,7 @@
 		F29900000000000000000A16 /* UserInterestTagStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserInterestTagStore.swift; sourceTree = "<group>"; };
 		F29900000000000000000A17 /* DailyStepsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyStepsStore.swift; sourceTree = "<group>"; };
 		F29900000000000000000A18 /* BodyMetricsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyMetricsStore.swift; sourceTree = "<group>"; };
+		F29900000000000000000A19 /* FoodLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLogStore.swift; sourceTree = "<group>"; };
 		F40000000000000000000001 /* StickWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickWidget.swift; sourceTree = "<group>"; };
 		F40000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F40000000000000000000003 /* StickWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StickWidget.entitlements; sourceTree = "<group>"; };
@@ -255,6 +257,7 @@
 				F29900000000000000000A16 /* UserInterestTagStore.swift */,
 				F29900000000000000000A17 /* DailyStepsStore.swift */,
 				F29900000000000000000A18 /* BodyMetricsStore.swift */,
+				F29900000000000000000A19 /* FoodLogStore.swift */,
 				F29900000000000000000A0A /* AlertAggregator.swift */,
 				F29900000000000000000A0B /* AISleepAnalyzer.swift */,
 			);
@@ -421,6 +424,7 @@
 				B29900000000000000000A16 /* UserInterestTagStore.swift in Sources */,
 				B29900000000000000000A17 /* DailyStepsStore.swift in Sources */,
 				B299000000000000000000A18 /* BodyMetricsStore.swift in Sources */,
+				B299000000000000000000A19 /* FoodLogStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

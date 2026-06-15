@@ -81,6 +81,19 @@ struct DataRecordView: View {
         return String(format: "%.1f", v)
     }
 
+    /// 今日饮食记录条目
+    private var dietEntries: [FoodEntry] {
+        FoodLogStore.shared.todayEntries
+    }
+
+    private func mealLabel(_ meal: MealType) -> String {
+        switch meal {
+        case .breakfast: return "早餐"
+        case .lunch: return "午餐"
+        case .dinner: return "晚餐"
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             Color.white.ignoresSafeArea()
@@ -287,14 +300,49 @@ struct DataRecordView: View {
                         value: "--",
                         valueUnit: "分钟"
                     )
-                    DashboardCard(
-                        icon: "fork.knife",
-                        iconColor: Theme.dashDiet,
-                        title: "饮食记录",
-                        sub: "暂无数据",
-                        value: "--",
-                        valueUnit: "kcal/--kcal"
-                    )
+                    VStack(alignment: .leading, spacing: 8) {
+                        // 顶行：图标 + 标题
+                        HStack(spacing: 6) {
+                            Image(systemName: "fork.knife")
+                                .font(.system(size: 14))
+                                .foregroundColor(Theme.dashDiet)
+                            Text("饮食记录")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(Theme.navy)
+                        }
+                        Text("今日累计")
+                            .font(.system(size: 11))
+                            .foregroundColor(Theme.mist)
+                        Spacer(minLength: 0)
+                        // 进度条
+                        DietProgressBar(current: FoodLogStore.shared.todayTotalCalories, goal: 1800)
+                        // 各餐明细
+                        if !dietEntries.isEmpty {
+                            ForEach(MealType.allCases, id: \.self) { meal in
+                                let entries = dietEntries.filter { $0.meal == meal }
+                                if !entries.isEmpty {
+                                    let mealCal = entries.compactMap { $0.calories }.reduce(0, +)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("\(mealLabel(meal))  \(mealCal > 0 ? "\(mealCal) kcal" : "-- kcal")")
+                                            .font(.system(size: 12, weight: .medium))
+                                            .foregroundColor(Theme.navy)
+                                        ForEach(entries) { entry in
+                                            Text("· \(entry.foodName)")
+                                                .font(.system(size: 11))
+                                                .foregroundColor(Theme.slate)
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Text("暂无数据")
+                                .font(.system(size: 12))
+                                .foregroundColor(Theme.mist)
+                        }
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, minHeight: 110, alignment: .topLeading)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Theme.card).overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.border, lineWidth: 1)))
                 }
 
                 // 久坐记录 (单卡)
@@ -412,6 +460,33 @@ private struct DashboardCard: View {
         .padding(12)
         .frame(maxWidth: .infinity, minHeight: 110, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 12).fill(Theme.card).overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.border, lineWidth: 1)))
+    }
+}
+
+// MARK: - DietProgressBar
+
+private struct DietProgressBar: View {
+    let current: Int
+    let goal: Int  // 固定 1800
+
+    private var progress: Double { min(Double(current) / Double(goal), 1.0) }
+    private var isOver: Bool { current > goal }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3).fill(Theme.border)
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(isOver ? Color.red : Theme.dashDiet)
+                        .frame(width: geo.size.width * progress)
+                }
+            }
+            .frame(height: 6)
+            Text("\(current) / \(goal) kcal")
+                .font(.system(size: 11))
+                .foregroundColor(isOver ? .red : Theme.slate)
+        }
     }
 }
 

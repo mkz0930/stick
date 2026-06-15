@@ -822,6 +822,12 @@ struct ChatOverlay: View {
                 }
                 // 流结束后 flush 剩余 buffer
                 await flushBuffer()
+                // 解析食物记录并存储
+                if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
+                    await MainActor.run {
+                        parseAndStoreFoodEntry(from: messages[idx].content)
+                    }
+                }
             } catch {
                 await MainActor.run {
                     if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
@@ -846,6 +852,27 @@ struct ChatOverlay: View {
         inputFocused = false
         // UIKit 兜底：iOS TextField(axis: .vertical) + .focused() 偶有不响应
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
+    /// 从 LLM 返回文本中解析 [FOOD] 行并存储到 FoodLogStore
+    private func parseAndStoreFoodEntry(from text: String) {
+        // 查找 [FOOD] 行
+        guard let range = text.range(of: "\\[FOOD\\]\\s*(.+)", options: .regularExpression) else { return }
+        let line = String(text[range])
+        let parts = line.components(separatedBy: "|")
+        guard parts.count >= 3 else { return }
+        let mealStr = parts[0].replacingOccurrences(of: "[FOOD]", with: "").trimmingCharacters(in: .whitespaces)
+        let foodName = parts[1].trimmingCharacters(in: .whitespaces)
+        let calStr = parts[2].trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "kcal", with: "").trimmingCharacters(in: .whitespaces)
+        let calories = Int(calStr)
+        let meal: MealType
+        switch mealStr {
+        case "早餐": meal = .breakfast
+        case "午餐": meal = .lunch
+        case "晚餐": meal = .dinner
+        default: meal = FoodLogStore.mealType()
+        }
+        FoodLogStore.shared.addEntry(meal: meal, foodName: foodName, calories: calories == 0 ? nil : calories)
     }
 
     /// 直接发送文字（不经过 input 框，用于意图按钮）
