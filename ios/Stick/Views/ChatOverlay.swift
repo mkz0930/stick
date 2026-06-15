@@ -884,9 +884,13 @@ struct ChatOverlay: View {
     private func fetchSuggestions(from response: String) async -> [String] {
         let prompt = """
         基于下方AI健康助手回复内容，输出1-3条用户接下来真实想执行/深入了解的意图。
-        输出格式：必须以"如何"开头，如"如何改善久坐不适"、"如何缓解眼睛干涩"。
+        格式灵活，参考以下任一风格：
+        - 如何改善久坐不适
+        - 试试站立休息片刻
+        - 了解下颈椎保养方法
+        - 查看更多睡眠建议
         硬性规则：
-        1. 单条≤20个字，必须以"如何"开头
+        1. 单条≤20个字
         2. 禁止问号、禁止疑问句、禁止"试试某动作"等泛化占位词
         3. 必须输出具体可执行的动作，不要笼统描述
         4. 仅罗列文本，不带序号、注释、说明文字
@@ -905,8 +909,8 @@ struct ChatOverlay: View {
                 s = s.replacingOccurrences(of: "^[0-9]+[.)、\\s]+", with: "", options: .regularExpression)
                 s = s.replacingOccurrences(of: "[？?]+$", with: "", options: .regularExpression)
                 s = s.trimmingCharacters(in: .whitespacesAndNewlines)
-                // 必须以"如何"开头，且不含泛化占位词
-                if s.count >= 4 && !s.contains("某动作") && !s.contains("某个") && !s.contains("具体") {
+                // 过滤泛化占位词
+                if s.count >= 4 && !s.contains("某动作") && !s.contains("某个") && !s.contains("具体") && !s.contains("各种") {
                     suggestions.append(s)
                 }
                 if suggestions.count >= 3 { break }
@@ -918,7 +922,7 @@ struct ChatOverlay: View {
     }
 
     private var defaultSuggestions: [String] {
-        ["如何改善久坐不适", "如何缓解眼睛干涩", "如何提高睡眠质量"]
+        ["试试站立休息片刻", "如何缓解眼睛干涩", "了解下颈椎保健方法"]
     }
 
     /// 调用 LLM 总结用户最近消息，更新用户画像。新对话优先，覆盖旧画像
