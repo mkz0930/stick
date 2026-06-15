@@ -25,6 +25,7 @@ final class BodyMetricsStore: ObservableObject {
     @Published var exerciseMinutes: Int?    // 运动时长 分钟
     @Published var stressLevel: String?     // 压力等级 高/中/低
     @Published var symptom: String?        // 身体症状关键词
+    @Published var bloodOxygen: Int?       // 血氧百分比 90-100
 
     // MARK: - 计算属性
 
@@ -55,6 +56,7 @@ final class BodyMetricsStore: ObservableObject {
     private let kExercise  = "body.exercise"
     private let kStress   = "body.stress"
     private let kSymptom  = "body.symptom"
+    private let kBloodOxygen = "body.bloodOxygen"
 
     init() {
         heightCm           = UserDefaults.standard.object(forKey: kHeight) as? Double
@@ -69,6 +71,7 @@ final class BodyMetricsStore: ObservableObject {
         exerciseMinutes    = UserDefaults.standard.object(forKey: kExercise) as? Int
         stressLevel        = UserDefaults.standard.string(forKey: kStress)
         symptom           = UserDefaults.standard.string(forKey: kSymptom)
+        bloodOxygen       = UserDefaults.standard.object(forKey: kBloodOxygen) as? Int
     }
 
     private func save() {
@@ -84,6 +87,7 @@ final class BodyMetricsStore: ObservableObject {
         if let e = exerciseMinutes    { UserDefaults.standard.set(e, forKey: kExercise) } else { UserDefaults.standard.removeObject(forKey: kExercise) }
         if let s = stressLevel        { UserDefaults.standard.set(s, forKey: kStress) } else { UserDefaults.standard.removeObject(forKey: kStress) }
         if let s = symptom            { UserDefaults.standard.set(s, forKey: kSymptom) } else { UserDefaults.standard.removeObject(forKey: kSymptom) }
+        if let bo = bloodOxygen       { UserDefaults.standard.set(bo, forKey: kBloodOxygen) } else { UserDefaults.standard.removeObject(forKey: kBloodOxygen) }
     }
 
     // MARK: - 正则提取
@@ -179,6 +183,12 @@ final class BodyMetricsStore: ObservableObject {
         let symptomKeywords = ["头痛", "头晕", "咳嗽", "感冒", "发烧", "胃疼", "胃痛", "眼睛干", "眼干", "腰疼", "腰痛", "背痛", "肩酸", "脖子酸", "胸闷", "心悸", "恶心", "腹泻", "便秘", "疲劳", "乏力", "失眠", "焦虑", "抑郁"]
         for kw in symptomKeywords {
             if t.contains(kw) { symptom = kw; break }
+        }
+
+        // MARK: 血氧
+        if let m = t.range(of: "血氧\\s*(\\d{2})\\s*%?", options: .regularExpression) {
+            let num = String(t[m]).components(separatedBy: CharacterSet.decimalDigits.inverted.union(CharacterSet(charactersIn: "%"))).joined()
+            if let v = Int(num), v >= 90, v <= 100 { bloodOxygen = v }
         }
 
         save()
