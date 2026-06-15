@@ -76,13 +76,15 @@ struct ChatOverlay: View {
         // 用 GeometryReader 读父高度, 全屏显示
         GeometryReader { geo in
             ZStack(alignment: .bottom) {
-                // 底层透明 UIView：cancelsTouchesInView=false，点击空白处收键盘但不阻挡子视图交互
+                cardContent()
+
+                // 顶层透明 UIView：cancelsTouchesInView=false
+                // 点空白处（没命中子 view）时收键盘；命中子 view 时让事件穿透
                 DismissingKeyboardView {
                     dismissKeyboard()
                 }
                 .frame(width: geo.size.width, height: geo.size.height)
-
-                cardContent()
+                .allowsHitTesting(true)
             }
         }   // GeometryReader
         // 键盘弹出/收起时自动滚到底部
