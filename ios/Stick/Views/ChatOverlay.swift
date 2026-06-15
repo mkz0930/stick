@@ -76,15 +76,7 @@ struct ChatOverlay: View {
         // 用 GeometryReader 读父高度, 全屏显示
         GeometryReader { geo in
             ZStack(alignment: .bottom) {
-                Color.clear
                 cardContent(height: geo.size.height)
-
-                // 透明蒙层：拦截所有点击用于收键盘（放在 cardContent 上面，挡住空白区域）
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        dismissKeyboard()
-                    }
             }
         }   // GeometryReader
         // 键盘弹出/收起时自动滚到底部
