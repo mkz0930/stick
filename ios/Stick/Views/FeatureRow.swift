@@ -259,7 +259,7 @@ private struct AlertItemRow: View {
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundColor(Theme.mist.opacity(0.6))
+                    .foregroundColor(Theme.slate.opacity(0.7))
             }
             .padding(.vertical, 1)
             .contentShape(Rectangle())
@@ -468,7 +468,7 @@ private struct StepsLine: View {
             // 备注 — 11pt regular（小一档，灰；剩余空间填满）
             Text(noteText)
                 .font(.system(size: 11, weight: .regular, design: .rounded))
-                .foregroundColor(Theme.mist)
+                .foregroundColor(Theme.slate)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -681,7 +681,7 @@ private struct FeatureLine: View {
             // 备注 — 11pt regular（小一档，灰；剩余空间填满）
             Text(isLocked ? availability.hint : metric.desc)
                 .font(.system(size: 11, weight: .regular, design: .rounded))
-                .foregroundColor(Theme.mist)
+                .foregroundColor(Theme.slate)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

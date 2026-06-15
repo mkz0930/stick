@@ -93,17 +93,33 @@ struct StickRiskAlertWidgetView: View {
     let entry: StickRiskAlertEntry
 
     var body: some View {
-        // 诊断测试：最简单 Text widget
-        VStack {
-            Text("STICK")
-                .font(.system(size: 40, weight: .black))
-                .foregroundColor(.red)
-            Text("DIAG TEST")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(.blue)
+        VStack(spacing: 0) {
+            VesselCanvas(duration: entry.sitDurationMinutes)
+                .frame(height: 90)
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("久坐 \(entry.sitDurationMinutes) 分钟")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.primary)
+                    Text("心率 \(entry.heartRate) bpm")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Button(intent: OpenRiskAlertIntent(sitDurationMinutes: entry.sitDurationMinutes, heartRate: entry.heartRate)) {
+                    Text("查看")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.red, in: RoundedRectangle(cornerRadius: 6))
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.yellow)
+        .background(Color(red: 0.12, green: 0.12, blue: 0.14))
     }
 }
 
@@ -271,6 +287,8 @@ private struct VesselCanvas: View {
                    lineWidth: max(1, 2 * scale))
     }
 }
+
+// MARK: - Preview
 
 // MARK: - Preview
 

@@ -41,9 +41,9 @@ struct StickFigureView: View {
                 let t = tl.date.timeIntervalSinceReferenceDate
 
                 // 置信度派生：低置信度 → 线条更虚、更细
-                let lineAlpha = 0.55 + 0.45 * CGFloat(confidence)  // 0.55–1.0
-                let jointAlpha = 0.6 + 0.4 * CGFloat(confidence)
-                let widthScale = 0.7 + 0.3 * CGFloat(confidence)    // 0.7–1.0
+                let lineAlpha = 0.85 + 0.15 * CGFloat(confidence)  // 0.85–1.0（透明度调高，线条更清晰）
+                let jointAlpha = 0.9 + 0.1 * CGFloat(confidence)
+                let widthScale = 0.8 + 0.2 * CGFloat(confidence)    // 0.8–1.0（线宽稍粗）
 
                 // 等比缩放 + 居中到 240×320 画布
                 let scale = min(size.width / 240, size.height / 320)
