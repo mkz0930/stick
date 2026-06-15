@@ -50,7 +50,7 @@ struct FeatureRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             // ① 身体状态得分（**唯一默认可见** — 视觉锤）
             BodyScoreLine(score: bodyScore, color: bodyScoreColor)
             // ② 展开后：心情 + 状态专属 + 隐藏指标
@@ -151,7 +151,7 @@ private struct AlertsLine: View {
                 }
 
                 Text(top.title)
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
                     .foregroundColor(Theme.navy)
                     .lineLimit(1)
             }
@@ -208,44 +208,41 @@ private struct StressLine: View {
             // 状态色小点（跟 FeatureLine 一致）
             Circle()
                 .fill(dotColor)
-                .frame(width: 5, height: 5)
+                .frame(width: 6, height: 6)
 
-            // mono 标签 — "压力值"（4 个中文字，跟"身体状态得分"对称）
+            // 主标签 — 15pt bold rounded（跟"异常提示"/"更多"同节奏）
             Text("压力值")
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                .tracking(0.8)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
                 .foregroundColor(Theme.slate)
                 .lineLimit(1)
-                .frame(width: 80, alignment: .leading)
+                .frame(width: 60, alignment: .leading)
 
-            // 心情曲线 — 已删除（用户要求）
-
-            // 数值 — 13→11pt（再缩一档，跟下面 3rd 行 FeatureLine 节奏一致）
+            // 主数值 — 15pt heavy rounded（color-coded，monospacedDigit 对齐）
             HStack(alignment: .firstTextBaseline, spacing: 1) {
                 Text("\(Int(stressScore))")
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .font(.system(size: 15, weight: .heavy, design: .rounded))
                     .foregroundColor(dotColor)
                     .monospacedDigit()
                     .lineLimit(1)
                 Text("/100")
-                    .font(.system(size: 8, weight: .medium, design: .monospaced))
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundColor(Theme.slate)
             }
 
-            // 副标 — 缩小 11→10pt regular（去掉 heavy，节省视觉重量）
+            // 备注 — 11pt regular（小一档，作为信息补充）
             HStack(spacing: 6) {
                 Text(info.text)
-                    .font(.system(size: 10, weight: .regular, design: .rounded))
+                    .font(.system(size: 11, weight: .regular, design: .rounded))
                     .foregroundColor(Theme.navy)
                     .lineLimit(1)
                 Text(statusText)
-                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                    .tracking(0.6)
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .tracking(0.4)
                     .foregroundColor(dotColor)
                     .lineLimit(1)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 3)
     }
 }
 
@@ -404,13 +401,12 @@ private struct FeatureLine: View {
                 .fill(isLocked ? Theme.mist.opacity(0.5) : accent)
                 .frame(width: 6, height: 6)
 
-            // mono 标签（等宽对齐）— 缩小到 9pt 跟 MOOD 节奏一致
+            // 主标签 — 15pt bold rounded（跟"异常提示"/"更多"同节奏）
             Text(metric.chineseLabel)
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                .tracking(0.8)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
                 .foregroundColor(isLocked ? Theme.mist : Theme.slate)
                 .lineLimit(1)
-                .frame(width: 70, alignment: .leading)
+                .frame(width: 60, alignment: .leading)
 
             // 心率专属：ECG 动画波形 (锁定时不再画)
             if isHeartRate && !isLocked {
@@ -418,26 +414,26 @@ private struct FeatureLine: View {
                     .frame(width: 52, height: 18)
             }
 
-            // 数值 / 锁图标（**等宽列对齐 + 字号 11pt 统一**）
+            // 主数值 / 锁图标（15pt heavy rounded — 跟 StressLine 对齐）
             // 坐姿秒表（SEDENTARY 行）用 live 文本覆盖硬编码值
             Group {
                 if isLocked {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(Theme.mist)
                 } else {
                     Text(displayValue)
-                        .font(.system(size: 11, weight: .heavy, design: .rounded))
+                        .font(.system(size: 15, weight: .heavy, design: .rounded))
                         .foregroundColor(isEmpty ? Theme.mist : Theme.navy)
                         .lineLimit(1)
                         .monospacedDigit()  // 数字宽度固定，跨行对齐
                 }
             }
-            .frame(width: 60, alignment: .leading)
+            .frame(width: 70, alignment: .leading)
 
-            // 副标 (灰显时用 availability.hint; 正常时用 metric.desc) — 9pt 缩小
+            // 备注 — 11pt regular（小一档，灰）
             Text(isLocked ? availability.hint : metric.desc)
-                .font(.system(size: 9, weight: .regular, design: .serif))
+                .font(.system(size: 11, weight: .regular, design: .rounded))
                 .foregroundColor(Theme.mist)
                 .lineLimit(1)
         }
