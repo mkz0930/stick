@@ -99,11 +99,11 @@ struct StickRiskAlertWidgetView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("久坐 \(entry.sitDurationMinutes) 分钟")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.black)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.15))
                     Text("心率 \(entry.heartRate) bpm")
-                        .font(.system(size: 11))
-                        .foregroundColor(.gray)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color(red: 0.40, green: 0.40, blue: 0.40))
                 }
                 Spacer()
                 Button(intent: OpenRiskAlertIntent(sitDurationMinutes: entry.sitDurationMinutes, heartRate: entry.heartRate)) {
@@ -145,10 +145,10 @@ private struct VesselCanvas: View {
                 let sw: (CGFloat) -> CGFloat = { $0 * scale }
 
                 let dark         = Color(red: 0.10, green: 0.10, blue: 0.12)
-                let vesselFill   = Color(red: 1.0,  green: 0.89, blue: 0.82)  // #FFE4D0
-                let vesselInner  = Color(red: 1.0,  green: 0.80, blue: 0.66)  // #FFCBA8
-                let plateletRed  = Color(red: 1.0,  green: 0.30, blue: 0.18)  // #FF4D2E
-                let clotRed      = Color(red: 0.79, green: 0.16, blue: 0.0)   // #C92A00
+                let vesselFill   = Color(red: 0.98,  green: 0.65, blue: 0.52)  // #FA9655 深橙（白底可见）
+                let vesselInner  = Color(red: 0.96,  green: 0.50, blue: 0.38)  // #F58061 深桃
+                let plateletRed  = Color(red: 0.90,  green: 0.18, blue: 0.12)  // #E62E1F 更饱和的红
+                let clotRed      = Color(red: 0.70, green: 0.12, blue: 0.0)   // #B31F00 深红
 
                 // ── 血管外壁 ──
                 let outer = Path { p in
