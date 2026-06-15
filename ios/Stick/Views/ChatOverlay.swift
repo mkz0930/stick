@@ -122,6 +122,9 @@ struct ChatOverlay: View {
         )
         .frame(height: height)
         .onAppear {
+            // 检查短期标签是否过期
+            UserInterestTagStore.shared.resetShortTermIfExpired()
+
             // 从持久化 store 恢复历史 messages
             if !history.messages.isEmpty {
                 messages = history.messages.map { m in
@@ -621,6 +624,11 @@ struct ChatOverlay: View {
         // 记录用户消息，每 3 条触发一次用户画像总结
         let shouldSummarize = UserProfileStore.shared.recordUserMessage()
 
+        // 提取标签并记录
+        let tags = TopicExtractor.extract(from: text)
+        UserInterestTagStore.shared.record(tags: tags)
+        UserInterestTagStore.shared.resetShortTermIfExpired()
+
         isStreaming = true
 
         let assistantId = UUID()
@@ -667,6 +675,11 @@ struct ChatOverlay: View {
         self.pendingScrollId = userMsgId
 
         let shouldSummarize = UserProfileStore.shared.recordUserMessage()
+
+        // 提取标签并记录
+        let tags = TopicExtractor.extract(from: text)
+        UserInterestTagStore.shared.record(tags: tags)
+        UserInterestTagStore.shared.resetShortTermIfExpired()
         isStreaming = true
 
         let assistantId = UUID()
@@ -801,16 +814,36 @@ struct ChatOverlay: View {
         case 18..<22: period = "晚上"
         default:      period = "深夜"
         }
+
+        // 1. 长期用户画像
         let profileBlock = userProfile.profileContextBlock()
 
-        // 最近 10 条用户问题
-        let recentUserMsgs = messages
-            .filter { $0.role == .user }
-            .suffix(10)
-            .map { "用户: \($0.content)" }
-            .joined(separator: "\n")
+        // 2. 用户关注标签（短期 top5 + 长期 top3）
+        let shortTags = userProfile.topShortTermTags(limit: 5)
+        let longTags = UserInterestTagStore.shared.topLongTermTags(limit: 3)
+        var tagsBlock = ""
+        if !shortTags.isEmpty || !longTags.isEmpty {
+            tagsBlock += "【用户关注标签】\n"
+            if !shortTags.isEmpty {
+                tagsBlock += "近期: \(shortTags.joined(separator: " / "))\n"
+            }
+            if !longTags.isEmpty {
+                tagsBlock += "长期: \(longTags.joined(separator: " / "))\n"
+            }
+            tagsBlock += "\n"
+        }
 
-        // 今日健康数据
+        // 3. 健康趋势语义化
+        let trend = HealthTrendAnalyzer.analyze(
+            today: HealthStore.shared.today,
+            all: HealthStore.shared.all
+        )
+        var trendBlock = ""
+        if !trend.semanticLines.isEmpty {
+            trendBlock = "【健康趋势语义化】\n" + trend.semanticLines.joined(separator: "\n") + "\n\n"
+        }
+
+        // 4. 今日健康数据
         let stats = TodayHealthStats()
         let healthBlock = """
         【今日健康数据】
@@ -820,18 +853,29 @@ struct ChatOverlay: View {
         - 睡眠: \(stats.sleepMinutes) 分钟
         - 步数: \(stats.totalSteps) 步
         - 平均心率: \(stats.avgHeartRate) bpm
+
         """
 
-        return profileBlock + healthBlock + """
+        // 5. 用户最近问题
+        let recentUserMsgs = messages
+            .filter { $0.role == .user }
+            .suffix(10)
+            .map { "用户: \($0.content)" }
+            .joined(separator: "\n")
 
-        【用户最近问题】
-        \(recentUserMsgs)
-
+        // 6. 系统指令
+        let systemBlock = """
         - 当前时间: \(time) (\(period))
         - 当前姿态: \(state.actionPhrase) (\(state.englishName))
         - 用户类型: 职场白领
         - 备注: 给出符合该时段 + 该姿态的即时可行建议
         """
+
+        return profileBlock + tagsBlock + trendBlock + healthBlock + """
+        【用户最近问题】
+        \(recentUserMsgs)
+
+        """ + systemBlock
     }
 
     // MARK: - Widget 风险提醒专属流程
