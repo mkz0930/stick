@@ -82,7 +82,7 @@ struct ChatOverlay: View {
                 }
                 .frame(width: geo.size.width, height: geo.size.height)
 
-                cardContent(height: geo.size.height)
+                cardContent()
             }
         }   // GeometryReader
         // 键盘弹出/收起时自动滚到底部
@@ -108,7 +108,7 @@ struct ChatOverlay: View {
 
     /// 卡片本体 (全屏) — 内部 header / 消息 / input 由内层 VStack 撑开
     @ViewBuilder
-    private func cardContent(height: CGFloat) -> some View {
+    private func cardContent() -> some View {
         VStack(spacing: 0) {
             header
             DashedDivider()
@@ -134,7 +134,7 @@ struct ChatOverlay: View {
             )
             .stroke(Theme.border, lineWidth: 1)
         )
-        .frame(height: height)
+        .frame(maxHeight: .infinity, alignment: .bottom)
         // 点 cardContent 任意空白处 → 收键盘（TextField / Button / 内层 ScrollView 的手势优先，会先吃掉它们的 tap）
         .onTapGesture {
             inputFocused = false
