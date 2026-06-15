@@ -122,19 +122,6 @@ struct ChatOverlay: View {
                 .ignoresSafeArea(edges: .bottom)
         }
         .background(Theme.card)
-        .overlay(
-            UnevenRoundedRectangle(
-                cornerRadii: .init(
-                    topLeading: 14,
-                    bottomLeading: 0,
-                    bottomTrailing: 0,
-                    topTrailing: 14
-                ),
-                style: .continuous
-            )
-            .stroke(Theme.border, lineWidth: 1)
-        )
-        .frame(maxHeight: .infinity, alignment: .bottom)
         // 点 cardContent 任意空白处 → 收键盘（TextField / Button / 内层 ScrollView 的手势优先，会先吃掉它们的 tap）
         .onTapGesture {
             inputFocused = false
@@ -915,19 +902,18 @@ struct ChatOverlay: View {
         }
 
         let prompt = """
-        基于下方内容，输出1-3条用户接下来可能想深入了解的话题。
+        基于下方内容，输出2-3条用户接下来可能想深入了解的话题。
         \(userContext.isEmpty ? "" : "\(userContext)\n")AI助手回复：
         \(response)
         格式灵活，参考以下任一风格：
         - 如何改善久坐不适
-        - 试试站立休息片刻
         - 了解下颈椎保养方法
         - 查看更多睡眠知识
         硬性规则：
         1. 单条≤20个字
         2. 严禁出现"建议"二字，不可用"试试建议"、"了解下建议"等任何含"建议"的表达
         3. 禁止问号、禁止疑问句、禁止泛化占位词
-        4. 必须输出具体可执行的动作
+        4. 必须输出具体用户关心的话题
         5. 仅罗列文本，不带序号、注释、说明文字
         """
 

@@ -317,7 +317,7 @@ struct ContentView: View {
 
     var body: some View {
         mainContent
-            .overlay {
+            .fullScreenCover(isPresented: $showChat) {
                 ChatOverlay(
                     state: displayState,
                     initialText: chatSeed,
@@ -330,7 +330,6 @@ struct ContentView: View {
                     }
                 )
                 .id(chatKey)
-                .opacity(showChat ? 1 : 0)
             }
             .ignoresSafeArea(edges: .bottom)
             .onAppear {
