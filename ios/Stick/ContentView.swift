@@ -49,6 +49,8 @@ struct ContentView: View {
     @State private var showAIReport: Bool = false
     @State private var selectedAlert: UnifiedAlert? = nil
     @State private var deviceSet: Set<DeviceID> = [.iPhone]
+    /// 模拟器版 HealthKit 授权弹窗（真机走系统弹窗）
+    @State private var showSimAuthSheet: Bool = false
 
     // HealthKit 状态推断（30s 重算一次）
     @State private var inference: StateInference.Result? = nil
@@ -455,21 +457,42 @@ struct ContentView: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showSimAuthSheet) {
+            SimulatorHealthAuthSheet(
+                onAllow: {
+                    showSimAuthSheet = false
+                    HealthKitService.shared.isAuthorized = true
+                    HealthKitService.shared.objectWillChange.send()   // 显式触发 @ObservedObject 观察者刷新
+                    HealthKitService.shared.startAutoCapture(interval: 60)
+                    healthAuth.refresh()   // 刷新 metric 状态 → PersonalView iPhone 行变黑
+                    Task {
+                        await HealthKitDemoData.shared.injectIfNeeded()
+                        inference = HealthKitService.shared.currentInference
+                    }
+                },
+                onDeny: {
+                    showSimAuthSheet = false
+                }
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
         .onAppear {
             // Preview 模式完全短路 — 不跑 HealthKit / Timer / refresh
             guard !Self.isRunningForPreviews else { return }
             // 启动 HealthKit 抓取 (1 分钟一次, 写到本地)
             Task {
                 #if targetEnvironment(simulator)
-                // 模拟器: 跳过 requestAuthorization (会无限阻塞等用户点弹窗), 直接注入 demo 数据
-                HealthKitService.shared.startAutoCapture(interval: 60)
-                await HealthKitDemoData.shared.injectIfNeeded()
-                inference = HealthKitService.shared.currentInference
+                // 模拟器: 弹自定义授权弹窗 → 用户点"允许"后才继续（模拟真实流程）
+                showSimAuthSheet = true
                 #else
                 // 真机: 弹系统授权弹窗
                 await HealthKitService.shared.requestAuthorization()
+                HealthKitService.shared.objectWillChange.send()   // 显式触发 @ObservedObject 观察者刷新
                 HealthKitService.shared.startAutoCapture(interval: 60)
                 inference = HealthKitService.shared.currentInference
+                // 授权弹窗关闭后立即刷新授权状态（不等 1.5s 延迟）
+                healthAuth.refresh()
                 #endif
             }
             // 检查各 metric 真实授权状态 (有/无/拒绝)
@@ -1402,5 +1425,113 @@ private struct AIRiskBanner: View {
             )
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - 模拟器版 HealthKit 授权弹窗
+// 模拟 iOS 系统 HealthKit 授权弹窗样式（红心 + 标题 + 数据类型列表 + 允许/不允许）
+// 真机走系统弹窗；模拟器上走这个，让用户能体验完整流程
+
+private struct SimulatorHealthAuthSheet: View {
+    var onAllow: () -> Void
+    var onDeny: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // 顶部红心图标
+            ZStack {
+                Circle()
+                    .fill(Color(red: 0.93, green: 0.20, blue: 0.20))
+                    .frame(width: 64, height: 64)
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 32, weight: .heavy))
+                    .foregroundColor(.white)
+            }
+            .padding(.top, 28)
+            .padding(.bottom, 16)
+
+            // 标题
+            Text("\"Stick\" 想访问\"健康\"数据")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(Theme.navy)
+                .padding(.bottom, 8)
+
+            // 说明
+            Text("此 App 需要访问您的健康数据以提供姿态与活动分析。")
+                .font(.system(size: 13, weight: .regular))
+                .foregroundColor(Theme.slate)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 20)
+
+            // 数据类型列表
+            VStack(alignment: .leading, spacing: 0) {
+                authRow("步数", icon: "figure.walk")
+                Divider().padding(.leading, 56)
+                authRow("心率", icon: "heart.fill")
+                Divider().padding(.leading, 56)
+                authRow("活动能量", icon: "flame.fill")
+                Divider().padding(.leading, 56)
+                authRow("睡眠", icon: "moon.fill")
+                Divider().padding(.leading, 56)
+                authRow("HRV", icon: "waveform.path.ecg")
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Theme.card)
+            )
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
+
+            Spacer()
+
+            // 按钮组（iOS 系统风格：底部两个按钮，"不允许"在下方）
+            VStack(spacing: 12) {
+                Button(action: onAllow) {
+                    Text("允许")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(red: 0.0, green: 0.48, blue: 1.0))
+                        )
+                }
+                .buttonStyle(.plain)
+
+                Button(action: onDeny) {
+                    Text("不允许")
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(red: 0.0, green: 0.48, blue: 1.0).opacity(0.08))
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
+        }
+        .frame(maxWidth: .infinity)
+        .background(Theme.bgTop.ignoresSafeArea())
+    }
+
+    private func authRow(_ title: String, icon: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(Color(red: 0.93, green: 0.20, blue: 0.20))
+                .frame(width: 22)
+            Text(title)
+                .font(.system(size: 14, weight: .regular))
+                .foregroundColor(Theme.navy)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 }

@@ -17,6 +17,8 @@ struct PersonalView: View {
     @Binding var deviceSet: Set<DeviceID>
     @ObservedObject var healthAuth: HealthAuthService
     @ObservedObject var chatHistory: ChatHistoryStore
+    /// HealthKit 服务 — 观察 `isAuthorized` 变化，系统授权完成后立刻刷新 UI
+    @ObservedObject private var hkService: HealthKitService = HealthKitService.shared
     /// 点击历史消息 → 打开 chat 并滚动到该消息位置
     var onHistoryTap: ((UUID) -> Void)? = nil
     /// 点击 widget 卡片 → 关闭个人面板并打开聊天（seed = 预填文字）
@@ -35,9 +37,11 @@ struct PersonalView: View {
     // 已配置的设备 (iPhone 看 HealthKit 授权; 其他看 toggle 连上)
     private var allDevices: [Device] {
         DeviceID.allCases.map { id in
-            // iPhone 判授权: 至少一个 native metric 成功 query 出数据 → 已授权
+            // iPhone 判授权: 系统层已授权 (isAuthorized=true) 即视为已授权
+            // 不依赖具体 metric query 状态 (query 可能因无数据 / 错误短暂 .notAuthorized)
             let isAuthorized: Bool = {
                 if id != .iPhone { return true }
+                if hkService.isAuthorized { return true }
                 return MetricID.allCases.contains { m in
                     if m.dataSource != .iPhoneNative && m.dataSource != .iPhoneManual { return false }
                     let s = healthAuth.statuses[m] ?? .unknown
@@ -516,6 +520,11 @@ struct DeviceRow: View {
         device.idEnum == .iPhone && !device.isAuthorized
     }
 
+    /// 激活态的强调色：iPhone 用纯黑（device.color 灰蓝太暗淡），其他用 device.color
+    private var activeColor: Color {
+        device.idEnum == .iPhone ? Color.black : device.color
+    }
+
     /// 该 metric 在当前 UI 下的呈现 (亮/灰)
     private func availability(of metric: MetricID) -> MetricAvailability {
         let status = healthStatuses[metric] ?? .unknown
@@ -529,10 +538,10 @@ struct DeviceRow: View {
                     // 图标
                     ZStack {
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(device.color.opacity(isActive ? 0.14 : 0.05))
+                            .fill(activeColor.opacity(isActive ? 0.14 : 0.05))
                         Image(systemName: device.icon)
                             .font(.system(size: 18, weight: .light))
-                            .foregroundColor(isActive ? device.color : Theme.mist)
+                            .foregroundColor(isActive ? activeColor : Theme.mist)
                     }
                     .frame(width: 32, height: 32)
 
@@ -552,14 +561,14 @@ struct DeviceRow: View {
                                 .foregroundColor(StickState.walk.accent)
                         } else {
                             Circle()
-                                .fill(isActive ? device.color : Theme.mist)
+                                .fill(isActive ? activeColor : Theme.mist)
                                 .frame(width: 6, height: 6)
                         }
                         Text(statusText)
                             .font(.system(size: 12, weight: isIPhoneAwaitingAuth ? .semibold : .regular))
                             .foregroundColor(isIPhoneAwaitingAuth
                                              ? StickState.walk.accent
-                                             : (isActive ? Theme.slate : Theme.mist))
+                                             : (isActive ? activeColor : Theme.mist))
                     }
                 }
                 .frame(minHeight: 40)
@@ -581,7 +590,7 @@ struct DeviceRow: View {
                         spacing: 3
                     ) {
                         ForEach(capabilities) { m in
-                            CapabilityTag(metric: m, availability: availability(of: m))
+                            CapabilityTag(metric: m, availability: availability(of: m), activeColor: activeColor)
                         }
                     }
                     Spacer(minLength: 0)
@@ -601,6 +610,7 @@ struct DeviceRow: View {
 private struct CapabilityTag: View {
     let metric: MetricID
     let availability: MetricAvailability
+    let activeColor: Color
 
     private var isOn: Bool { availability.kind == .available }
 
@@ -608,7 +618,7 @@ private struct CapabilityTag: View {
         HStack(spacing: 3) {
             // 小点 (小圆点, 不用 SF Symbol)
             Circle()
-                .fill(isOn ? metric.required.first?.color ?? Theme.slate : Theme.mist.opacity(0.5))
+                .fill(isOn ? activeColor : Theme.mist.opacity(0.5))
                 .frame(width: 4, height: 4)
             Text(metric.rawValue)
                 .font(.system(size: 8.5, weight: .medium, design: .monospaced))
