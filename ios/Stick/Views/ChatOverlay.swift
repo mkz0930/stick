@@ -70,10 +70,9 @@ struct ChatOverlay: View {
     @State private var textBeforeCamera: String = ""
 
     private let suggestedQuestions: [String] = [
-        "我刚坐了一上午",
-        "眼睛干涩怎么缓解？",
-        "午饭后困得不行",
-        "睡前总刷手机",
+        "今天步数多少",
+        "肩膀酸怎么缓解",
+        "最近睡眠质量不好",
     ]
 
     var body: some View {
@@ -1015,9 +1014,9 @@ struct ChatOverlay: View {
         - 三类话题可以混合，不强制每类都出现，也可以是相关的话题，必须用户关心的
 
         【风格示例】
-        - 膝盖有点酸是不是要补钙
+        - 膝盖有点酸是要补钙吗
         - 跑步和快走哪个更适合我
-        - 肩颈也跟着痛怎么缓解
+        - 肩颈酸可以做什么运动
 
         硬性规则：
         1. 只输出 2-3 条，每条独占一行
@@ -1050,7 +1049,7 @@ struct ChatOverlay: View {
     }
 
     private var defaultSuggestions: [String] {
-        ["试试站立休息片刻", "如何缓解眼睛干涩", "了解下颈椎保健方法"]
+        ["最近肩颈有点酸", "今天睡眠怎么样", "喝水少会有啥影响"]
     }
 
     /// 调用 LLM 总结用户最近消息，更新用户画像。新对话优先，覆盖旧画像
