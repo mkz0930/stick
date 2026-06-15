@@ -68,6 +68,19 @@ struct DataRecordView: View {
     @State private var insight: String = ""
     @State private var isLoadingInsight: Bool = false
 
+    /// 血压显示值：收缩压/舒张压 或 --
+    private var bpValue: String {
+        guard let sys = BodyMetricsStore.shared.systolicBP,
+              let dia = BodyMetricsStore.shared.diastolicBP else { return "--" }
+        return "\(sys)/\(dia)"
+    }
+
+    /// 血糖显示值：或 --
+    private var sugarValue: String {
+        guard let v = BodyMetricsStore.shared.fastingBloodSugar else { return "--" }
+        return String(format: "%.1f", v)
+    }
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             Color.white.ignoresSafeArea()
@@ -323,16 +336,16 @@ struct DataRecordView: View {
                             icon: "drop.fill",
                             iconColor: Theme.dashBlood,
                             title: "血压",
-                            sub: "暂无数据",
-                            value: "--",
+                            sub: "来自对话分析",
+                            value: bpValue,
                             valueUnit: "mmHg"
                         )
                         DashboardCard(
                             icon: "drop.fill",
                             iconColor: Theme.dashBlood,
                             title: "血糖",
-                            sub: "暂无数据",
-                            value: "--",
+                            sub: "空腹",
+                            value: sugarValue,
                             valueUnit: "mmol/L"
                         )
                     }
