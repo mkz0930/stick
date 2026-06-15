@@ -950,31 +950,51 @@ struct ChatOverlay: View {
     private func fetchSuggestions(from response: String, userLastMessage: String?) async -> [String] {
         var userContext = ""
         if let last = userLastMessage {
-            userContext += "用户上一条消息：\(last)\n"
+            userContext += "用户最近一条输入：\(last)\n"
         }
         let profile = UserProfileStore.shared.profile
         if !profile.isEmpty {
             userContext += "用户画像：\(profile)\n"
         }
 
+        // 核心思路：基于用户上一句 + AI 回复，推断用户下一步**会主动输入什么**或**想继续探索什么**
         let prompt = """
-        基于下方内容，输出2-3条用户接下来可能想深入了解的话题。
-        \(userContext.isEmpty ? "" : "\(userContext)\n")AI助手回复：
+        你是健康助手的「下一步意图预测器」。基于用户的最近输入和 AI 的最新回复，预测用户接下来**最可能输入**或**想继续探索**的 2-3 条话题。
+
+        【判断依据】
+        \(userContext.isEmpty ? "" : "\(userContext)")AI 最新回复：
         \(response)
-        格式灵活，参考以下任一风格：
-        - 如何改善久坐不适
-        - 了解下颈椎保养方法
-        - 查看更多睡眠知识
+
+        【预测方向】（三类话题混合输出 2-3 条）
+        1. **追问细节**：用户想继续追问 AI 提到的某个点（贴合 AI 给的具体内容）
+        2. **立刻执行**：用户想马上执行的动作解析（贴合 AI 给的实操建议）
+        3. **继续探索**：用户想继续探索的相关方向（结合用户画像和上下文，可以稍微发散到相邻话题）
+
+        【输出格式】
+        - 直接写出用户会打的字，模拟用户口吻
+        - 单条 ≤ 18 字
+        - 严禁问号、严禁"试试"、"了解下"、"如何"开头的疑问句
+        - 必须是用户**会输入**的具体短句，不是抽象话题标签
+        - 三类话题可以混合，不强制每类都出现
+
+        【风格示例】
+        - 午饭后确实困怎么办
+        - 深呼吸具体怎么做
+        - 膝盖有点酸是不是要补钙
+        - 跑步和快走哪个更适合我
+        - 每天 8 小时睡眠够吗
+        - 肩颈也跟着痛怎么缓解
+        - 站久了小腿酸正常吗
+
         硬性规则：
-        1. 单条≤20个字
-        2. 严禁出现"建议"二字，不可用"试试建议"、"了解下建议"等任何含"建议"的表达
-        3. 禁止问号、禁止疑问句、禁止泛化占位词
-        4. 必须输出具体用户关心的话题
-        5. 仅罗列文本，不带序号、注释、说明文字
+        1. 只输出 2-3 条，每条独占一行
+        2. 严禁"建议"、"试试建议"等含"建议"的词
+        3. 严禁"某动作"、"某个"、"具体"等泛化占位词
+        4. 不带序号、注释、说明文字
         """
 
         do {
-            let result = try await LLMService.sendMessage(prompt, context: "生成追问建议")
+            let result = try await LLMService.sendMessage(prompt, context: "生成下一步输入预测")
             let lines = result.components(separatedBy: "\n")
             var suggestions: [String] = []
             for line in lines {
@@ -984,7 +1004,7 @@ struct ChatOverlay: View {
                 s = s.replacingOccurrences(of: "^[0-9]+[.)、\\s]+", with: "", options: .regularExpression)
                 s = s.replacingOccurrences(of: "[？?]+$", with: "", options: .regularExpression)
                 s = s.trimmingCharacters(in: .whitespacesAndNewlines)
-                // 过滤泛化占位词
+                // 过滤泛化占位词 + 过短
                 if s.count >= 4 && !s.contains("某动作") && !s.contains("某个") && !s.contains("具体") && !s.contains("各种") && !s.contains("建议") {
                     suggestions.append(s)
                 }
