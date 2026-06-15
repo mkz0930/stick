@@ -8,7 +8,7 @@ struct FoodEntry: Identifiable, Codable {
     let timestamp: Date
 }
 
-enum MealType: String, Codable {
+enum MealType: String, Codable, CaseIterable {
     case breakfast, lunch, dinner
 }
 
