@@ -49,6 +49,8 @@ struct ContentView: View {
     @State private var showAIReport: Bool = false
     @State private var selectedAlert: UnifiedAlert? = nil
     @State private var deviceSet: Set<DeviceID> = [.iPhone]
+    /// 今日步数（异步从 HealthKit 拉一次，避免 per-minute 快照间隔导致的 0 值）
+    @State private var todayStepsAsync: Int = 0
 
     // HealthKit 状态推断（30s 重算一次）
     @State private var inference: StateInference.Result? = nil
@@ -62,7 +64,6 @@ struct ContentView: View {
     @State private var targetScrollId: UUID? = nil
     /// 滚动触发器：每次历史导航 +1，overlay 用 onChange 响应（不重建 overlay）
     @State private var scrollTrigger: Int = 0
-    @State private var todayStepsAsync: Int = 0
 
     private var displayOffset: Int {
         scrubOffset ?? 0
@@ -516,7 +517,6 @@ struct ContentView: View {
                         bodyScoreColor: energyColor,
                         unifiedAlerts: unifiedAlerts,
                         sitDurationText: sitDurationText,
-                        todaySteps: todayStepsAsync,
                         onAlertTap: handleAlertTap,
                         onLockTap: { showDevicePicker = true },
                         onSedentaryTap: { showSedentaryDetail = true },
