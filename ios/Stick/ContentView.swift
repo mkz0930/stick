@@ -543,7 +543,7 @@ struct ContentView: View {
                             onSleepAlert: { showSleepReport = true },
                             onNeckWarningTap: { showNeckReport = true }
                         )
-                        .opacity(featureRowExpanded ? 0.32 : 1.0)
+                        .opacity(featureRowExpanded ? 0.04 : 1.0)
                         .animation(.easeInOut(duration: 0.28), value: featureRowExpanded)
                         .frame(maxWidth: .infinity)
                         .frame(height: 400)

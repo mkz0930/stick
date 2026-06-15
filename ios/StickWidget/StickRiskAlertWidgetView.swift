@@ -119,7 +119,7 @@ struct StickRiskAlertWidgetView: View {
             .padding(.vertical, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 0.30, green: 0.36, blue: 0.44))
+        .background(Color.white)
     }
 }
 
