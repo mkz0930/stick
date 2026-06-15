@@ -728,26 +728,45 @@ struct ChatOverlay: View {
         }
     }
 
-    /// 根据上一条 AI 回复生成 1-3 条追问
+    /// 根据用户兴趣标签生成 1-3 条推荐话题
     private func generateSuggestions(for messageId: UUID) {
         guard let idx = messages.firstIndex(where: { $0.id == messageId }),
-              messages[idx].role == .assistant,
-              !messages[idx].content.isEmpty else { return }
+              messages[idx].role == .assistant else { return }
 
-        let responseContent = messages[idx].content
+        // 短期 top3 + 长期 top3 合并去重，取前 3 条
+        let shortTags = UserInterestTagStore.shared.topShortTermTags(limit: 3)
+        let longTags = UserInterestTagStore.shared.topLongTermTags(limit: 3)
+        var combined = shortTags
+        for tag in longTags where !combined.contains(tag) {
+            combined.append(tag)
+        }
+        let tags = Array(combined.prefix(3))
 
-        Task {
-            let suggestions = await fetchSuggestions(from: responseContent)
-            await MainActor.run {
-                if let i = self.messages.firstIndex(where: { $0.id == messageId }) {
-                    var updated = self.messages
-                    updated[i].suggestions = suggestions
-                    self.messages = updated
-                    // 意图出现后自动滚动到底部
-                    self.scrollToBottom = true
-                    self.pendingScrollId = messageId
+        let suggestions: [String]
+        if tags.isEmpty {
+            suggestions = ["如何改善久坐不适", "如何缓解眼睛干涩", "如何提高睡眠质量"]
+        } else {
+            suggestions = tags.map { tag in
+                switch tag {
+                case "眼部健康":   return "如何缓解眼睛干涩"
+                case "骨骼健康":   return "如何改善颈椎腰椎不适"
+                case "睡眠问题":   return "如何提高睡眠质量"
+                case "心血管":     return "如何保护心血管健康"
+                case "消化系统":   return "如何改善肠胃不适"
+                case "运动健身":   return "如何科学安排运动"
+                case "情绪压力":   return "如何缓解工作压力"
+                case "饮食营养":   return "如何均衡饮食营养"
+                default:           return "如何改善\(tag)"
                 }
             }
+        }
+
+        if let i = self.messages.firstIndex(where: { $0.id == messageId }) {
+            var updated = self.messages
+            updated[i].suggestions = suggestions
+            self.messages = updated
+            self.scrollToBottom = true
+            self.pendingScrollId = messageId
         }
     }
 
