@@ -13,17 +13,18 @@ struct FeatureRow: View {
     let deviceSet: Set<DeviceID>
     let healthStatuses: [MetricID: MetricDataStatus]
     let moodLine: MoodLineInfo?
-    let moodScore: Double           // 0..100, 跟 MOOD 标签一起显示
+    let moodScore: Double           // 0..100, 心情（高=好心情）
+    let stressScore: Double         // 0..100, 压力 = 100 - moodScore（高=大压力；颜色逻辑反转）
     let bodyScore: Double           // 0..100, 身体打分（**第 1 行**，跟 MOOD 区分）
     let bodyScoreColor: Color
     let unifiedAlerts: [UnifiedAlert]
     let sitDurationText: String?      // 坐姿秒表 live MM:SS（sit 状态时为 "47:23" 这种，非 sit 时 nil）
+    @Binding var isExpanded: Bool       // 状态提升到 ContentView，让小人也能淡出
     var onAlertTap: (UnifiedAlert) -> Void = { _ in }
     var onLockTap: () -> Void = { }   // 点击锁 → 跳添加设备界面
     var onSedentaryTap: () -> Void = { }  // 点击坐姿秒表 → 跳坐姿详情/起身提醒
     var onCardTap: () -> Void = { }   // 点击卡片主体 → 打开对话
 
-    @State private var isExpanded: Bool = false
     @State private var alertsDetailExpanded: Bool = false
 
     /// 3 个指标中"心率"那行（任意位置）
@@ -49,13 +50,13 @@ struct FeatureRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             // ① 身体状态得分（**唯一默认可见** — 视觉锤）
             BodyScoreLine(score: bodyScore, color: bodyScoreColor)
             // ② 展开后：心情 + 状态专属 + 隐藏指标
             if isExpanded {
                 if let m = moodLine {
-                    MoodLine(info: m, accent: state.accent, moodScore: moodScore)
+                    StressLine(info: m, accent: state.accent, stressScore: stressScore)
                 }
                 if let ss = stateSpecificMetric {
                     FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap)
@@ -172,26 +173,33 @@ struct MoodLineInfo: Equatable {
     let spark: Spark
 }
 
-private struct MoodLine: View {
+/// 压力值行（替换原来的心情得分 — commit 22827c4）
+///   - 标签: 心情得分 → 压力值
+///   - 数值: 100 - moodScore（高=大压力）
+///   - 颜色: 按 stressScore 数值 4 档（绿→黄绿→橙→红；**与 mood 逻辑反转**）
+///   - 状态文字: tone 反转（good→轻松, calm→平稳, warn→紧张, excited→焦虑）
+private struct StressLine: View {
     let info: MoodLineInfo
     let accent: Color
-    let moodScore: Double      // 0..100 数值，跟 "MOOD" 标签放一起
+    let stressScore: Double      // 0..100, 高=大压力（与 moodScore 反向）
 
+    /// 颜色按 stressScore 数值 4 档（与 mood 相反方向）
     private var dotColor: Color {
-        switch info.tone {
-        case .good:    return Color(red: 0.20, green: 0.65, blue: 0.45)   // 绿
-        case .calm:    return Color(red: 0.30, green: 0.55, blue: 0.85)   // 蓝
-        case .warn:    return Color(red: 0.92, green: 0.55, blue: 0.20)   // 橙
-        case .excited: return Color(red: 0.95, green: 0.40, blue: 0.55)   // 粉
+        switch stressScore {
+        case ..<25:   return Color(red: 0.20, green: 0.65, blue: 0.45)   // 绿  低压力
+        case ..<50:   return Color(red: 0.55, green: 0.71, blue: 0.06)   // 黄绿
+        case ..<75:   return Color(red: 0.92, green: 0.55, blue: 0.20)   // 橙  中高压力
+        default:      return Color(red: 0.93, green: 0.20, blue: 0.20)   // 红  高压力
         }
     }
 
+    /// 状态文字：基于 tone（来自原始 mood 分类），但语义反转
     private var statusText: String {
         switch info.tone {
-        case .good:    return "平稳"
-        case .calm:    return "专注"
-        case .warn:    return "警告"
-        case .excited: return "兴奋"
+        case .good:    return "轻松"   // mood 好 → 压力低
+        case .calm:    return "平稳"   // mood 平稳 → 压力平稳
+        case .warn:    return "紧张"   // mood 警告 → 压力紧张
+        case .excited: return "焦虑"   // mood 兴奋 → 压力焦虑
         }
     }
 
@@ -202,8 +210,8 @@ private struct MoodLine: View {
                 .fill(dotColor)
                 .frame(width: 5, height: 5)
 
-            // mono 标签 — "MOOD" → "心情得分"（4 个中文字，跟"身体状态得分"对称）
-            Text("心情得分")
+            // mono 标签 — "压力值"（4 个中文字，跟"身体状态得分"对称）
+            Text("压力值")
                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                 .tracking(0.8)
                 .foregroundColor(Theme.slate)
@@ -214,7 +222,7 @@ private struct MoodLine: View {
 
             // 数值 — 13→11pt（再缩一档，跟下面 3rd 行 FeatureLine 节奏一致）
             HStack(alignment: .firstTextBaseline, spacing: 1) {
-                Text("\(Int(moodScore))")
+                Text("\(Int(stressScore))")
                     .font(.system(size: 11, weight: .heavy, design: .rounded))
                     .foregroundColor(dotColor)
                     .monospacedDigit()
@@ -397,7 +405,7 @@ private struct FeatureLine: View {
                 .frame(width: 6, height: 6)
 
             // mono 标签（等宽对齐）— 缩小到 9pt 跟 MOOD 节奏一致
-            Text(metric.label)
+            Text(metric.chineseLabel)
                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                 .tracking(0.8)
                 .foregroundColor(isLocked ? Theme.mist : Theme.slate)
@@ -414,13 +422,9 @@ private struct FeatureLine: View {
             // 坐姿秒表（SEDENTARY 行）用 live 文本覆盖硬编码值
             Group {
                 if isLocked {
-                    HStack(spacing: 3) {
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 9, weight: .semibold))
-                        Text("—")
-                            .font(.system(size: 11, weight: .heavy, design: .rounded))
-                    }
-                    .foregroundColor(Theme.mist)
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(Theme.mist)
                 } else {
                     Text(displayValue)
                         .font(.system(size: 11, weight: .heavy, design: .rounded))

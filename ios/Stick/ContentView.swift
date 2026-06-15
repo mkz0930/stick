@@ -49,6 +49,8 @@ struct ContentView: View {
     @State private var showAIReport: Bool = false
     @State private var selectedAlert: UnifiedAlert? = nil
     @State private var deviceSet: Set<DeviceID> = [.iPhone]
+    /// FeatureRow 展开态（提升到 ContentView，让 StageHeroView 也能读到 — 控制小人淡出）
+    @State private var featureRowExpanded: Bool = false
     /// 今日步数（异步从 HealthKit 拉一次，避免 per-minute 快照间隔导致的 0 值）
     @State private var todayStepsAsync: Int = 0
 
@@ -513,10 +515,12 @@ struct ContentView: View {
                         healthStatuses: healthAuth.statuses,
                         moodLine: displayMoodLine,
                         moodScore: moodScore,
+                        stressScore: 100 - moodScore,
                         bodyScore: bodyEnergy,
                         bodyScoreColor: energyColor,
                         unifiedAlerts: unifiedAlerts,
                         sitDurationText: sitDurationText,
+                        isExpanded: $featureRowExpanded,
                         onAlertTap: handleAlertTap,
                         onLockTap: { showDevicePicker = true },
                         onSedentaryTap: { showSedentaryDetail = true },
@@ -549,6 +553,8 @@ struct ContentView: View {
                             onSleepAlert: { showSleepReport = true },
                             onNeckWarningTap: { showNeckReport = true }
                         )
+                        .opacity(featureRowExpanded ? 0.32 : 1.0)
+                        .animation(.easeInOut(duration: 0.28), value: featureRowExpanded)
                         .frame(maxWidth: .infinity)
                         .frame(height: 400)
 
@@ -933,13 +939,13 @@ private struct StageHeroView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .center, spacing: 0) {
             // 舞台区（火柴人 + 透明背景，跟整页一个底色）
             ZStack {
                 // 永远画小人（让用户看到 30° 低头 + 低落表情等所有视觉）
                 StickFigureView(state: state, mood: mood, tiredness: tiredness, neckWarning: neckWarningOpacity)
                     .padding(.horizontal, 4)
-                    .padding(.top, 0)
+                    .padding(.top, 70)
                     .padding(.bottom, 0)
                     .id(state)
                     .transition(.opacity)

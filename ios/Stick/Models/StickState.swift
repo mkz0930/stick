@@ -131,6 +131,20 @@ struct Metric {
     let hint: String
     /// 关联到真实可呈现的指标；nil = 仅装饰文字 (不参与设备能力检查)
     let metricID: MetricID?
+
+    /// 中文显示标签（与内部英文 `label` 解耦，避免破坏现有 `== "HEART RATE"` 等判断）
+    var chineseLabel: String {
+        switch label {
+        case "HEART RATE": return "心率"
+        case "SEDENTARY":  return "久坐"
+        case "POSTURE":    return "姿态"
+        case "MOOD":       return "心情"
+        case "SLEEP":      return "睡眠"
+        case "DURATION":   return "时长"
+        case "TURNS":      return "翻身"
+        default:           return label
+        }
+    }
 }
 // MARK: - 全局主题色已迁移到 SharedKit/SharedState.swift（主 app + Widget 共享）
 
