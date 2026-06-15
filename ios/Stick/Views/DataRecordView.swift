@@ -162,7 +162,7 @@ struct DataRecordView: View {
         isLoadingInsight = true
         defer { isLoadingInsight = false }
         let context = buildInsightContext()
-        let message = "请基于以上今日健康数据，输出一句洞察，20 字以内，专注最值得关注的一件事。直接给句子，不要标题，不要 emoji，不要说教。"
+        let message = "你是用户的健康小助手。基于今日健康数据，输出一句话中文总结，不超过 20 个字。专注最值得提醒的一点，直接给句子，不要标题、不要 emoji、不要说教。"
         do {
             let raw = try await LLMService.sendMessage(message, context: context)
             let cleaned = raw
