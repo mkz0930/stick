@@ -940,9 +940,10 @@ private struct StageHeroView: View {
                     .id(state)
                     .transition(.opacity)
 
-                // 颈椎压力过大提醒（左上角；tiredness > 0.6 开始淡入；点击弹 AI 报告）
+                // 腰椎压力过大提醒（小人腰椎位置；tiredness > 0.6 开始淡入；点击弹 AI 报告）
                 if neckWarningOpacity > 0.01 {
-                    VStack {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Spacer().frame(height: 250)
                         HStack {
                             Button(action: onNeckWarningTap) {
                                 HStack(spacing: 4) {
@@ -950,7 +951,6 @@ private struct StageHeroView: View {
                                         .font(.system(size: 10, weight: .heavy))
                                     Text("腰椎压力过大")
                                         .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                        .tracking(0.4)
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 8, weight: .bold))
                                 }
