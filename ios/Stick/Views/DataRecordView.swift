@@ -200,24 +200,46 @@ struct DataRecordView: View {
                     sub: "暂无数据"
                 )
 
-                // 第三行: 血压 + 血糖
-                HStack(spacing: 10) {
-                    DashboardCard(
-                        icon: "drop.fill",
-                        iconColor: Theme.dashBlood,
-                        title: "血压",
-                        sub: "暂无数据",
-                        value: "--",
-                        valueUnit: "mmHg"
-                    )
-                    DashboardCard(
-                        icon: "drop.fill",
-                        iconColor: Theme.dashBlood,
-                        title: "血糖",
-                        sub: "暂无数据",
-                        value: "--",
-                        valueUnit: "mmol/L"
-                    )
+                // 第三 + 第四行: 2x2 健康生命体征 (血压/血糖 + 血氧/心率)
+                VStack(spacing: 10) {
+                    // 顶行: 血压 + 血糖
+                    HStack(spacing: 10) {
+                        DashboardCard(
+                            icon: "drop.fill",
+                            iconColor: Theme.dashBlood,
+                            title: "血压",
+                            sub: "暂无数据",
+                            value: "--",
+                            valueUnit: "mmHg"
+                        )
+                        DashboardCard(
+                            icon: "drop.fill",
+                            iconColor: Theme.dashBlood,
+                            title: "血糖",
+                            sub: "暂无数据",
+                            value: "--",
+                            valueUnit: "mmol/L"
+                        )
+                    }
+                    // 底行: 血氧 + 心率
+                    HStack(spacing: 10) {
+                        DashboardCard(
+                            icon: "lungs.fill",
+                            iconColor: Theme.dashBlood,
+                            title: "血氧",
+                            sub: "暂无数据",
+                            value: "--",
+                            valueUnit: "%"
+                        )
+                        DashboardCard(
+                            icon: "heart.fill",
+                            iconColor: Color(red: 0.86, green: 0.21, blue: 0.27),
+                            title: "心率",
+                            sub: "暂无数据",
+                            value: "--",
+                            valueUnit: "bpm"
+                        )
+                    }
                 }
             }
         }
