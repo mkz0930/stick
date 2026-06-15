@@ -203,6 +203,16 @@ struct DataRecordView: View {
                     )
                 }
 
+                // 久坐记录 (单卡, 紧跟运动/饮食)
+                DashboardCard(
+                    icon: "figure.seated.side",
+                    iconColor: Color(red: 0.92, green: 0.55, blue: 0.20),
+                    title: "久坐记录",
+                    sub: "暂无数据",
+                    value: "--",
+                    valueUnit: "分钟/天"
+                )
+
                 // 身材管理 (通栏)
                 BodyCard(
                     icon: "figure.arms.open",
@@ -211,24 +221,46 @@ struct DataRecordView: View {
                     sub: "暂无数据"
                 )
 
-                // 第三行: 血压 + 血糖
-                HStack(spacing: 10) {
-                    DashboardCard(
-                        icon: "drop.fill",
-                        iconColor: Theme.dashBlood,
-                        title: "血压",
-                        sub: "暂无数据",
-                        value: "--",
-                        valueUnit: "mmHg"
-                    )
-                    DashboardCard(
-                        icon: "drop.fill",
-                        iconColor: Theme.dashBlood,
-                        title: "血糖",
-                        sub: "暂无数据",
-                        value: "--",
-                        valueUnit: "mmol/L"
-                    )
+                // 第三 + 第四行: 2x2 健康生命体征 (血压/血糖 + 血氧/心率)
+                VStack(spacing: 10) {
+                    // 顶行: 血压 + 血糖
+                    HStack(spacing: 10) {
+                        DashboardCard(
+                            icon: "drop.fill",
+                            iconColor: Theme.dashBlood,
+                            title: "血压",
+                            sub: "暂无数据",
+                            value: "--",
+                            valueUnit: "mmHg"
+                        )
+                        DashboardCard(
+                            icon: "drop.fill",
+                            iconColor: Theme.dashBlood,
+                            title: "血糖",
+                            sub: "暂无数据",
+                            value: "--",
+                            valueUnit: "mmol/L"
+                        )
+                    }
+                    // 底行: 血氧 + 心率
+                    HStack(spacing: 10) {
+                        DashboardCard(
+                            icon: "lungs.fill",
+                            iconColor: Theme.dashBlood,
+                            title: "血氧",
+                            sub: "暂无数据",
+                            value: "--",
+                            valueUnit: "%"
+                        )
+                        DashboardCard(
+                            icon: "heart.fill",
+                            iconColor: Color(red: 0.86, green: 0.21, blue: 0.27),
+                            title: "心率",
+                            sub: "暂无数据",
+                            value: "--",
+                            valueUnit: "bpm"
+                        )
+                    }
                 }
             }
         }
@@ -299,6 +331,8 @@ private struct BodyCard: View {
                 .foregroundColor(Theme.mist)
 
             HStack(alignment: .top, spacing: 0) {
+                bodyColumn("--", "身高/cm")
+                Spacer()
                 bodyColumn("--", "体重/KG")
                 Spacer()
                 bodyColumn("--", "BMI·暂无")
