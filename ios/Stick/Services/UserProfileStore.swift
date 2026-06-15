@@ -19,11 +19,16 @@ final class UserProfileStore: ObservableObject {
     /// 当前用户画像（LLM 总结的简短文字）
     @Published private(set) var profile: String = ""
 
-    /// 自上次总结以来的 user 消息计数
+    /// 自上次总结以来的 user 消息计数（用于触发下次总结）
     @Published private(set) var userMessageCount: Int = 0
 
+    /// 短期标签分数（委托 UserInterestTagStore 管理，这里只作代理访问）
+    private var shortTermScores: [String: Double] {
+        UserInterestTagStore.shared.shortTermScores
+    }
+
     /// 多少条 user 消息触发一次总结
-    let summaryInterval: Int = 10
+    let summaryInterval: Int = 50
 
     private let profileKey = "stick.userprofile.v1"
     private let countKey = "stick.userprofile.count.v1"
@@ -43,7 +48,7 @@ final class UserProfileStore: ObservableObject {
         return userMessageCount % summaryInterval == 0
     }
 
-    /// 总结完成后清零（下一轮 3 条重新计数）
+    /// 总结完成后清零（只清零触发计数器，保留累计消息数用于年判断）
     func resetCounter() {
         userMessageCount = 0
         UserDefaults.standard.set(0, forKey: countKey)
@@ -69,5 +74,10 @@ final class UserProfileStore: ObservableObject {
     func profileContextBlock() -> String {
         guard !profile.isEmpty else { return "" }
         return "【用户画像 (历史对话累计总结)】\n\(profile)\n"
+    }
+
+    /// 返回短期权重最高的标签
+    func topShortTermTags(limit: Int = 5) -> [String] {
+        UserInterestTagStore.shared.topShortTermTags(limit: limit)
     }
 }

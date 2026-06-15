@@ -42,6 +42,9 @@
 		B29900000000000000000A11 /* ChatHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A11 /* ChatHistoryStore.swift */; };
 		B29900000000000000000A12 /* ChatHistoryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A12 /* ChatHistoryListView.swift */; };
 		B29900000000000000000A13 /* UserProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A13 /* UserProfileStore.swift */; };
+		B29900000000000000000A14 /* HealthTrendAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A14 /* HealthTrendAnalyzer.swift */; };
+		B29900000000000000000A15 /* TopicExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A15 /* TopicExtractor.swift */; };
+		B29900000000000000000A16 /* UserInterestTagStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A16 /* UserInterestTagStore.swift */; };
 		B40000000000000000000001 /* StickWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000001 /* StickWidget.swift */; };
 		B40000000000000000000010 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
 		B40000000000000000000011 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
@@ -117,6 +120,9 @@
 		F29900000000000000000A11 /* ChatHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryStore.swift; sourceTree = "<group>"; };
 		F29900000000000000000A12 /* ChatHistoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryListView.swift; sourceTree = "<group>"; };
 		F29900000000000000000A13 /* UserProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfileStore.swift; sourceTree = "<group>"; };
+		F29900000000000000000A14 /* HealthTrendAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthTrendAnalyzer.swift; sourceTree = "<group>"; };
+		F29900000000000000000A15 /* TopicExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopicExtractor.swift; sourceTree = "<group>"; };
+		F29900000000000000000A16 /* UserInterestTagStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserInterestTagStore.swift; sourceTree = "<group>"; };
 		F40000000000000000000001 /* StickWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickWidget.swift; sourceTree = "<group>"; };
 		F40000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F40000000000000000000003 /* StickWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StickWidget.entitlements; sourceTree = "<group>"; };
@@ -240,6 +246,9 @@
 				F29900000000000000000A11 /* ChatHistoryStore.swift */,
 				F29900000000000000000A12 /* ChatHistoryListView.swift */,
 				F29900000000000000000A13 /* UserProfileStore.swift */,
+				F29900000000000000000A14 /* HealthTrendAnalyzer.swift */,
+				F29900000000000000000A15 /* TopicExtractor.swift */,
+				F29900000000000000000A16 /* UserInterestTagStore.swift */,
 				F29900000000000000000A0A /* AlertAggregator.swift */,
 				F29900000000000000000A0B /* AISleepAnalyzer.swift */,
 			);
@@ -401,6 +410,9 @@
 				B10000000000000000000026 /* Views/ShareSheet.swift in Sources */,
 				B50000000000000000000007 /* StickRiskAlertWidgetView.swift in Sources */,
 				B29900000000000000000A13 /* UserProfileStore.swift in Sources */,
+				B29900000000000000000A14 /* HealthTrendAnalyzer.swift in Sources */,
+				B29900000000000000000A15 /* TopicExtractor.swift in Sources */,
+				B29900000000000000000A16 /* UserInterestTagStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
