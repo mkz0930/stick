@@ -524,8 +524,8 @@ struct ContentView: View {
 
                 // ② ScrollView 内容（小人 + 时间轴；在下层）
                 let scrollContent = VStack(spacing: 0) {
-                    // 为 FeatureRow 折叠态预留高度（150pt — 跟火柴人下移 80pt 配套，时间轴跟着小人一起下移）
-                    Color.clear.frame(height: 150)
+                    // 为 FeatureRow 折叠态预留高度（70pt）
+                    Color.clear.frame(height: 70)
 
                     HStack(alignment: .top, spacing: 10) {
                         StageHeroView(
@@ -546,7 +546,7 @@ struct ContentView: View {
                         .opacity(featureRowExpanded ? 0.32 : 1.0)
                         .animation(.easeInOut(duration: 0.28), value: featureRowExpanded)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 470)
+                        .frame(height: 400)
 
                         DayTimelineView(
                             schedule: StickState.daySchedule,
@@ -555,7 +555,7 @@ struct ContentView: View {
                             showDevicePicker: $showDevicePicker
                         )
                         .frame(width: 50)
-                        .frame(height: 470)
+                        .frame(height: 400)
                     }
                     .padding(.leading, 16)
                     .padding(.trailing, 4)
@@ -935,7 +935,7 @@ private struct StageHeroView: View {
                 // 永远画小人（让用户看到 30° 低头 + 低落表情等所有视觉）
                 StickFigureView(state: state, mood: mood, tiredness: tiredness, neckWarning: neckWarningOpacity)
                     .padding(.horizontal, 4)
-                    .padding(.top, 150)
+                    .padding(.top, 70)
                     .padding(.bottom, 0)
                     .id(state)
                     .transition(.opacity)
