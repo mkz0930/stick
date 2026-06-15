@@ -59,6 +59,7 @@ struct ChatOverlay: View {
     @State private var keyboardVisible: Bool = false  // 键盘是否可见
     /// 上次已处理的 scrollTrigger 值（用于去重）
     @State private var lastHandledTrigger: Int = 0
+    @FocusState private var inputFocused: Bool
     @ObservedObject private var history = ChatHistoryStore.shared
     @ObservedObject private var userProfile = UserProfileStore.shared
 
@@ -358,6 +359,7 @@ struct ChatOverlay: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+        .onTapGesture { inputFocused = false }
     }
 
     // MARK: - 对话记录区 (在 messageArea 空状态下, 置于 SUGGESTED 之上)
@@ -591,6 +593,9 @@ struct ChatOverlay: View {
                     .disabled(isStreaming)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 12)
+                    .focused($inputFocused)
+                    .submitLabel(.send)
+                    .onSubmit { send() }
             }
             .frame(height: 56)
             .background(
@@ -677,6 +682,8 @@ struct ChatOverlay: View {
                 await summarizeUserProfile()
             }
         }
+
+        inputFocused = false
     }
 
     /// 直接发送文字（不经过 input 框，用于意图按钮）
