@@ -247,7 +247,7 @@ private struct StressLine: View {
     }
 
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 30) {
             // 状态色小点（跟 FeatureLine 一致）
             Circle()
                 .fill(dotColor)
@@ -334,7 +334,7 @@ private struct StepsLine: View {
     }
 
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 30) {
             // 状态色小点
             Circle()
                 .fill(dotColor)
@@ -519,7 +519,7 @@ private struct FeatureLine: View {
     private var isEmpty: Bool { availability.kind == .availableEmpty }
 
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 30) {
             // 状态色小点 (灰显时变灰)
             Circle()
                 .fill(isLocked ? Theme.mist.opacity(0.5) : accent)
