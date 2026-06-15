@@ -180,7 +180,7 @@ private struct AlertsSection: View {
                 }
             } label: {
                 HStack(spacing: 14) {
-                    // 📌 固定按钮
+                    // 📌 固定按钮（热区 44×44pt）
                     Button {
                         if pinnedIds.wrappedValue.contains(metricId) {
                             pinnedIds.wrappedValue.remove(metricId)
@@ -190,9 +190,11 @@ private struct AlertsSection: View {
                         onPinToggle()
                     } label: {
                         Image(systemName: pinnedIds.wrappedValue.contains(metricId) ? "pin.fill" : "pin")
-                            .font(.system(size: 11))
+                            .font(.system(size: 13))
                             .foregroundColor(pinnedIds.wrappedValue.contains(metricId) ? Theme.navy : Theme.mist)
                     }
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
 
                     Circle()
                         .fill(alerts.first?.severity.color ?? Theme.mist)
@@ -313,7 +315,7 @@ private struct StressLine: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            // 📌 固定按钮
+            // 📌 固定按钮（热区 44×44pt）
             Button {
                 if pinnedIds.wrappedValue.contains(metricId) {
                     pinnedIds.wrappedValue.remove(metricId)
@@ -323,9 +325,11 @@ private struct StressLine: View {
                 onPinToggle()
             } label: {
                 Image(systemName: pinnedIds.wrappedValue.contains(metricId) ? "pin.fill" : "pin")
-                    .font(.system(size: 11))
+                    .font(.system(size: 13))
                     .foregroundColor(pinnedIds.wrappedValue.contains(metricId) ? Theme.navy : Theme.mist)
             }
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
 
             // 状态色小点（跟 FeatureLine 一致）
             Circle()
@@ -418,7 +422,7 @@ private struct StepsLine: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            // 📌 固定按钮
+            // 📌 固定按钮（热区 44×44pt）
             Button {
                 if pinnedIds.wrappedValue.contains(metricId) {
                     pinnedIds.wrappedValue.remove(metricId)
@@ -428,9 +432,11 @@ private struct StepsLine: View {
                 onPinToggle()
             } label: {
                 Image(systemName: pinnedIds.wrappedValue.contains(metricId) ? "pin.fill" : "pin")
-                    .font(.system(size: 11))
+                    .font(.system(size: 13))
                     .foregroundColor(pinnedIds.wrappedValue.contains(metricId) ? Theme.navy : Theme.mist)
             }
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
 
             // 状态色小点
             Circle()
@@ -620,7 +626,7 @@ private struct FeatureLine: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            // 📌 固定按钮
+            // 📌 固定按钮（热区 44×44pt）
             Button {
                 if pinnedIds.wrappedValue.contains(metricId) {
                     pinnedIds.wrappedValue.remove(metricId)
@@ -630,9 +636,11 @@ private struct FeatureLine: View {
                 onPinToggle()
             } label: {
                 Image(systemName: pinnedIds.wrappedValue.contains(metricId) ? "pin.fill" : "pin")
-                    .font(.system(size: 11))
+                    .font(.system(size: 13))
                     .foregroundColor(pinnedIds.wrappedValue.contains(metricId) ? Theme.navy : Theme.mist)
             }
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
 
             // 状态色小点 (灰显时变灰)
             Circle()
