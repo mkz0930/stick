@@ -84,7 +84,7 @@ struct FeatureRow: View {
         .onTapGesture { onCardTap() }
     }
 
-    /// 左下角小按键：chevron + "more / less" 文字
+    /// 左下角按键：chevron + "more / less" 文字，整行可点
     private var expandToggle: some View {
         Button {
             withAnimation(.easeInOut(duration: 0.28)) {
@@ -101,37 +101,29 @@ struct FeatureRow: View {
             .foregroundColor(Theme.slate)
             .padding(.horizontal, 8)
             .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())  // 整行可点（不限于 chevron+文字小区域）
         }
         .buttonStyle(.plain)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
 // MARK: - 异常提示 section（可折叠：默认前 2 项，>2 项可展开全部）
 
 /// 异常 section：
-///  - 头部：色点 + "异常提示" + "N 项" + chevron（仅 N > 2 时显示）
-///  - 列表：折叠时显示前 2 项；展开时显示全部
-///  - 头部点击 → 折叠/展开（仅 N > 2 时有反应）
+///  - 头部：色点 + "异常提示" + "N 项" + chevron（始终显示）
+///  - 列表：默认隐藏（isExpanded = false），点击头部展开看全部
+///  - 头部点击 → 折叠/展开
 ///  - 单项点击 → onAlertTap（弹详情 / AI 报告）
 private struct AlertsSection: View {
     let alerts: [UnifiedAlert]
     @Binding var isExpanded: Bool
     var onAlertTap: (UnifiedAlert) -> Void = { _ in }
 
-    private let collapsedLimit = 2
-    private var isExpandable: Bool { alerts.count > collapsedLimit }
-
-    /// 当前应该展示的项（折叠时前 2，展开时全部）
-    private var visibleAlerts: [UnifiedAlert] {
-        isExpanded ? alerts : Array(alerts.prefix(collapsedLimit))
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             // 头部
             Button {
-                guard isExpandable else { return }
                 withAnimation(.easeInOut(duration: 0.25)) {
                     isExpanded.toggle()
                 }
@@ -154,11 +146,9 @@ private struct AlertsSection: View {
                         .frame(width: 80, alignment: .leading)
                         .fixedSize(horizontal: true, vertical: false)
 
-                    if isExpandable {
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(Theme.slate)
-                    }
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(Theme.slate)
 
                     Spacer()
                 }
@@ -166,10 +156,12 @@ private struct AlertsSection: View {
             .buttonStyle(.plain)
             .contentShape(Rectangle())
 
-            // 列表项
-            ForEach(visibleAlerts, id: \.id) { alert in
-                AlertItemRow(alert: alert) {
-                    onAlertTap(alert)
+            // 列表项（仅展开时显示）
+            if isExpanded {
+                ForEach(alerts, id: \.id) { alert in
+                    AlertItemRow(alert: alert) {
+                        onAlertTap(alert)
+                    }
                 }
             }
         }
