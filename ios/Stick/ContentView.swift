@@ -51,8 +51,9 @@ struct ContentView: View {
     @State private var deviceSet: Set<DeviceID> = [.iPhone]
     /// FeatureRow 展开态（提升到 ContentView，让 StageHeroView 也能读到 — 控制小人淡出）
     @State private var featureRowExpanded: Bool = false
-    /// 今日步数（异步从 HealthKit 拉一次，避免 per-minute 快照间隔导致的 0 值）
-    @State private var todayStepsAsync: Int = 0
+    /// 订阅 HealthStore：30s 一次 captureSnapshot() 会把 HealthSnapshot 写到 .today，
+    /// 触发本视图重渲 → todaySteps computed property 重新求和，FeatureRow StepsLine 实时刷新。
+    @ObservedObject private var healthStore: HealthStore = HealthStore.shared
 
     // HealthKit 状态推断（30s 重算一次）
     @State private var inference: StateInference.Result? = nil
@@ -290,6 +291,12 @@ struct ContentView: View {
         )
     }
 
+    /// 今日累计步数：把 today 数组里所有非 nil 的 stepCount 求和。
+    /// 30s 一次 captureSnapshot() → HealthStore.shared.today 更新 → @ObservedObject 触发重渲。
+    private var todaySteps: Int {
+        healthStore.today.compactMap(\.stepCount).reduce(0, +)
+    }
+
     /// 点击异常行：AI 实时报告 → AIAnalysisView；其他 → AlertDetailView
     private func handleAlertTap(_ a: UnifiedAlert) {
         if a.kind == .aiLive, a.aiReport != nil {
@@ -502,7 +509,7 @@ struct ContentView: View {
                         bodyScoreColor: energyColor,
                         unifiedAlerts: unifiedAlerts,
                         sitDurationText: sitDurationText,
-                        todaySteps: todayStepsAsync,
+                        todaySteps: todaySteps,
                         isExpanded: $featureRowExpanded,
                         onAlertTap: handleAlertTap,
                         onLockTap: { showDevicePicker = true },
