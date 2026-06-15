@@ -192,6 +192,16 @@ struct DataRecordView: View {
                     )
                 }
 
+                // 久坐记录 (单卡, 紧跟运动/饮食)
+                DashboardCard(
+                    icon: "figure.seated.side",
+                    iconColor: Color(red: 0.92, green: 0.55, blue: 0.20),
+                    title: "久坐记录",
+                    sub: "暂无数据",
+                    value: "--",
+                    valueUnit: "分钟/天"
+                )
+
                 // 身材管理 (通栏)
                 BodyCard(
                     icon: "figure.arms.open",
