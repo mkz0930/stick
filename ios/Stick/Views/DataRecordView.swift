@@ -60,6 +60,9 @@ struct DataRecordView: View {
     var onClose: () -> Void
 
     @StateObject private var vm = DataRecordViewModel()
+    /// LLM 生成的今日洞察（一句）
+    @State private var insight: String = ""
+    @State private var isLoadingInsight: Bool = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -81,7 +84,11 @@ struct DataRecordView: View {
             }
         }
         .preferredColorScheme(.light)
-        .onAppear { vm.refresh() }
+        .onAppear {
+            vm.refresh()
+            // 每次打开都调 LLM 生成一句洞察
+            Task { await generateInsight() }
+        }
     }
 
     // MARK: - Header
@@ -124,17 +131,82 @@ struct DataRecordView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Theme.navy.opacity(0.06)))
             }
-            Text(insightSummary)
-                .font(.system(size: 13))
-                .foregroundColor(Theme.slate)
+            // LLM 生成的洞察: loading / 文本
+            if isLoadingInsight {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text("正在生成洞察…")
+                        .font(.system(size: 13))
+                        .foregroundColor(Theme.slate)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else if !insight.isEmpty {
+                Text(insight)
+                    .font(.system(size: 13))
+                    .foregroundColor(Theme.slate)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text("今日数据不足，洞察稍后生成")
+                    .font(.system(size: 13))
+                    .foregroundColor(Theme.mist)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 12).fill(Theme.card).overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.border, lineWidth: 1)))
     }
 
-    private var insightSummary: String {
-        "今日步数表现积极，结合周末放松节奏，适度活动有助于身心恢复，继续保持活力！"
+    /// 每次打开 DataRecordView 时调 LLM, 基于今日 HealthSnapshot 生成一句 30 字以内的洞察
+    private func generateInsight() async {
+        isLoadingInsight = true
+        defer { isLoadingInsight = false }
+        let context = buildInsightContext()
+        let message = "请基于以上今日健康数据，输出一句洞察，30 字以内，专注最值得关注的一件事。直接给句子，不要标题，不要 emoji，不要说教。"
+        do {
+            let raw = try await LLMService.sendMessage(message, context: context)
+            let cleaned = raw
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "\n", with: " ")
+                .replacingOccurrences(of: "\"", with: "")
+            // 简单截断: 60 字符 ≈ 30 中文字 + 标点
+            insight = cleaned.count > 60 ? String(cleaned.prefix(60)) : cleaned
+        } catch {
+            insight = ""
+            print("[DataRecordView] generateInsight failed: \(error)")
+        }
+    }
+
+    /// 把 vm.today 折算成 7 行摘要给 LLM
+    private func buildInsightContext() -> String {
+        let snaps = vm.today
+        var sit = 0, walk = 0, sleep = 0, stand = 0
+        var steps = 0
+        var hrSum = 0.0, hrCount = 0
+        var energy = 0.0
+        for s in snaps {
+            switch s.bodyState {
+            case "sit":   sit += 1
+            case "walk":  walk += 1
+            case "sleep": sleep += 1
+            case "stand": stand += 1
+            default:      break
+            }
+            steps += s.stepCount ?? 0
+            if let hr = s.heartRate   { hrSum += hr; hrCount += 1 }
+            if let e  = s.activeEnergy { energy += e }
+        }
+        let avgHR = hrCount > 0 ? Int(hrSum / Double(hrCount)) : 0
+        return """
+        今日健康数据：
+        - 步数: \(steps) 步
+        - 久坐: \(sit) 分钟
+        - 行走: \(walk) 分钟
+        - 睡眠: \(sleep) 分钟
+        - 站立: \(stand) 分钟
+        - 平均心率: \(avgHR) bpm
+        - 活动能量: \(Int(energy)) 千卡
+        """
     }
 
     private func todayDateString() -> String {
@@ -189,9 +261,9 @@ struct DataRecordView: View {
                         icon: "figure.run",
                         iconColor: Theme.dashSteps,
                         title: "运动记录",
-                        sub: "06-13 08:57",
-                        value: "10",
-                        valueUnit: "分钟(其他运动)"
+                        sub: "暂无数据",
+                        value: "--",
+                        valueUnit: "分钟"
                     )
                     DashboardCard(
                         icon: "fork.knife",
