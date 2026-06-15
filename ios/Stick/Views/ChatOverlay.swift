@@ -749,8 +749,8 @@ struct ChatOverlay: View {
         self.scrollToBottom = false
         self.pendingScrollId = userMsgId
 
-        // 记录用户消息，每 3 条触发一次用户画像总结
-        let shouldSummarize = UserProfileStore.shared.recordUserMessage()
+        // 记录用户消息计数
+        _ = UserProfileStore.shared.recordUserMessage()
 
         // 提取标签并记录
         let tags = TopicExtractor.extract(from: text)
@@ -800,10 +800,8 @@ struct ChatOverlay: View {
             // 流结束后生成追问建议
             await generateSuggestions(for: assistantId)
 
-            // 每 3 条用户消息总结一次用户画像
-            if shouldSummarize {
-                await summarizeUserProfile()
-            }
+            // 更新用户画像
+            await summarizeUserProfile()
         }
 
         inputFocused = false
@@ -819,7 +817,7 @@ struct ChatOverlay: View {
         self.scrollToBottom = false
         self.pendingScrollId = userMsgId
 
-        let shouldSummarize = UserProfileStore.shared.recordUserMessage()
+        _ = UserProfileStore.shared.recordUserMessage()
 
         // 提取标签并记录
         let tags = TopicExtractor.extract(from: text)
@@ -854,9 +852,8 @@ struct ChatOverlay: View {
 
             await generateSuggestions(for: assistantId)
 
-            if shouldSummarize {
-                await self.summarizeUserProfile()
-            }
+            // 更新用户画像
+            await self.summarizeUserProfile()
         }
     }
 
