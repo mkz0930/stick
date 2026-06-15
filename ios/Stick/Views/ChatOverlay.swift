@@ -144,6 +144,8 @@ struct ChatOverlay: View {
         .onAppear {
             // 检查短期标签是否过期
             UserInterestTagStore.shared.resetShortTermIfExpired()
+            // 自动弹出键盘
+            inputFocused = true
 
             // 从持久化 store 恢复历史 messages
             if !history.messages.isEmpty {
