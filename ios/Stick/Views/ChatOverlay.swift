@@ -93,6 +93,8 @@ struct ChatOverlay: View {
     var scrollTrigger: Int = 0
     /// true 时 onAppear 自动打开相册/相机选图，发送给 LLM 视觉分析（主页 + 按钮触发）
     var pendingPhotoUpload: Bool = false
+    /// true 时 onAppear 自动激活相机 chip 并开相机（主页相机按钮 / 拍食物 chip 触发）
+    var pendingCamera: Bool = false
     var onClose: () -> Void
 
     @State private var messages: [ChatMessage] = []
@@ -190,6 +192,18 @@ struct ChatOverlay: View {
                 // 延迟到键盘弹出后再开 ImagePicker，避免 UI 冲突
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     showPhotoLibrary = true
+                }
+            }
+            // 主页相机按钮 / 拍食物 chip 触发：自动激活拍食物 chip 并开相机
+            if pendingCamera {
+                // 模拟点击"拍食物"chip：保留当前输入 + 预填 chip 文案 + 打开相机
+                let photoFoodChip = features.first { $0.title == "拍食物" }
+                if let chip = photoFoodChip {
+                    textBeforeCamera = ""
+                    input = chip.seed
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    showCamera = true
                 }
             }
 

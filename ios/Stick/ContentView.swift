@@ -125,6 +125,8 @@ struct ContentView: View {
     @State private var inputDraft: String = ""
     /// 主页 + 按钮触发：开 chat + 标记让 ChatOverlay 自动打开相册/相机选图
     @State private var chatPendingPhoto: Bool = false
+    /// 主页相机按钮 / 相机 chip（拍食物、报告解读）触发：开 chat + 标记让 ChatOverlay 自动激活 chip + 开相机
+    @State private var chatPendingCamera: Bool = false
     /// 点击历史记录 → 滚动到该消息的 UUID
     @State private var targetScrollId: UUID? = nil
     /// 滚动触发器：每次历史导航 +1，overlay 用 onChange 响应（不重建 overlay）
@@ -468,10 +470,12 @@ struct ContentView: View {
                     targetScrollId: targetScrollId,
                     scrollTrigger: scrollTrigger,
                     pendingPhotoUpload: chatPendingPhoto,
+                    pendingCamera: chatPendingCamera,
                     onClose: {
                         dismissKeyboard()
                         showChat = false
                         chatPendingPhoto = false   // 重置标记，下次开 chat 不再自动开图
+                        chatPendingCamera = false  // 重置标记
                     }
                 )
                 .id(chatKey)
@@ -978,11 +982,11 @@ struct ContentView: View {
     }
 
     private func openCamera() {
-        // 与 + 按钮走同一条路径：打开 ChatOverlay + 让 ChatOverlay 内部触发 ImagePicker
-        // 保证首页拍照按钮和对话主界面的拍照按钮行为一致
+        // 打开 ChatOverlay + 让 ChatOverlay 内部自动激活相机 chip + 开相机
+        // 与首页"拍食物"chip 走同一条路径
         chatSeed = ""
         chatKey += 1
-        chatPendingPhoto = true
+        chatPendingCamera = true
         showChat = true
     }
 

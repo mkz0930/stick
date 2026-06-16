@@ -26,6 +26,9 @@ struct InputBar: View {
         InputFeature(icon: "cross.case.fill",    title: "AI 诊室",   seed: "AI 医生问诊"),
     ]
 
+    /// 相机 chip — 点击后跳转到 ChatOverlay 并自动激活对应 chip + 开相机
+    private static let cameraChipTitles: Set<String> = ["拍食物", "报告解读"]
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // 1. 顶部 feature chips (横向滚动)
@@ -46,7 +49,12 @@ struct InputBar: View {
             HStack(spacing: 8) {
                 ForEach(features) { f in
                     Button {
-                        onOpenChat(f.seed)
+                        // 拍食物 / 报告解读 是相机 chip：走 onOpenCamera，让 ChatOverlay 内部自动激活并开相机
+                        if InputBar.cameraChipTitles.contains(f.title), let cb = onOpenCamera {
+                            cb()
+                        } else {
+                            onOpenChat(f.seed)
+                        }
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: f.icon)
