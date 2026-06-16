@@ -60,10 +60,15 @@ struct StateInference {
         if recentSteps > 30 {
             score[.walk]! += 3.0
             reasons.append("5min 步数 \(recentSteps) (强)")
-        } else if recentSteps > 5 {
+        } else if recentSteps > 10 {
             score[.walk]! += 1.5
-            reasons.append("5min 步数 \(recentSteps) (弱)")
-        } else if recentSteps == 0 {
+            score[.sit]! += 0.5  // 有步数但不多，静坐也有可能
+            reasons.append("5min 步数 \(recentSteps) (中)")
+        } else if recentSteps > 0 {
+            // 步数很少（<10），结合心率判断，不能仅靠步数判定走路
+            score[.sit]! += 0.8
+            reasons.append("5min 步数 \(recentSteps) (弱，静坐)")
+        } else {
             score[.sit]! += 1.0
             score[.sleep]! += 0.5   // 0 步 + 睡眠时段 = 强 sleep
         }
@@ -76,15 +81,19 @@ struct StateInference {
                 // 深度休息/睡眠
                 score[.sleep]! += 2.0
                 reasons.append("HR \(Int(hr)) < 55")
-            } else if delta > 20 {
-                // 明显高于基线 → 活动
-                score[.walk]! += 2.0
-                reasons.append("HR \(Int(hr)) > RHR+\(Int(delta))")
-            } else if delta > 10 {
-                // 略高于基线 → 轻度活动
-                score[.walk]! += 0.8
+            } else if delta > 25 && recentSteps > 20 {
+                // 心率明显升高 + 有足够步数 → 活动
+                score[.walk]! += 2.5
+                reasons.append("HR \(Int(hr)) 升高 +\(Int(delta)) + 步数支撑")
+            } else if delta > 15 && recentSteps > 10 {
+                // 心率略高 + 有步数 → 轻度活动
+                score[.walk]! += 1.0
+                reasons.append("HR 略高 +\(Int(delta))")
+            } else if abs(delta) <= 10 && recentSteps < 5 {
+                // 心率稳定 + 几乎没步数 → 久坐（最重要！）
+                score[.sit]! += 2.0
+                reasons.append("HR 稳定，久坐")
             } else if abs(delta) <= 10 {
-                // 接近基线 → 静息
                 score[.sit]! += 1.5
                 reasons.append("HR 接近基线")
             }
