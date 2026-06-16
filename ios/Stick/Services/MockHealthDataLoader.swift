@@ -226,8 +226,52 @@ final class MockHealthDataLoader {
 
         // 4) 写进 HealthStore（替换现有数据 — 通过 setAll 公开方法）
         HealthStore.shared.setAllForMock(snapshots)
-        print("[MockHealthDataLoader] ✅ 注入 \(snapshots.count) 条快照")
+        // 5) 同步生成 24h 时刻表 — 让时间线轴也用真实状态上色
+        let schedule = Self.buildDaySchedule(from: snapshots)
+        Task { @MainActor in
+            HealthKitService.shared.realDaySchedule = schedule
+        }
+        print("[MockHealthDataLoader] ✅ 注入 \(snapshots.count) 条快照 + \(schedule.count) 个时刻段")
         return snapshots.count
+    }
+
+    /// 把快照数组转成 24h 时刻表（每分钟聚合 + 连续段合并）
+    private static func buildDaySchedule(from snapshots: [HealthSnapshot]) -> [StickState.DaySegment] {
+        // 1) 每分钟取最新 bodyState → 映射到 StickState
+        var minuteStates: [Int: StickState] = [:]
+        for snap in snapshots {
+            let m = StickState.minutesOfDay(snap.timestamp)
+            guard let state = mapToState(snap.bodyState) else { continue }
+            minuteStates[m] = state
+        }
+        // 2) 连续相同 state → 合并为段
+        var segments: [StickState.DaySegment] = []
+        var current: StickState? = nil
+        var start = 0
+        for m in 0..<1440 {
+            let state = minuteStates[m] ?? .sit
+            if state != current {
+                if let cur = current {
+                    segments.append(StickState.DaySegment(state: cur, startMinute: start, endMinute: m))
+                }
+                current = state
+                start = m
+            }
+        }
+        if let cur = current {
+            segments.append(StickState.DaySegment(state: cur, startMinute: start, endMinute: 1440))
+        }
+        return segments
+    }
+
+    private static func mapToState(_ raw: String) -> StickState? {
+        switch raw {
+        case "walk":  return .walk
+        case "sit":   return .sit
+        case "stand": return .stand
+        case "sleep": return .sleep
+        default:      return nil
+        }
     }
 
     /// 根据步数 / 能量 / 速度推断姿态
