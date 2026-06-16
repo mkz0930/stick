@@ -117,13 +117,23 @@ struct DayTimelineView: View, Equatable {
     }
 
     /// 时间线高亮的目标 segment。优先级：
-    /// 1. swipe 切状态后的 `manualStateOverride`：取 schedule 里第一个匹配 state 的 segment
-    ///    （schedule 没该 state 就回退到第一个非空段，保证 timeline 始终有可视范围）
+    /// 1. swipe 切状态后的 `manualStateOverride`：
+    ///    a. 当前位置的段若 state 匹配 override → 用当前位置段（thumb 已经跳到该段附近）
+    ///    b. 否则按时间正方向找 override state 之后最近的段；wrap 到 schedule 里该 state 的第一个段
     /// 2. 否则按当前 `displayMinute` 查 schedule
     private var displaySegment: StickState.DaySegment? {
-        if let override = manualStateOverride,
-           let seg = schedule.first(where: { $0.state == override }) {
-            return seg
+        if let override = manualStateOverride {
+            if let cur = schedule.first(where: {
+                $0.startMinute <= displayMinute && displayMinute < $0.endMinute && $0.state == override
+            }) {
+                return cur
+            }
+            if let next = schedule.first(where: {
+                $0.state == override && $0.startMinute > displayMinute
+            }) {
+                return next
+            }
+            return schedule.first { $0.state == override }
         }
         return schedule.first { $0.startMinute <= displayMinute && displayMinute < $0.endMinute }
     }

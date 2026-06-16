@@ -912,7 +912,8 @@ struct ContentView: View {
                             manualStateOverride: $manualStateOverride,
                             onPreview: { showFilm = true },
                             onSleepAlert: { showSleepReport = true },
-                            subLine: realSubLine
+                            subLine: realSubLine,
+                            schedule: hk.realDaySchedule ?? StickState.daySchedule
                         )
                         .frame(maxWidth: .infinity)
                         .frame(height: 400)
@@ -1054,6 +1055,7 @@ private struct StageHeroView: View {
     var onPreview: () -> Void
     var onSleepAlert: () -> Void
     let subLine: String
+    let schedule: [StickState.DaySegment]    // 真实时刻表（用于按时间正方向查找下一个 state 的段）
 
     /// 拖动起点 + 起始 offset (用于把横向 delta 换算成分钟)
     @State private var dragStartOffset: Int? = nil
@@ -1075,7 +1077,8 @@ private struct StageHeroView: View {
         scrubOffset = (newOffset / 5) * 5
     }
 
-    /// 快速 swipe → 切到 `allCases` 里相邻 state，并跳 thumb 到该 state 第一个 segment 的中点。
+    /// 快速 swipe → 切到 `allCases` 里相邻 state，并跳 thumb 到该 state 在当前时间之后最近的 segment 中点。
+    /// 找不到则 wrap 到 schedule 里该 state 的第一个 segment。
     /// direction: +1 = 右滑 (下一个 state), -1 = 左滑 (上一个 state)
     private func cycleState(direction: Int) {
         let allCases = StickState.allCases
@@ -1085,9 +1088,13 @@ private struct StageHeroView: View {
         let nextIndex = ((currentIndex + direction) + allCases.count) % allCases.count
         let nextState = allCases[nextIndex]
 
-        // 找到 nextState 在 daySchedule 里第一个 segment，取中点作为 thumb 跳点
+        // 计算当前 thumb 所在分钟（处理跨午夜 + 边界 clamp）
         let nowMin = StickState.minutesOfDay(Date())
-        let targetSeg = StickState.daySchedule.first { $0.state == nextState }
+        let rawDisplayMin = (nowMin - (scrubOffset ?? 0) + 1440) % 1440
+        let currentDisplayMin = max(0, min(rawDisplayMin, 1439))
+
+        // 在 schedule 里按时间正方向找 nextState 之后最近的段；找不到则 wrap 到第一个
+        let targetSeg = nextSegment(for: nextState, after: currentDisplayMin, in: schedule)
         let jumpMinute = targetSeg.map { (($0.startMinute + $0.endMinute) / 2) } ?? nowMin
         // 让 scrubOffset 落点刚好让 displayMinute = jumpMinute（处理跨午夜）
         let rawOffset = (nowMin - jumpMinute + 1440) % 1440
@@ -1097,6 +1104,18 @@ private struct StageHeroView: View {
             manualStateOverride = nextState
             scrubOffset = snappedOffset == 0 ? nil : snappedOffset
         }
+    }
+
+    /// 在 `schedule` 里按 startMinute 升序找 `state` 第一个 `startMinute > after` 的段；
+    /// 找不到则 wrap 到 schedule 里该 state 的第一个段。
+    /// 用于 swipe 切状态时按时间正方向跳 thumb。
+    private func nextSegment(
+        for state: StickState,
+        after minute: Int,
+        in schedule: [StickState.DaySegment]
+    ) -> StickState.DaySegment? {
+        schedule.first(where: { $0.state == state && $0.startMinute > minute })
+            ?? schedule.first { $0.state == state }
     }
 
     /// 把 inference 副标拼成单行 mono 文本：CONF xx% · <first reason>
@@ -1191,12 +1210,21 @@ private struct StageHeroView: View {
     }
 
     /// 主舞台中央徽章：
-    /// - swipe 切状态后 → `状态 · HH:MM–HH:MM`
+    /// - swipe 切状态后 → `状态 · HH:MM–HH:MM`（按当前 thumb 位置定位到该 state 的最近段）
     /// - 仅拖动时间 → `HH:MM`
     private var stageScrubBadge: some View {
         let offset = scrubOffset ?? 0
         let m = StickState.minutesOfDay(Date().addingTimeInterval(-Double(offset) * 60))
-        let seg = StickState.daySchedule.first { $0.state == manualStateOverride ?? state }
+        let targetState = manualStateOverride ?? state
+        // 按当前 thumb 位置定位 segment；override state 时优先找当前位置匹配的段，否则取该 state 之后的最近段
+        let seg: StickState.DaySegment? = {
+            if let cur = schedule.first(where: {
+                $0.startMinute <= m && m < $0.endMinute && $0.state == targetState
+            }) {
+                return cur
+            }
+            return nextSegment(for: targetState, after: m, in: schedule)
+        }()
         let isOverride = manualStateOverride != nil
         return VStack(spacing: 2) {
             if isOverride, let seg = seg {
