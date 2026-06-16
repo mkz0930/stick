@@ -206,6 +206,24 @@ struct ContentView: View {
         let ss = Calendar.current.component(.second, from: displayDate)
         return String(format: "%d:%02d", mm, ss)
     }
+
+    /// 今日累计久坐分钟数（来自 healthStore.today 的快照统计）
+    private var todaySitMinutes: Int {
+        healthStore.today.filter { $0.bodyState == "sit" }.count
+    }
+
+    /// 久坐时长显示文本：M:SS 格式（如 90 分钟 → "90:00"）
+    private var sitMinutesDisplayText: String {
+        let m = todaySitMinutes
+        if m == 0 { return "--:--" }
+        let hours = m / 60
+        let mins = m % 60
+        if hours > 0 {
+            return String(format: "%d:%02d", hours, mins)
+        }
+        return String(format: "%d:00", mins)
+    }
+
     private var moodScore: Double {
         // walk: 兴奋 92, 良好 75, 愉悦 80
         // sit: 专注 82, 疲倦 30, 平稳 65
@@ -528,7 +546,7 @@ struct ContentView: View {
                         bodyScore: bodyEnergy,
                         bodyScoreColor: energyColor,
                         unifiedAlerts: unifiedAlerts,
-                        sitDurationText: sitDurationText,
+                        sitDurationText: sitMinutesDisplayText,
                         todaySteps: todaySteps,
                         isExpanded: $featureRowExpanded,
                         onAlertTap: handleAlertTap,
@@ -1227,7 +1245,7 @@ private struct ContentViewPreviewStub: View {
 
                 // FeatureRow 4 行静态
                 VStack(alignment: .leading, spacing: 4) {
-                    featureLine("SEDENTARY", "47:23", "持续久坐")
+                    featureLine("SEDENTARY", "0:00", "持续久坐")
                     featureLine("POSTURE",   "POOR",  "姿态·前倾")
                     featureLine("HEART RATE", "78 bpm", "心率·静息")
                     featureLine("MOOD",      "良好",   "心情·愉悦")
