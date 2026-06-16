@@ -30,12 +30,14 @@ struct PersonalView: View {
 
     @State private var showDataRecord: Bool = false
     @State private var showWidgetPreview: Bool = false
+    @State private var showTrendData: Bool = false
     @State private var devicesExpanded: Bool = false   // 设备列表展开/收起（默认收起，只显示 1 个）
     @State private var chatHistoryExpanded: Bool = false   // 对话记录展开/收起（默认收起，只显示 2 条）
     @State private var showClearConfirm: Bool = false   // 清空对话记录二次确认弹窗
 
     private let menus: [MenuItem] = [
         MenuItem(icon: "clock.arrow.circlepath", title: "数据记录"),
+        MenuItem(icon: "chart.line.uptrend.xyaxis", title: "趋势数据"),
         MenuItem(icon: "macwindow",  title: "Widget 预览"),
     ]
 
@@ -84,6 +86,8 @@ struct PersonalView: View {
                                 switch item.title {
                                 case "数据记录":
                                     withAnimation(.easeInOut(duration: 0.25)) { showDataRecord = true }
+                                case "趋势数据":
+                                    withAnimation(.easeInOut(duration: 0.25)) { showTrendData = true }
                                 case "Widget 预览":
                                     withAnimation(.easeInOut(duration: 0.25)) { showWidgetPreview = true }
                                 default: break
@@ -127,6 +131,11 @@ struct PersonalView: View {
             })
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showTrendData) {
+            NavigationStack { TrendDataPage() }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: shareItems)
