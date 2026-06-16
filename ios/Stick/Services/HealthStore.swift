@@ -12,6 +12,8 @@ final class HealthStore: ObservableObject {
 
     @Published private(set) var all: [HealthSnapshot] = []
     @Published private(set) var today: [HealthSnapshot] = []
+    /// 是否已完成 JSON 文件加载（异步）。未完成期间 `all` / `today` 为空，
+    /// 调用方（DailyStepsStore / ContentView）应等待 loaded == true 再做统计。
     @Published private(set) var loaded: Bool = false
 
     private let fileURL: URL
@@ -19,11 +21,14 @@ final class HealthStore: ObservableObject {
     private init() {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         self.fileURL = docs.appendingPathComponent("health-snapshots.json")
+        // 启动期跳过同步文件 IO；放到后台线程异步加载，
+        // 避免 HealthStore.shared 首次访问时阻塞主线程（影响 ContentView 启动）。
         Task.detached(priority: .userInitiated) { [weak self] in
             await self?.loadFromDisk()
         }
     }
 
+    /// 后台读取 JSON 并在主线程回填数据。`init()` 中启动。
     @MainActor
     private func loadFromDisk() async {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {

@@ -34,8 +34,9 @@ final class DailyStepsStore: ObservableObject {
 
     private init() {
         load()
-        // HealthStore.loadFromDisk 已改成异步，需等待 loaded 后再读
+        // HealthStore.loadFromDisk 已改成异步，需等待 loaded 后再读 all 计算今日步数
         Task { @MainActor in
+            // 最多等待 2 秒，超时放弃（极端情况：JSON 文件损坏 / 磁盘 IO 挂了）
             let deadline = ContinuousClock().now.advanced(by: .seconds(2))
             while !HealthStore.shared.loaded, ContinuousClock().now < deadline {
                 try? await Task.sleep(nanoseconds: 50_000_000)
