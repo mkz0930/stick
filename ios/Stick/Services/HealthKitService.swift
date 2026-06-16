@@ -488,6 +488,8 @@ final class HealthKitService: ObservableObject {
                 var sedentaryCount = 0
                 var lastActiveTime: Date? = nil   // 上一次有步数的时间
                 let maxGapSeconds: TimeInterval = 4 * 3600   // 4 小时
+                var walkingCooldown = 0
+                let walkGraceMinutes = 3
 
                 results.enumerateStatistics(from: startOfDay, to: now) { statistics, _ in
                     let steps = statistics.sumQuantity()?.doubleValue(for: HKUnit.count()) ?? 0
@@ -507,10 +509,16 @@ final class HealthKitService: ObservableObject {
                         if let last = lastActiveTime, bucketStart.timeIntervalSince(last) > maxGapSeconds {
                             return
                         }
+                        // 步行宽限期：步数后 3 分钟内算步行/过渡期，不计久坐
+                        if walkingCooldown > 0 {
+                            walkingCooldown -= 1
+                            return
+                        }
                         sedentaryCount += 1
                     } else {
-                        // 有步数 → 标记为活动
+                        // 有步数 → 标记为活动 + 开启步行宽限期
                         lastActiveTime = bucketStart
+                        walkingCooldown = walkGraceMinutes
                     }
                 }
                 cont.resume(returning: sedentaryCount)
