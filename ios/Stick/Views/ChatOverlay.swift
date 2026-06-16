@@ -768,119 +768,102 @@ struct ChatOverlay: View {
         let userMsgId = UUID()
         messages.append(ChatMessage(id: userMsgId, role: .user, content: text, imageData: imageData))
         input = ""
-        // 清空已拍照的图片
         capturedImage = nil
         print("[ChatOverlay] send(): user msg added, total msgs now: \(messages.count)")
 
-        // 立即滚动到刚发出的用户问题位置
         self.scrollToBottom = false
         self.pendingScrollId = userMsgId
 
-        // 记录用户消息计数
         _ = UserProfileStore.shared.recordUserMessage()
 
-        // 提取标签并记录
         let tags = TopicExtractor.extract(from: text)
         UserInterestTagStore.shared.record(tags: tags)
         UserInterestTagStore.shared.resetShortTermIfExpired()
 
-        // 从用户输入中提取身体数据（身高/体重/血压/血糖等）
         BodyMetricsStore.shared.extract(from: text)
 
         isStreaming = true
-        // 启动联网搜索的加载态（用户问题含「最新/今天/新闻/价格」等关键词才真正触发；UI 先显示）
-        searchStatus = "正在联网搜索最新信息…"
 
-        let assistantId = UUID()
-        messages.append(ChatMessage(id: assistantId, role: .assistant, content: ""))
+        // 3 段式流式：本地分析 → 联网搜索 → 综合总结
+        // 每段都是独立消息，收到首 chunk 后立刻显示，避免单段太长等待
+        let analysisId = UUID()    // 段 1: 本地个性化分析
+        let webId      = UUID()    // 段 2: 联网参考
+        let synthId    = UUID()    // 段 3: 综合建议
+        messages.append(ChatMessage(id: analysisId, role: .assistant, content: ""))
+        messages.append(ChatMessage(id: webId,      role: .assistant, content: ""))
+        messages.append(ChatMessage(id: synthId,    role: .assistant, content: ""))
 
         let ctx = buildContext()
         streamTask = Task {
-            do {
-                // 100ms 节流：合并 LLM 流式 chunks，减少 SwiftUI 整列表 re-render
-                let flushInterval: TimeInterval = 0.1
-                var buffer = ""
-                var lastFlush = Date()
-                // 收到第一个 chunk 后就关闭"联网搜索"状态
-                var firstChunkReceived = false
+            // 段 1: 本地分析（无搜索，快）
+            await MainActor.run { searchStatus = "正在分析您的健康数据…" }
+            let analysisOk = await streamInto(
+                messageId: analysisId,
+                stream: LLMService.sendMessageStream(
+                    "请基于用户的健康数据/画像/历史，简洁分析当前问题（200字以内，不要联网）。",
+                    context: ctx
+                )
+            )
+            await MainActor.run { searchStatus = nil }
+            if Task.isCancelled { return }
 
-                let flushBuffer: @Sendable () async -> Void = {
-                    guard !buffer.isEmpty else { return }
-                    let toFlush = buffer
-                    buffer = ""
-                    await MainActor.run {
-                        if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
-                            messages[idx].content += toFlush
-                        }
-                    }
-                }
+            // 段 2: 联网搜索（带 enable_search，慢）
+            if let imgData = imageData {
+                // 带图：跳过联网，直接用视觉模型分析
+                await MainActor.run { searchStatus = "正在分析图片…" }
+                let stream2: AsyncThrowingStream<String, Error> = LLMService.sendMessageStreamWithImage(text, context: ctx, imageData: imgData)
+                _ = await streamInto(messageId: webId, stream: stream2)
+                await MainActor.run { searchStatus = nil }
+            } else {
+                await MainActor.run { searchStatus = "正在联网搜索最新信息…" }
+                let webResults: [SearchResult] = await streamIntoCollectingSearch(
+                    messageId: webId,
+                    stream: LLMService.sendMessageStreamWithSearch(text, context: ctx)
+                )
+                await MainActor.run { searchStatus = nil }
+                if Task.isCancelled { return }
 
-                let stream: AsyncThrowingStream<String, Error> = {
-                    if let imgData = imageData {
-                        return LLMService.sendMessageStreamWithImage(text, context: ctx, imageData: imgData)
-                    } else {
-                        return LLMService.sendMessageStreamWithSearch(text, context: ctx)
-                    }
-                }()
+                // 段 3: 综合总结（无搜索；将联网结果作为上下文）
+                await MainActor.run { searchStatus = "正在综合分析…" }
+                let webSummary = webResults.prefix(5).map { "[\($0.index)] \($0.title ?? $0.url)" }.joined(separator: "\n")
+                let synthPrompt = """
+                基于以下「本地分析」+「联网参考」，给用户最终建议（300字以内，可执行）。
 
-                for try await chunk in stream {
-                    if Task.isCancelled { break }
+                【本地分析】
+                \(analysisOk)
 
-                    // 检测搜索引用 sentinel："__SEARCH_RESULTS__:<json>"
-                    if chunk.hasPrefix("__SEARCH_RESULTS__:") {
-                        let json = String(chunk.dropFirst("__SEARCH_RESULTS__:".count))
-                        if let data = json.data(using: .utf8),
-                           let refs = try? JSONDecoder().decode([SearchResult].self, from: data),
-                           !refs.isEmpty {
-                            await MainActor.run {
-                                if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
-                                    messages[idx].searchResults = refs
-                                }
-                            }
-                        }
-                        continue
-                    }
+                【联网参考】
+                \(webSummary.isEmpty ? "（未触发搜索）" : webSummary)
 
-                    if !firstChunkReceived {
-                        firstChunkReceived = true
-                        await MainActor.run { searchStatus = nil }
-                    }
+                【用户原问题】
+                \(text)
+                """
+                _ = await streamInto(
+                    messageId: synthId,
+                    stream: LLMService.sendMessageStream(synthPrompt, context: ctx)
+                )
+                await MainActor.run { searchStatus = nil }
+            }
+            if Task.isCancelled { return }
 
-                    buffer += chunk
-                    if Date().timeIntervalSince(lastFlush) >= flushInterval {
-                        await flushBuffer()
-                        lastFlush = Date()
-                    }
-                }
-                // 流结束后 flush 剩余 buffer
-                await flushBuffer()
-                // 解析食物记录并存储；同时从用户看的回复里剥掉 [FOOD] 行
-                if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
-                    await MainActor.run {
-                        parseAndStoreFoodEntry(from: messages[idx].content)
-                        // 剥掉 [FOOD] 行（结构化数据，不展示给用户）
-                        messages[idx].content = stripFoodLine(messages[idx].content)
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
-                        let err = (error as? LLMError)?.errorDescription ?? error.localizedDescription
-                        let prefix = messages[idx].content.isEmpty ? "" : messages[idx].content + "\n\n"
-                        messages[idx].content = "\(prefix)⚠️ \(err)"
+            // 解析食物记录并存储；同时从所有 assistant 消息里剥掉 [FOOD] 行
+            await MainActor.run {
+                for i in messages.indices {
+                    if messages[i].role == .assistant {
+                        parseAndStoreFoodEntry(from: messages[i].content)
+                        messages[i].content = stripFoodLine(messages[i].content)
                     }
                 }
             }
+
             await MainActor.run {
                 isStreaming = false
                 searchStatus = nil
             }
 
-            // 记录本次分析时间（一小时内的后续回复不再做个性化长分析）
             LLMService.markAnalysisDone()
-
-            // 流结束后生成追问建议
-            await generateSuggestions(for: assistantId)
+            // 建议话题基于最终综合建议（synthId）
+            await generateSuggestions(for: synthId)
             // 更新用户画像
             await summarizeUserProfile()
         }
@@ -917,6 +900,111 @@ struct ChatOverlay: View {
         let range = NSRange(text.startIndex..., in: text)
         return regex.stringByReplacingMatches(in: text, range: range, withTemplate: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// 流式输出辅助：把 stream 的 chunks 100ms 节流刷到指定 messageId，返回最终文本
+    @discardableResult
+    private func streamInto(
+        messageId: UUID,
+        stream: AsyncThrowingStream<String, Error>
+    ) async -> String {
+        let flushInterval: TimeInterval = 0.1
+        var buffer = ""
+        var lastFlush = Date()
+        var fullText = ""
+
+        let flushBuffer: @Sendable () async -> Void = {
+            guard !buffer.isEmpty else { return }
+            let toFlush = buffer
+            buffer = ""
+            await MainActor.run {
+                if let idx = messages.firstIndex(where: { $0.id == messageId }) {
+                    messages[idx].content += toFlush
+                }
+            }
+        }
+
+        do {
+            for try await chunk in stream {
+                if Task.isCancelled { break }
+                buffer += chunk
+                fullText += chunk
+                if Date().timeIntervalSince(lastFlush) >= flushInterval {
+                    await flushBuffer()
+                    lastFlush = Date()
+                }
+            }
+            await flushBuffer()
+        } catch {
+            await MainActor.run {
+                if let idx = messages.firstIndex(where: { $0.id == messageId }) {
+                    let err = (error as? LLMError)?.errorDescription ?? error.localizedDescription
+                    let prefix = messages[idx].content.isEmpty ? "" : messages[idx].content + "\n\n"
+                    messages[idx].content = "\(prefix)⚠️ \(err)"
+                }
+            }
+        }
+        return fullText
+    }
+
+    /// 流式输出辅助（同 streamInto + 捕获末尾的搜索引用 sentinel）
+    @discardableResult
+    private func streamIntoCollectingSearch(
+        messageId: UUID,
+        stream: AsyncThrowingStream<String, Error>
+    ) async -> [SearchResult] {
+        let flushInterval: TimeInterval = 0.1
+        var buffer = ""
+        var lastFlush = Date()
+        var collected: [SearchResult] = []
+
+        let flushBuffer: @Sendable () async -> Void = {
+            guard !buffer.isEmpty else { return }
+            let toFlush = buffer
+            buffer = ""
+            await MainActor.run {
+                if let idx = messages.firstIndex(where: { $0.id == messageId }) {
+                    messages[idx].content += toFlush
+                }
+            }
+        }
+
+        do {
+            for try await chunk in stream {
+                if Task.isCancelled { break }
+
+                // 捕获末尾的搜索引用 sentinel
+                if chunk.hasPrefix("__SEARCH_RESULTS__:") {
+                    let json = String(chunk.dropFirst("__SEARCH_RESULTS__:".count))
+                    if let data = json.data(using: .utf8),
+                       let refs = try? JSONDecoder().decode([SearchResult].self, from: data) {
+                        collected = refs
+                        await MainActor.run {
+                            if let idx = messages.firstIndex(where: { $0.id == messageId }) {
+                                messages[idx].searchResults = refs
+                            }
+                        }
+                    }
+                    continue
+                }
+
+                buffer += chunk
+                if Date().timeIntervalSince(lastFlush) >= flushInterval {
+                    await flushBuffer()
+                    lastFlush = Date()
+                }
+            }
+            await flushBuffer()
+        } catch {
+            await MainActor.run {
+                if let idx = messages.firstIndex(where: { $0.id == messageId }) {
+                    let err = (error as? LLMError)?.errorDescription ?? error.localizedDescription
+                    let prefix = messages[idx].content.isEmpty ? "" : messages[idx].content + "\n\n"
+                    messages[idx].content = "\(prefix)⚠️ \(err)"
+                }
+            }
+        }
+        return collected
     }
 
     /// 直接发送文字（不经过 input 框，用于意图按钮）
