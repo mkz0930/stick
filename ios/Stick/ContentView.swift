@@ -50,6 +50,10 @@ struct ContentView: View {
     @State private var showAIReport: Bool = false
     @State private var selectedAlert: UnifiedAlert? = nil
     @State private var deviceSet: Set<DeviceID> = [.iPhone]
+    /// 场景相位（前台/后台/非活跃）
+    @Environment(\.scenePhase) private var scenePhase: ScenePhase
+    /// 上次切到后台的时间（用于黑屏期间久坐反推）
+    @State private var backgroundedAt: Date? = nil
     /// FeatureRow 展开态（提升到 ContentView，让 StageHeroView 也能读到 — 控制小人淡出）
     @State private var featureRowExpanded: Bool = false
     /// 订阅 HealthStore：30s 一次 captureSnapshot() 会把 HealthSnapshot 写到 .today，
@@ -61,6 +65,17 @@ struct ContentView: View {
 
     /// 首页久坐分钟数（从 HealthKit 直接查询，与数据记录一致）
     @State private var homeSedentaryMinutes: Int = 0
+    /// 睡眠数据是否有效（用于判断久坐累计是否可信）
+    @State private var hasValidSleepData: Bool = false
+
+    /// 基于真实快照分析的当前连续久坐分钟数（每30秒更新一次）
+    @State private var currentSitMinutes: Int = 0
+    /// 当前久坐 session 开始时刻（从快照时间推算，用于秒级跳动）
+    @State private var currentSitStartTime: Date? = nil
+    /// 上次分析时间（控制30秒刷新一次）
+    @State private var lastSitAnalysisTime: Date = .distantPast
+    /// Timer 触发器，每秒 +1 驱动 live 秒表刷新
+    @State private var tick: Int = 0
 
     // Chat
     @State private var showChat: Bool = false
@@ -190,40 +205,29 @@ struct ContentView: View {
         }
     }
 
-    /// 今日累计久坐时长显示：H:MM 格式（如 "6:23" = 6小时23分）
-    private var sitDurationText: String {
-        let m = todaySitMinutes
-        if m == 0 { return "--:--" }
-        let hours = m / 60
-        let mins = m % 60
-        if hours > 0 {
-            return String(format: "%d:%02d", hours, mins)
-        }
-        return String(format: "%d:00", mins)
-    }
-
     /// 今日累计久坐分钟数（来自 healthStore.today 的快照统计）
     private var todaySitMinutes: Int {
         healthStore.today.filter { $0.bodyState == "sit" }.count
     }
 
-    /// 久坐时长显示文本：今日累计 H:MM 格式
-    private var sitMinutesDisplayText: String {
-        let m = todaySitMinutes
-        if m == 0 { return "--:--" }
-        let hours = m / 60
-        let mins = m % 60
-        if hours > 0 {
-            return String(format: "%d:%02d", hours, mins)
-        }
-        return String(format: "%d:00", mins)
+    /// 当前久坐 session live 时长（M:SS），基于 currentSitStartTime 每秒跳动
+    var sitDurationText: String? {
+        _ = tick  // 每秒触发重算
+        guard let startTime = currentSitStartTime, displayState == .sit else { return nil }
+        let elapsed = Date().timeIntervalSince(startTime)
+        let totalSeconds = Int(elapsed)
+        let mm = totalSeconds / 60
+        let ss = totalSeconds % 60
+        return String(format: "%d:%02d", mm, ss)
     }
 
-    /// 今日累计久坐描述文本（供 FeatureRow 显示）
+    /// 今日累计久坐描述文本（供 FeatureRow 显示）- X.Xh 格式
     var todaySitDescription: String {
+        // 睡眠数据无效时（用户未在健康 App 记录睡眠），久坐值不可信，显示 "--"
+        guard hasValidSleepData else { return "--" }
         let m = homeSedentaryMinutes
         if m == 0 { return "暂无久坐" }
-        return String(format: "%d:%02d", m / 60, m % 60)
+        return String(format: "%.1fh", Double(m) / 60.0)
     }
 
     private var moodScore: Double {
@@ -420,7 +424,9 @@ struct ContentView: View {
                         // 关掉个人面板，打开聊天
                         withAnimation(.easeInOut(duration: 0.32)) { showPersonal = false }
                         openChat(seed)
-                    }
+                    },
+                    currentSitDuration: sitDurationText,
+                    currentBodyState: displayState.rawValue
                 )
                 .frame(width: panelWidth)
                 .offset(x: showPersonal ? 0 : -panelWidth)
@@ -443,6 +449,23 @@ struct ContentView: View {
             guard !Self.isRunningForPreviews else { return }
             // 1s 校准一次（让坐姿秒表 / DURATION 等 live 数据每秒跳一次）
             now = Date()
+            // 每 30 秒基于真实快照重新分析连续久坐时长
+            if Date().timeIntervalSince(lastSitAnalysisTime) >= 30 {
+                lastSitAnalysisTime = Date()
+                let prevMinutes = currentSitMinutes
+                Task {
+                    let newMinutes = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
+                    // 如果新分析结果比当前记录更长，说明session在延续，更新开始时刻
+                    if newMinutes > prevMinutes {
+                        // session 延长：从当前时刻往前推 newMinutes 分钟作为开始时刻
+                        currentSitStartTime = Date().addingTimeInterval(-Double(newMinutes) * 60)
+                    }
+                    currentSitMinutes = newMinutes
+                    if newMinutes == 0 {
+                        currentSitStartTime = nil
+                    }
+                }
+            }
         }
         .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
             // Preview 模式跳过 — 不让 Timer 反复触发重渲染
@@ -453,7 +476,25 @@ struct ContentView: View {
                 inference = HealthKitService.shared.currentInference
             }
         }
-        .onChange(of: displayState) { _ in
+        .onChange(of: displayState) { oldValue, newValue in
+            // 久坐被打断或恢复时，立即分析一次
+            if newValue == .sit {
+                // 进入坐姿：立即触发一次快照分析，获取最新连续久坐时长
+                Task {
+                    let sitMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
+                    currentSitMinutes = sitMins
+                    if sitMins > 0 {
+                        currentSitStartTime = Date().addingTimeInterval(-Double(sitMins) * 60)
+                    } else {
+                        currentSitStartTime = nil
+                    }
+                    lastSitAnalysisTime = Date()
+                }
+            } else {
+                // 离开坐姿：立即清空计时
+                currentSitMinutes = 0
+                currentSitStartTime = nil
+            }
             // Preview 模式跳过 — Widget reload 在 Preview 里会卡死
             guard !Self.isRunningForPreviews else { return }
             // 状态切换时把当前快照写给 Widget
@@ -472,6 +513,41 @@ struct ContentView: View {
             #if canImport(WidgetKit)
             WidgetCenter.shared.reloadAllTimelines()
             #endif
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            // 切到后台：记录时间
+            if newPhase != .active {
+                backgroundedAt = Date()
+            }
+            // 回到前台：从 HealthKit 直接查询今日累计久坐分钟数，反推开始时刻
+            if oldPhase != .active && newPhase == .active {
+                guard !Self.isRunningForPreviews else { return }
+                Task {
+                    // 从 HealthKit 直接读今日累计久坐（考虑睡眠校正）
+                    let sedentary = await HealthKitService.shared.todaySedentaryMinutes()
+                    let sleepHours = await HealthKitService.shared.todaySleepHours()
+                    let validSleep = sleepHours ?? 0 > 0
+                    let adjustedSedentary = validSleep ? max(0, sedentary - Int((sleepHours ?? 0) * 60)) : 0
+
+                    if adjustedSedentary > 0 {
+                        // 从 HealthKit 今日累计久坐反推 session 开始时刻
+                        currentSitStartTime = Date().addingTimeInterval(-Double(adjustedSedentary) * 60)
+                        currentSitMinutes = adjustedSedentary
+                        hasValidSleepData = true
+                    } else {
+                        currentSitStartTime = nil
+                        currentSitMinutes = 0
+                        hasValidSleepData = false
+                    }
+                    // 同时刷新一次快照分析
+                    let snapMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
+                    if snapMins > 0 {
+                        currentSitMinutes = snapMins
+                        currentSitStartTime = Date().addingTimeInterval(-Double(snapMins) * 60)
+                    }
+                    lastSitAnalysisTime = Date()
+                }
+            }
         }
         .sheet(isPresented: $showFilm) {
             MiniFilmShareSheet(isPresented: $showFilm)
@@ -499,8 +575,6 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showNeckReport) {
             NeckPressureReportView(
-                tiredness: figureTiredness,
-                bendAngle: 20.0 + figureTiredness * 130.0,
                 onClose: { showNeckReport = false }
             )
             .presentationDetents([.large])
@@ -517,11 +591,22 @@ struct ContentView: View {
                 inference = HealthKitService.shared.currentInference
                 // 加载今日久坐分钟数（从 HealthKit 直接查询，与数据记录一致）
                 homeSedentaryMinutes = await HealthKitService.shared.todaySedentaryMinutes()
-                // 减去睡眠时间
-                if let sleepHours = await HealthKitService.shared.todaySleepHours() {
+                // 减去睡眠时间（只有睡眠数据有效时才做校正，否则久坐值不可信）
+                if let sleepHours = await HealthKitService.shared.todaySleepHours(), sleepHours > 0 {
                     let sleepMinutes = Int(sleepHours * 60)
                     homeSedentaryMinutes = max(0, homeSedentaryMinutes - sleepMinutes)
+                    hasValidSleepData = true
+                } else {
+                    // 睡眠数据为空，久坐累计不可信，置零但不显示（用 "--" 代替）
+                    hasValidSleepData = false
                 }
+                // 初始加载当前连续久坐时长（基于真实快照分析）
+                let sitMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
+                currentSitMinutes = sitMins
+                if sitMins > 0 {
+                    currentSitStartTime = Date().addingTimeInterval(-Double(sitMins) * 60)
+                }
+                lastSitAnalysisTime = Date()
             }
             // 检查各 metric 真实授权状态 (有/无/拒绝)
             healthAuth.refresh()
@@ -728,24 +813,12 @@ struct ContentView: View {
 // MARK: - 腰椎压力 AI 分析报告
 
 /// 用户点击"腰椎压力过大"徽章后弹出的 sheet。
-/// 根据当前 tiredness 等级（0..1）和 head 弯曲角度（20° + 130°×t）生成 AI 分析报告。
-/// 内容为本地模拟（没接 LLM），但风格、风险评估、建议都根据 level 动态生成。
+/// **改为基于真实 HealthKit 数据**（久坐/HR/HRV/步数/睡眠），没有异常就不显示风险
+/// 取代之前基于 tiredness（姿态估算）的硬编码分级。
 private struct NeckPressureReportView: View {
-    let tiredness: Double
-    let bendAngle: Double
     let onClose: () -> Void
 
-    /// 风险等级（0..1 → 低/中/高/严重）
-    private var riskLevel: (label: String, color: Color) {
-        switch tiredness {
-        case ..<0.5:  return ("低", Color(red: 0.02, green: 0.59, blue: 0.41))
-        case ..<0.7:  return ("中", Color(red: 0.92, green: 0.34, blue: 0.05))
-        case ..<0.85: return ("高", Color(red: 0.93, green: 0.20, blue: 0.20))
-        default:      return ("严重", Color(red: 0.72, green: 0.05, blue: 0.05))
-        }
-    }
-
-    private var durationHours: Double { 0.5 + tiredness * 4.0 }
+    @State private var report: RealHealthReport = RealHealthAnalyzer.shared.analyze()
 
     private var currentTime: String {
         let c = Calendar.current
@@ -753,55 +826,6 @@ private struct NeckPressureReportView: View {
         let h = c.component(.hour, from: d)
         let m = c.component(.minute, from: d)
         return String(format: "%02d:%02d", h, m)
-    }
-
-    private var analysisBody: String {
-        switch tiredness {
-        case ..<0.5:
-            return "过去 30 分钟你的头部前倾角度维持在 \(Int(bendAngle))° 左右，腰椎承受的额外压力约为正常直立姿势的 1.5 倍。当前属于轻度疲劳，建议每小时起身活动 2-3 分钟，避免进一步累积。"
-        case ..<0.7:
-            return "过去 1.5 小时内你的头部持续前倾 \(Int(bendAngle))°，相当于在腰椎上挂了约 12 公斤的沙袋（正常直立约 4.5 公斤）。这个角度会导致腰后肌群持续紧张，肩部也开始代偿。建议立刻做一组腰部拉伸，并把屏幕抬高到视线平行位置。"
-        case ..<0.85:
-            return "⚠️ 高风险：你的头部已经前倾 \(Int(bendAngle))° 长达近 \(String(format: "%.1f", durationHours)) 小时。腰椎承受的压力是正常的 3 倍以上（约 15-18 公斤），相当于一个 6 岁小孩坐在你的腰上。椎间盘突出、肩腰僵硬、头晕恶心的风险显著上升。请立刻：① 离开工位 ② 做 5 分钟米字操 ③ 调整显示器高度 ④ 之后每 30 分钟强制起身。"
-        default:
-            return "🚨 严重警告：头部前倾达到 \(Int(bendAngle))°，已经进入可能造成腰椎反弓的角度。肌肉韧带长期被牵拉、椎动脉供血受影响，风险包括：腰椎曲度变直、椎间盘突出、神经根压迫、头晕手麻。不要再继续这个姿势。建议立即离开屏幕，去做专业理疗或就医检查。如果只是暂时性疲劳，请至少：① 缓慢做腰部米字操 ② 热敷腰后 15 分钟 ③ 把椅子降低让视线平视屏幕。"
-        }
-    }
-
-    private var recommendations: [String] {
-        switch tiredness {
-        case ..<0.5:
-            return [
-                "保持当前姿势每小时起身一次",
-                "做 30 秒颈部米字操",
-                "喝一杯水补充水分",
-            ]
-        case ..<0.7:
-            return [
-                "立刻离开工位 3-5 分钟",
-                "做 1 分钟米字操（前后左右各 5 次）",
-                "调整显示器：上沿与视线平齐",
-                "考虑加装笔记本支架",
-            ]
-        case ..<0.85:
-            return [
-                "立即停止当前工作，休息 5-10 分钟",
-                "米字操 1 分钟 + 肩部环绕 30 秒",
-                "热敷颈后 10 分钟",
-                "调整工位：屏幕抬高、椅子升高、键盘下沉",
-                "接下来每 30 分钟强制起身",
-                "下班后做专业颈部按摩 / 推拿",
-            ]
-        default:
-            return [
-                "立即停止所有屏幕工作",
-                "去最近的医院或理疗店做一次专业评估",
-                "近期考虑腰椎 X 光 / MRI 检查",
-                "暂停高强度脑力工作至少 1 天",
-                "如伴随手麻、头晕、恶心，立即就医",
-                "工位全面改造：升降桌 + 显示器支架 + 人体工学椅",
-            ]
-        }
     }
 
     var body: some View {
@@ -812,11 +836,11 @@ private struct NeckPressureReportView: View {
                     HStack(alignment: .top, spacing: 14) {
                         ZStack {
                             Circle()
-                                .fill(riskLevel.color.opacity(0.15))
+                                .fill(report.risk.color.opacity(0.15))
                                 .frame(width: 56, height: 56)
-                            Image(systemName: "exclamationmark.triangle.fill")
+                            Image(systemName: report.risk == .normal ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
                                 .font(.system(size: 24, weight: .heavy))
-                                .foregroundColor(riskLevel.color)
+                                .foregroundColor(report.risk.color)
                         }
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 6) {
@@ -824,11 +848,11 @@ private struct NeckPressureReportView: View {
                                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                                     .tracking(0.6)
                                     .foregroundColor(Theme.slate)
-                                Text(riskLevel.label)
+                                Text(report.risk.label)
                                     .font(.system(size: 16, weight: .heavy, design: .serif))
-                                    .foregroundColor(riskLevel.color)
+                                    .foregroundColor(report.risk.color)
                             }
-                            Text("采集时间 · \(currentTime)")
+                            Text("数据来源 · HealthKit · \(currentTime)")
                                 .font(.system(size: 10, weight: .regular, design: .monospaced))
                                 .foregroundColor(Theme.slate)
                         }
@@ -837,62 +861,91 @@ private struct NeckPressureReportView: View {
                     .padding(14)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
-                            .fill(riskLevel.color.opacity(0.08))
+                            .fill(report.risk.color.opacity(0.08))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(riskLevel.color.opacity(0.4), lineWidth: 1)
+                            .stroke(report.risk.color.opacity(0.4), lineWidth: 1)
                     )
 
-                    sectionHeader("当前数据")
-                    dataRow("头部前倾角度", "\(Int(bendAngle))°")
-                    dataRow("不良姿势持续", String(format: "%.1f 小时", durationHours))
-                    dataRow("腰椎承受压力", "约 \(Int(4.5 + tiredness * 18)) kg")
-                    dataRow("疲劳强度", "\(Int(tiredness * 100))%")
+                    sectionHeader("HealthKit 真实数据")
+                    if report.keyMetrics.isEmpty {
+                        Text("暂无 HealthKit 数据")
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundColor(Theme.slate)
+                            .padding(14)
+                    } else {
+                        VStack(spacing: 4) {
+                            ForEach(Array(report.keyMetrics.enumerated()), id: \.offset) { _, metric in
+                                HStack {
+                                    HStack(spacing: 4) {
+                                        Circle()
+                                            .fill(metric.isAbnormal ? Color(red: 0.93, green: 0.20, blue: 0.20) : Color(red: 0.02, green: 0.59, blue: 0.41))
+                                            .frame(width: 6, height: 6)
+                                        Text(metric.label)
+                                            .font(.system(size: 13, weight: .regular, design: .serif))
+                                            .foregroundColor(Theme.slate)
+                                    }
+                                    Spacer()
+                                    Text(metric.value)
+                                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                                        .foregroundColor(metric.isAbnormal ? Color(red: 0.93, green: 0.20, blue: 0.20) : Theme.navy)
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6).fill(Theme.card)
+                                )
+                            }
+                        }
+                    }
 
                     sectionHeader("AI 分析")
-                    Text(analysisBody)
+                    Text(report.analysisText)
                         .font(.system(size: 14, weight: .regular, design: .serif))
                         .foregroundColor(Theme.navy)
                         .lineSpacing(4)
                         .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Theme.card)
+                            RoundedRectangle(cornerRadius: 8).fill(Theme.card)
                         )
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Theme.border, lineWidth: 0.5)
+                            RoundedRectangle(cornerRadius: 8).stroke(Theme.border, lineWidth: 0.5)
                         )
 
                     sectionHeader("建议")
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(Array(recommendations.enumerated()), id: \.offset) { idx, rec in
-                            HStack(alignment: .top, spacing: 8) {
-                                Text("\(idx + 1).")
-                                    .font(.system(size: 13, weight: .heavy, design: .monospaced))
-                                    .foregroundColor(riskLevel.color)
-                                    .frame(width: 20, alignment: .trailing)
-                                Text(rec)
-                                    .font(.system(size: 13, weight: .regular, design: .serif))
-                                    .foregroundColor(Theme.navy)
-                                    .lineSpacing(3)
+                    if report.recommendations.isEmpty {
+                        Text("当前无需特别建议")
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundColor(Theme.slate)
+                            .padding(14)
+                    } else {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(Array(report.recommendations.enumerated()), id: \.offset) { idx, rec in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Text("\(idx + 1).")
+                                        .font(.system(size: 13, weight: .heavy, design: .monospaced))
+                                        .foregroundColor(report.risk.color)
+                                        .frame(width: 20, alignment: .trailing)
+                                    Text(rec)
+                                        .font(.system(size: 13, weight: .regular, design: .serif))
+                                        .foregroundColor(Theme.navy)
+                                        .lineSpacing(3)
+                                }
                             }
                         }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8).fill(Theme.card)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8).stroke(Theme.border, lineWidth: 0.5)
+                        )
                     }
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Theme.card)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Theme.border, lineWidth: 0.5)
-                    )
 
-                    Text("⚠️ 本报告为系统根据姿态信号估算，仅供参考；如有持续不适请咨询专业医师。")
+                    Text("⚠️ 本报告基于 HealthKit 真实数据（HR / HRV / 步数 / 久坐 / 静息心率）。如有持续不适请咨询专业医师。")
                         .font(.system(size: 10, weight: .regular, design: .monospaced))
                         .foregroundColor(Theme.slate)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -901,7 +954,7 @@ private struct NeckPressureReportView: View {
                 .padding(16)
             }
             .background(Theme.bgTop.ignoresSafeArea())
-            .navigationTitle("腰椎压力分析")
+            .navigationTitle("健康分析")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -922,26 +975,6 @@ private struct NeckPressureReportView: View {
                 .frame(height: 0.5)
         }
         .padding(.top, 4)
-    }
-
-    private func dataRow(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(.system(size: 13, weight: .regular, design: .serif))
-                .foregroundColor(Theme.slate)
-            Spacer()
-            Text(value)
-                .font(.system(size: 14, weight: .heavy, design: .monospaced))
-                .foregroundColor(Theme.navy)
-        }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 6).fill(Theme.card)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6).stroke(Theme.border, lineWidth: 0.5)
-        )
     }
 }
 
