@@ -196,10 +196,23 @@ struct DataRecordView: View {
     }
 
     /// 睡眠时长显示值：或 --
+    /// 优先用户对话里说过的（BodyMetricsStore），否则回退到 HealthKit sleepAnalysis
     private var sleepValue: String {
-        guard let v = BodyMetricsStore.shared.sleepHours else { return "--" }
-        if v == 0 { return "0" } // 失眠
-        return String(format: "%.1f", v)
+        if let v = BodyMetricsStore.shared.sleepHours {
+            if v == 0 { return "0" } // 失眠
+            return String(format: "%.1f", v)
+        }
+        if let v = hkData.sleepHours, v > 0 {
+            return String(format: "%.1f", v)
+        }
+        return "--"
+    }
+
+    /// 睡眠卡片副标：标明数据来源
+    private var sleepSub: String {
+        if BodyMetricsStore.shared.sleepHours != nil { return "来自对话分析" }
+        if (hkData.sleepHours ?? 0) > 0 { return "来自 HealthKit" }
+        return "暂无数据"
     }
 
     /// 运动时长显示值（从 HealthStore 快照统计 bodyState == "walk" 的分钟数）
@@ -536,7 +549,7 @@ struct DataRecordView: View {
                         icon: "moon.zzz.fill",
                         iconColor: Theme.dashSleep,
                         title: "睡眠",
-                        sub: "来自对话分析",
+                        sub: sleepSub,
                         value: sleepValue,
                         valueUnit: "小时"
                     )
