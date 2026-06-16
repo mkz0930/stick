@@ -1676,32 +1676,49 @@ struct MessageRow: View {
                 HStack(spacing: 6) {
                     ForEach(refs) { ref in
                         if let url = URL(string: ref.url) {
-                            Link(destination: url) {
-                                HStack(spacing: 4) {
-                                    Text("[\(ref.index)]")
-                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                        .foregroundColor(accent)
-                                    Text(ref.siteName ?? ref.title ?? ref.url)
-                                        .font(.system(size: 11, weight: .medium))
-                                        .foregroundColor(Theme.navy)
-                                        .lineLimit(1)
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(Color.white)
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .stroke(Theme.border, lineWidth: 0.5)
-                                )
-                            }
+                            ReferenceChip(ref: ref, accent: accent, url: url)
                         }
                     }
                 }
             }
         }
+    }
+}
+
+/// 单个参考来源 chip（按钮 + openURL）
+private struct ReferenceChip: View {
+    let ref: SearchResult
+    let accent: Color
+    let url: URL
+
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        Button {
+            openURL(url)
+        } label: {
+            HStack(spacing: 4) {
+                Text("[\(ref.index)]")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(accent)
+                Text(ref.siteName ?? ref.title ?? ref.url)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(Theme.navy)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.white)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Theme.border, lineWidth: 0.5)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
