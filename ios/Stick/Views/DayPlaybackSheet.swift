@@ -121,14 +121,19 @@ struct DayPlaybackSheet: View {
 
     // MARK: - 总结封面 (最后一页)
 
-    /// 各状态累计分钟（按 schedule 聚合）
+    /// 各状态累计分钟（从真实 HealthKit 快照统计，不依赖 schedule 估算）
     private var distribution: [(state: StickState, minutes: Int)] {
-        var dict: [StickState: Int] = [:]
-        for seg in schedule {
-            dict[seg.state, default: 0] += seg.duration
-        }
+        let snaps = HealthStore.shared.today
+        let walkMin = snaps.filter { $0.bodyState == "walk" }.count
+        let sitMin  = snaps.filter { $0.bodyState == "sit"  }.count
+        let sleepMin = snaps.filter { $0.bodyState == "sleep" }.count
+        let standMin = snaps.filter { $0.bodyState == "stand" }.count
         // 固定顺序: 走 / 坐 / 睡
-        return [.walk, .sit, .sleep].map { ($0, dict[$0] ?? 0) }
+        return [
+            (.walk,  walkMin),
+            (.sit,   sitMin + standMin),  // stand 并入坐
+            (.sleep, sleepMin)
+        ]
     }
 
     private var totalMinutes: Int { distribution.reduce(0) { $0 + $1.minutes } }
@@ -183,6 +188,48 @@ struct DayPlaybackSheet: View {
                         }
                     }
                 }
+
+                // 真实数据指标
+                let snaps = HealthStore.shared.today
+                let steps = snaps.last?.cumulativeStepCount ?? 0
+                let hr = snaps.last?.heartRate.map { Int($0) }
+                let energy = snaps.last?.activeEnergy.map { Int($0) } ?? 0
+                HStack(spacing: 20) {
+                    if steps > 0 {
+                        VStack(spacing: 1) {
+                            Text("\(steps)")
+                                .font(.system(size: 16, weight: .black, design: .rounded))
+                                .foregroundColor(Color(red: 0.10, green: 0.14, blue: 0.20))
+                                .monospacedDigit()
+                            Text("步")
+                                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                .foregroundColor(Color(red: 0.45, green: 0.50, blue: 0.55))
+                        }
+                    }
+                    if let h = hr {
+                        VStack(spacing: 1) {
+                            Text("\(h)")
+                                .font(.system(size: 16, weight: .black, design: .rounded))
+                                .foregroundColor(Color(red: 0.10, green: 0.14, blue: 0.20))
+                                .monospacedDigit()
+                            Text("bpm")
+                                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                .foregroundColor(Color(red: 0.45, green: 0.50, blue: 0.55))
+                        }
+                    }
+                    if energy > 0 {
+                        VStack(spacing: 1) {
+                            Text("\(energy)")
+                                .font(.system(size: 16, weight: .black, design: .rounded))
+                                .foregroundColor(Color(red: 0.10, green: 0.14, blue: 0.20))
+                                .monospacedDigit()
+                            Text("kcal")
+                                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                .foregroundColor(Color(red: 0.45, green: 0.50, blue: 0.55))
+                        }
+                    }
+                }
+                .padding(.top, 4)
             }
             .padding(.horizontal, 28)
 
@@ -340,11 +387,14 @@ struct DayPlaybackSheet: View {
 
     private var shareMessage: String {
         let parts = distribution.map { "\($0.state.rawValue) \(formatHM($0.minutes))" }
-        return "今日 24h · " + parts.joined(separator: " · ")
-    }
-
-    private var stepsCount: Int {
-        schedule.count
+        let snaps = HealthStore.shared.today
+        let steps = snaps.last?.cumulativeStepCount ?? 0
+        let hr = snaps.last?.heartRate.map { Int($0) }
+        var extras: [String] = []
+        if steps > 0 { extras.append("\(steps) 步") }
+        if let h = hr { extras.append("\(h) bpm") }
+        let extra = extras.isEmpty ? "" : " · \(extras.joined(separator: " · "))"
+        return "今日 24h · " + parts.joined(separator: " · ") + extra
     }
 }
 
