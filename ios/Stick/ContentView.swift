@@ -725,28 +725,32 @@ struct ContentView: View {
                     lastSitAnalysisTime = Date()
 
                     // 3) 累计 + 心率 + 步态 + 时刻表 — 并行刷新（不再阻塞秒表）
-                    async let sedentaryTask: Void = {
+                    async let sedentaryTask: (minutes: Int, hasValidSleep: Bool) = {
                         let sed = await HealthKitService.shared.todaySedentaryMinutes()
                         let sleep = await HealthKitService.shared.todaySleepHours()
                         let valid = (sleep ?? 0) > 0
-                        homeSedentaryMinutes = valid ? max(0, sed - Int((sleep ?? 0) * 60)) : 0
-                        hasValidSleepData = valid
+                        let minutes = valid ? max(0, sed - Int((sleep ?? 0) * 60)) : 0
+                        return (minutes, valid)
                     }()
                     async let scheduleTask: Void = {
                         await HealthKitService.shared.computeDaySchedule()
                     }()
-                    async let qualityTask: Void = {
+                    async let qualityTask: (walkingQuality: WalkingQualityData, heartRate: Int?) = {
                         let wq = await HealthKitService.shared.todayWalkingQuality()
-                        walkingQuality = WalkingQualityData.from(wq)
-                        realHeartRate = await HealthKitService.shared.todayHeartRate()
+                        let heartRate = await HealthKitService.shared.todayHeartRate()
+                        return (WalkingQualityData.from(wq), heartRate)
                     }()
-                    _ = await (sedentaryTask, scheduleTask, qualityTask)
+                    let (sedentary, _, quality) = await (sedentaryTask, scheduleTask, qualityTask)
+                    homeSedentaryMinutes = sedentary.minutes
+                    hasValidSleepData = sedentary.hasValidSleep
+                    walkingQuality = quality.walkingQuality
+                    realHeartRate = quality.heartRate
                 }
             }
         }
         .onChange(of: hkService.lastMovementTime) { oldValue, newValue in
             // HealthKit 检测到明显步数增加 → 立即打断久坐，重新计时
-            guard let newMovement = newValue, oldValue != newValue else { return }
+            guard newValue != nil, oldValue != newValue else { return }
             guard !Self.isRunningForPreviews else { return }
             // 只要检测到新的大步数（>30步/分钟），立即清零计时器
             // 下一次 currentSedentarySessionMinutes 分析会基于新的快照重新计算
@@ -1086,8 +1090,7 @@ private struct StageHeroView: View {
     private func handleStageDrag(translation: CGFloat, width: CGFloat) {
         dragWidth = width
         let baseOffset = dragStartOffset ?? scrubOffset ?? 0
-        // 1 pt ≈ 4 min；24h=1440min ≈ 360pt full width
-        let minutesPerPoint: CGFloat = 4
+        // 24h=1440min，按舞台宽度线性换算
         let deltaMinutes = Int((translation / width) * 1440)
         let newOffset = max(0, min(1440, baseOffset + deltaMinutes))
         // snap 到 5 min
@@ -1133,7 +1136,7 @@ private struct StageHeroView: View {
     }
 
     var body: some View {
-        VStack(alignment: .center, spacing: 0) {
+        VStack(alignment: .center, spacing: 20) {
             // 舞台区（火柴人 + 透明背景，跟整页一个底色）
             ZStack {
                 // 永远画小人（让用户看到 30° 低头 + 低落表情等所有视觉）
@@ -1201,11 +1204,10 @@ private struct StageHeroView: View {
                         dragStartOffset = nil
                     }
             )
+
             // 拖动时显示当前时间 / swipe 后显示状态 + 时段范围
-            .overlay(alignment: .center) {
-                if isStageScrubbing || manualStateOverride != nil {
-                    stageScrubBadge
-                }
+            if isStageScrubbing || manualStateOverride != nil {
+                stageScrubBadge
             }
         }
     }
@@ -1221,7 +1223,7 @@ private struct StageHeroView: View {
         return VStack(spacing: 2) {
             if isOverride, let seg = seg {
                 Text("\(StickState.formatMinute(seg.startMinute))–\(StickState.formatMinute(seg.endMinute)) · \(state.rawValue)")
-                    .font(.system(size: 22, weight: .heavy, design: .monospaced))
+                    .font(.system(size: 20, weight: .heavy, design: .monospaced))
                     .foregroundColor(Theme.navy)
                     .monospacedDigit()
                     .lineLimit(1)
