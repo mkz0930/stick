@@ -23,6 +23,10 @@ struct PersonalView: View {
     var onHistoryTap: ((UUID) -> Void)? = nil
     /// 点击 widget 卡片 → 关闭个人面板并打开聊天（seed = 预填文字）
     var onOpenChat: ((String) -> Void)? = nil
+    /// 当前久坐 session live 时长（M:SS）
+    var currentSitDuration: String? = nil
+    /// 当前身体状态
+    var currentBodyState: String = "sit"
 
     @State private var showDataRecord: Bool = false
     @State private var showWidgetPreview: Bool = false
@@ -113,7 +117,7 @@ struct PersonalView: View {
             }
         }
         .sheet(isPresented: $showDataRecord) {
-            DataRecordView(onClose: { showDataRecord = false })
+            DataRecordView(onClose: { showDataRecord = false }, currentSitDuration: currentSitDuration, currentBodyState: currentBodyState)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }

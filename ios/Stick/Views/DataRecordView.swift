@@ -110,12 +110,20 @@ final class DataRecordViewModel: ObservableObject {
 
 struct DataRecordView: View {
     var onClose: () -> Void
+    /// 当前久坐 session live 时长（M:SS）
+    var currentSitDuration: String? = nil
+    /// 当前身体状态
+    var currentBodyState: String = "sit"
 
     @StateObject private var vm = DataRecordViewModel()
     /// LLM 生成的今日洞察（一句）
     @State private var insight: String = ""
     @State private var isLoadingInsight: Bool = false
     @State private var hkData: HKLiveData = HKLiveData()
+    /// 数据导出
+    @State private var showExportSheet: Bool = false
+    @State private var exportURL: URL? = nil
+    @State private var isExporting: Bool = false
 
     // MARK: - HealthKit Computed Properties
 
@@ -146,6 +154,26 @@ struct DataRecordView: View {
         let m = hkData.sedentaryMinutes
         if m == 0 { return "--" }
         return String(format: "%d:%02d", m / 60, m % 60)
+    }
+
+    /// 当前久坐持续时间（M:SS）
+    private var hkCurrentSitValue: String {
+        currentSitDuration ?? "--"
+    }
+
+    /// 久坐分析文本（仅坐姿时显示）
+    private var sedentaryAnalysis: String? {
+        guard currentBodyState == "sit", let duration = currentSitDuration else { return nil }
+        let parts = duration.split(separator: ":")
+        guard parts.count == 2, let minutes = Int(parts[0]), let seconds = Int(parts[1]) else { return nil }
+        let totalSeconds = minutes * 60 + seconds
+        if totalSeconds < 30 * 60 {
+            return "正在久坐，建议每 30 分钟起身活动一下"
+        } else if totalSeconds < 60 * 60 {
+            return "久坐较久，血流有所减缓，记得站起来活动"
+        } else {
+            return "长期久坐风险增加，建议立刻起身走动或做拉伸"
+        }
     }
 
     /// 血压显示值：收缩压/舒张压 或 --
