@@ -6,6 +6,7 @@
 import Foundation
 import HealthKit
 import Combine
+import UIKit
 
 /// HealthKit 数据快照 (1 分钟一条)
 struct HealthSnapshot: Codable, Identifiable {
@@ -81,6 +82,8 @@ final class HealthKitService: ObservableObject {
     @Published var lastSnapshot: HealthSnapshot?
     @Published var isAuthorized: Bool = false
     @Published var error: String?
+    /// 最后检测到明显步数的时间（incrementalStepCount > 10），用于立即打断久坐计时
+    @Published var lastMovementTime: Date? = nil
 
     private var timer: Timer?
 
@@ -174,6 +177,10 @@ final class HealthKitService: ObservableObject {
             sourceName: source
         )
         self.lastSnapshot = snapshot
+        // 增量步数 > 10 → 打断久坐
+        if incremental > 10 {
+            self.lastMovementTime = now
+        }
         return snapshot
     }
 
@@ -335,7 +342,9 @@ final class HealthKitService: ObservableObject {
     // MARK: - Sedentary Minutes
 
     /// 从 HealthKit 直接读取今日久坐分钟数
-    /// 每分钟采样一次，统计步数为 0 的采样点数即为久坐分钟数
+    /// **改进版**：排除 0-6 点睡眠时段 + 排除 >4h 无数据长间隔
+    /// - 0-6 AM：默认是睡眠时间，不算久坐
+    /// - 连续 >4h 没有任何步数：可能睡眠/没带手机，整段跳过不算久坐
     func todaySedentaryMinutes() async -> Int {
         guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return 0 }
         let startOfDay = Calendar.current.startOfDay(for: Date())
@@ -360,15 +369,229 @@ final class HealthKitService: ObservableObject {
                     return
                 }
                 var sedentaryCount = 0
+                var lastActiveTime: Date? = nil   // 上一次有步数的时间
+                let maxGapSeconds: TimeInterval = 4 * 3600   // 4 小时
+                let sleepStartHour = 0
+                let sleepEndHour = 6
+
                 results.enumerateStatistics(from: startOfDay, to: now) { statistics, _ in
                     let steps = statistics.sumQuantity()?.doubleValue(for: HKUnit.count()) ?? 0
+                    let bucketStart = statistics.startDate
+                    let hour = calendar.component(.hour, from: bucketStart)
+
                     if steps == 0 {
+                        // 0 步数：判断是否应该算久坐
+                        // 1) 0-6 点睡眠时段 → 跳过
+                        if hour >= sleepStartHour && hour < sleepEndHour {
+                            return
+                        }
+                        // 2) 距离上次活动 >4h → 整段跳过（可能在睡眠/没带手机）
+                        if let last = lastActiveTime, bucketStart.timeIntervalSince(last) > maxGapSeconds {
+                            return
+                        }
                         sedentaryCount += 1
+                    } else {
+                        // 有步数 → 标记为活动
+                        lastActiveTime = bucketStart
                     }
                 }
                 cont.resume(returning: sedentaryCount)
             }
             store?.execute(query)
+        }
+    }
+
+    // MARK: - 当前久坐时长（最近一次步数时间到现在）
+
+    /// 找到最近一次有效步数 (>10步) 的时间戳
+    /// **改进版**：排除 0-6 AM 睡眠时段 + 排除 >4h 无数据长间隔
+    /// - 夜间（0-6点）心率偏低+步数极少 → 睡眠，跳过
+    /// - 心率高于静息 20bpm → 活动，跳过
+    /// - **距上次活动 >4h → 整段跳过**（可能睡眠/没带手机，不算久坐）
+    func lastSignificantMovementTime(hours: Double = 4) -> Date? {
+        let cutoff = Date().addingTimeInterval(-hours * 3600)
+        let snapshots = HealthStore.shared.today.filter { $0.timestamp >= cutoff }
+        guard !snapshots.isEmpty else { return nil }
+
+        let sorted = snapshots.sorted { $0.timestamp > $1.timestamp }   // 时间倒序
+        let calendar = Calendar.current
+        let restingHR = sorted.compactMap { $0.restingHeartRate }.last
+        let recentHRValues = Array(sorted.prefix(10)).compactMap { $0.heartRate }
+        let recentHRAvg: Double? = recentHRValues.isEmpty
+            ? nil : Double(recentHRValues.reduce(0, +)) / Double(max(1, recentHRValues.count))
+
+        let walkThreshold = 10
+        let activeHRDelta: Double = 20
+        let maxGapSeconds: TimeInterval = 4 * 3600
+        var lastActiveTime: Date? = nil   // 上一条"考察过"的快照时间
+
+        for snap in sorted {
+            let steps = snap.incrementalStepCount
+            let hr = snap.heartRate
+            let snapHour = calendar.component(.hour, from: snap.timestamp)
+
+            // 夜间睡眠跳过
+            let isNight = snapHour >= 0 && snapHour < 6
+            let isLowHR = hr.map { r in
+                if let resting = restingHR {
+                    return Double(r) < resting - 5
+                } else if let avg = recentHRAvg {
+                    return Double(r) < avg - 10
+                }
+                return false
+            } ?? false
+            if isNight && isLowHR && steps < 5 {
+                lastActiveTime = snap.timestamp
+                continue
+            }
+
+            // 心率活动
+            let isActiveHR = hr.map { r in
+                if let resting = restingHR {
+                    return Double(r) > resting + activeHRDelta
+                } else if let avg = recentHRAvg {
+                    return Double(r) > avg + 15
+                }
+                return false
+            } ?? false
+
+            // 有效步数或心率活动
+            if steps > walkThreshold || isActiveHR {
+                // 距上一条活动/睡眠标记 >4h → 可能睡眠/没带手机，跳过
+                if let last = lastActiveTime, last.timeIntervalSince(snap.timestamp) > maxGapSeconds {
+                    lastActiveTime = snap.timestamp
+                    continue
+                }
+                return snap.timestamp
+            }
+            lastActiveTime = snap.timestamp
+        }
+        return nil
+    }
+
+    /// 当前连续久坐分钟数 = now - lastSignificantMovementTime
+    func currentSedentarySessionMinutes(hours: Double = 4) async -> Int {
+        guard let lastMove = lastSignificantMovementTime(hours: hours) else { return 0 }
+        return max(0, Int(Date().timeIntervalSince(lastMove) / 60))
+    }
+
+    // MARK: - 数据导出
+
+    /// 导出今日全部 HealthKit 数据（JSON 格式，北京时间）
+    func exportTodayData() async -> URL? {
+        guard HKHealthStore.isHealthDataAvailable() else { return nil }
+        let dayStart = Calendar.current.startOfDay(for: Date())
+        let now = Date()
+
+        // 北京时间格式化器（不带时区偏移后缀）
+        let bjTz = TimeZone(identifier: "Asia/Shanghai") ?? TimeZone.current
+        let dateFormatter = DateFormatter()
+        dateFormatter.timeZone = bjTz
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+
+        var exportData: [String: Any] = [
+            "导出时间": dateFormatter.string(from: now),
+            "数据开始": dateFormatter.string(from: dayStart),
+            "数据类型": []
+        ]
+
+        let types: [(String, HKQuantityTypeIdentifier, HKUnit)] = [
+            ("步数", .stepCount, .count()),
+            ("活动能量", .activeEnergyBurned, .kilocalorie()),
+            ("心率", .heartRate, HKUnit.count().unitDivided(by: .minute())),
+            ("静息心率", .restingHeartRate, HKUnit.count().unitDivided(by: .minute())),
+            ("心率变异性", .heartRateVariabilitySDNN, HKUnit.secondUnit(with: .milli)),
+            ("呼吸频率", .respiratoryRate, HKUnit.count().unitDivided(by: .minute())),
+            ("距离", .distanceWalkingRunning, .meter()),
+            ("爬楼", .flightsClimbed, .count()),
+            ("站立时间", .appleStandTime, .hour()),
+            ("锻炼时间", .appleExerciseTime, .minute()),
+            ("步速", .walkingSpeed, HKUnit.meter().unitDivided(by: .second())),
+            ("双脚支撑比例", .walkingDoubleSupportPercentage, .percent()),
+            ("耳机音量暴露", .headphoneAudioExposure, HKUnit.decibelAWeightedSoundPressureLevel()),
+        ]
+
+        var results: [[String: Any]] = []
+
+        for (name, id, unit) in types {
+            guard let type = HKObjectType.quantityType(forIdentifier: id) else { continue }
+            let samples = await fetchSamples(type: type, unit: unit, from: dayStart, to: now)
+            results.append([
+                "类型": name,
+                "identifier": id.rawValue,
+                "样本数": samples.count,
+                "数据": samples.map { ["时间": dateFormatter.string(from: $0.0), "值": $0.1] }
+            ])
+        }
+
+        // 睡眠
+        if let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+            let sleepSamples = await fetchCategorySamples(type: sleepType, from: dayStart, to: now)
+            results.append([
+                "类型": "睡眠分析",
+                "identifier": HKCategoryTypeIdentifier.sleepAnalysis.rawValue,
+                "样本数": sleepSamples.count,
+                "数据": sleepSamples.map { sample -> [String: Any] in
+                    [
+                        "时间": dateFormatter.string(from: sample.0),
+                        "值": sample.1,
+                        "来源": sample.2
+                    ]
+                }
+            ])
+        }
+
+        exportData["数据类型"] = results
+
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: exportData, options: [.prettyPrinted, .sortedKeys])
+            let nameFormatter = DateFormatter()
+            nameFormatter.dateFormat = "yyyyMMdd_HHmm"
+            nameFormatter.timeZone = bjTz
+            let timeStr = nameFormatter.string(from: now)
+            let deviceName = UIDevice.current.name.replacingOccurrences(of: " ", with: "_")
+            let fileName = "health_export_\(timeStr)_\(deviceName).json"
+            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+            try jsonData.write(to: tempURL)
+            return tempURL
+        } catch {
+            print("[HealthKitService] export failed: \(error)")
+            return nil
+        }
+    }
+
+    private func fetchSamples(type: HKQuantityType, unit: HKUnit, from: Date, to: Date) async -> [(Date, Double)] {
+        await withCheckedContinuation { cont in
+            let predicate = HKQuery.predicateForSamples(withStart: from, end: to, options: .strictStartDate)
+            let q = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]) { _, samples, _ in
+                let result = (samples as? [HKQuantitySample])?.map { ($0.startDate, $0.quantity.doubleValue(for: unit)) } ?? []
+                cont.resume(returning: result)
+            }
+            store?.execute(q)
+        }
+    }
+
+    private func fetchCategorySamples(type: HKCategoryType, from: Date, to: Date) async -> [(Date, String, String)] {
+        await withCheckedContinuation { cont in
+            let predicate = HKQuery.predicateForSamples(withStart: from, end: to, options: .strictStartDate)
+            let q = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]) { _, samples, _ in
+                let result = (samples as? [HKCategorySample])?.map { sample -> (Date, String, String) in
+                    let value: String
+                    if type.identifier == HKCategoryTypeIdentifier.sleepAnalysis.rawValue {
+                        switch sample.value {
+                        case 1: value = "在床上"
+                        case 2: value = "入睡"
+                        case 4: value = "清醒"
+                        default: value = "未知(\(sample.value))"
+                        }
+                    } else {
+                        value = String(sample.value)
+                    }
+                    return (sample.startDate, value, sample.sourceRevision.productType ?? "未知")
+                } ?? []
+                cont.resume(returning: result)
+            }
+            store?.execute(q)
         }
     }
 }
