@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 @main
 struct StickApp: App {
@@ -26,6 +27,19 @@ struct StickApp: App {
                     if let seed = ProcessInfo.processInfo.environment["STICK_TEST_WIDGET_SEED"], !seed.isEmpty {
                         SharedStateStore.writePendingChatSeed(seed)
                     }
+                    // 注册通知 Category
+                    UNUserNotificationCenter.current().setNotificationCategories([
+                        UNNotificationCategory(
+                            identifier: "MORNING_REPORT",
+                            actions: [],
+                            intentIdentifiers: [],
+                            options: .customDismissAction
+                        )
+                    ])
+                    // 请求通知权限
+                    Task { _ = await NotificationService.shared.requestAuthorization() }
+                    // 启动晨间报告触发器
+                    MorningReportTrigger.shared.startMonitoring()
                 }
         }
     }
