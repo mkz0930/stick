@@ -686,34 +686,35 @@ struct ContentView: View {
             if newPhase != .active {
                 backgroundedAt = Date()
             }
-            // 回到前台：从 HealthKit 直接查询今日累计久坐分钟数，反推开始时刻
+            // 回到前台（解锁）：刷步数 + 重算当前久坐 session
             if oldPhase != .active && newPhase == .active {
                 guard !Self.isRunningForPreviews else { return }
                 Task {
-                    // 从 HealthKit 直接读今日累计久坐（考虑睡眠校正）
+                    // 1) 先抓一次最新快照 — 把黑屏期间走的步数写进 HealthStore
+                    _ = await HealthKitService.shared.captureSnapshot()
+
+                    // 2) 今日累计久坐（cumulative 显示用）
                     let sedentary = await HealthKitService.shared.todaySedentaryMinutes()
                     let sleepHours = await HealthKitService.shared.todaySleepHours()
-                    let validSleep = sleepHours ?? 0 > 0
-                    let adjustedSedentary = validSleep ? max(0, sedentary - Int((sleepHours ?? 0) * 60)) : 0
+                    let validSleep = (sleepHours ?? 0) > 0
+                    homeSedentaryMinutes = validSleep ? max(0, sedentary - Int((sleepHours ?? 0) * 60)) : 0
+                    hasValidSleepData = validSleep
 
-                    if adjustedSedentary > 0 {
-                        // 从 HealthKit 今日累计久坐反推 session 开始时刻
-                        currentSitStartTime = Date().addingTimeInterval(-Double(adjustedSedentary) * 60)
-                        currentSitMinutes = adjustedSedentary
-                        hasValidSleepData = true
+                    // 3) 当前 session 久坐（live 显示用）— 基于"最后一次明显步数"
+                    //    这才是关键：黑屏期间如果用户走动过，lastMove 会更新，
+                    //    session 应该被截断/重置，不会把整段锁屏时间都算进去
+                    let sessionMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
+                    if sessionMins > 0 {
+                        currentSitStartTime = Date().addingTimeInterval(-Double(sessionMins) * 60)
+                        currentSitMinutes = sessionMins
                     } else {
+                        // sessionMins == 0 说明最近 4h 有走动/活动，重置
                         currentSitStartTime = nil
                         currentSitMinutes = 0
-                        hasValidSleepData = false
-                    }
-                    // 同时刷新一次快照分析
-                    let snapMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
-                    if snapMins > 0 {
-                        currentSitMinutes = snapMins
-                        currentSitStartTime = Date().addingTimeInterval(-Double(snapMins) * 60)
                     }
                     lastSitAnalysisTime = Date()
-                    // 回到前台时也重算时刻表（黑屏期间可能有新数据）
+
+                    // 4) 回到前台时也重算时刻表（黑屏期间可能有新数据）
                     await HealthKitService.shared.computeDaySchedule()
                     let wq = await HealthKitService.shared.todayWalkingQuality()
                     walkingQuality = WalkingQualityData.from(wq)
