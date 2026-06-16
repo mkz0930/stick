@@ -483,35 +483,36 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
     drawEllipse(ctx: &ctx, rect: head, fill: fill, stroke: stroke, width: w, alpha: lineAlpha)
 
     // 低落表情：仅在下午疲倦时画（mood == .tired）。在 head 本地坐标系里画，跟头一起 tilt。
-    if isTired {
-        // 闭眼（左眼：向下弧，眼角下垂）
-        strokeCurve(ctx: &ctx,
-                    from: CGPoint(x: 96, y: 76),
-                    to:   CGPoint(x: 104, y: 78),
-                    control: CGPoint(x: 100, y: 80),
-                    color: stroke, width: 1.3, alpha: lineAlpha)
-        // 右眼：对称
-        strokeCurve(ctx: &ctx,
-                    from: CGPoint(x: 112, y: 78),
-                    to:   CGPoint(x: 120, y: 76),
-                    control: CGPoint(x: 116, y: 80),
-                    color: stroke, width: 1.3, alpha: lineAlpha)
-        // 眉头：两根向中间下斜的细线（忧愁）
-        strokeLine(ctx: &ctx,
-                   from: CGPoint(x: 95, y: 70),
-                   to:   CGPoint(x: 102, y: 73),
-                   color: stroke.opacity(0.7), width: 1.1, alpha: lineAlpha)
-        strokeLine(ctx: &ctx,
-                   from: CGPoint(x: 121, y: 73),
-                   to:   CGPoint(x: 114, y: 70),
-                   color: stroke.opacity(0.7), width: 1.1, alpha: lineAlpha)
-        // 嘴角下垂：中央到两侧向上拱（∩ 形 = 悲伤）
-        strokeCurve(ctx: &ctx,
-                    from: CGPoint(x: 103, y: 92),
-                    to:   CGPoint(x: 115, y: 92),
-                    control: CGPoint(x: 109, y: 88),
-                    color: stroke, width: 1.4, alpha: lineAlpha)
-    }
+    // FIXME: 暂时注释掉「疲倦/低落」表情 — 用户觉得看着像坏掉的小人，不像健康提醒
+//    if isTired {
+//        // 闭眼（左眼：向下弧，眼角下垂）
+//        strokeCurve(ctx: &ctx,
+//                    from: CGPoint(x: 96, y: 76),
+//                    to:   CGPoint(x: 104, y: 78),
+//                    control: CGPoint(x: 100, y: 80),
+//                    color: stroke, width: 1.3, alpha: lineAlpha)
+//        // 右眼：对称
+//        strokeCurve(ctx: &ctx,
+//                    from: CGPoint(x: 112, y: 78),
+//                    to:   CGPoint(x: 120, y: 76),
+//                    control: CGPoint(x: 116, y: 80),
+//                    color: stroke, width: 1.3, alpha: lineAlpha)
+//        // 眉头：两根向中间下斜的细线（忧愁）
+//        strokeLine(ctx: &ctx,
+//                   from: CGPoint(x: 95, y: 70),
+//                   to:   CGPoint(x: 102, y: 73),
+//                   color: stroke.opacity(0.7), width: 1.1, alpha: lineAlpha)
+//        strokeLine(ctx: &ctx,
+//                   from: CGPoint(x: 121, y: 73),
+//                   to:   CGPoint(x: 114, y: 70),
+//                   color: stroke.opacity(0.7), width: 1.1, alpha: lineAlpha)
+//        // 嘴角下垂：中央到两侧向上拱（∩ 形 = 悲伤）
+//        strokeCurve(ctx: &ctx,
+//                    from: CGPoint(x: 103, y: 92),
+//                    to:   CGPoint(x: 115, y: 92),
+//                    control: CGPoint(x: 109, y: 88),
+//                    color: stroke, width: 1.4, alpha: lineAlpha)
+//    }
 
     // 颈椎：画在 head 的本地坐标系里，跟头一起转。
     // 头底本地坐标：(0, 30) 相对头中心 → 屏幕 (headCenter.x, headCenter.y + 30)
