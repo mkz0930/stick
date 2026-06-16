@@ -153,7 +153,7 @@ struct DataRecordView: View {
     private var hkSedentaryValue: String {
         let m = hkData.sedentaryMinutes
         if m == 0 { return "--" }
-        return String(format: "%d:%02d", m / 60, m % 60)
+        return String(format: "%.1fh", Double(m) / 60.0)
     }
 
     /// 当前久坐持续时间（M:SS）
@@ -202,10 +202,11 @@ struct DataRecordView: View {
         return String(format: "%.1f", v)
     }
 
-    /// 运动时长显示值：或 --
+    /// 运动时长显示值（从 HealthStore 快照统计 bodyState == "walk" 的分钟数）
     private var exerciseValue: String {
-        guard let v = BodyMetricsStore.shared.exerciseMinutes else { return "--" }
-        return "\(v)"
+        let m = HealthStore.shared.today.filter { $0.bodyState == "walk" }.count
+        guard m > 0 else { return "--" }
+        return "\(m)"
     }
 
     /// 今日饮食记录条目
@@ -301,15 +302,25 @@ struct DataRecordView: View {
                     value: hkSleepValue,
                     valueUnit: "小时"
                 )
-                // 久坐（直接从 HealthKit 每分钟步数样本统计）
-                DashboardCard(
-                    icon: "figure.seated.side",
-                    iconColor: Color(red: 0.92, green: 0.55, blue: 0.20),
-                    title: "久坐",
-                    sub: "今日累计",
-                    value: hkSedentaryValue,
-                    valueUnit: ""
-                )
+                // 久坐双卡：当前 session + 今日累计（含步行打断后的重新积累）
+                HStack(spacing: 10) {
+                    DashboardCard(
+                        icon: "figure.seated.side",
+                        iconColor: Color(red: 0.92, green: 0.55, blue: 0.20),
+                        title: "当前久坐",
+                        sub: "正在持续",
+                        value: hkCurrentSitValue,
+                        valueUnit: ""
+                    )
+                    DashboardCard(
+                        icon: "figure.seated.side",
+                        iconColor: Color(red: 0.92, green: 0.55, blue: 0.20),
+                        title: "久坐累计",
+                        sub: "含打断后累计",
+                        value: hkSedentaryValue,
+                        valueUnit: ""
+                    )
+                }
             }
         }
     }
@@ -348,6 +359,12 @@ struct DataRecordView: View {
                 hkData = data
             }
         }
+        .sheet(isPresented: $showExportSheet) {
+            if let url = exportURL {
+                ShareSheet(items: [url])
+                    .presentationDetents([.medium])
+            }
+        }
     }
 
     // MARK: - Header
@@ -358,6 +375,27 @@ struct DataRecordView: View {
                 .font(.system(size: 20, weight: .bold))
                 .foregroundColor(Theme.navy)
             Spacer()
+            // 导出按钮
+            Button(action: {
+                isExporting = true
+                Task {
+                    exportURL = await HealthKitService.shared.exportTodayData()
+                    isExporting = false
+                    if exportURL != nil {
+                        showExportSheet = true
+                    }
+                }
+            }) {
+                if isExporting {
+                    ProgressView().controlSize(.small).frame(width: 32, height: 32)
+                } else {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Theme.navy)
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(Theme.card).overlay(Circle().stroke(Theme.border, lineWidth: 1)))
+                }
+            }
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .font(.system(size: 13, weight: .semibold))

@@ -21,6 +21,7 @@ struct FeatureRow: View {
     let sitDurationText: String?      // 坐姿秒表 live MM:SS（sit 状态时为 "47:23" 这种，非 sit 时 nil）
     let todaySitDescription: String    // 今日累计久坐描述，如 "累计6小时23分"
     let todaySteps: Int               // 今日累计步数（HealthKit；模拟器 demo 注入 8000+）
+    let todayWalkMinutes: Int         // 今日行走分钟数
     @Binding var isExpanded: Bool       // 状态提升到 ContentView，让小人也能淡出
     var onAlertTap: (UnifiedAlert) -> Void = { _ in }
     var onLockTap: () -> Void = { }   // 点击锁 → 跳添加设备界面
@@ -65,17 +66,27 @@ struct FeatureRow: View {
         }
     }
 
+    /// 走步状态下用真实累计分钟数替代硬编码值
+    private var realTertiaryMetric: Metric {
+        let m = state.tertiaryMetric
+        let realValue = "\(todayWalkMinutes) min"
+        return Metric(label: m.label, value: realValue, status: m.status, statusKind: m.statusKind, desc: m.desc, hint: "今日累计 \(todayWalkMinutes) 分钟行走", metricID: m.metricID)
+    }
+
+    /// 状态的三项指标（walk 时 DURATION 使用真实值）
+    private var displayMetrics: [Metric] {
+        [state.primaryMetric, state.secondaryMetric, state == .walk ? realTertiaryMetric : state.tertiaryMetric]
+    }
+
     /// 3 个指标中"心率"那行（任意位置）
     private var heartRateMetric: Metric? {
-        [state.primaryMetric, state.secondaryMetric, state.tertiaryMetric]
-            .first(where: { $0.label == "HEART RATE" })
+        displayMetrics.first(where: { $0.label == "HEART RATE" })
     }
 
     /// 3 个指标中"既不是心率也不是心情"那行（= 对应状态的核心数据）
     ///   walk: DURATION   sit: SEDENTARY   sleep: SLEEP
     private var stateSpecificMetric: Metric? {
-        [state.primaryMetric, state.secondaryMetric, state.tertiaryMetric]
-            .first(where: { $0.label != "HEART RATE" && $0.label != "MOOD" })
+        displayMetrics.first(where: { $0.label != "HEART RATE" && $0.label != "MOOD" })
     }
 
     /// 折叠时被隐藏的"其它指标"行（剩下的 1-2 个）
@@ -83,8 +94,7 @@ struct FeatureRow: View {
         let visibleLabels = Set<String>(
             [heartRateMetric?.label, stateSpecificMetric?.label].compactMap { $0 }
         )
-        return [state.primaryMetric, state.secondaryMetric, state.tertiaryMetric]
-            .filter { !visibleLabels.contains($0.label) }
+        return displayMetrics.filter { !visibleLabels.contains($0.label) }
     }
 
     var body: some View {

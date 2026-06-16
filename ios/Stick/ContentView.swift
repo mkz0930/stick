@@ -102,24 +102,29 @@ struct ContentView: View {
     }
 
     /// 小人显示状态：基于真实 HealthStore 快照（bodyState）计算
-    /// - 有快照：取最近 1 分钟内的 bodyState 映射
-    /// - 深夜时段（23-7 点）按 sleep 处理
-    /// - 无任何数据 → .stand（不瞎猜 walk）
+    /// 优先级：walk（真实数据）> 睡眠时段默认 > 其他快照 > sit
     private var displayState: StickState {
-        // 1. 优先看是否有当前连续快照（最近 1 分钟内有 bodyState 记录）
+        let hour = Calendar.current.component(.hour, from: Date())
+        let minute = Calendar.current.component(.minute, from: Date())
+        let isSleepHour = hour >= 23 || hour < 7
+        let isNapHour = hour == 13 && minute >= 0 && minute < 30
+
+        // 1. 近期的真实快照：walk 始终覆盖时段默认（"根据真实情况"）
         if let latest = HealthStore.shared.today.sorted(by: { $0.timestamp > $1.timestamp }).first {
             let age = Date().timeIntervalSince(latest.timestamp)
             if age < 90, let mapped = mapBodyState(latest.bodyState) {
-                return mapped
+                if mapped == .walk { return .walk }
+                // 非睡眠时段用快照数据
+                if !isSleepHour && !isNapHour { return mapped }
             }
         }
-        // 2. 深夜时段 → sleep
-        let hour = Calendar.current.component(.hour, from: Date())
-        if hour >= 23 || hour < 7 {
-            return .sleep
-        }
-        // 3. 没有任何数据时显示站立（不瞎猜 walk）
-        return .stand
+
+        // 2. 睡眠时段 → sleep
+        if isSleepHour { return .sleep }
+        if isNapHour { return .sleep }
+
+        // 3. 默认坐着
+        return .sit
     }
 
     /// 把 HealthStore 的 bodyState 字符串映射到 StickState
@@ -365,6 +370,11 @@ struct ContentView: View {
         healthStore.today.last?.cumulativeStepCount ?? 0
     }
 
+    /// 今日行走分钟数：bodyState == "walk" 的快照数
+    private var todayWalkMinutes: Int {
+        healthStore.today.filter { $0.bodyState == "walk" }.count
+    }
+
     /// 点击异常行：AI 实时报告 → AIAnalysisView；其他 → AlertDetailView
     private func handleAlertTap(_ a: UnifiedAlert) {
         if a.kind == .aiLive, a.aiReport != nil {
@@ -403,6 +413,18 @@ struct ContentView: View {
                 if ProcessInfo.processInfo.environment["STICK_TEST_OPEN_CHAT"] != nil {
                     openChat("")
                 }
+                // 模拟器调试：env STICK_MOCK_HEALTH=1 → 启动时自动载入 Documents/MockHealth.json
+                #if targetEnvironment(simulator)
+                if ProcessInfo.processInfo.environment["STICK_MOCK_HEALTH"] != nil {
+                    let n = MockHealthDataLoader.shared.loadBundledIfExists()
+                    print("[ContentView] 🧪 Mock 健康数据载入: \(n) 条")
+                    // 触发一次今天的久坐重算
+                    Task { @MainActor in
+                        homeSedentaryMinutes = await HealthKitService.shared.todaySedentaryMinutes()
+                        currentSitMinutes = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
+                    }
+                }
+                #endif
             }
             .onChange(of: pendingChatSeed) { _, newSeed in
                 // widget 点击 → 打开 chat（预填 seed）→ 清空避免重复触发
@@ -672,6 +694,22 @@ struct ContentView: View {
                     HStack(alignment: .center, spacing: 0) {
                         TopBarView(onMenuTap: { showPersonal = true })
                         Spacer(minLength: 0)
+                        #if targetEnvironment(simulator)
+                        // 模拟器调试按钮：载入 Documents/MockHealth.json 当真实数据用
+                        Button {
+                            Task { @MainActor in
+                                let n = MockHealthDataLoader.shared.loadBundledIfExists()
+                                print("[ContentView] 🧪 载入 mock 数据: \(n) 条")
+                                homeSedentaryMinutes = await HealthKitService.shared.todaySedentaryMinutes()
+                                currentSitMinutes = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
+                            }
+                        } label: {
+                            Image(systemName: "flask")
+                                .font(.system(size: 14))
+                                .foregroundColor(Theme.slate)
+                                .padding(8)
+                        }
+                        #endif
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
@@ -690,6 +728,7 @@ struct ContentView: View {
                         sitDurationText: sitDurationText,
                         todaySitDescription: todaySitDescription,
                         todaySteps: todaySteps,
+                        todayWalkMinutes: todayWalkMinutes,
                         isExpanded: $featureRowExpanded,
                         onAlertTap: handleAlertTap,
                         onLockTap: { showDevicePicker = true },

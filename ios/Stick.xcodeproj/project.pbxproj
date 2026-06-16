@@ -38,6 +38,7 @@
 		B29900000000000000000A08 /* HealthAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A08 /* HealthAuthService.swift */; };
 		B29900000000000000000A09 /* AIRiskAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A09 /* AIRiskAnalyzer.swift */; };
 		B29900000000000000000A1A /* RealHealthAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A1A /* RealHealthAnalyzer.swift */; };
+		B29900000000000000000A1B /* MockHealthDataLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A1B /* MockHealthDataLoader.swift */; };
 		B29900000000000000000A0A /* AlertAggregator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A0A /* AlertAggregator.swift */; };
 		B29900000000000000000A0B /* AISleepAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A0B /* AISleepAnalyzer.swift */; };
 		B29900000000000000000A11 /* ChatHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A11 /* ChatHistoryStore.swift */; };
@@ -131,6 +132,7 @@
 		F29900000000000000000A18 /* BodyMetricsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyMetricsStore.swift; sourceTree = "<group>"; };
 		F29900000000000000000A19 /* FoodLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLogStore.swift; sourceTree = "<group>"; };
 		F29900000000000000000A1A /* RealHealthAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealHealthAnalyzer.swift; sourceTree = "<group>"; };
+		F29900000000000000000A1B /* MockHealthDataLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockHealthDataLoader.swift; sourceTree = "<group>"; };
 		F40000000000000000000001 /* StickWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickWidget.swift; sourceTree = "<group>"; };
 		F40000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F40000000000000000000003 /* StickWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StickWidget.entitlements; sourceTree = "<group>"; };
@@ -263,6 +265,7 @@
 				F29900000000000000000A0A /* AlertAggregator.swift */,
 				F29900000000000000000A0B /* AISleepAnalyzer.swift */,
 				F29900000000000000000A1A /* RealHealthAnalyzer.swift */,
+				F29900000000000000000A1B /* MockHealthDataLoader.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -416,6 +419,7 @@
 				B29900000000000000000A0A /* AlertAggregator.swift in Sources */,
 				B29900000000000000000A0B /* AISleepAnalyzer.swift in Sources */,
 				B29900000000000000000A1A /* RealHealthAnalyzer.swift in Sources */,
+				B29900000000000000000A1B /* MockHealthDataLoader.swift in Sources */,
 				B10000000000000000000019 /* AlertsPanel.swift in Sources */,
 				B10000000000000000000020 /* AlertDetailView.swift in Sources */,
 				B10000000000000000000021 /* Views/WidgetGalleryView.swift in Sources */,

@@ -71,4 +71,12 @@ final class HealthStore: ObservableObject {
         today = []
         try? FileManager.default.removeItem(at: fileURL)
     }
+
+    // MARK: - 模拟器调试：注入 Mock 数据
+    /// 模拟器无 HealthKit，用 MockHealthDataLoader 注入后通过此方法写入。
+    /// 不持久化（下次启动还是空的，除非再注入一次）
+    func setAllForMock(_ snapshots: [HealthSnapshot]) {
+        all = snapshots
+        refreshToday()
+    }
 }

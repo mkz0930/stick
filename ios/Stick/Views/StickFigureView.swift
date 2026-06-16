@@ -543,15 +543,15 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
 
     ctx.transform = saved
 
-    // 疲惫装饰（汗滴 + 💢 烦躁爆点）— 下午工作时不再显示打呼的 Z
-    if isTired {
-        drawTiredSweat(ctx: &ctx, color: joint, t: t, level: tiredness)
-        // 💢 跟着头走：tired 时头会下沉右移（shift 35,95），💢 同步到头左上角
-        let headCenterScreenX = headCenter.x + headShiftX
-        let headCenterScreenY = headCenter.y + headShiftY
-        drawTiredVein(ctx: &ctx, t: t, level: tiredness,
-                      headCenterX: headCenterScreenX, headCenterY: headCenterScreenY)
-    }
+    // 疲惫装饰（汗滴 + 💢 烦躁爆点）— 注释掉，用户觉得看着像坏掉的小人
+//    if isTired {
+//        drawTiredSweat(ctx: &ctx, color: joint, t: t, level: tiredness)
+//        // 💢 跟着头走：tired 时头会下沉右移（shift 35,95），💢 同步到头左上角
+//        let headCenterScreenX = headCenter.x + headShiftX
+//        let headCenterScreenY = headCenter.y + headShiftY
+//        drawTiredVein(ctx: &ctx, t: t, level: tiredness,
+//                      headCenterX: headCenterScreenX, headCenterY: headCenterScreenY)
+//    }
 }
 
 // MARK: - 睡

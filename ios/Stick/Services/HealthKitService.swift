@@ -345,13 +345,57 @@ final class HealthKitService: ObservableObject {
     /// **改进版**：排除 0-6 点睡眠时段 + 排除 >4h 无数据长间隔
     /// - 0-6 AM：默认是睡眠时间，不算久坐
     /// - 连续 >4h 没有任何步数：可能睡眠/没带手机，整段跳过不算久坐
+    /// 推测今早真正起床时间
+    /// 逻辑：从 04:00 开始扫描步数，第一条 >50 步的时间 = 真正起床
+    /// 夜间起夜（<50步）不算起床；6 点前轻微活动也不算
+    func queryWakeUpTime() async -> Date? {
+        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return nil }
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: Date())
+        guard let searchStart = calendar.date(bySettingHour: 4, minute: 0, second: 0, of: startOfDay) else { return nil }
+        let now = Date()
+        guard now > searchStart else { return nil }
+
+        return await withCheckedContinuation { cont in
+            let predicate = HKQuery.predicateForSamples(withStart: searchStart, end: now, options: .strictStartDate)
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+            let q = HKSampleQuery(sampleType: stepType, predicate: predicate, limit: 50, sortDescriptors: [sort]) { _, samples, _ in
+                guard let samples = samples as? [HKQuantitySample] else {
+                    cont.resume(returning: nil)
+                    return
+                }
+                for sample in samples {
+                    let steps = sample.quantity.doubleValue(for: .count())
+                    if steps > 50 {
+                        cont.resume(returning: sample.startDate)
+                        return
+                    }
+                }
+                cont.resume(returning: nil)
+            }
+            store?.execute(q)
+        }
+    }
+
     func todaySedentaryMinutes() async -> Int {
         guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return 0 }
         let startOfDay = Calendar.current.startOfDay(for: Date())
         let now = Date()
 
+        // 快速检查：今天是否有任何步数样本（模拟器无 HealthKit 数据时避免全算久坐）
+        let hasStepData = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: nil, options: .strictStartDate)
+            let q = HKSampleQuery(sampleType: stepType, predicate: predicate, limit: 1, sortDescriptors: nil) { _, samples, _ in
+                cont.resume(returning: samples?.isEmpty == false)
+            }
+            store?.execute(q)
+        }
+        guard hasStepData else { return 0 }
+
+        // 推测起床时间：起床前全部算睡眠，不计久坐
+        let wakeUpTime = await queryWakeUpTime()
+
         return await withCheckedContinuation { cont in
-            let calendar = Calendar.current
             var interval = DateComponents()
             interval.minute = 1
 
@@ -371,21 +415,18 @@ final class HealthKitService: ObservableObject {
                 var sedentaryCount = 0
                 var lastActiveTime: Date? = nil   // 上一次有步数的时间
                 let maxGapSeconds: TimeInterval = 4 * 3600   // 4 小时
-                let sleepStartHour = 0
-                let sleepEndHour = 6
 
                 results.enumerateStatistics(from: startOfDay, to: now) { statistics, _ in
                     let steps = statistics.sumQuantity()?.doubleValue(for: HKUnit.count()) ?? 0
                     let bucketStart = statistics.startDate
-                    let hour = calendar.component(.hour, from: bucketStart)
+
+                    // 起床前全部算睡眠，不计久坐
+                    if let wakeUp = wakeUpTime, bucketStart < wakeUp {
+                        return
+                    }
 
                     if steps == 0 {
-                        // 0 步数：判断是否应该算久坐
-                        // 1) 0-6 点睡眠时段 → 跳过
-                        if hour >= sleepStartHour && hour < sleepEndHour {
-                            return
-                        }
-                        // 2) 距离上次活动 >4h → 整段跳过（可能在睡眠/没带手机）
+                        // 距离上次活动 >4h → 整段跳过（可能在睡眠/没带手机）
                         if let last = lastActiveTime, bucketStart.timeIntervalSince(last) > maxGapSeconds {
                             return
                         }
@@ -469,9 +510,53 @@ final class HealthKitService: ObservableObject {
         return nil
     }
 
-    /// 当前连续久坐分钟数 = now - lastSignificantMovementTime
+    /// 从 HealthKit 直接查询最近一次有效步数（>10步）的时间
+    /// 解决 app 快照覆盖不到历史时间段的问题
+    private func queryLatestStepTime(hours: Double = 4) async -> Date? {
+        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return nil }
+        let cutoff = Date().addingTimeInterval(-hours * 3600)
+        return await withCheckedContinuation { cont in
+            let predicate = HKQuery.predicateForSamples(withStart: cutoff, end: nil, options: .strictStartDate)
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+            let q = HKSampleQuery(sampleType: stepType, predicate: predicate, limit: 1, sortDescriptors: [sort]) { _, samples, _ in
+                guard let sample = samples?.first as? HKQuantitySample else {
+                    cont.resume(returning: nil)
+                    return
+                }
+                let steps = sample.quantity.doubleValue(for: .count())
+                guard steps > 10 else {
+                    cont.resume(returning: nil)
+                    return
+                }
+                cont.resume(returning: sample.endDate)
+            }
+            store?.execute(q)
+        }
+    }
+
+    /// 当前连续久坐分钟数 = now - 最近一次有效步数时间
+    /// **数据来源融合**：
+    /// 1. 先扫描 app 本地快照（`HealthStore.shared.today`），找最近有明显步数的时间
+    /// 2. 再从 HealthKit 直接查最近一次 >10 步的原始样本
+    /// 3. 取两个来源中**更晚**的那个（更精确地反映"最后一次活动"）
+    /// 4. 若最后活动时间在起床前 → 从起床时间开始算久坐
     func currentSedentarySessionMinutes(hours: Double = 4) async -> Int {
-        guard let lastMove = lastSignificantMovementTime(hours: hours) else { return 0 }
+        let wakeUp = await queryWakeUpTime()
+        let lastFromSnapshots = lastSignificantMovementTime(hours: hours)
+        let lastFromHK = await queryLatestStepTime(hours: hours)
+        // 取两个来源中更晚的（更接近真实"最后活动时间"）
+        let lastMove: Date?
+        switch (lastFromSnapshots, lastFromHK) {
+        case let (a?, b?): lastMove = a > b ? a : b
+        case let (a?, nil): lastMove = a
+        case let (nil, b?): lastMove = b
+        case (nil, nil):    lastMove = nil
+        }
+        // 最后活动在起床前 → 从起床时间开始算（夜间起夜不算活动）
+        if let lastMove, let wakeUp, lastMove < wakeUp {
+            return max(0, Int(Date().timeIntervalSince(wakeUp) / 60))
+        }
+        guard let lastMove else { return 0 }
         return max(0, Int(Date().timeIntervalSince(lastMove) / 60))
     }
 
