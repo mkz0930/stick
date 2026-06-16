@@ -59,11 +59,6 @@ struct ContentView: View {
     // HealthKit 状态推断（30s 重算一次）
     @State private var inference: StateInference.Result? = nil
 
-    /// 当前久坐 session 开始时间（用于实时秒表，每秒跳动）
-    @State private var sitSessionStart: Date? = nil
-    /// Timer 触发器，每秒 +1 驱动 UI 刷新
-    @State private var tick: Int = 0
-
     // Chat
     @State private var showChat: Bool = false
     @State private var chatSeed: String = ""
@@ -192,15 +187,16 @@ struct ContentView: View {
         }
     }
 
-    /// 坐姿秒表（live MM:SS）：从当前 sit session 开始实时计时，每秒跳动
-    /// sit 状态时返回 "M:SS"，非 sit 返回 nil
-    private var sitDurationText: String? {
-        guard let start = sitSessionStart, displayState == .sit else { return nil }
-        let elapsed = Date().timeIntervalSince(start)
-        let totalSeconds = Int(elapsed)
-        let mm = totalSeconds / 60
-        let ss = totalSeconds % 60
-        return String(format: "%d:%02d", mm, ss)
+    /// 今日累计久坐时长显示：H:MM 格式（如 "6:23" = 6小时23分）
+    private var sitDurationText: String {
+        let m = todaySitMinutes
+        if m == 0 { return "--:--" }
+        let hours = m / 60
+        let mins = m % 60
+        if hours > 0 {
+            return String(format: "%d:%02d", hours, mins)
+        }
+        return String(format: "%d:00", mins)
     }
 
     /// 今日累计久坐分钟数（来自 healthStore.today 的快照统计）
@@ -524,20 +520,6 @@ struct ContentView: View {
             }
             // 检查各 metric 真实授权状态 (有/无/拒绝)
             healthAuth.refresh()
-        }
-        // 久坐秒表每秒跳动
-        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
-            tick += 1
-        }
-        // 监听状态切换：进入 sit 时记录 session 开始时间
-        .onChange(of: displayState) { _, newState in
-            if newState == .sit {
-                if sitSessionStart == nil {
-                    sitSessionStart = Date()
-                }
-            } else {
-                sitSessionStart = nil
-            }
         }
     }
 
