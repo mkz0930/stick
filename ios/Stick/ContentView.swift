@@ -978,7 +978,12 @@ struct ContentView: View {
     }
 
     private func openCamera() {
-        showCamera = true
+        // 与 + 按钮走同一条路径：打开 ChatOverlay + 让 ChatOverlay 内部触发 ImagePicker
+        // 保证首页拍照按钮和对话主界面的拍照按钮行为一致
+        chatSeed = ""
+        chatKey += 1
+        chatPendingPhoto = true
+        showChat = true
     }
 
     /// 强制收起系统键盘
