@@ -97,6 +97,11 @@ final class HealthKitService: ObservableObject {
         if let t = HKObjectType.quantityType(forIdentifier: .flightsClimbed)           { s.insert(t) }
         // 睡眠分析
         if let t = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)            { s.insert(t) }
+        // 步行 mobility (纯 iPhone，iOS 15+) — 仅添加 SDK 支持的类型
+        if let t = HKObjectType.quantityType(forIdentifier: .walkingSpeed) { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .walkingDoubleSupportPercentage) { s.insert(t) }
+        // 听力保护
+        if let t = HKObjectType.quantityType(forIdentifier: .headphoneAudioExposure) { s.insert(t) }
         return s
     }()
 
@@ -277,5 +282,23 @@ final class HealthKitService: ObservableObject {
             }
             store?.execute(q)
         }
+    }
+
+    // MARK: - Mobility Today Convenience Methods
+
+    /// 步速 (m/s)
+    func todayWalkingSpeed() async -> Double? {
+        await recentAverage(.walkingSpeed, from: Calendar.current.startOfDay(for: Date()), unit: HKUnit.meter().unitDivided(by: .second()))
+    }
+
+    /// 双脚支撑时间比例 (%)
+    func todayWalkingDoubleSupport() async -> Double? {
+        guard let val: Double = await recentAverage(.walkingDoubleSupportPercentage, from: Calendar.current.startOfDay(for: Date()), unit: .percent()) else { return nil }
+        return val * 100
+    }
+
+    /// 耳机音量暴露 (dB)
+    func todayHeadphoneExposure() async -> Double? {
+        await recentAverage(.headphoneAudioExposure, from: Calendar.current.startOfDay(for: Date()), unit: HKUnit.decibelAWeightedSoundPressureLevel())
     }
 }
