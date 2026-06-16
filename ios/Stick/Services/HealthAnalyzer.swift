@@ -34,20 +34,20 @@ final class HealthAnalyzer {
         // 2) 活跃时段 — 连续 walk 5+ 分钟
         insights.append(contentsOf: detectActive(snapshots))
 
-        // 3) 心率异常
-        insights.append(contentsOf: detectHeartRate(snapshots))
+        // 3) 心率异常 — 暂时注释（无真实数据源）
+        // insights.append(contentsOf: detectHeartRate(snapshots))
 
-        // 4) HRV (心率变异性) 偏低 — 压力/恢复力指标
-        insights.append(contentsOf: detectHRV(snapshots))
+        // 4) HRV (心率变异性) 偏低 — 暂时注释（无真实数据源）
+        // insights.append(contentsOf: detectHRV(snapshots))
 
         // 5) 步数不足
         insights.append(contentsOf: detectStepGoal(snapshots))
 
-        // 6) 站立小时不足 (苹果手表指标)
-        insights.append(contentsOf: detectStandHours(snapshots))
+        // 6) 站立小时不足 (苹果手表指标) — 暂时注释（无真实数据源）
+        // insights.append(contentsOf: detectStandHours(snapshots))
 
-        // 7) 锻炼时间不足
-        insights.append(contentsOf: detectExerciseTime(snapshots))
+        // 7) 锻炼时间不足 — 暂时注释（无真实数据源）
+        // insights.append(contentsOf: detectExerciseTime(snapshots))
 
         // 8) 睡眠窗口
         insights.append(contentsOf: detectSleep(snapshots))
@@ -58,8 +58,8 @@ final class HealthAnalyzer {
         // 9) 距离 / 楼层
         insights.append(contentsOf: detectDistance(snapshots))
 
-        // 10) 呼吸频率
-        insights.append(contentsOf: detectRespiratory(snapshots))
+        // 10) 呼吸频率 — 暂时注释（无真实数据源）
+        // insights.append(contentsOf: detectRespiratory(snapshots))
 
         // 按时间排序
         return insights.sorted { $0.timestampRange < $1.timestampRange }
