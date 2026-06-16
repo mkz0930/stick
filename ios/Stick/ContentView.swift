@@ -79,7 +79,6 @@ struct ContentView: View {
     @State private var scrubOffset: Int? = nil   // 0 = 现在；>0 表示过去多少分钟（窗口起点 = now - 24h）
     @State private var showFilm: Bool = false
     @State private var showSleepReport: Bool = false
-    @State private var showNeckReport: Bool = false
     @State private var showSedentaryDetail: Bool = false
     @State private var showPersonal: Bool = false
     @State private var openDataRecord: Bool = false
@@ -243,26 +242,11 @@ struct ContentView: View {
         return displayState == .sit && m >= 510 && m < 720
     }
 
-    /// 下午工作（13:30–18:00）坐 = 越坐越累。返回 0..1 强度。
-    private var afternoonTiredness: Double {
-        let m = StickState.minutesOfDay(displayDate)
-        guard displayState == .sit, m >= 810, m < 1080 else { return 0 }
-        return Double(m - 810) / 270.0
-    }
-
-    private var isAfternoonTired: Bool { afternoonTiredness > 0.05 }
-
     /// 给当前展示状态派生火柴人心情覆盖。
     private var figureMood: StickFigureMood {
         if isMorningEnergetic { return .excited }
         if isMorningCalm      { return .calm }
-        if isAfternoonTired   { return .tired }
         return .normal
-    }
-
-    /// 疲惫强度（仅 .tired 用，0..1）。
-    private var figureTiredness: Double {
-        isAfternoonTired ? afternoonTiredness : 0
     }
 
     /// 白天心情监测：当前 mood 文本 + 色调。sleep 时返回 nil（行隐藏）。
@@ -288,19 +272,8 @@ struct ContentView: View {
             if isMorningCalm {
                 return MoodLineInfo(text: "专注", tone: .calm, spark: .focused)
             }
-            if isAfternoonTired {
-                return MoodLineInfo(text: "疲倦", tone: .warn, spark: .tired)
-            }
             return MoodLineInfo(text: "平稳", tone: .good, spark: .stable)
         }
-    }
-
-    /// 腰椎压力过大提醒的可见度（0..1）。弯角 > 98° 开始出现，> 130° 完全显示。
-    private var neckWarningOpacity: Double {
-        let t = figureTiredness
-        if t <= 0.6 { return 0 }
-        if t >= 0.8 { return 1 }
-        return (t - 0.6) / 0.2
     }
 
     /// 身体能量 0..100。综合真实步态评分 + 状态：
@@ -779,13 +752,6 @@ struct ContentView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
-        .sheet(isPresented: $showNeckReport) {
-            NeckPressureReportView(
-                onClose: { showNeckReport = false }
-            )
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-        }
         .onAppear {
             // Preview 模式完全短路 — 不跑 HealthKit / Timer / refresh
             guard !Self.isRunningForPreviews else { return }
@@ -893,8 +859,6 @@ struct ContentView: View {
                         StageHeroView(
                             state: displayState,
                             mood: figureMood,
-                            tiredness: figureTiredness,
-                            neckWarningOpacity: neckWarningOpacity,
                             bodyEnergy: bodyEnergy,
                             energyColor: energyColor,
                             isScrubbing: isScrubbing,
@@ -903,7 +867,6 @@ struct ContentView: View {
                             scrubOffset: $scrubOffset,
                             onPreview: { showFilm = true },
                             onSleepAlert: { showSleepReport = true },
-                            onNeckWarningTap: { showNeckReport = true },
                             subLine: realSubLine
                         )
                         .opacity(featureRowExpanded ? 0.04 : 1.0)
@@ -1040,181 +1003,11 @@ struct ContentView: View {
     }
 }
 
-// MARK: - 腰椎压力 AI 分析报告
-
-/// 用户点击"腰椎压力过大"徽章后弹出的 sheet。
-/// **改为基于真实 HealthKit 数据**（久坐/HR/HRV/步数/睡眠），没有异常就不显示风险
-/// 取代之前基于 tiredness（姿态估算）的硬编码分级。
-private struct NeckPressureReportView: View {
-    let onClose: () -> Void
-
-    @State private var report: RealHealthReport = RealHealthAnalyzer.shared.analyze()
-
-    private var currentTime: String {
-        let c = Calendar.current
-        let d = Date()
-        let h = c.component(.hour, from: d)
-        let m = c.component(.minute, from: d)
-        return String(format: "%02d:%02d", h, m)
-    }
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    // 顶部风险条
-                    HStack(alignment: .top, spacing: 14) {
-                        ZStack {
-                            Circle()
-                                .fill(report.risk.color.opacity(0.15))
-                                .frame(width: 56, height: 56)
-                            Image(systemName: report.risk == .normal ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-                                .font(.system(size: 24, weight: .heavy))
-                                .foregroundColor(report.risk.color)
-                        }
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 6) {
-                                Text("风险等级")
-                                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                                    .tracking(0.6)
-                                    .foregroundColor(Theme.slate)
-                                Text(report.risk.label)
-                                    .font(.system(size: 16, weight: .heavy, design: .serif))
-                                    .foregroundColor(report.risk.color)
-                            }
-                            Text("数据来源 · HealthKit · \(currentTime)")
-                                .font(.system(size: 10, weight: .regular, design: .monospaced))
-                                .foregroundColor(Theme.slate)
-                        }
-                        Spacer()
-                    }
-                    .padding(14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(report.risk.color.opacity(0.08))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(report.risk.color.opacity(0.4), lineWidth: 1)
-                    )
-
-                    sectionHeader("HealthKit 真实数据")
-                    if report.keyMetrics.isEmpty {
-                        Text("暂无 HealthKit 数据")
-                            .font(.system(size: 12, weight: .regular))
-                            .foregroundColor(Theme.slate)
-                            .padding(14)
-                    } else {
-                        VStack(spacing: 4) {
-                            ForEach(Array(report.keyMetrics.enumerated()), id: \.offset) { _, metric in
-                                HStack {
-                                    HStack(spacing: 4) {
-                                        Circle()
-                                            .fill(metric.isAbnormal ? Color(red: 0.93, green: 0.20, blue: 0.20) : Color(red: 0.02, green: 0.59, blue: 0.41))
-                                            .frame(width: 6, height: 6)
-                                        Text(metric.label)
-                                            .font(.system(size: 13, weight: .regular, design: .serif))
-                                            .foregroundColor(Theme.slate)
-                                    }
-                                    Spacer()
-                                    Text(metric.value)
-                                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                                        .foregroundColor(metric.isAbnormal ? Color(red: 0.93, green: 0.20, blue: 0.20) : Theme.navy)
-                                }
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 6).fill(Theme.card)
-                                )
-                            }
-                        }
-                    }
-
-                    sectionHeader("AI 分析")
-                    Text(report.analysisText)
-                        .font(.system(size: 14, weight: .regular, design: .serif))
-                        .foregroundColor(Theme.navy)
-                        .lineSpacing(4)
-                        .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8).fill(Theme.card)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8).stroke(Theme.border, lineWidth: 0.5)
-                        )
-
-                    sectionHeader("建议")
-                    if report.recommendations.isEmpty {
-                        Text("当前无需特别建议")
-                            .font(.system(size: 12, weight: .regular))
-                            .foregroundColor(Theme.slate)
-                            .padding(14)
-                    } else {
-                        VStack(alignment: .leading, spacing: 8) {
-                            ForEach(Array(report.recommendations.enumerated()), id: \.offset) { idx, rec in
-                                HStack(alignment: .top, spacing: 8) {
-                                    Text("\(idx + 1).")
-                                        .font(.system(size: 13, weight: .heavy, design: .monospaced))
-                                        .foregroundColor(report.risk.color)
-                                        .frame(width: 20, alignment: .trailing)
-                                    Text(rec)
-                                        .font(.system(size: 13, weight: .regular, design: .serif))
-                                        .foregroundColor(Theme.navy)
-                                        .lineSpacing(3)
-                                }
-                            }
-                        }
-                        .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8).fill(Theme.card)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8).stroke(Theme.border, lineWidth: 0.5)
-                        )
-                    }
-
-                    Text("⚠️ 本报告基于 HealthKit 真实数据（HR / HRV / 步数 / 久坐 / 静息心率）。如有持续不适请咨询专业医师。")
-                        .font(.system(size: 10, weight: .regular, design: .monospaced))
-                        .foregroundColor(Theme.slate)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 8)
-                }
-                .padding(16)
-            }
-            .background(Theme.bgTop.ignoresSafeArea())
-            .navigationTitle("健康分析")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("关闭", action: onClose)
-                }
-            }
-        }
-    }
-
-    private func sectionHeader(_ title: String) -> some View {
-        HStack(spacing: 6) {
-            Text(title)
-                .font(.system(size: 11, weight: .heavy, design: .monospaced))
-                .tracking(1.4)
-                .foregroundColor(Theme.slate)
-            Rectangle()
-                .fill(Theme.divider)
-                .frame(height: 0.5)
-        }
-        .padding(.top, 4)
-    }
-}
-
 // MARK: - 主舞台（v6 风格）
 
 private struct StageHeroView: View {
     let state: StickState
     let mood: StickFigureMood
-    let tiredness: Double
-    let neckWarningOpacity: Double
     let bodyEnergy: Double
     let energyColor: Color
     let isScrubbing: Bool
@@ -1223,7 +1016,6 @@ private struct StageHeroView: View {
     @Binding var scrubOffset: Int?            // 接收时间线 binding，stage 也可拖
     var onPreview: () -> Void
     var onSleepAlert: () -> Void
-    var onNeckWarningTap: () -> Void
     let subLine: String
 
     /// 拖动起点 + 起始 offset (用于把横向 delta 换算成分钟)
@@ -1264,45 +1056,12 @@ private struct StageHeroView: View {
             // 舞台区（火柴人 + 透明背景，跟整页一个底色）
             ZStack {
                 // 永远画小人（让用户看到 30° 低头 + 低落表情等所有视觉）
-                StickFigureView(state: state, mood: mood, tiredness: tiredness, neckWarning: neckWarningOpacity)
+                StickFigureView(state: state, mood: mood)
                     .padding(.horizontal, 4)
                     .padding(.top, 70)
                     .padding(.bottom, 0)
                     .id(state)
                     .transition(.opacity)
-
-                // 腰椎压力过大提醒（小人腰椎位置；tiredness > 0.6 开始淡入；点击弹 AI 报告）
-                if neckWarningOpacity > 0.01 {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Spacer().frame(height: 250)
-                        HStack {
-                            Button(action: onNeckWarningTap) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .font(.system(size: 10, weight: .heavy))
-                                    Text("腰椎压力过大")
-                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 8, weight: .bold))
-                                }
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 4)
-                                .background(
-                                    Capsule().fill(Color(red: 0.92, green: 0.34, blue: 0.05).opacity(0.92))
-                                )
-                                .foregroundColor(.white)
-                                .shadow(color: .black.opacity(0.15), radius: 3, x: 0, y: 1)
-                            }
-                            .buttonStyle(.plain)
-                            Spacer()
-                        }
-                        Spacer()
-                    }
-                    .padding(12)
-                    .opacity(neckWarningOpacity)
-                    .transition(.opacity)
-                    .animation(.easeInOut(duration: 0.35), value: neckWarningOpacity)
-                }
 
                 // 右上角：状态名 + 副标（能量徽章已搬到顶部卡片区）
                 HStack {
