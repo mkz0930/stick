@@ -808,7 +808,7 @@ struct ChatOverlay: View {
 
         let ctx = buildContext()
         streamTask = Task {
-            // 段 1: 本地分析（无搜索，快）
+            // 段 1: 本地分析 — 1-2 句「现状/问题」（快）
             await MainActor.run {
                 searchStatus = "正在分析您的健康数据…"
                 self.scrollToStreamingTrigger &+= 1
@@ -816,16 +816,22 @@ struct ChatOverlay: View {
             let analysisOk = await streamInto(
                 messageId: analysisId,
                 stream: LLMService.sendMessageStream(
-                    "请基于用户的健康数据/画像/历史，简洁分析当前问题（200字以内，不要联网）。",
+                    """
+                    只输出 1-2 句「用户当下最突出的健康现状/问题」总结，60 字以内。
+                    严格规则：
+                    - 只描述现状，不给建议
+                    - 不引用联网信息
+                    - 不重复用户的原话
+                    - 不要说"根据数据"等套话
+                    """,
                     context: ctx
                 )
             )
             await MainActor.run { searchStatus = nil }
             if Task.isCancelled { return }
 
-            // 段 2: 联网搜索（带 enable_search，慢）
+            // 段 2: 联网搜索 — 关键信息提炼
             if let imgData = imageData {
-                // 带图：跳过联网，直接用视觉模型分析
                 await MainActor.run {
                     searchStatus = "正在分析图片…"
                     self.scrollToStreamingTrigger &+= 1
@@ -840,28 +846,46 @@ struct ChatOverlay: View {
                 }
                 let webResults: [SearchResult] = await streamIntoCollectingSearch(
                     messageId: webId,
-                    stream: LLMService.sendMessageStreamWithSearch(text, context: ctx)
+                    stream: LLMService.sendMessageStreamWithSearch(
+                        """
+                        基于联网结果，简洁给出与用户问题相关的「关键信息/事实」2-3 条。
+                        80 字以内。
+                        严格规则：
+                        - 必须是联网结果的事实，不是自己的分析
+                        - 不要重复用户的原话
+                        - 用 [n] 角标对应来源
+                        """,
+                        context: ctx
+                    )
                 )
                 await MainActor.run { searchStatus = nil }
                 if Task.isCancelled { return }
 
-                // 段 3: 综合总结（无搜索；将联网结果作为上下文）
+                // 段 3: 综合 — 只给可执行步骤，不复述前两段
                 await MainActor.run {
                     searchStatus = "正在综合分析…"
                     self.scrollToStreamingTrigger &+= 1
                 }
                 let webSummary = webResults.prefix(5).map { "[\($0.index)] \($0.title ?? $0.url)" }.joined(separator: "\n")
                 let synthPrompt = """
-                基于以下「本地分析」+「联网参考」，给用户最终建议（300字以内，可执行）。
+                你是健康助理。基于下方「本地现状」+「联网要点」，**只给 2-4 条可执行步骤**，200 字以内。
+                用户已经看过前两段，**不要重复现状/事实**，**直接说"现在/接下来做什么"**。
 
-                【本地分析】
-                \(analysisOk)
+                【本地现状】
+                \(analysisOk.isEmpty ? "（暂无）" : analysisOk)
 
-                【联网参考】
+                【联网要点】
                 \(webSummary.isEmpty ? "（未触发搜索）" : webSummary)
 
                 【用户原问题】
                 \(text)
+
+                严格规则：
+                - 标题"【立即行动】"
+                - 每条 30 字以内，编号 1./2./3.
+                - 必须立刻能执行，不要"建议咨询医生"等空话
+                - 不要再写"根据您的..."等重复套话
+                - 不要再次引用 [n] 角标（前一段已展示来源）
                 """
                 _ = await streamInto(
                     messageId: synthId,
