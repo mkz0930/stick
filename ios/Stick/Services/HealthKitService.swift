@@ -84,6 +84,8 @@ final class HealthKitService: ObservableObject {
     @Published var error: String?
     /// 最后检测到明显步数的时间（incrementalStepCount > 10），用于立即打断久坐计时
     @Published var lastMovementTime: Date? = nil
+    /// 基于今天真实 HealthKit 步数数据生成的 24h 时刻表
+    @Published var realDaySchedule: [StickState.DaySegment]? = nil
 
     private var timer: Timer?
 
@@ -502,7 +504,7 @@ final class HealthKitService: ObservableObject {
                 var activeMinutes = Set<Date>()
                 for (ts, steps) in buckets {
                     guard steps > 0 else { continue }
-                    let walkMinutes = max(1, min(30, Int(steps / 100.0) + 1))
+                    let walkMinutes = max(1, min(30, Int(steps / 80.0) + 1))
                     for i in 0..<walkMinutes {
                         let t = ts.addingTimeInterval(-Double(i) * 60)
                         if t >= startOfDay && t <= now { activeMinutes.insert(t) }
@@ -521,6 +523,137 @@ final class HealthKitService: ObservableObject {
                     sedentaryCount += 1
                 }
                 cont.resume(returning: sedentaryCount)
+            }
+            store?.execute(query)
+        }
+    }
+
+    // MARK: - 真实时刻表
+
+    /// 基于今天真实 HealthKit 步数数据生成的 24h 时刻表
+    /// 算法与 `todaySedentaryMinutes()` 一致：/80 divisor 反推步行时间 + 4h 无活动长间隔判睡眠。
+    /// 唯一差异：本方法对全部 1440 分钟分类，而非只统计久坐分钟数。
+    func computeDaySchedule() async {
+        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return }
+        let startOfDay = Calendar.current.startOfDay(for: Date())
+        let now = Date()
+
+        // 快速检查：今天是否有任何步数样本（模拟器无 HealthKit 数据时避免全算久坐）
+        let hasStepData = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: nil, options: .strictStartDate)
+            let q = HKSampleQuery(sampleType: stepType, predicate: predicate, limit: 1, sortDescriptors: nil) { _, samples, _ in
+                cont.resume(returning: samples?.isEmpty == false)
+            }
+            store?.execute(q)
+        }
+        guard hasStepData else { return }
+
+        // 推测起床时间 + 午休窗口（与 todaySedentaryMinutes 复用）
+        let wakeUp = await queryWakeUpTime()
+        let nap = await detectLunchNap()
+
+        let wakeUpMinute = wakeUp.map { StickState.minutesOfDay($0) }
+        let napStart = nap.map { StickState.minutesOfDay($0.lowerBound) }
+        let napEnd = nap.map { StickState.minutesOfDay($0.upperBound) }
+        let nowMinute = StickState.minutesOfDay(now)
+
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            var interval = DateComponents()
+            interval.minute = 1
+
+            let query = HKStatisticsCollectionQuery(
+                quantityType: stepType,
+                quantitySamplePredicate: nil,
+                options: .cumulativeSum,
+                anchorDate: startOfDay,
+                intervalComponents: interval
+            )
+
+            query.initialResultsHandler = { _, results, _ in
+                guard let results = results else {
+                    cont.resume(returning: ())
+                    return
+                }
+
+                // Pass 1: 收集所有分钟 bucket
+                var buckets: [(Date, Double)] = []
+                results.enumerateStatistics(from: startOfDay, to: now) { stat, _ in
+                    let s = stat.sumQuantity()?.doubleValue(for: HKUnit.count()) ?? 0
+                    buckets.append((stat.startDate, s))
+                }
+                buckets.sort { $0.0 < $1.0 }
+
+                // Pass 2: 根据步数反推步行时间（/80 divisor，与 todaySedentaryMinutes 算法一致）
+                var activeMinutes = Set<Int>()
+                for (ts, steps) in buckets {
+                    guard steps > 0 else { continue }
+                    let walkMinutes = max(1, min(30, Int(steps / 80.0) + 1))
+                    for i in 0..<walkMinutes {
+                        let t = ts.addingTimeInterval(-Double(i) * 60)
+                        if t >= startOfDay && t <= now {
+                            activeMinutes.insert(StickState.minutesOfDay(t))
+                        }
+                    }
+                }
+
+                // Pass 3: 分类全部 1440 分钟
+                var states = [StickState](repeating: .sit, count: 1440)
+                var lastActiveMinute: Int? = nil
+                let maxGapMinutes = 4 * 60
+
+                for minute in 0..<1440 {
+                    // 1) 起床前 → 睡眠
+                    if let wu = wakeUpMinute, minute < wu {
+                        states[minute] = .sleep
+                        continue
+                    }
+
+                    // 2) 午休范围 → 睡眠
+                    if let ns = napStart, let ne = napEnd, minute >= ns && minute < ne {
+                        states[minute] = .sleep
+                        continue
+                    }
+
+                    // 3) 步行活动分钟
+                    if activeMinutes.contains(minute) {
+                        states[minute] = .walk
+                        lastActiveMinute = minute
+                        continue
+                    }
+
+                    // 4) 未来分钟：按时间段启发式分类（22:00-07:00 睡眠，其余坐）
+                    if minute > nowMinute {
+                        let h = minute / 60
+                        states[minute] = (h >= 22 || h < 7) ? .sleep : .sit
+                        continue
+                    }
+
+                    // 5) 距上次活动 > 4h → 睡眠/离开
+                    if let last = lastActiveMinute, minute - last > maxGapMinutes {
+                        states[minute] = .sleep
+                        continue
+                    }
+
+                    // 6) 默认久坐
+                    states[minute] = .sit
+                }
+
+                // Pass 4: 合并连续相同状态为 DaySegment 数组
+                var segments: [StickState.DaySegment] = []
+                var i = 0
+                while i < 1440 {
+                    let s = states[i]
+                    var j = i + 1
+                    while j < 1440 && states[j] == s { j += 1 }
+                    segments.append(StickState.DaySegment(state: s, startMinute: i, endMinute: j))
+                    i = j
+                }
+
+                // 切回主线程写入 @Published 属性
+                Task { @MainActor in
+                    self.realDaySchedule = segments
+                }
+                cont.resume(returning: ())
             }
             store?.execute(query)
         }

@@ -101,20 +101,27 @@ struct ContentView: View {
         now.addingTimeInterval(-Double(displayOffset) * 60)
     }
 
-    /// 小人显示状态：基于真实 HealthStore 快照（bodyState）计算
-    /// 优先级：walk（真实数据）> 睡眠时段默认 > 其他快照 > sit
+    /// 小人显示状态：基于真实 HealthKit 步数数据生成的时刻表 + 快照兜底
+    /// 优先级：真实时刻表 (realDaySchedule) > 实时快照 > 时段硬编码
     private var displayState: StickState {
-        let hour = Calendar.current.component(.hour, from: Date())
-        let minute = Calendar.current.component(.minute, from: Date())
+        let dt = displayDate
+        let m = StickState.minutesOfDay(dt)
+
+        // 0. 真实数据驱动的 24h 时刻表（最高优先级）
+        if let rs = hk.realDaySchedule, let seg = rs.first(where: { $0.contains(m) }) {
+            return seg.state
+        }
+
+        let hour = Calendar.current.component(.hour, from: dt)
+        let minute = Calendar.current.component(.minute, from: dt)
         let isSleepHour = hour >= 23 || hour < 7
         let isNapHour = hour == 13 && minute >= 0 && minute < 30
 
-        // 1. 近期的真实快照：walk 始终覆盖时段默认（"根据真实情况"）
+        // 1. 近期的真实快照：walk 始终覆盖时段默认
         if let latest = HealthStore.shared.today.sorted(by: { $0.timestamp > $1.timestamp }).first {
             let age = Date().timeIntervalSince(latest.timestamp)
             if age < 90, let mapped = mapBodyState(latest.bodyState) {
                 if mapped == .walk { return .walk }
-                // 非睡眠时段用快照数据
                 if !isSleepHour && !isNapHour { return mapped }
             }
         }
@@ -534,6 +541,10 @@ struct ContentView: View {
             Task {
                 _ = await HealthKitService.shared.captureSnapshot()
                 inference = HealthKitService.shared.currentInference
+                // 每 5 分钟重新生成一次 24h 时刻表（不必 30s 一次，太重）
+                if Calendar.current.component(.minute, from: Date()) % 5 == 0 {
+                    await HealthKitService.shared.computeDaySchedule()
+                }
             }
         }
         .onChange(of: displayState) { oldValue, newValue in
@@ -606,6 +617,8 @@ struct ContentView: View {
                         currentSitStartTime = Date().addingTimeInterval(-Double(snapMins) * 60)
                     }
                     lastSitAnalysisTime = Date()
+                    // 回到前台时也重算时刻表（黑屏期间可能有新数据）
+                    await HealthKitService.shared.computeDaySchedule()
                 }
             }
         }
@@ -676,6 +689,8 @@ struct ContentView: View {
                     currentSitStartTime = Date().addingTimeInterval(-Double(sitMins) * 60)
                 }
                 lastSitAnalysisTime = Date()
+                // 计算今天真实的 24h 时刻表（驱动时间轴 + 小人状态）
+                await HealthKitService.shared.computeDaySchedule()
             }
             // 检查各 metric 真实授权状态 (有/无/拒绝)
             healthAuth.refresh()
@@ -768,7 +783,7 @@ struct ContentView: View {
                         .frame(height: 400)
 
                         DayTimelineView(
-                            schedule: StickState.daySchedule,
+                            schedule: hk.realDaySchedule ?? StickState.daySchedule,
                             now: now,
                             scrubOffset: $scrubOffset,
                             showDevicePicker: $showDevicePicker
