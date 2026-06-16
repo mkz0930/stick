@@ -65,37 +65,21 @@ final class HealthAnalyzer {
         return insights.sorted { $0.timestampRange < $1.timestampRange }
     }
 
-    // MARK: - 久坐
+    // MARK: - 久坐（累计：今日所有 sit 时段相加）
 
     private func detectSedentary(_ snaps: [HealthSnapshot]) -> [HealthInsight] {
-        var out: [HealthInsight] = []
-        var runStart: Date?
-        var runMinutes: Int = 0
-        var lastTimestamp: Date?
+        // 累计久坐分钟数：所有 sit snapshot 累加（中间走动不重置）
+        let sitCount = snaps.filter { $0.bodyState == "sit" }.count
+        guard sitCount >= 120 else { return [] }
 
-        for s in snaps {
-            let moving = s.incrementalStepCount > 0
-            let isSit = (s.bodyState == "sit") && !moving
-            if isSit {
-                if runStart == nil { runStart = s.timestamp }
-                runMinutes += 1
-                lastTimestamp = s.timestamp
-            } else {
-                // 久坐阈值：连续 2 小时才算异常（避免每次小憩都触发）
-                if let s_ = runStart, runMinutes >= 120 {
-                    out.append(HealthInsight(
-                        kind: .sedentary,
-                        severity: runMinutes >= 180 ? .alert : .warn,
-                        title: runMinutes >= 180 ? "久坐超过 3 小时" : "久坐超过 2 小时",
-                        detail: "建议起身活动 5 分钟, 拉伸颈肩",
-                        timestampRange: "\(hhmm(s_))–\(hhmm(lastTimestamp ?? s_))",
-                        numericValue: "\(runMinutes) 分钟"
-                    ))
-                }
-                runStart = nil; runMinutes = 0
-            }
-        }
-        return out
+        return [HealthInsight(
+            kind: .sedentary,
+            severity: sitCount >= 180 ? .alert : .warn,
+            title: sitCount >= 180 ? "累计久坐超过 3 小时" : "累计久坐超过 2 小时",
+            detail: "今日累计久坐已超出健康阈值，建议每小时起身活动 5 分钟",
+            timestampRange: "今日",
+            numericValue: "\(sitCount) 分钟"
+        )]
     }
 
     // MARK: - 活跃
