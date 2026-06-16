@@ -223,12 +223,7 @@ struct ContentView: View {
     var todaySitDescription: String {
         let m = homeSedentaryMinutes
         if m == 0 { return "暂无久坐" }
-        let hours = m / 60
-        let mins = m % 60
-        if hours > 0 {
-            return String(format: "累计%d小时%d分", hours, mins)
-        }
-        return String(format: "累计%d分", mins)
+        return String(format: "%d:%02d", m / 60, m % 60)
     }
 
     private var moodScore: Double {

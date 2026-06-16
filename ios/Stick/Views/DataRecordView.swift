@@ -145,12 +145,7 @@ struct DataRecordView: View {
     private var hkSedentaryValue: String {
         let m = hkData.sedentaryMinutes
         if m == 0 { return "--" }
-        let hours = m / 60
-        let mins = m % 60
-        if hours > 0 {
-            return String(format: "%d:%02d", hours, mins)
-        }
-        return String(format: "%d分", mins)
+        return String(format: "%d:%02d", m / 60, m % 60)
     }
 
     /// 血压显示值：收缩压/舒张压 或 --
