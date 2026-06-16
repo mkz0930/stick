@@ -686,39 +686,44 @@ struct ContentView: View {
             if newPhase != .active {
                 backgroundedAt = Date()
             }
-            // 回到前台（解锁）：刷步数 + 重算当前久坐 session
+            // 回到前台（解锁）：优先刷久坐秒表，其他查询并行
             if oldPhase != .active && newPhase == .active {
                 guard !Self.isRunningForPreviews else { return }
                 Task {
                     // 1) 先抓一次最新快照 — 把黑屏期间走的步数写进 HealthStore
+                    //    （这是关键，否则 HealthStore 里的步数还是锁屏前的）
                     _ = await HealthKitService.shared.captureSnapshot()
 
-                    // 2) 今日累计久坐（cumulative 显示用）
-                    let sedentary = await HealthKitService.shared.todaySedentaryMinutes()
-                    let sleepHours = await HealthKitService.shared.todaySleepHours()
-                    let validSleep = (sleepHours ?? 0) > 0
-                    homeSedentaryMinutes = validSleep ? max(0, sedentary - Int((sleepHours ?? 0) * 60)) : 0
-                    hasValidSleepData = validSleep
-
-                    // 3) 当前 session 久坐（live 显示用）— 基于"最后一次明显步数"
-                    //    这才是关键：黑屏期间如果用户走动过，lastMove 会更新，
-                    //    session 应该被截断/重置，不会把整段锁屏时间都算进去
+                    // 2) **优先** 算当前 session 久坐（live 秒表要的数）
+                    //    基于"最后一次明显步数时间"，黑屏期间走动过 → 自动截断/重置
                     let sessionMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
                     if sessionMins > 0 {
                         currentSitStartTime = Date().addingTimeInterval(-Double(sessionMins) * 60)
                         currentSitMinutes = sessionMins
                     } else {
-                        // sessionMins == 0 说明最近 4h 有走动/活动，重置
+                        // 最近 4h 有走动/活动，重置
                         currentSitStartTime = nil
                         currentSitMinutes = 0
                     }
                     lastSitAnalysisTime = Date()
 
-                    // 4) 回到前台时也重算时刻表（黑屏期间可能有新数据）
-                    await HealthKitService.shared.computeDaySchedule()
-                    let wq = await HealthKitService.shared.todayWalkingQuality()
-                    walkingQuality = WalkingQualityData.from(wq)
-                    realHeartRate = await HealthKitService.shared.todayHeartRate()
+                    // 3) 累计 + 心率 + 步态 + 时刻表 — 并行刷新（不再阻塞秒表）
+                    async let sedentaryTask: Void = {
+                        let sed = await HealthKitService.shared.todaySedentaryMinutes()
+                        let sleep = await HealthKitService.shared.todaySleepHours()
+                        let valid = (sleep ?? 0) > 0
+                        homeSedentaryMinutes = valid ? max(0, sed - Int((sleep ?? 0) * 60)) : 0
+                        hasValidSleepData = valid
+                    }()
+                    async let scheduleTask: Void = {
+                        await HealthKitService.shared.computeDaySchedule()
+                    }()
+                    async let qualityTask: Void = {
+                        let wq = await HealthKitService.shared.todayWalkingQuality()
+                        walkingQuality = WalkingQualityData.from(wq)
+                        realHeartRate = await HealthKitService.shared.todayHeartRate()
+                    }()
+                    _ = await (sedentaryTask, scheduleTask, qualityTask)
                 }
             }
         }
