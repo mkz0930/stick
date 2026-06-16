@@ -55,8 +55,10 @@ final class DataRecordViewModel: ObservableObject {
         data.walkingSpeed = await service.todayWalkingSpeed()
         data.walkingDoubleSupport = await service.todayWalkingDoubleSupport()
         data.headphoneExposure = await service.todayHeadphoneExposure()
-        // 读取今日久坐分钟数（直接从 HealthKit）
-        data.sedentaryMinutes = await service.todaySedentaryMinutes()
+        // 读取今日久坐分钟数（直接从 HealthKit），减去睡眠时间（睡眠时步数为0不应算久坐）
+        let sedentary = await service.todaySedentaryMinutes()
+        let sleepMinutes = Int((data.sleepHours ?? 0) * 60)
+        data.sedentaryMinutes = max(0, sedentary - sleepMinutes)
         hkData = data
     }
 
