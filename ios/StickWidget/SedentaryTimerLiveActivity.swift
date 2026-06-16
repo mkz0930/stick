@@ -32,7 +32,6 @@ struct SedentaryTimerLiveActivity: Widget {
             .padding()
 
         } dynamicIsland: { context in
-            // 灵动岛显示（精简版）
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     Text("久坐").foregroundColor(.secondary)
