@@ -238,4 +238,44 @@ final class HealthKitService: ObservableObject {
         timer?.invalidate()
         timer = nil
     }
+
+    // MARK: - Today Convenience Methods
+
+    func todaySteps() async -> Int? {
+        guard let type = HKObjectType.quantityType(forIdentifier: .stepCount) else { return nil }
+        let dayStart = Calendar.current.startOfDay(for: Date())
+        guard let val: Double = await recentSum(.stepCount, from: dayStart, unit: .count()) else { return nil }
+        return Int(val)
+    }
+
+    func todayEnergy() async -> Double? {
+        await recentSum(.activeEnergyBurned, from: Calendar.current.startOfDay(for: Date()), unit: .kilocalorie())
+    }
+
+    func todayFlights() async -> Int? {
+        guard let val: Double = await recentSum(.flightsClimbed, from: Calendar.current.startOfDay(for: Date()), unit: .count()) else { return nil }
+        return Int(val)
+    }
+
+    func todayDistance() async -> Double? {
+        await recentSum(.distanceWalkingRunning, from: Calendar.current.startOfDay(for: Date()), unit: .meter())
+    }
+
+    func todayHeartRate() async -> Int? {
+        guard let type = HKObjectType.quantityType(forIdentifier: .heartRate) else { return nil }
+        return await withCheckedContinuation { cont in
+            let from = Calendar.current.startOfDay(for: Date())
+            let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: .strictStartDate)
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+            let q = HKSampleQuery(sampleType: type, predicate: predicate, limit: 1, sortDescriptors: [sort]) { _, samples, _ in
+                guard let sample = samples?.first as? HKQuantitySample else {
+                    cont.resume(returning: nil)
+                    return
+                }
+                let val = sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+                cont.resume(returning: Int(val))
+            }
+            store?.execute(q)
+        }
+    }
 }

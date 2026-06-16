@@ -6,13 +6,45 @@
 import SwiftUI
 import Combine
 
+/// HealthKit 实时数据
+struct HKLiveData: Equatable {
+    var steps: Int = 0
+    var energy: Int = 0
+    var flights: Int = 0
+    var distance: Double = 0
+    var heartRate: Int?
+}
+
 @MainActor
 final class DataRecordViewModel: ObservableObject {
     @Published var today: [HealthSnapshot] = []
     @Published var insights: [HealthInsight] = []
     @Published private(set) var userProfile: String = ""
+    @Published var hkData: HKLiveData?
 
     private var cancellables = Set<AnyCancellable>()
+
+    func loadHKData() async {
+        var data = HKLiveData()
+        let service = HealthKitService.shared
+        let now = Date()
+        let startOfDay = Calendar.current.startOfDay(for: now)
+
+        if let steps = await service.todaySteps() {
+            data.steps = steps
+        }
+        if let energy = await service.todayEnergy() {
+            data.energy = Int(energy)
+        }
+        if let flights = await service.todayFlights() {
+            data.flights = flights
+        }
+        if let dist = await service.todayDistance() {
+            data.distance = dist / 1000
+        }
+        data.heartRate = await service.todayHeartRate()
+        hkData = data
+    }
 
     init() {
         userProfile = UserProfileStore.shared.profile
@@ -67,6 +99,14 @@ struct DataRecordView: View {
     /// LLM 生成的今日洞察（一句）
     @State private var insight: String = ""
     @State private var isLoadingInsight: Bool = false
+    @State private var hkData: HKLiveData = HKLiveData()
+
+    // MARK: - HealthKit Computed Properties
+
+    private var hkSteps: String { "\(hkData.steps)" }
+    private var hkEnergy: String { hkData.energy > 0 ? "\(hkData.energy)" : "--" }
+    private var hkFlights: String { hkData.flights > 0 ? "\(hkData.flights)" : "--" }
+    private var hkDistance: String { hkData.distance > 0 ? String(format: "%.1f", hkData.distance) : "--" }
 
     /// 血压显示值：收缩压/舒张压 或 --
     private var bpValue: String {
@@ -113,6 +153,62 @@ struct DataRecordView: View {
         }
     }
 
+    // MARK: - HealthKit Section
+
+    private var healthKitSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("健康数据")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Theme.navy)
+                Spacer()
+                Text("来自 iPhone")
+                    .font(.system(size: 12))
+                    .foregroundColor(Theme.slate)
+            }
+
+            VStack(spacing: 10) {
+                // 2x2 网格
+                HStack(spacing: 10) {
+                    DashboardCard(
+                        icon: "figure.walk",
+                        iconColor: Theme.dashSteps,
+                        title: "步数",
+                        sub: "今日累计",
+                        value: hkSteps,
+                        valueUnit: "步"
+                    )
+                    DashboardCard(
+                        icon: "flame.fill",
+                        iconColor: Theme.dashDiet,
+                        title: "活动能量",
+                        sub: "今日累计",
+                        value: hkEnergy,
+                        valueUnit: "kcal"
+                    )
+                }
+                HStack(spacing: 10) {
+                    DashboardCard(
+                        icon: "figure.climbing",
+                        iconColor: Theme.dashBody,
+                        title: "爬楼",
+                        sub: "今日累计",
+                        value: hkFlights,
+                        valueUnit: "层"
+                    )
+                    DashboardCard(
+                        icon: "map.fill",
+                        iconColor: Theme.dashSteps,
+                        title: "距离",
+                        sub: "今日累计",
+                        value: hkDistance,
+                        valueUnit: "km"
+                    )
+                }
+            }
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             Color.white.ignoresSafeArea()
@@ -135,8 +231,17 @@ struct DataRecordView: View {
         .preferredColorScheme(.light)
         .onAppear {
             vm.refresh()
+            Task { await vm.loadHKData() }
+            if let data = vm.hkData {
+                hkData = data
+            }
             // 每次打开都调 LLM 生成一句洞察
             Task { await generateInsight() }
+        }
+        .onChange(of: vm.hkData) { _, newValue in
+            if let data = newValue {
+                hkData = data
+            }
         }
     }
 
@@ -437,6 +542,10 @@ struct DataRecordView: View {
                     }
                 }
             }
+
+            // MARK: - HealthKit Section
+
+            healthKitSection
         }
     }
 }
