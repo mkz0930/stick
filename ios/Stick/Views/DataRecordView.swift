@@ -119,39 +119,43 @@ struct DataRecordView: View {
     /// LLM 生成的今日洞察（一句）
     @State private var insight: String = ""
     @State private var isLoadingInsight: Bool = false
-    @State private var hkData: HKLiveData = HKLiveData()
     /// 数据导出
     @State private var showExportSheet: Bool = false
     @State private var exportURL: URL? = nil
     @State private var isExporting: Bool = false
+    /// 7 天导出 loading
+    @State private var isExporting7d: Bool = false
 
     // MARK: - HealthKit Computed Properties
 
-    private var hkSteps: String { "\(hkData.steps)" }
-    private var hkEnergy: String { hkData.energy > 0 ? "\(hkData.energy)" : "--" }
-    private var hkFlights: String { hkData.flights > 0 ? "\(hkData.flights)" : "--" }
-    private var hkDistance: String { hkData.distance > 0 ? String(format: "%.1f", hkData.distance) : "--" }
+    /// 单一数据源：vm.hkData 为 nil 时回退到空 HKLiveData，所有 UI 只读这里
+    private var hk: HKLiveData { vm.hkData ?? HKLiveData() }
+
+    private var hkSteps: String { "\(hk.steps)" }
+    private var hkEnergy: String { hk.energy > 0 ? "\(hk.energy)" : "--" }
+    private var hkFlights: String { hk.flights > 0 ? "\(hk.flights)" : "--" }
+    private var hkDistance: String { hk.distance > 0 ? String(format: "%.1f", hk.distance) : "--" }
 
     // MARK: - Mobility Computed Properties
 
     private var hkWalkingSpeed: String {
-        guard let v = hkData.walkingSpeed else { return "--" }
+        guard let v = hk.walkingSpeed else { return "--" }
         return String(format: "%.1f", v)
     }
 
     private var hkDoubleSupport: String {
-        guard let v = hkData.walkingDoubleSupport else { return "--" }
+        guard let v = hk.walkingDoubleSupport else { return "--" }
         return String(format: "%.1f", v)
     }
 
     private var hkSleepValue: String {
-        guard let v = hkData.sleepHours else { return "--" }
+        guard let v = hk.sleepHours else { return "--" }
         if v <= 0 { return "--" }
         return String(format: "%.1f", v)
     }
 
     private var hkSedentaryValue: String {
-        let m = hkData.sedentaryMinutes
+        let m = hk.sedentaryMinutes
         if m == 0 { return "--" }
         return String(format: "%.1fh", Double(m) / 60.0)
     }
@@ -202,7 +206,7 @@ struct DataRecordView: View {
             if v == 0 { return "0" } // 失眠
             return String(format: "%.1f", v)
         }
-        if let v = hkData.sleepHours, v > 0 {
+        if let v = hk.sleepHours, v > 0 {
             return String(format: "%.1f", v)
         }
         return "--"
@@ -211,7 +215,7 @@ struct DataRecordView: View {
     /// 睡眠卡片副标：标明数据来源
     private var sleepSub: String {
         if BodyMetricsStore.shared.sleepHours != nil { return "来自对话分析" }
-        if (hkData.sleepHours ?? 0) > 0 { return "来自 HealthKit" }
+        if (hk.sleepHours ?? 0) > 0 { return "来自 HealthKit" }
         return "暂无数据"
     }
 
@@ -360,17 +364,10 @@ struct DataRecordView: View {
         .preferredColorScheme(.light)
         .onAppear {
             vm.refresh()
+            // vm.hkData 为 @Published：赋值后自动触发 view 重渲染，UI 通过 hk 计算属性读取
             Task { await vm.loadHKData() }
-            if let data = vm.hkData {
-                hkData = data
-            }
             // 每次打开都调 LLM 生成一句洞察
             Task { await generateInsight() }
-        }
-        .onChange(of: vm.hkData) { _, newValue in
-            if let data = newValue {
-                hkData = data
-            }
         }
         .sheet(isPresented: $showExportSheet) {
             if let url = exportURL {
@@ -388,7 +385,7 @@ struct DataRecordView: View {
                 .font(.system(size: 20, weight: .bold))
                 .foregroundColor(Theme.navy)
             Spacer()
-            // 导出按钮
+            // 导出今日按钮
             Button(action: {
                 isExporting = true
                 Task {
@@ -407,6 +404,27 @@ struct DataRecordView: View {
                         .foregroundColor(Theme.navy)
                         .frame(width: 32, height: 32)
                         .background(Circle().fill(Theme.card).overlay(Circle().stroke(Theme.border, lineWidth: 1)))
+                }
+            }
+            // 导出最近 7 天按钮
+            Button(action: {
+                isExporting7d = true
+                Task {
+                    exportURL = await HealthKitService.shared.exportLast7Days()
+                    isExporting7d = false
+                    if exportURL != nil {
+                        showExportSheet = true
+                    }
+                }
+            }) {
+                if isExporting7d {
+                    ProgressView().controlSize(.small).frame(width: 44, height: 32)
+                } else {
+                    Text("7天")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Theme.navy)
+                        .frame(width: 44, height: 32)
+                        .background(Capsule().fill(Theme.card).overlay(Capsule().stroke(Theme.border, lineWidth: 1)))
                 }
             }
             Button(action: onClose) {
