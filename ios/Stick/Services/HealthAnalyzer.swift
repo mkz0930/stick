@@ -176,7 +176,7 @@ final class HealthAnalyzer {
 
     // MARK: - 睡眠质量 (vs. 参考 7-9h)
 
-    /// 对比「参考睡眠区间 7-9h」：< 7h 提醒偏少，< 6h 升级为严重不足
+    /// 仅睡眠 < 6h 触发严重不足提醒
     private func detectSleepAbnormality(_ snaps: [HealthSnapshot]) -> [HealthInsight] {
         let sleeps = snaps.filter { $0.bodyState == "sleep" }
         guard !sleeps.isEmpty else { return [] }
@@ -190,14 +190,6 @@ final class HealthAnalyzer {
                 kind: .sleepWindow, severity: .alert,
                 title: "睡眠严重不足",
                 detail: String(format: "参考 7-9h，仅睡 %.1fh，建议立即补觉", hours),
-                timestampRange: "\(hhmm(start))–\(hhmm(end))",
-                numericValue: String(format: "%.1fh", hours)
-            )]
-        } else if hours < 7.0 {
-            return [HealthInsight(
-                kind: .sleepWindow, severity: .warn,
-                title: "睡眠偏少",
-                detail: String(format: "参考 7-9h，还需约 %.0f 分钟", (7.0 - hours) * 60),
                 timestampRange: "\(hhmm(start))–\(hhmm(end))",
                 numericValue: String(format: "%.1fh", hours)
             )]
