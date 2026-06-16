@@ -622,6 +622,22 @@ struct ContentView: View {
                     if newMinutes == 0 {
                         currentSitStartTime = nil
                     }
+                    // 新增：定期写入 SharedState
+                    if displayState == .sit {
+                        let snap = SharedStickState(
+                            stateRaw: displayState.rawValue,
+                            englishName: displayState.englishName,
+                            actionPhrase: displayState.actionPhrase,
+                            heartRate: realHeartRate ?? primaryHeartRate,
+                            mood: walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
+                            durationMinutes: primaryDurationMinutes,
+                            subLine: realSubLine,
+                            updatedAt: Date(),
+                            currentSedentarySeconds: currentSitMinutes * 60,
+                            sedentaryStartTime: currentSitStartTime
+                        )
+                        SharedStateStore.write(snap)
+                    }
                 }
             }
         }
