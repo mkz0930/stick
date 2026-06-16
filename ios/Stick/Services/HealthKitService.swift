@@ -851,8 +851,9 @@ final class HealthKitService: ObservableObject {
                     i = j
                 }
 
-                // 切回主线程写入 @Published 属性
+                // 切回主线程写入 @Published 属性（只在内容真变化时才写，避免触发不必要的视图重渲染）
                 Task { @MainActor in
+                    guard self.realDaySchedule != segments else { return }
                     self.realDaySchedule = segments
                 }
                 cont.resume(returning: ())

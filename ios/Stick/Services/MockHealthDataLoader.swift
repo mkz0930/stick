@@ -229,6 +229,7 @@ final class MockHealthDataLoader {
         // 5) 同步生成 24h 时刻表 — 让时间线轴也用真实状态上色
         let schedule = Self.buildDaySchedule(from: snapshots)
         Task { @MainActor in
+            guard HealthKitService.shared.realDaySchedule != schedule else { return }
             HealthKitService.shared.realDaySchedule = schedule
         }
         print("[MockHealthDataLoader] ✅ 注入 \(snapshots.count) 条快照 + \(schedule.count) 个时刻段")
