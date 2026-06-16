@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stick · 24h Timeline · Bold Burst</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;0,800;1,400;1,600;1,800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     STICK · BOLD BURST TIMELINE · Spec
+     ============================================================
+     Concept:   Northern Lights / Spotify Wrapped — each walk
+                becomes a glowing "light burst" dot radiating
+                outward from the central track.
+     Data:      19 walk segments + sleep (02:54-06:00) + sit (rest)
+     Window:    Yesterday 17:19 → Today 17:19 (24h rolling)
+     Mapping:   y = (1440 - offset) / 1440 * 360
+     Track:     3pt wide, 360pt tall
+     Walk dot:  10-14pt core + 20-32pt radial halo (scales w/ dur)
+                color #00FFB3 + cyan-mint glow
+     Sit line:  #FF6B35 dotted texture (denser = longer sit)
+     Sleep:     #6B5BFF dashed line + dim star dots
+     Thumb:     white core + neon ring; pulse animation
+     Fonts:     JetBrains Mono (digits) + Newsreader italic (time labels)
+     ============================================================ */
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-night: #0A0E14;
+    --bg-night-2: #060A10;
+    --walk: #00FFB3;
+    --walk-glow: rgba(0, 255, 179, 0.6);
+    --walk-cool: #00E5FF;
+    --sit: #FF6B35;
+    --sit-dim: rgba(255, 107, 53, 0.4);
+    --sleep: #6B5BFF;
+    --sleep-dim: rgba(107, 91, 255, 0.45);
+    --text: #E6EBF2;
+    --text-dim: #6b7689;
+    --text-faint: #3a4356;
+    --line: rgba(230, 235, 242, 0.08);
+  }
+
+  body {
+    font-family: 'JetBrains Mono', -apple-system, monospace;
+    background: var(--bg-night);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 32px 0;
+    overflow-x: hidden;
+  }
+
+  /* Aurora background wash */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 20%, rgba(0, 255, 179, 0.05), transparent 60%),
+      radial-gradient(ellipse 50% 50% at 80% 70%, rgba(107, 91, 255, 0.06), transparent 60%),
+      radial-gradient(ellipse 40% 30% at 50% 95%, rgba(255, 107, 53, 0.04), transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.4), transparent),
+      radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.3), transparent),
+      radial-gradient(1px 1px at 80% 20%, rgba(255,255,255,0.25), transparent),
+      radial-gradient(1px 1px at 30% 80%, rgba(255,255,255,0.3), transparent),
+      radial-gradient(1px 1px at 90% 50%, rgba(255,255,255,0.2), transparent),
+      radial-gradient(1px 1px at 10% 60%, rgba(255,255,255,0.35), transparent),
+      radial-gradient(1px 1px at 45% 15%, rgba(255,255,255,0.3), transparent),
+      radial-gradient(1px 1px at 70% 90%, rgba(255,255,255,0.25), transparent);
+    background-size: 100% 100%;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+
+  /* ====================== Phone Frame ====================== */
+  .phone {
+    position: relative;
+    width: 393px;
+    height: 852px;
+    background: var(--bg-night);
+    border-radius: 48px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 2px rgba(255,255,255,0.04),
+      0 30px 80px rgba(0, 0, 0, 0.6),
+      inset 0 0 80px rgba(0, 0, 0, 0.4);
+    z-index: 1;
+  }
+
+  /* Subtle inner aurora */
+  .phone::before {
+    content: '';
+    position: absolute;
+    top: -50px; left: -50px; right: -50px;
+    height: 320px;
+    background:
+      radial-gradient(ellipse 80% 60% at 30% 40%, rgba(0, 255, 179, 0.10), transparent 70%),
+      radial-gradient(ellipse 60% 60% at 75% 20%, rgba(107, 91, 255, 0.12), transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Status bar (iPhone) */
+  .status-bar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 54px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 32px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    z-index: 10;
+  }
+  .status-bar .time { margin-left: 8px; }
+  .status-bar .right { display: flex; align-items: center; gap: 6px; }
+  .status-bar svg { display: block; }
+
+  /* Dynamic island */
+  .dynamic-island {
+    position: absolute;
+    top: 12px; left: 50%;
+    transform: translateX(-50%);
+    width: 124px; height: 36px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 11;
+  }
+
+  /* ====================== Top Bar ====================== */
+  .top-bar {
+    position: absolute;
+    top: 60px; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    z-index: 5;
+  }
+  .menu-icon {
+    width: 22px; height: 14px;
+    display: flex; flex-direction: column;
+    justify-content: space-between;
+  }
+  .menu-icon span {
+    height: 2px;
+    background: var(--text);
+    border-radius: 1px;
+  }
+  .menu-icon span:nth-child(1) { width: 100%; }
+  .menu-icon span:nth-child(2) { width: 60%; }
+
+  .brand-mark {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .brand-mark .logo {
+    width: 18px; height: 18px;
+    background: var(--walk);
+    border-radius: 4px;
+    box-shadow: 0 0 12px var(--walk-glow);
+  }
+  .brand-mark .name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    color: var(--text);
+  }
+  .brand-mark .live {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--walk);
+    padding: 2px 5px;
+    border: 1px solid rgba(0, 255, 179, 0.4);
+    border-radius: 3px;
+  }
+
+  /* ====================== Main Stage ====================== */
+  .stage {
+    position: absolute;
+    top: 110px;
+    left: 0; right: 0;
+    padding: 0 16px;
+    z-index: 2;
+  }
+  .stage-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .stage-title {
+    font-family: 'Newsreader', serif;
+    font-style: italic;
+    font-size: 22px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--text);
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+  .stage-title em {
+    font-style: italic;
+    color: var(--walk);
+    font-weight: 800;
+  }
+  .stage-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.8px;
+    text-align: center;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+
+  /* Stage visual — stick figure + timeline combined row */
+  .stage-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  /* ====================== Stick Figure Visual ====================== */
+  .figure-stage {
+    flex: 1;
+    position: relative;
+    height: 360px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 60%, rgba(255, 107, 53, 0.06), transparent 70%);
+    border-radius: 12px;
+  }
+  .figure-svg {
+    width: 180px;
+    height: 300px;
+  }
+  /* Sitting figure (current state) */
+  .figure-state-tag {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 9px;
+    background: rgba(255, 107, 53, 0.12);
+    border: 1px solid rgba(255, 107, 53, 0.4);
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    color: var(--sit);
+  }
+  .figure-state-tag .dot {
+    width: 6px; height: 6px;
+    background: var(--sit);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--sit-dim);
+  }
+
+  /* ====================== Timeline Column ====================== */
+  .timeline-col {
+    width: 70px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 6px;
+  }
+
+  .time-labels-left {
+    position: absolute;
+    left: -10px;
+    top: 0;
+    height: 360px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    color: var(--text-faint);
+    letter-spacing: 0.5px;
+  }
+
+  /* The actual track */
+  .track-container {
+    position: relative;
+    width: 70px;
+    height: 360px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Faint vertical guide lines every 4h */
+  .guide-line {
+    position: absolute;
+    left: 50%;
+    width: 1px;
+    background: rgba(230, 235, 242, 0.04);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  /* Central spine — barely visible */
+  .spine {
+    position: absolute;
+    left: 50%;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: rgba(230, 235, 242, 0.07);
+    transform: translateX(-50%);
+  }
+
+  /* Sit segment — textured line */
+  .seg-sit {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    background-image: radial-gradient(circle, var(--sit-dim) 1px, transparent 1.5px);
+    background-size: 3px 4px;
+    background-repeat: repeat-y;
+    background-position: center;
+    border-radius: 1px;
+  }
+
+  /* Sleep segment — dashed purple */
+  .seg-sleep {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    background: repeating-linear-gradient(
+      to bottom,
+      var(--sleep) 0,
+      var(--sleep) 3px,
+      transparent 3px,
+      transparent 6px
+    );
+    width: 3px;
+    border-radius: 1px;
+    opacity: 0.8;
+  }
+
+  /* Sleep stars (dim dots) */
+  .sleep-star {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: var(--sleep);
+    border-radius: 50%;
+    opacity: 0.55;
+    box-shadow: 0 0 3px var(--sleep-dim);
+  }
+
+  /* ====================== Walk Burst (THE HERO) ====================== */
+  .burst {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 3;
+  }
+  .burst .halo {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(circle,
+      rgba(0, 255, 179, 0.55) 0%,
+      rgba(0, 255, 179, 0.30) 30%,
+      rgba(0, 255, 179, 0.10) 55%,
+      rgba(0, 229, 255, 0.05) 75%,
+      transparent 100%);
+    filter: blur(1px);
+  }
+  .burst .core {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(circle, #ffffff 0%, var(--walk) 40%, var(--walk-cool) 100%);
+    box-shadow:
+      0 0 8px rgba(0, 255, 179, 0.9),
+      0 0 16px rgba(0, 255, 179, 0.6),
+      0 0 24px rgba(0, 255, 179, 0.3);
+  }
+  .burst .ring {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 1px solid rgba(0, 255, 179, 0.7);
+  }
+  /* Pulse keyframes */
+  @keyframes pulse-halo {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.85; }
+    50%      { transform: translate(-50%, -50%) scale(1.18); opacity: 1; }
+  }
+  @keyframes pulse-core {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50%      { transform: translate(-50%, -50%) scale(1.08); }
+  }
+  .burst .halo { animation: pulse-halo 2.8s ease-in-out infinite; }
+  .burst .core { animation: pulse-core 2.8s ease-in-out infinite; }
+  /* Stagger animations across bursts */
+  .burst:nth-child(7n+1) .halo, .burst:nth-child(7n+1) .core { animation-delay: 0.0s; }
+  .burst:nth-child(7n+2) .halo, .burst:nth-child(7n+2) .core { animation-delay: 0.4s; }
+  .burst:nth-child(7n+3) .halo, .burst:nth-child(7n+3) .core { animation-delay: 0.8s; }
+  .burst:nth-child(7n+4) .halo, .burst:nth-child(7n+4) .core { animation-delay: 1.2s; }
+  .burst:nth-child(7n+5) .halo, .burst:nth-child(7n+5) .core { animation-delay: 1.6s; }
+  .burst:nth-child(7n+6) .halo, .burst:nth-child(7n+6) .core { animation-delay: 2.0s; }
+  .burst:nth-child(7n+7) .halo, .burst:nth-child(7n+7) .core { animation-delay: 2.4s; }
+
+  /* Walk label (serif italic "12:30 · 7min") */
+  .burst-label {
+    position: absolute;
+    left: calc(100% + 14px);
+    top: 50%;
+    transform: translateY(-50%);
+    white-space: nowrap;
+    font-family: 'Newsreader', serif;
+    font-style: italic;
+    font-weight: 600;
+    font-size: 10px;
+    color: var(--walk);
+    opacity: 0;
+    animation: fade-in 0.6s ease-out 1.2s forwards;
+    text-shadow: 0 0 6px rgba(0, 255, 179, 0.5);
+    pointer-events: none;
+  }
+  .burst-label .dur {
+    color: var(--text);
+    opacity: 0.65;
+    margin-left: 3px;
+  }
+  @keyframes fade-in { to { opacity: 1; } }
+
+  /* ====================== Thumb ====================== */
+  .thumb {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 22px;
+    height: 22px;
+    z-index: 6;
+    pointer-events: none;
+  }
+  .thumb .outer {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(0,255,179,0.4) 60%, transparent 100%);
+    box-shadow:
+      0 0 10px rgba(0, 255, 179, 0.8),
+      0 0 20px rgba(0, 255, 179, 0.4);
+    animation: thumb-pulse 1.6s ease-in-out infinite;
+  }
+  .thumb .inner {
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 6px rgba(255,255,255,0.6);
+  }
+  .thumb .marker {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 1px;
+    height: 32px;
+    background: linear-gradient(to bottom, var(--walk), transparent);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  @keyframes thumb-pulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(0, 255, 179, 0.8), 0 0 20px rgba(0, 255, 179, 0.4); }
+    50%      { box-shadow: 0 0 16px rgba(0, 255, 179, 1.0), 0 0 32px rgba(0, 255, 179, 0.6); }
+  }
+
+  /* "NOW" indicator at bottom */
+  .now-marker {
+    position: absolute;
+    left: 50%;
+    bottom: -28px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    pointer-events: none;
+  }
+  .now-marker .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 2.5px;
+    color: var(--walk);
+  }
+  .now-marker .time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.5px;
+  }
+
+  /* Top "24h AGO" indicator */
+  .top-marker {
+    position: absolute;
+    left: 50%;
+    top: -28px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    pointer-events: none;
+  }
+  .top-marker .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text-faint);
+  }
+  .top-marker .time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+
+  /* ====================== Stats footer ====================== */
+  .stats {
+    position: absolute;
+    bottom: 130px;
+    left: 16px; right: 16px;
+    display: flex;
+    gap: 8px;
+    z-index: 2;
+  }
+  .stat-card {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(230, 235, 242, 0.08);
+    border-radius: 8px;
+    padding: 10px 8px;
+    backdrop-filter: blur(10px);
+  }
+  .stat-card .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .stat-card .value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+  .stat-card .value .unit {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-left: 2px;
+  }
+  .stat-card .sub {
+    font-family: 'Newsreader', serif;
+    font-style: italic;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+  .stat-card.walk .value { color: var(--walk); }
+  .stat-card.sit .value  { color: var(--sit); }
+  .stat-card.sleep .value { color: var(--sleep); }
+
+  /* Input bar */
+  .input-bar {
+    position: absolute;
+    bottom: 22px;
+    left: 16px; right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(230, 235, 242, 0.10);
+    border-radius: 24px;
+    backdrop-filter: blur(20px);
+    z-index: 4;
+  }
+  .input-bar .plus {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: rgba(230, 235, 242, 0.08);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .input-bar .placeholder {
+    flex: 1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.3px;
+  }
+  .input-bar .send {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--walk);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--bg-night);
+    font-size: 12px;
+    font-weight: 900;
+    box-shadow: 0 0 12px var(--walk-glow);
+  }
+
+  /* Home indicator */
+  .home-indicator {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 134px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 3px;
+    z-index: 5;
+  }
+
+  /* ====================== Annotation caption ====================== */
+  .annotation {
+    position: absolute;
+    top: 540px;
+    left: 16px;
+    right: 16px;
+    text-align: center;
+    z-index: 2;
+  }
+  .annotation .row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 14px;
+    margin-top: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .legend-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .legend-dot.walk {
+    background: var(--walk);
+    box-shadow: 0 0 6px var(--walk-glow);
+  }
+  .legend-dot.sit {
+    background: var(--sit);
+  }
+  .legend-dot.sleep {
+    background: var(--sleep);
+    border-radius: 0;
+    height: 2px;
+    width: 8px;
+  }
+
+  /* Caption block (the 1-line spec) */
+  .spec-strip {
+    position: absolute;
+    top: 488px;
+    left: 16px;
+    right: 16px;
+    text-align: center;
+    z-index: 2;
+  }
+  .spec-strip .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 2.5px;
+    color: var(--walk);
+    margin-bottom: 2px;
+  }
+  .spec-strip .line {
+    font-family: 'Newsreader', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.3;
+  }
+  .spec-strip .line em {
+    color: var(--walk);
+    font-style: italic;
+    font-weight: 700;
+  }
+
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <!-- Status bar -->
+  <div class="status-bar">
+    <div class="time">17:19</div>
+    <div class="right">
+      <svg width="16" height="11" viewBox="0 0 16 11"><path d="M1 8 Q4 4, 8 4 Q12 4, 15 8" fill="none" stroke="#fff" stroke-width="1"/><path d="M3 9 Q5.5 7, 8 7 Q10.5 7, 13 9" fill="none" stroke="#fff" stroke-width="1"/><circle cx="8" cy="10" r="0.8" fill="#fff"/></svg>
+      <svg width="15" height="11" viewBox="0 0 15 11"><path d="M1 4 L1 10 Q1 11, 2 11 L13 11 Q14 11, 14 10 L14 4 Z" fill="none" stroke="#fff" stroke-width="1"/><rect x="2" y="5" width="9" height="5" fill="#fff"/><rect x="14" y="6" width="1" height="3" fill="#fff" rx="0.5"/></svg>
+    </div>
+  </div>
+  <div class="dynamic-island"></div>
+
+  <!-- Top bar -->
+  <div class="top-bar">
+    <div class="menu-icon">
+      <span></span><span></span>
+    </div>
+    <div class="brand-mark">
+      <div class="logo"></div>
+      <div class="name">STICK</div>
+      <div class="live">LIVE</div>
+    </div>
+    <div style="width: 22px;"></div>
+  </div>
+
+  <!-- Stage area -->
+  <div class="stage">
+    <div class="stage-eyebrow">OFFICE · DEEP WORK · SITTING</div>
+    <div class="stage-title">你正在<em>深度专注</em>中</div>
+    <div class="stage-sub">久坐 47:23 · 心率 78 bpm · 颈椎前倾 +18°</div>
+
+    <div class="stage-row">
+      <!-- Stick figure -->
+      <div class="figure-stage">
+        <svg class="figure-svg" viewBox="0 0 200 320">
+          <!-- Floor line -->
+          <line x1="20" y1="280" x2="180" y2="280" stroke="rgba(230,235,242,0.10)" stroke-width="1" stroke-dasharray="2 4"/>
+
+          <!-- Glow background -->
+          <defs>
+            <radialGradient id="figGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#FF6B35" stop-opacity="0.18"/>
+              <stop offset="100%" stop-color="#FF6B35" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <ellipse cx="100" cy="180" rx="80" ry="100" fill="url(#figGlow)"/>
+
+          <!-- Head -->
+          <circle cx="100" cy="55" r="16" fill="none" stroke="#E6EBF2" stroke-width="2"/>
+          <!-- Neck (slightly forward / tired) -->
+          <line x1="100" y1="71" x2="105" y2="92" stroke="#E6EBF2" stroke-width="2"/>
+          <!-- Spine (curved forward) -->
+          <path d="M 105 92 Q 108 140, 100 170" fill="none" stroke="#E6EBF2" stroke-width="2"/>
+          <!-- Shoulder line -->
+          <path d="M 100 100 L 75 105 L 55 130" fill="none" stroke="#E6EBF2" stroke-width="2"/>
+          <path d="M 100 100 L 130 105 L 150 130" fill="none" stroke="#E6EBF2" stroke-width="2"/>
+          <!-- Arms going forward (typing) -->
+          <line x1="55" y1="130" x2="75" y2="170" stroke="#E6EBF2" stroke-width="2"/>
+          <line x1="150" y1="130" x2="125" y2="170" stroke="#E6EBF2" stroke-width="2"/>
+          <!-- Forearms forward -->
+          <line x1="75" y1="170" x2="80" y2="200" stroke="#E6EBF2" stroke-width="2"/>
+          <line x1="125" y1="170" x2="120" y2="200" stroke="#E6EBF2" stroke-width="2"/>
+          <!-- Hips (sitting) -->
+          <line x1="100" y1="170" x2="75" y2="200" stroke="#E6EBF2" stroke-width="2"/>
+          <line x1="100" y1="170" x2="125" y2="200" stroke="#E6EBF2" stroke-width="2"/>
+          <!-- Thighs (horizontal - sitting) -->
+          <line x1="75" y1="200" x2="60" y2="220" stroke="#E6EBF2" stroke-width="2"/>
+          <line x1="125" y1="200" x2="140" y2="220" stroke="#E6EBF2" stroke-width="2"/>
+          <!-- Lower legs down -->
+          <line x1="60" y1="220" x2="60" y2="275" stroke="#E6EBF2" stroke-width="2"/>
+          <line x1="140" y1="220" x2="140" y2="275" stroke="#E6EBF2" stroke-width="2"/>
+          <!-- Feet -->
+          <line x1="55" y1="275" x2="70" y2="275" stroke="#E6EBF2" stroke-width="2"/>
+          <line x1="135" y1="275" x2="150" y2="275" stroke="#E6EBF2" stroke-width="2"/>
+
+          <!-- Joint dots (orange - sit accent) -->
+          <g fill="#FF6B35">
+            <circle cx="100" cy="55" r="2"/>
+            <circle cx="105" cy="92" r="2"/>
+            <circle cx="100" cy="170" r="2.5"/>
+            <circle cx="75" cy="200" r="2"/>
+            <circle cx="125" cy="200" r="2"/>
+            <circle cx="55" cy="130" r="1.8"/>
+            <circle cx="150" cy="130" r="1.8"/>
+          </g>
+
+          <!-- Neck warning indicator -->
+          <g transform="translate(105, 92)">
+            <circle r="9" fill="none" stroke="#FF6B35" stroke-width="1.2" opacity="0.7"/>
+            <circle r="2" fill="#FF6B35"/>
+          </g>
+
+          <!-- Chest dotted line (tie/scarf hint) -->
+          <line x1="100" y1="115" x2="100" y2="155" stroke="rgba(230,235,242,0.4)" stroke-width="1" stroke-dasharray="2 3"/>
+
+          <!-- "TIRED" badge -->
+          <g transform="translate(165, 95)">
+            <rect x="-22" y="-7" width="44" height="14" rx="2" fill="#FF6B35" fill-opacity="0.92"/>
+            <text x="0" y="2" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7" font-weight="700" fill="#fff" letter-spacing="1.2">TIRED</text>
+          </g>
+        </svg>
+        <div class="figure-state-tag">
+          <div class="dot"></div>
+          SITTING · 47m
+        </div>
+      </div>
+
+      <!-- TIMELINE COLUMN (the hero) -->
+      <div class="timeline-col">
+        <div class="track-container">
+
+          <!-- 24h AGO marker -->
+          <div class="top-marker">
+            <div class="label">24h AGO</div>
+            <div class="time">YDA 17:19</div>
+          </div>
+
+          <!-- NOW marker -->
+          <div class="now-marker">
+            <div class="label">NOW</div>
+            <div class="time">17:19</div>
+          </div>
+
+          <!-- Faint guide lines (every 4h) -->
+          <div class="guide-line" style="top: 0%;    height: 1px; width: 8px; background: rgba(230,235,242,0.10);"></div>
+          <div class="guide-line" style="top: 25%;   height: 1px; width: 6px; background: rgba(230,235,242,0.06);"></div>
+          <div class="guide-line" style="top: 50%;   height: 1px; width: 6px; background: rgba(230,235,242,0.06);"></div>
+          <div class="guide-line" style="top: 75%;   height: 1px; width: 6px; background: rgba(230,235,242,0.06);"></div>
+
+          <!-- Central spine -->
+          <div class="spine"></div>
+
+          <!-- ==================== SIT SEGMENTS ==================== -->
+
+          <!-- Sit: YDA 17:19 → YDA 18:00 (working late) — offset 1440-1380=60min from top -->
+          <div class="seg-sit" style="top: 4.16%; height: 4.16%; width: 3px;"></div>
+
+          <!-- Sit: YDA 19:00 → YDA 22:00 (evening commute+rest) — sitting somewhere -->
+          <div class="seg-sit" style="top: 19.5%; height: 19.4%; width: 3px;"></div>
+
+          <!-- Sleep: YDA 22:00 → TODAY 02:54 — but starts overlapping -->
+          <!-- We'll do: Sleep 22:00-02:54 wraps around, split:
+               - Sleep YDA 22:00-24:00 (2h) → top 0% to ~6.6%
+               - Sleep TODAY 00:00-02:54 (2h54) → bottom: (1440-174)/1440=87.9% to 100% -->
+
+          <!-- Sleep 22:00 - 24:00 (YDA) — 120 min -->
+          <div class="seg-sleep" style="top: 0%; height: 8.33%;"></div>
+          <!-- Stars in sleep (dim) -->
+          <div class="sleep-star" style="top: 2%;   left: 42%;"></div>
+          <div class="sleep-star" style="top: 4%;   left: 58%;"></div>
+          <div class="sleep-star" style="top: 6%;   left: 38%;"></div>
+          <div class="sleep-star" style="top: 3%;   left: 65%;"></div>
+
+          <!-- Sleep 00:00 - 02:54 (TODAY) — 174 min, bottom 87.9% to 100% -->
+          <div class="seg-sleep" style="top: 87.92%; height: 12.08%;"></div>
+          <div class="sleep-star" style="top: 89%;  left: 42%;"></div>
+          <div class="sleep-star" style="top: 91%;  left: 58%;"></div>
+          <div class="sleep-star" style="top: 94%;  left: 35%;"></div>
+          <div class="sleep-star" style="top: 96%;  left: 65%;"></div>
+
+          <!-- Sit: 06:00 - 08:08 (morning routine / breakfast) — 128 min
+               (1440-128)/1440=91.1% → 91.1% - 8.89% = 82.2% to 91.1%  -->
+          <div class="seg-sit" style="top: 82.22%; height: 8.89%; width: 3px;"></div>
+
+          <!-- Sit: 09:30 - 10:21 (back to desk) — 51 min
+               (1440-621)/1440=56.9%, end: (1440-621+51)/1440=60.4% — actually let me recompute
+               09:30 = 570 min, 10:21 = 621 min
+               window offset for 09:30: ((570 - 17*60+19) % 1440) = ((570 - 1039) + 1440) % 1440 = 971
+               window offset for 10:21: ((621 - 1039) + 1440) % 1440 = 1022
+               yTop = (1440-1022)/1440 = 29.0%, height = (1022-971)/1440 = 3.54% -->
+
+          <!-- Sit: 11:00 - 11:52 (back to desk) — 52 min
+               11:00 = 660min, 11:52 = 712min
+               offsets: ((660-1039)+1440)%1440 = 1061, ((712-1039)+1440)%1440 = 1113
+               yTop = (1440-1113)/1440 = 22.7%, height = (1113-1061)/1440 = 3.61% -->
+
+          <!-- Sit: 13:35 - 17:19 (afternoon work) — 224 min (current state)
+               13:35 = 815min, 17:19 = 1039min (now)
+               yTop = (1440-1039)/1440 = 27.85%, height = (1039-815)/1440 = 15.55% -->
+          <div class="seg-sit" style="top: 27.85%; height: 15.55%; width: 3px;"></div>
+
+          <!-- Sit: 11:00 - 11:52 (sit before short walk) — 52 min -->
+          <div class="seg-sit" style="top: 22.71%; height: 3.61%; width: 3px;"></div>
+
+          <!-- Sit: 09:30 - 10:21 (morning sit) -->
+          <div class="seg-sit" style="top: 29.03%; height: 3.54%; width: 3px;"></div>
+
+          <!-- Sit: 08:35 - 09:04 (short sit between walks) — 29 min
+               08:35=515min, 09:04=544min
+               offsets: (515-1039+1440)%1440=916, (544-1039+1440)%1440=945
+               yTop = (1440-945)/1440 = 34.38%, height = 945-916 = 29 / 1440 = 2.01% -->
+          <div class="seg-sit" style="top: 34.38%; height: 2.01%; width: 3px;"></div>
+
+          <!-- Sit: 09:15 - 09:30 (15min sit between walks) -->
+          <div class="seg-sit" style="top: 31.18%; height: 1.04%; width: 3px;"></div>
+
+          <!-- Sit: 11:52 - 12:14 (sit before lunch walk) — 22 min -->
+          <div class="seg-sit" style="top: 22.01%; height: 1.53%; width: 3px;"></div>
+
+          <!-- Sit: 12:40 - 13:35 (afternoon sit before walk) — 55 min
+               12:40 = 760min, 13:35 = 815min
+               offsets: (760-1039+1440)%1440=1161, (815-1039+1440)%1440=1216
+               yTop = (1440-1216)/1440 = 15.55%, height = (1216-1161)/1440 = 3.82% -->
+          <div class="seg-sit" style="top: 15.55%; height: 3.82%; width: 3px;"></div>
+
+          <!-- ==================== WALK BURSTS (HEROES) ==================== -->
+          <!-- Each burst: time → window offset → y position
+               formula: y = (1440 - offset) / 1440 * 100%
+               yda/yesterday 17:19 = offset 1440 (top=0%), now 17:19 = offset 0 (bottom=100%)
+          -->
+
+          <!-- 1. Walk: YDA 18:00-19:00 (evening walk) — moderate burst
+               18:30 center: (1440 - ((1110-1039+1440)%1440))/1440 = (1440-71)/1440 = 95.07% -->
+          <div class="burst" style="top: 95.07%;">
+            <div class="halo" style="width: 44px; height: 44px;"></div>
+            <div class="core" style="width: 11px; height: 11px;"></div>
+            <div class="ring" style="width: 18px; height: 18px;"></div>
+            <div class="burst-label">18:30<span class="dur">· 15min</span></div>
+          </div>
+
+          <!-- 2. Walk: YDA 19:30 - short walk -->
+          <div class="burst" style="top: 92.0%;">
+            <div class="halo" style="width: 32px; height: 32px;"></div>
+            <div class="core" style="width: 9px; height: 9px;"></div>
+            <div class="ring" style="width: 15px; height: 15px;"></div>
+          </div>
+
+          <!-- 3. Walk: TODAY 08:08-08:14 (6 min) — small burst
+               08:08=488min, 08:14=494min
+               offsets: (488-1039+1440)%1440=889, (494-1039+1440)%1440=895
+               center y = (1440-892)/1440 = 38.06% -->
+          <div class="burst" style="top: 38.06%;">
+            <div class="halo" style="width: 28px; height: 28px;"></div>
+            <div class="core" style="width: 8px; height: 8px;"></div>
+            <div class="ring" style="width: 14px; height: 14px;"></div>
+            <div class="burst-label">08:11<span class="dur">· 6min</span></div>
+          </div>
+
+          <!-- 4. Walk: TODAY 08:14-08:35 (21 min) - moderate burst -->
+          <div class="burst" style="top: 36.81%;">
+            <div class="halo" style="width: 40px; height: 40px;"></div>
+            <div class="core" style="width: 10px; height: 10px;"></div>
+            <div class="ring" style="width: 18px; height: 18px;"></div>
+          </div>
+
+          <!-- 5. Walk: TODAY 09:04-09:15 (11 min) -->
+          <div class="burst" style="top: 33.19%;">
+            <div class="halo" style="width: 32px; height: 32px;"></div>
+            <div class="core" style="width: 9px; height: 9px;"></div>
+            <div class="ring" style="width: 16px; height: 16px;"></div>
+            <div class="burst-label">09:08<span class="dur">· 11min</span></div>
+          </div>
+
+          <!-- 6. Walk: TODAY 09:30-10:21... wait let me re-check -->
+          <!-- Actually let me re-do the walks from real data. -->
+          <!-- Real walking data points:
+               08:08 (141 steps), 08:14 (3.56 kcal), 09:04 (51 steps), 09:04 (89 steps),
+               10:21 (264 steps + 5.58 kcal), 11:52 (94 steps + 2.99 kcal),
+               12:14 (619 steps + 14.94 kcal), 12:30 (515 steps + 2.75 kcal),
+               12:35 (113 steps), 13:35 (280 steps + 5.87 kcal)
+          -->
+
+          <!-- Walk 10:21 (264 steps, big) — assume 8 min walk -->
+          <div class="burst" style="top: 27.78%;">
+            <div class="halo" style="width: 44px; height: 44px;"></div>
+            <div class="core" style="width: 11px; height: 11px;"></div>
+            <div class="ring" style="width: 18px; height: 18px;"></div>
+            <div class="burst-label">10:25<span class="dur">· 8min</span></div>
+          </div>
+
+          <!-- Walk 11:52 (94 steps, small) — 3 min -->
+          <div class="burst" style="top: 23.26%;">
+            <div class="halo" style="width: 24px; height: 24px;"></div>
+            <div class="core" style="width: 7px; height: 7px;"></div>
+            <div class="ring" style="width: 12px; height: 12px;"></div>
+          </div>
+
+          <!-- Walk 12:14 (619 steps! BIGGEST) — assume 6 min -->
+          <div class="burst" style="top: 20.56%;">
+            <div class="halo" style="width: 56px; height: 56px;"></div>
+            <div class="core" style="width: 13px; height: 13px;"></div>
+            <div class="ring" style="width: 22px; height: 22px;"></div>
+            <div class="burst-label">12:14<span class="dur">· 619步</span></div>
+          </div>
+
+          <!-- Walk 12:30 (515 steps!) — 5 min -->
+          <div class="burst" style="top: 19.03%;">
+            <div class="halo" style="width: 48px; height: 48px;"></div>
+            <div class="core" style="width: 12px; height: 12px;"></div>
+            <div class="ring" style="width: 20px; height: 20px;"></div>
+          </div>
+
+          <!-- Walk 12:35 (113 steps, small) -->
+          <div class="burst" style="top: 17.78%;">
+            <div class="halo" style="width: 28px; height: 28px;"></div>
+            <div class="core" style="width: 8px; height: 8px;"></div>
+            <div class="ring" style="width: 14px; height: 14px;"></div>
+          </div>
+
+          <!-- Walk 13:35 (280 steps, medium) -->
+          <div class="burst" style="top: 14.03%;">
+            <div class="halo" style="width: 40px; height: 40px;"></div>
+            <div class="core" style="width: 10px; height: 10px;"></div>
+            <div class="ring" style="width: 17px; height: 17px;"></div>
+            <div class="burst-label">13:36<span class="dur">· 5min</span></div>
+          </div>
+
+          <!-- ==================== THUMB (NOW) ==================== -->
+          <!-- NOW at offset 0 → bottom -->
+          <div class="thumb" style="top: 100%;">
+            <div class="outer"></div>
+            <div class="inner"></div>
+            <div class="marker" style="top: -32px; height: 28px; background: linear-gradient(to bottom, transparent, var(--walk));"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Spec caption -->
+    <div class="spec-strip">
+      <div class="eyebrow">VISUAL SYSTEM</div>
+      <div class="line">每一段步行是一颗<em>爆发的光点</em>，从 track 向外辐射。<br>坐姿是细密的点状线条，睡眠是虚线星河。</div>
+    </div>
+
+    <!-- Stats legend -->
+    <div class="annotation">
+      <div class="row">
+        <div class="legend-item"><div class="legend-dot walk"></div>WALK · BURST</div>
+        <div class="legend-item"><div class="legend-dot sit"></div>SIT · DOTTED</div>
+        <div class="legend-item"><div class="legend-dot sleep"></div>SLEEP · DASHED</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats footer (3 cards) -->
+  <div class="stats">
+    <div class="stat-card walk">
+      <div class="label">WALKS · 24H</div>
+      <div class="value">12<span class="unit">段</span></div>
+      <div class="sub">总 47 min</div>
+    </div>
+    <div class="stat-card sit">
+      <div class="label">SITTING</div>
+      <div class="value">8.4<span class="unit">h</span></div>
+      <div class="sub">+1.2 vs avg</div>
+    </div>
+    <div class="stat-card sleep">
+      <div class="label">SLEEP</div>
+      <div class="value">3.1<span class="unit">h</span></div>
+      <div class="sub">deep · 82%</div>
+    </div>
+  </div>
+
+  <!-- Input bar -->
+  <div class="input-bar">
+    <div class="plus">+</div>
+    <div class="placeholder">问 Stick 任何事…</div>
+    <div class="send">↑</div>
+  </div>
+
+  <!-- Home indicator -->
+  <div class="home-indicator"></div>
+
+</div>
+
+<!-- Design notes panel below phone for context -->
+<style>
+  .notes {
+    margin: 48px auto 0;
+    max-width: 393px;
+    padding: 24px 20px;
+    color: #aab4c5;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.7;
+  }
+  .notes h3 {
+    font-family: 'Newsreader', serif;
+    font-size: 22px;
+    font-weight: 800;
+    font-style: italic;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .notes .meta {
+    font-size: 9px;
+    color: #6b7689;
+    letter-spacing: 1.5px;
+    margin-bottom: 16px;
+  }
+  .notes p { margin-bottom: 12px; }
+  .notes em { color: #00FFB3; font-style: italic; font-family: 'Newsreader', serif; font-weight: 600; }
+  .notes code {
+    background: rgba(255,255,255,0.05);
+    padding: 1px 4px;
+    border-radius: 2px;
+    color: #00FFB3;
+    font-size: 10px;
+  }
+  .notes strong { color: #fff; }
+</style>
+<div class="notes">
+  <h3>Bold Burst</h3>
+  <div class="meta">DESIGN C · TIMELINE REDESIGN · NORTHERN LIGHTS</div>
+
+  <p><strong style="color:#fff;">核心隐喻</strong> · 每段步行 = 一颗爆发的光点，从 track 中心向外辐射。
+  1-5 分钟的零碎步行不再被吃成 6pt 的矮条，而是以 8-14pt 圆点 + 16-56pt halo 的方式炸开，<em>一眼看到</em>。</p>
+
+  <p><strong style="color:#fff;">视觉签名</strong></p>
+  <p>· <em>Walk</em> = radial gradient dot + pulse halo（音乐可视化式发光）<br>
+  · <em>Sit</em> = 细密的点状纹理，密度暗示时长<br>
+  · <em>Sleep</em> = dashed 紫线 + dim stars（北极光星河感）</p>
+
+  <p><strong style="color:#fff;">动效暗示</strong> · 圆点 2.8s ease-in-out pulse（CSS animation），
+  7 档 stagger 让 12 个 walk 错峰呼吸，不齐刷刷。</p>
+
+  <p><strong style="color:#fff;">配色</strong></p>
+  <p><code>#0A0E14</code> 极夜 · <code>#00FFB3</code> 步行光 · <code>#FF6B35</code> 坐姿暗橙 · <code>#6B5BFF</code> 睡眠暗紫</p>
+
+  <p><strong style="color:#fff;">字体</strong> · <code>JetBrains Mono</code> 数字 + <code>Newsreader italic</code> 时刻标签</p>
+
+  <p><strong style="color:#fff;">参照</strong> · Spotify Wrapped 数据故事线 ·
+  Apple Activity rings 发光层 · Stripe Sessions 暗色大胆派 · Northern Lights 极光色相。</p>
+</div>
+
+</body>
+</html>

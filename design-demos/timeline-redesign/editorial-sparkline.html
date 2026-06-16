@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="393,852" />
+<title>Stick · Editorial Sparkline Timeline (Design B)</title>
+<!--
+  ============================================================
+  DESIGN B · Editorial Sparkline Timeline
+  ============================================================
+  哲学：把 24h track 画成 sparkline（心率曲线），不是 bar chart。
+       track 是一条有「带宽」的 ribbon —— 走时鼓起成绿峰、
+       坐时平直、睡时压扁。视觉签名 = 曲线 + 步行锚点。
+  风格：Editorial / Newspaper —— Newsreader 衬线斜体刻度，
+       墨绿/墨橙/墨紫（不用饱和亮色），背景近白 #FAFAF7。
+  参考：NYT 仪表盘、FT 编辑图表、Apple Health trend chart、
+       心率变异 sparkline。
+  真实数据：HK export 2026-06-16 → 19 个 walk 段、sleep 段、
+       sit 段，window = yesterday 17:19 → today 17:19。
+  ============================================================
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper:        #FAFAF7;
+  --ink:          #15161A;
+  --ink-soft:     #4A4D54;
+  --ink-faint:    #8A8C92;
+  --rule:         #1A1B1F;
+  --rule-soft:    #D6D6CE;
+
+  --walk:         #2F5D3A;
+  --sit:          #B0531F;
+  --sleep:        #4B3D6B;
+  --now-line:     #15161A;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: #E7E5DF;
+  font-family: 'Newsreader', 'Source Serif Pro', Georgia, serif;
+  color: var(--ink);
+  font-feature-settings: 'ss01', 'lnum';
+  -webkit-font-smoothing: antialiased;
+}
+
+.frame {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 20px;
+}
+
+.phone {
+  width: 393px;
+  height: 852px;
+  background: var(--paper);
+  position: relative;
+  border-radius: 48px;
+  box-shadow:
+    0 0 0 8px #1a1a1c,
+    0 0 0 10px #2c2c2e,
+    0 30px 80px rgba(0,0,0,.35),
+    0 8px 24px rgba(0,0,0,.18);
+  overflow: hidden;
+}
+
+/* status bar */
+.statusbar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 28px 0 28px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  z-index: 5;
+}
+.statusbar .right { display: flex; gap: 6px; align-items: center; }
+.statusbar svg { width: 16px; height: 11px; }
+
+.island {
+  position: absolute;
+  top: 12px; left: 50%;
+  transform: translateX(-50%);
+  width: 120px; height: 34px;
+  background: #0a0a0c;
+  border-radius: 17px;
+  z-index: 6;
+}
+
+/* ---------- 顶栏 Editorial header ---------- */
+.topbar {
+  position: absolute;
+  top: 56px; left: 0; right: 0;
+  padding: 8px 22px 10px 22px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--rule);
+  z-index: 4;
+  min-height: 54px;
+}
+.topbar .name {
+  font-family: 'Newsreader', serif;
+  font-weight: 400;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+}
+.topbar .name .sm {
+  font-size: 9.5px; color: var(--ink-faint); font-style: normal;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  display: block; margin-bottom: 4px;
+  font-family: 'Inter', sans-serif; font-weight: 500;
+}
+.topbar .name em { font-style: italic; color: var(--sit); font-weight: 400; }
+.topbar .now {
+  text-align: right;
+  font-family: 'Newsreader', serif;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.topbar .now .h {
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.topbar .now .h small {
+  font-size: 10.5px; color: var(--ink-faint); font-style: italic;
+  letter-spacing: 0; margin-left: 2px; font-weight: 400;
+}
+.topbar .now .d {
+  font-size: 10px;
+  font-style: italic;
+  color: var(--ink-faint);
+  letter-spacing: 0.04em;
+  margin-top: 3px;
+}
+
+/* ---------- 状态 hero ---------- */
+.status-hero {
+  position: absolute;
+  top: 128px; left: 22px; right: 22px;
+  z-index: 3;
+}
+.status-hero .tag {
+  font-family: 'Inter', sans-serif;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--sit);
+  margin-bottom: 3px;
+}
+.status-hero .headline {
+  font-family: 'Newsreader', serif;
+  font-size: 42px;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 0.92;
+  color: var(--ink);
+}
+.status-hero .headline em {
+  font-style: italic;
+  font-weight: 300;
+  color: var(--sit);
+}
+.status-hero .deck {
+  margin-top: 5px;
+  font-family: 'Newsreader', serif;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--ink-soft);
+  line-height: 1.35;
+  max-width: 260px;
+}
+.status-hero .deck b {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* ---------- 主舞台：stick figure + sparkline ---------- */
+.stage {
+  position: absolute;
+  top: 270px;
+  left: 22px;
+  right: 22px;
+  height: 380px;
+  display: flex;
+  align-items: stretch;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+/* 主舞台左侧 */
+.scene {
+  flex: 1;
+  position: relative;
+  padding: 16px 4px 24px 4px;
+  border-right: 1px solid var(--rule-soft);
+  min-width: 0;
+}
+.scene .fig {
+  position: absolute;
+  inset: 18px 4px 24px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.scene .caption {
+  position: absolute;
+  left: 6px;
+  top: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 8.5px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+.scene .roman {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  font-family: 'Newsreader', serif;
+  font-style: italic;
+  font-size: 10.5px;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+}
+.scene .clock {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  font-family: 'Newsreader', serif;
+  font-style: italic;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* sparkline 区 */
+.spark {
+  position: relative;
+  width: 116px;
+  flex-shrink: 0;
+  margin: 12px 4px 12px 2px;
+}
+
+/* 刻度数字 */
+.ticks {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 0;
+  width: 16px;
+}
+.tick {
+  position: absolute;
+  left: 0;
+  font-family: 'Newsreader', serif;
+  font-style: italic;
+  font-size: 10px;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.tick .bar {
+  width: 4px;
+  height: 1px;
+  background: var(--ink);
+}
+.tick.zero {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 9.5px;
+}
+.tick.zero .bar { background: var(--ink); height: 1.2px; width: 5px; }
+
+/* track 容器 */
+.track {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 20px; right: 2px;
+}
+
+.track .baseline {
+  position: absolute;
+  top: 50%;
+  left: 0; right: 0;
+  height: 1px;
+  border-top: 1px dashed rgba(21,22,26,0.18);
+  transform: translateY(-0.5px);
+}
+
+.track .hr-tick {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: rgba(21,22,26,0.22);
+}
+
+.track svg.ribbon {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* now line + thumb */
+.now-line {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--now-line);
+  z-index: 4;
+}
+.now-marker {
+  position: absolute;
+  bottom: -3.5px;
+  left: 100%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  background: var(--now-line);
+  border-radius: 50%;
+  z-index: 5;
+  box-shadow: 0 0 0 3px var(--paper);
+}
+.now-label {
+  position: absolute;
+  bottom: -22px;
+  left: 100%;
+  transform: translateX(-50%);
+  font-family: 'Newsreader', serif;
+  font-style: italic;
+  font-size: 10px;
+  color: var(--ink);
+  white-space: nowrap;
+  font-variant-numeric: lining-nums;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+.now-label b {
+  font-style: normal; font-weight: 600; font-size: 9px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  display: block; color: var(--ink); font-family: 'Inter', sans-serif;
+}
+
+/* segment label (右侧 inline) */
+.track .label {
+  position: absolute;
+  left: calc(100% + 4px);
+  white-space: nowrap;
+  font-family: 'Newsreader', serif;
+  font-style: italic;
+  font-size: 9.5px;
+  color: var(--ink-soft);
+  transform: translateY(-50%);
+  font-variant-numeric: lining-nums;
+  letter-spacing: 0.01em;
+}
+.track .label.walk { color: var(--walk); font-weight: 500; }
+.track .label.sleep { color: var(--sleep); }
+
+/* label-above: for walk peak callouts that sit above the ribbon */
+.track .label-above {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  white-space: nowrap;
+  font-family: 'Newsreader', serif;
+  font-style: italic;
+  font-size: 9px;
+  color: var(--walk);
+  font-variant-numeric: lining-nums;
+  font-weight: 500;
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+.track .label-above::after {
+  content: '';
+  display: block;
+  width: 1px;
+  height: 10px;
+  background: var(--walk);
+  margin: 1px auto 0;
+  opacity: 0.4;
+}
+
+/* sleep label: sits to the left of the ribbon, but inside the spark column */
+.track .label-left {
+  position: absolute;
+  white-space: nowrap;
+  font-family: 'Newsreader', serif;
+  font-style: italic;
+  font-size: 8.5px;
+  color: var(--sleep);
+  font-variant-numeric: lining-nums;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-align: right;
+  right: calc(100% + 2px);
+  width: 60px;
+}
+
+/* ---------- 底部三张数据卡 ---------- */
+.stats {
+  position: absolute;
+  top: 670px;
+  left: 22px; right: 22px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.stat {
+  padding: 12px 10px 12px 0;
+  border-right: 1px solid var(--rule-soft);
+}
+.stat:last-child { border-right: none; padding-right: 0; }
+.stat:not(:first-child) { padding-left: 12px; }
+.stat .k {
+  font-family: 'Inter', sans-serif;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 5px;
+}
+.stat .v {
+  font-family: 'Newsreader', serif;
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.stat .v em { font-style: italic; font-weight: 300; }
+.stat .sub {
+  margin-top: 4px;
+  font-family: 'Newsreader', serif;
+  font-style: italic;
+  font-size: 11px;
+  color: var(--ink-soft);
+  line-height: 1.3;
+}
+.stat .sub b { font-style: normal; font-weight: 500; color: var(--ink); }
+
+/* ---------- 底部输入栏 ---------- */
+.composer {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 12px 16px 32px 16px;
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.composer .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--sit); flex-shrink: 0;
+}
+.composer .prompt {
+  flex: 1;
+  font-family: 'Newsreader', serif;
+  font-style: italic;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+.composer .ask {
+  font-family: 'Inter', sans-serif;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.home-indicator {
+  position: absolute;
+  bottom: 8px; left: 50%;
+  transform: translateX(-50%);
+  width: 134px; height: 5px;
+  background: rgba(21,22,26,0.45);
+  border-radius: 3px;
+  z-index: 7;
+}
+
+/* 火柴人 */
+.fig svg { width: 140px; height: 260px; }
+
+/* attribution — moved to under topbar as small print */
+.attribution {
+  position: absolute;
+  top: 245px;
+  right: 22px;
+  font-family: 'Inter', sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  text-align: right;
+  line-height: 1.4;
+  z-index: 4;
+}
+.attribution .vol {
+  font-family: 'Newsreader', serif;
+  font-style: italic;
+  font-size: 9.5px;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+  text-transform: none;
+  font-weight: 500;
+}
+
+/* folio */
+.folio {
+  position: absolute;
+  top: 14px;
+  left: 22px;
+  font-family: 'Inter', sans-serif;
+  font-size: 8.5px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  z-index: 5;
+}
+.folio b { color: var(--ink); font-weight: 600; }
+
+/* story meta (under headline) */
+.story-meta {
+  position: absolute;
+  top: 264px;
+  left: 22px;
+  font-family: 'Inter', sans-serif;
+  font-size: 7.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  z-index: 4;
+  background: var(--paper);
+  padding-right: 8px;
+}
+.story-meta .rule {
+  display: inline-block;
+  width: 18px;
+  height: 1px;
+  background: var(--ink);
+  vertical-align: middle;
+  margin: 0 6px 2px 0;
+}
+</style>
+</head>
+<body>
+<div class="frame">
+<div class="phone">
+  <!-- status bar -->
+  <div class="statusbar">
+    <div>17:19</div>
+    <div class="right">
+      <svg viewBox="0 0 18 12" fill="none"><rect x="0" y="6" width="3" height="6" rx="0.5" fill="currentColor"/><rect x="5" y="4" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="0.5" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="0.5" fill="currentColor"/></svg>
+      <svg viewBox="0 0 16 11" fill="none"><path d="M8 10.5c.6 0 1-.4 1-1s-.4-1-1-1-1 .4-1 1 .4 1 1 1zm0-3.5c1.3 0 2.5.4 3.5 1.1l-.7.7C9.9 8.2 9 7.9 8 7.9s-1.9.3-2.8.9l-.7-.7C5.5 7.4 6.7 7 8 7zm0-3c2 0 3.9.7 5.4 1.9l-.7.7C11.4 5.6 9.8 5 8 5s-3.4.6-4.7 1.6l-.7-.7C4.1 4.7 6 4 8 4zm0-3c2.8 0 5.3 1 7.3 2.7l-.7.7C12.7 2.9 10.5 2 8 2S3.3 2.9 1.4 4.4L.7 3.7C2.7 2 5.2 1 8 1z" fill="currentColor"/></svg>
+      <svg viewBox="0 0 26 12" fill="none"><rect x="0" y="1" width="22" height="10" rx="2.5" stroke="currentColor" stroke-width="1" fill="none"/><rect x="1.5" y="2.5" width="17" height="7" rx="1.5" fill="currentColor"/><rect x="23" y="4.5" width="2" height="3" rx="0.5" fill="currentColor"/></svg>
+    </div>
+  </div>
+  <div class="island"></div>
+
+  <div class="folio">Stick <b>·</b> No. <b>06.16</b></div>
+
+  <!-- 顶栏 -->
+  <div class="topbar">
+    <div class="name">
+      <span class="sm">Stick · vol. iv</span>
+      An evening with<br/><em>Mr. Sit</em>
+    </div>
+    <div class="now">
+      <div class="h">5:19<small>pm</small></div>
+      <div class="d">Tue · Jun 16</div>
+    </div>
+  </div>
+
+  <!-- 状态 hero -->
+  <div class="status-hero">
+    <div class="tag">Now — sitting since 1:39 pm</div>
+    <div class="headline">Sedentary<br/><em>hour four</em></div>
+    <div class="deck"><b>21 min</b> walking accumulated today, the longest since 12:30.</div>
+  </div>
+
+  <div class="story-meta"><span class="rule"></span>Plate I &nbsp;·&nbsp; the figure &amp; the 24-hour trace</div>
+
+  <!-- 主舞台 -->
+  <div class="stage">
+    <div class="scene">
+      <div class="caption">Plate I</div>
+      <div class="fig">
+        <!-- 火柴人（坐姿）-->
+        <svg viewBox="0 0 240 320" xmlns="http://www.w3.org/2000/svg">
+          <!-- chair -->
+          <g stroke="#15161A" stroke-width="1.2" fill="none">
+            <line x1="20" y1="290" x2="220" y2="290"/>
+            <line x1="170" y1="180" x2="170" y2="290"/>
+            <line x1="170" y1="180" x2="170" y2="80"/>
+            <line x1="170" y1="80" x2="210" y2="80"/>
+          </g>
+          <circle cx="120" cy="160" r="120" fill="#B0531F" opacity="0.05"/>
+
+          <!-- stick figure sitting -->
+          <g stroke="#15161A" stroke-width="2.4" stroke-linecap="round" fill="none">
+            <circle cx="78" cy="98" r="14" fill="#FAFAF7"/>
+            <path d="M 78 112 Q 78 140 95 158 L 138 178"/>
+            <path d="M 138 178 L 188 178"/>
+            <path d="M 188 178 L 188 240"/>
+            <path d="M 95 145 Q 130 168 165 175"/>
+            <path d="M 100 158 Q 132 175 158 180"/>
+          </g>
+          <g fill="#15161A">
+            <circle cx="78" cy="112" r="3"/>
+            <circle cx="95" cy="158" r="3"/>
+            <circle cx="138" cy="178" r="3"/>
+            <circle cx="188" cy="178" r="3"/>
+            <circle cx="188" cy="240" r="3"/>
+          </g>
+          <circle cx="93" cy="140" r="3.5" fill="#B0531F"/>
+          <line x1="98" y1="142" x2="130" y2="172" stroke="#B0531F" stroke-width="1.4" stroke-dasharray="2 3" stroke-linecap="round"/>
+          <ellipse cx="120" cy="252" rx="80" ry="3" fill="#15161A" opacity="0.07"/>
+        </svg>
+      </div>
+      <div class="roman">fig. <em>i</em></div>
+      <div class="clock">17:19:42</div>
+    </div>
+
+    <!-- sparkline timeline -->
+    <div class="spark">
+      <!-- 左侧刻度 -->
+      <div class="ticks">
+        <!--
+          now = 17:19 today. top of track = yesterday 17:19 (24h ago).
+          y_pct = (1440 - offset_min) / 1440 * 100
+          18:00 yesterday → offset 1399 min → y = 2.85%
+          0:00 today       → offset 1039 min → y = 27.85%
+          6:00 today       → offset 679 min  → y = 52.85%
+          12:00 today      → offset 319 min  → y = 77.85%
+        -->
+        <div class="tick zero" style="top:2.85%"><span class="bar"></span>18</div>
+        <div class="tick zero" style="top:27.85%"><span class="bar"></span>0</div>
+        <div class="tick zero" style="top:52.85%"><span class="bar"></span>6</div>
+        <div class="tick zero" style="top:77.85%"><span class="bar"></span>12</div>
+      </div>
+
+      <!-- ribbon -->
+      <div class="track">
+        <!-- 6h 分隔细线 -->
+        <div class="hr-tick" style="top:2.85%"></div>
+        <div class="hr-tick" style="top:27.85%"></div>
+        <div class="hr-tick" style="top:52.85%"></div>
+        <div class="hr-tick" style="top:77.85%"></div>
+
+        <!-- baseline -->
+        <div class="baseline"></div>
+
+        <!-- ============ SVG ribbon ============
+             viewBox 100 x 380, center y=190
+             walk peak heights (up = negative y):
+               short walk (1min, <100 steps)   → peak y=120  (up 70)
+               medium walk (1-2min, 100-200)   → peak y=85   (up 105)
+               strong walk (2min, >200 steps)  → peak y=70   (up 120)
+               big walk (3-7min)               → peak y=40   (up 150)
+             sleep sink: down to y=215 (down 25)
+        -->
+        <svg class="ribbon" viewBox="0 0 100 380" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="walkGrad" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#2F5D3A" stop-opacity="0.95"/>
+              <stop offset="0.5" stop-color="#2F5D3A" stop-opacity="1"/>
+              <stop offset="1" stop-color="#2F5D3A" stop-opacity="0.95"/>
+            </linearGradient>
+          </defs>
+
+          <!-- ============ sit band baseline (the heart-rate line) ============
+               This is the always-running sparkline. Flat at y=190 (center)
+               except where walks peak (curves up over peak) or sleep sinks
+               (curves down between 39.96 and 50.07). -->
+          <path d="
+            M 0 190
+            L 39.96 190
+            Q 43 220 47 218
+            Q 49 215 50.07 205
+            L 60.0 190
+            Q 61.0 130 61.7 190
+            Q 61.85 100 62.07 190
+            Q 62.1 105 62.15 190
+            L 64.0 190
+            Q 65.0 100 65.55 190
+            Q 65.6 110 65.63 190
+            L 69.0 190
+            Q 70.0 80 70.93 190
+            Q 70.95 95 70.97 190
+            Q 71.05 140 71.21 190
+            Q 71.22 145 71.25 190
+            L 76.0 190
+            Q 77.0 140 77.25 190
+            Q 77.27 150 77.29 190
+            L 78.0 190
+            Q 78.4 50 78.92 190
+            Q 78.97 55 79.03 190
+            Q 79.4 30 80.17 190
+            Q 80.3 35 80.42 190
+            L 83.0 190
+            Q 84.0 80 84.58 190
+            Q 84.7 90 84.72 190
+            L 100 190
+          " stroke="#B0531F" stroke-width="1.4" stroke-opacity="0.55"
+            stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+          <!-- soft sleep ribbon (purple, slight downward bulge, low alpha) -->
+          <path d="
+            M 39.96 195
+            Q 43 230 47 225
+            Q 49 220 50.07 210
+          " stroke="#4B3D6B" stroke-width="2.0" stroke-opacity="0.4"
+            stroke-linecap="round" fill="none"/>
+
+          <!-- walk peaks: thicker green strokes stacked on top.
+               Each peak: outer "halo" stroke (alpha 0.55) + crisp inner stroke.
+               Peak heights vary with intensity. -->
+
+          <!-- 08:08-08:09 (x≈61.7, 1min, 141 steps → mid peak) -->
+          <path d="M 61.65 190 C 61.55 135, 61.55 135, 61.7 190"
+            stroke="#2F5D3A" stroke-width="3.0" fill="none"
+            stroke-linecap="round" stroke-opacity="0.5"/>
+          <path d="M 61.66 190 C 61.6 142, 61.6 142, 61.69 190"
+            stroke="#2F5D3A" stroke-width="1.4" fill="none"
+            stroke-linecap="round"/>
+          <circle fill="#2F5D3A" cx="61.62" cy="135" r="1.3"/>
+
+          <!-- 08:14-08:16 (x≈62.07, 2min, 3.56 kcal → strong) -->
+          <path d="M 62.0 190 C 61.85 95, 61.85 95, 62.13 190"
+            stroke="#2F5D3A" stroke-width="4.0" fill="none"
+            stroke-linecap="round" stroke-opacity="0.5"/>
+          <path d="M 62.02 190 C 61.92 105, 61.92 105, 62.11 190"
+            stroke="#2F5D3A" stroke-width="1.8" fill="none"
+            stroke-linecap="round"/>
+          <circle fill="#2F5D3A" cx="61.95" cy="93" r="1.5"/>
+
+          <!-- 09:04-09:06 (x≈65.55, 2min, 2.1 kcal → strong) -->
+          <path d="M 65.48 190 C 65.33 105, 65.33 105, 65.63 190"
+            stroke="#2F5D3A" stroke-width="3.8" fill="none"
+            stroke-linecap="round" stroke-opacity="0.5"/>
+          <path d="M 65.5 190 C 65.4 115, 65.4 115, 65.6 190"
+            stroke="#2F5D3A" stroke-width="1.7" fill="none"
+            stroke-linecap="round"/>
+          <circle fill="#2F5D3A" cx="65.4" cy="103" r="1.4"/>
+
+          <!-- 10:21-10:22 (x≈70.93, 1min, 264 steps, 5.6 kcal → tall sharp) -->
+          <path d="M 70.89 190 C 70.78 70, 70.78 70, 70.96 190"
+            stroke="#2F5D3A" stroke-width="4.4" fill="none"
+            stroke-linecap="round" stroke-opacity="0.5"/>
+          <path d="M 70.9 190 C 70.82 80, 70.82 80, 70.95 190"
+            stroke="#2F5D3A" stroke-width="2.0" fill="none"
+            stroke-linecap="round"/>
+          <circle fill="#2F5D3A" cx="70.82" cy="68" r="1.6"/>
+
+          <!-- 10:25-10:26 (x≈71.21, 1min → modest) -->
+          <path d="M 71.17 190 C 71.1 130, 71.1 130, 71.24 190"
+            stroke="#2F5D3A" stroke-width="2.8" fill="none"
+            stroke-linecap="round" stroke-opacity="0.5"/>
+          <path d="M 71.18 190 C 71.14 142, 71.14 142, 71.23 190"
+            stroke="#2F5D3A" stroke-width="1.2" fill="none"
+            stroke-linecap="round"/>
+          <circle fill="#2F5D3A" cx="71.13" cy="130" r="1.2"/>
+
+          <!-- 11:52-11:53 (x≈77.25, 1min, 94 steps → modest) -->
+          <path d="M 77.21 190 C 77.13 145, 77.13 145, 77.28 190"
+            stroke="#2F5D3A" stroke-width="2.6" fill="none"
+            stroke-linecap="round" stroke-opacity="0.5"/>
+          <path d="M 77.22 190 C 77.17 152, 77.17 152, 77.27 190"
+            stroke="#2F5D3A" stroke-width="1.1" fill="none"
+            stroke-linecap="round"/>
+          <circle fill="#2F5D3A" cx="77.16" cy="144" r="1.1"/>
+
+          <!-- 12:14-12:17 (x≈78.92, 3min, 619 steps, 14.94 kcal → very big) -->
+          <path d="M 78.78 190 C 78.55 32, 78.55 32, 79.05 190"
+            stroke="#2F5D3A" stroke-width="4.8" fill="none"
+            stroke-linecap="round" stroke-opacity="0.5"/>
+          <path d="M 78.82 190 C 78.65 40, 78.65 40, 79.0 190"
+            stroke="#2F5D3A" stroke-width="2.1" fill="none"
+            stroke-linecap="round"/>
+          <circle fill="#2F5D3A" cx="78.7" cy="30" r="1.6"/>
+
+          <!-- 12:30-12:37 (x≈80.17, 7min, 17.35 kcal → tallest peak) -->
+          <path d="M 79.9 190 C 79.45 15, 79.45 15, 80.45 190"
+            stroke="#2F5D3A" stroke-width="5.4" fill="none"
+            stroke-linecap="round" stroke-opacity="0.5"/>
+          <path d="M 79.95 190 C 79.55 22, 79.55 22, 80.4 190"
+            stroke="#2F5D3A" stroke-width="2.3" fill="none"
+            stroke-linecap="round"/>
+          <circle fill="#2F5D3A" cx="79.72" cy="13" r="1.7"/>
+
+          <!-- 13:35-13:39 (x≈84.58, 4min, 5.87 kcal → strong) -->
+          <path d="M 84.42 190 C 84.2 50, 84.2 50, 84.74 190"
+            stroke="#2F5D3A" stroke-width="4.2" fill="none"
+            stroke-linecap="round" stroke-opacity="0.5"/>
+          <path d="M 84.45 190 C 84.28 60, 84.28 60, 84.7 190"
+            stroke="#2F5D3A" stroke-width="1.9" fill="none"
+            stroke-linecap="round"/>
+          <circle fill="#2F5D3A" cx="84.32" cy="48" r="1.5"/>
+
+          <!-- now indicator (bottom edge) -->
+          <circle cx="100" cy="190" r="2.6" fill="#15161A"/>
+          <circle cx="100" cy="190" r="4.6" fill="none" stroke="#15161A" stroke-width="0.5" stroke-opacity="0.35"/>
+        </svg>
+
+        <!-- now line -->
+        <div class="now-line"></div>
+        <div class="now-marker"></div>
+        <div class="now-label">
+          <b>Now</b>
+          17:19
+        </div>
+
+        <!-- inline editorial labels -->
+        <div class="label-above" style="top:21%; left:74%">12:30 · long walk</div>
+        <div class="label-left" style="top:54%; left:35%">asleep · 02–06</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部数据卡 -->
+  <div class="stats">
+    <div class="stat">
+      <div class="k">Today · walked</div>
+      <div class="v">21<em>m</em></div>
+      <div class="sub"><b>9</b> segments</div>
+    </div>
+    <div class="stat">
+      <div class="k">Longest sit</div>
+      <div class="v">3<em>h 39</em></div>
+      <div class="sub">since <b>13:39</b></div>
+    </div>
+    <div class="stat">
+      <div class="k">Distance</div>
+      <div class="v">1.4<em>km</em></div>
+      <div class="sub"><b>2 421</b> steps</div>
+    </div>
+  </div>
+
+  <!-- composer -->
+  <div class="composer">
+    <div class="dot"></div>
+    <div class="prompt">Ask Stick about your day…</div>
+    <div class="ask">Ask →</div>
+  </div>
+
+  <div class="home-indicator"></div>
+</div>
+</div>
+</body>
+</html>

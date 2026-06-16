@@ -785,30 +785,32 @@ struct ContentView: View {
             // Preview 模式完全短路 — 不跑 HealthKit / Timer / refresh
             guard !Self.isRunningForPreviews else { return }
             // 启动 HealthKit 抓取 (1 分钟一次, 写到本地)
+            // 查询分批错开执行（stagger），避免启动瞬间并发 10+ HK 请求阻塞主线程
             Task {
-                // 真机: 弹系统授权弹窗
+                // 1. 先授权（必须立即执行，可能弹系统弹窗）
                 await HealthKitService.shared.requestAuthorization()
+                // 延迟 500ms 启动定时抓取（给首帧渲染让路）
+                try? await Task.sleep(nanoseconds: 500_000_000)
                 HealthKitService.shared.startAutoCapture(interval: 60)
                 inference = HealthKitService.shared.currentInference
-                // 加载今日久坐分钟数（从 HealthKit 直接查询，与数据记录一致）
+
+                // 2. 第一组：久坐核心数据（UI 上最显眼的两行）
                 homeSedentaryMinutes = await HealthKitService.shared.todaySedentaryMinutes()
-                // 减去睡眠时间（只有睡眠数据有效时才做校正，否则久坐值不可信）
                 if let sleepHours = await HealthKitService.shared.todaySleepHours(), sleepHours > 0 {
                     let sleepMinutes = Int(sleepHours * 60)
                     homeSedentaryMinutes = max(0, homeSedentaryMinutes - sleepMinutes)
                     hasValidSleepData = true
                 } else {
-                    // 睡眠数据为空，久坐累计不可信，置零但不显示（用 "--" 代替）
                     hasValidSleepData = false
                 }
-                // 初始加载当前连续久坐时长（基于真实快照分析）
                 let sitMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
                 currentSitMinutes = sitMins
                 if sitMins > 0 {
                     currentSitStartTime = Date().addingTimeInterval(-Double(sitMins) * 60)
                 }
                 lastSitAnalysisTime = Date()
-                // 写入 SharedState（让 Widget 立即显示）
+
+                // 3. 写入 SharedState（Widget 同步）
                 let snap = SharedStickState(
                     stateRaw: displayState.rawValue,
                     englishName: displayState.englishName,
@@ -825,9 +827,10 @@ struct ContentView: View {
                 #if canImport(WidgetKit)
                 WidgetCenter.shared.reloadAllTimelines()
                 #endif
-                // 计算今天真实的 24h 时刻表（驱动时间轴 + 小人状态）
+
+                // 4. 第二组：24h 时刻表 + 步态质量（延迟 250ms，非首屏立即显示）
+                try? await Task.sleep(nanoseconds: 250_000_000)
                 await HealthKitService.shared.computeDaySchedule()
-                // 加载步态质量
                 let wq = await HealthKitService.shared.todayWalkingQuality()
                 walkingQuality = WalkingQualityData.from(wq)
                 realHeartRate = await HealthKitService.shared.todayHeartRate()

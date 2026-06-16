@@ -12,13 +12,32 @@ final class HealthStore: ObservableObject {
 
     @Published private(set) var all: [HealthSnapshot] = []
     @Published private(set) var today: [HealthSnapshot] = []
+    @Published private(set) var loaded: Bool = false
 
     private let fileURL: URL
 
     private init() {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         self.fileURL = docs.appendingPathComponent("health-snapshots.json")
-        load()
+        Task.detached(priority: .userInitiated) { [weak self] in
+            await self?.loadFromDisk()
+        }
+    }
+
+    @MainActor
+    private func loadFromDisk() async {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            loaded = true
+            return
+        }
+        do {
+            let data = try Data(contentsOf: fileURL)
+            self.all = try JSONDecoder().decode([HealthSnapshot].self, from: data)
+            refreshToday()
+        } catch {
+            print("[HealthStore] load failed: \(error)")
+        }
+        loaded = true
     }
 
     // MARK: - 增删改
@@ -52,17 +71,6 @@ final class HealthStore: ObservableObject {
             try data.write(to: fileURL, options: .atomic)
         } catch {
             print("[HealthStore] save failed: \(error)")
-        }
-    }
-
-    private func load() {
-        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
-        do {
-            let data = try Data(contentsOf: fileURL)
-            self.all = try JSONDecoder().decode([HealthSnapshot].self, from: data)
-            refreshToday()
-        } catch {
-            print("[HealthStore] load failed: \(error)")
         }
     }
 

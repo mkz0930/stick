@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stick · 晨间健康报告</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+  background: #0d0d0d;
+  color: #f0f0f5;
+  min-height: 100vh;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* === 通知横幅（锁屏风格） === */
+.notification-banner {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.notification-banner .app-icon {
+  width: 32px; height: 32px;
+  background: #EA580C;
+  border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 16px; margin-right: 10px; vertical-align: middle;
+}
+.notification-banner .app-name {
+  font-size: 13px; color: #888; font-weight: 500;
+}
+.notification-banner .time {
+  float: right; font-size: 13px; color: #666;
+}
+
+/* === 主容器 === */
+.container {
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 20px 16px 120px;
+}
+
+/* === 顶部：日期 + 问候 === */
+.header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.header .date {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #666;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.header h1 {
+  font-size: 22px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+.header .greeting {
+  font-size: 14px;
+  color: #888;
+  margin-top: 4px;
+}
+
+/* === 三大指标卡片 === */
+.metrics-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.metric-card {
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 14px 12px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.metric-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  border-radius: 3px 0 0 3px;
+}
+.metric-card.sleep::before { background: #b39ddb; }
+.metric-card.walk::before  { background: #4caf50; }
+.metric-card.sit::before   { background: #ff7043; }
+
+.metric-card .icon {
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+.metric-card .value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.metric-card .label {
+  font-size: 10px;
+  color: #666;
+  margin-top: 2px;
+  letter-spacing: 0.5px;
+}
+.metric-card .sub {
+  font-size: 10px;
+  color: #555;
+  margin-top: 2px;
+}
+
+/* === 24h 时间条 === */
+.timeline-section {
+  margin-bottom: 20px;
+}
+.section-label {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: #555;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.timeline-bar {
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  background: #1a1a1a;
+}
+.timeline-bar .seg {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+.timeline-legend {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10px; color: #666;
+}
+.legend-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+
+/* === 睡眠分析卡 === */
+.analysis-card {
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.analysis-card .card-title {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #b39ddb;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.analysis-card .card-title .emoji { font-size: 14px; }
+.analysis-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 13px;
+}
+.analysis-item:last-child { border-bottom: none; }
+.analysis-item .key { color: #888; }
+.analysis-item .val { color: #fff; font-weight: 600; }
+.analysis-item .val.warn { color: #ff7043; }
+.analysis-item .val.good { color: #4caf50; }
+
+/* === 久坐分析卡 === */
+.sit-analysis .card-title { color: #ff7043; }
+
+/* === 运动分析卡 === */
+.walk-analysis .card-title { color: #4caf50; }
+
+/* === 久坐热力时段 === */
+.sit-timeline {
+  height: 8px;
+  border-radius: 4px;
+  background: #2a2a2a;
+  margin: 8px 0;
+  position: relative;
+  overflow: hidden;
+}
+.sit-block {
+  position: absolute;
+  top: 0; bottom: 0;
+  background: rgba(255, 112, 67, 0.5);
+  border-radius: 2px;
+}
+.hour-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: #444;
+  margin-top: 2px;
+}
+
+/* === AI 总结 === */
+.summary-card {
+  background: linear-gradient(135deg, #1e2a1e, #162016);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(76, 175, 80, 0.15);
+}
+.summary-card .card-title {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #4caf50;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.summary-score {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.score-circle {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: conic-gradient(#4caf50 0deg, #4caf50 72deg, #2a2a2a 72deg);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+}
+.score-circle::before {
+  content: '';
+  width: 46px; height: 46px;
+  background: #1e2a1e;
+  border-radius: 50%;
+  position: absolute;
+}
+.score-circle span {
+  position: relative;
+  font-size: 18px;
+  font-weight: 700;
+  color: #4caf50;
+}
+.score-label { font-size: 12px; color: #666; }
+.score-label strong { display: block; font-size: 14px; color: #fff; margin-bottom: 2px; }
+
+.summary-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #ccc;
+}
+.summary-text strong { color: #fff; }
+
+/* === 建议区 === */
+.advice-section {
+  margin-bottom: 12px;
+}
+.advice-tabs {
+  display: flex;
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 10px;
+}
+.advice-tab {
+  flex: 1;
+  text-align: center;
+  padding: 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.advice-tab.active {
+  background: #2a2a2a;
+  color: #fff;
+}
+.advice-list { list-style: none; }
+.advice-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 13px;
+  color: #aaa;
+  line-height: 1.5;
+  display: flex; gap: 8px;
+}
+.advice-list li:last-child { border-bottom: none; }
+.advice-list li::before {
+  content: '→';
+  color: #4caf50;
+  flex-shrink: 0;
+}
+.advice-list.short li::before { content: '⚡'; color: #ffb300; }
+
+/* === 详细报告（折叠） === */
+.detail-toggle {
+  text-align: center;
+  padding: 10px;
+  color: #555;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.detail-toggle:hover { color: #888; }
+.detail-content {
+  display: none;
+  padding-top: 8px;
+}
+.detail-content.open { display: block; }
+.detail-content .timestamp {
+  font-size: 10px;
+  color: #444;
+  margin-bottom: 8px;
+}
+
+/* === 对话框 === */
+.chat-input-area {
+  position: fixed;
+  bottom: 0;
+  left: 0; right: 0;
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 12px 16px 40px;
+  background: linear-gradient(transparent, #0d0d0d 30%);
+}
+.chat-input-area::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  top: -40px;
+  height: 80px;
+  background: linear-gradient(transparent, #0d0d0d);
+  pointer-events: none;
+}
+.chat-input-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  background: #1e1e1e;
+  border-radius: 24px;
+  padding: 8px 8px 8px 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.chat-input-wrap input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f0f0f5;
+  font-size: 14px;
+  min-height: 28px;
+  padding: 4px 0;
+}
+.chat-input-wrap input::placeholder { color: #444; }
+.chat-btn {
+  width: 36px; height: 36px;
+  background: #EA580C;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+
+<!-- 通知横幅 -->
+<div class="notification-banner">
+  <span class="app-icon">🔥</span>
+  <span class="app-name">Stick</span>
+  <span class="time">今天 08:12</span>
+</div>
+
+<div class="container">
+
+  <!-- 顶部 -->
+  <div class="header">
+    <div class="date">2026年6月16日 · 星期一</div>
+    <h1>晨间健康报告</h1>
+    <div class="greeting">解锁后的第一件事，了解昨天的自己</div>
+  </div>
+
+  <!-- 三大指标 -->
+  <div class="metrics-row">
+    <div class="metric-card sleep">
+      <div class="icon">🌙</div>
+      <div class="value">6h 42m</div>
+      <div class="label">睡眠时长</div>
+      <div class="sub">轻度中断</div>
+    </div>
+    <div class="metric-card walk">
+      <div class="icon">🚶</div>
+      <div class="value">42m</div>
+      <div class="label">运动时长</div>
+      <div class="sub">2,356 步</div>
+    </div>
+    <div class="metric-card sit">
+      <div class="icon">💺</div>
+      <div class="value">5.3h</div>
+      <div class="label">久坐时长</div>
+      <div class="sub">累计</div>
+    </div>
+  </div>
+
+  <!-- 24h 时间条 -->
+  <div class="timeline-section">
+    <div class="section-label">昨日 24h 状态分布</div>
+    <div class="timeline-bar">
+      <div class="seg" style="width: 27.9%; background: #b39ddb;" title="睡眠 6h42m"></div>
+      <div class="seg" style="width: 0.7%; background: #4caf50;" title="步行 10m"></div>
+      <div class="seg" style="width: 18.1%; background: #ff7043;" title="久坐 4h22m"></div>
+      <div class="seg" style="width: 0.5%; background: #4caf50;" title="步行 7m"></div>
+      <div class="seg" style="width: 7.6%; background: #ff7043;" title="久坐 1h50m"></div>
+      <div class="seg" style="width: 4.2%; background: #4caf50;" title="步行 1h"></div>
+      <div class="seg" style="width: 36.5%; background: #ff7043;" title="久坐 8h48m"></div>
+      <div class="seg" style="width: 4.5%; background: #b39ddb;" title="睡眠 1h"></div>
+    </div>
+    <div class="timeline-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#b39ddb"></div>睡眠</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#4caf50"></div>步行</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ff7043"></div>久坐</div>
+    </div>
+  </div>
+
+  <!-- 睡眠分析 -->
+  <div class="analysis-card">
+    <div class="card-title"><span class="emoji">🌙</span> 睡眠分析</div>
+    <div class="analysis-item">
+      <span class="key">睡眠时长</span>
+      <span class="val good">6h 42m</span>
+    </div>
+    <div class="analysis-item">
+      <span class="key">睡眠质量</span>
+      <span class="val warn">轻度中断（夜间清醒 50 分钟）</span>
+    </div>
+    <div class="analysis-item">
+      <span class="key">入睡时间</span>
+      <span class="val">00:00</span>
+    </div>
+    <div class="analysis-item">
+      <span class="key">起床时间</span>
+      <span class="val">08:08</span>
+    </div>
+    <div class="analysis-item">
+      <span class="key">步态疲劳指数</span>
+      <span class="val">87 / 100</span>
+    </div>
+  </div>
+
+  <!-- 久坐分析 -->
+  <div class="analysis-card sit-analysis">
+    <div class="card-title"><span class="emoji">💺</span> 久坐分析</div>
+    <div class="analysis-item">
+      <span class="key">累计久坐</span>
+      <span class="val warn">5h 18m</span>
+    </div>
+    <div class="analysis-item">
+      <span class="key">最长连续久坐</span>
+      <span class="val warn">1h 30m（14:27 — 15:57）</span>
+    </div>
+
+    <!-- 久坐热力时段 -->
+    <div class="section-label" style="margin-top:10px">久坐时段分布</div>
+    <div class="sit-timeline">
+      <!-- 08:08-09:03 -->
+      <div class="sit-block" style="left:33.9%; width:3.8%;"></div>
+      <!-- 09:04-10:18 -->
+      <div class="sit-block" style="left:37.9%; width:5.1%;"></div>
+      <!-- 10:21-11:51 -->
+      <div class="sit-block" style="left:43.1%; width:9.0%;"></div>
+      <!-- 11:52-12:07 -->
+      <div class="sit-block" style="left:52.2%; width:1.0%;"></div>
+      <!-- 13:36-14:27 -->
+      <div class="sit-block" style="left:56.7%; width:3.5%;"></div>
+      <!-- 14:28-15:57 -->
+      <div class="sit-block" style="left:60.2%; width:8.1%;"></div>
+      <!-- 16:00-22:00 -->
+      <div class="sit-block" style="left:66.7%; width:25.0%;"></div>
+    </div>
+    <div class="hour-labels">
+      <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+    </div>
+
+    <div class="analysis-item" style="margin-top:8px">
+      <span class="key">⚠️ 高危时段</span>
+      <span class="val warn">16:00 — 22:00（连续 6h）</span>
+    </div>
+  </div>
+
+  <!-- 运动分析 -->
+  <div class="analysis-card walk-analysis">
+    <div class="card-title"><span class="emoji">🚶</span> 运动分析</div>
+    <div class="analysis-item">
+      <span class="key">总步数</span>
+      <span class="val good">2,356 步</span>
+    </div>
+    <div class="analysis-item">
+      <span class="key">步行时长</span>
+      <span class="val">42 分钟</span>
+    </div>
+    <div class="analysis-item">
+      <span class="key">平均步速</span>
+      <span class="val good">1.22 m/s（健康）</span>
+    </div>
+    <div class="analysis-item">
+      <span class="key">双脚支撑</span>
+      <span class="val good">28.1%（稳健）</span>
+    </div>
+    <div class="analysis-item">
+      <span class="key">步行峰值</span>
+      <span class="val">12:14 — 12:35（午餐快走）</span>
+    </div>
+    <div class="analysis-item">
+      <span class="key">步态评分</span>
+      <span class="val good">87 / 100</span>
+    </div>
+  </div>
+
+  <!-- AI 总结 -->
+  <div class="summary-card">
+    <div class="card-title">🎯 AI 综合评估</div>
+    <div class="summary-score">
+      <div class="score-circle">
+        <span>72</span>
+      </div>
+      <div class="score-label">
+        <strong>昨日健康得分</strong>
+        步态良好，但久坐超标严重
+      </div>
+    </div>
+    <div class="summary-text">
+      昨晚睡眠遭遇<strong>夜间清醒</strong>（03:21-04:11 约 50 分钟），推测使用耳机助眠。步态数据显示步速和双脚支撑比例均处于<strong>健康区间</strong>，无步态不稳迹象，但总步数偏低。<br><br>
+      最大问题在于<strong>下午至晚间久坐</strong>，16:00-22:00 连续 6 小时未活动，已超过久坐风险阈值（2h）的 3 倍。建议设置每小时提醒。
+    </div>
+  </div>
+
+  <!-- 建议 -->
+  <div class="analysis-card advice-section">
+    <div class="advice-tabs">
+      <div class="advice-tab active">短期建议</div>
+      <div class="advice-tab">长期建议</div>
+    </div>
+    <ul class="advice-list short">
+      <li>今天每小时起身活动 3-5 分钟，打断久坐累积</li>
+      <li>午餐后散步 15 分钟，不要立刻坐下</li>
+      <li>今晚尝试提前 22:00 上床，减少睡前屏幕使用</li>
+      <li>若仍使用耳机助眠，考虑白噪音 App 替代，保护听力</li>
+    </ul>
+  </div>
+
+  <!-- 详细报告折叠 -->
+  <div class="detail-toggle" onclick="this.nextElementSibling.classList.toggle('open'); this.textContent = this.nextElementSibling.classList.contains('open') ? '▲ 收起详细报告' : '▼ 展开详细报告'">
+    ▼ 展开详细报告
+  </div>
+  <div class="detail-content">
+    <div class="timestamp">AI 生成于 08:12 · 基于 HealthKit 真实数据</div>
+
+    <div class="analysis-card">
+      <div class="card-title" style="color:#888"><span class="emoji">📊</span> LLM 深度分析</div>
+      <div class="summary-text" style="font-size:12px; color:#777; line-height:1.8">
+        <p><strong>睡眠结构分析：</strong>根据耳机音量暴露记录（03:21-04:11，约 50 分钟连续暴露，音量 48-55 dB），判断此段为使用耳机聆听内容。步态数据显示晨间首次步行（08:08）起步正常，无步态异常。但夜间清醒打断了深度睡眠连续性，可能影响次日精力恢复。</p>
+        <br>
+        <p><strong>久坐风险量化：</strong>全天久坐 5h18m，其中 16:00-22:00 连续 6 小时无任何步数活动。久坐风险指数 = 6h / 2h 阈值 = 3.0 倍，属于高风险。长时间不动导致血液循环减慢，对心血管系统产生累积压力。</p>
+        <br>
+        <p><strong>运动充足性评估：</strong>2,356 步远低于 WHO 推荐的 8,000-10,000 步/天。步行峰值出现在午间（12:14-12:35），符合午餐后散步习惯，但整体运动量不足。建议将日步数目标设为 6,000 步，逐步提升。</p>
+        <br>
+        <p><strong>步态与疲惫度：</strong>平均步速 1.22 m/s（正常范围 0.8-1.4），双脚支撑 28.1%（标准值 25-33%），表明步态健康，无步态不稳或疲劳迹象。但结合夜间清醒和久坐情况，整体疲惫感可能处于中等水平（预估 55-65）。</p>
+      </div>
+    </div>
+
+    <div class="analysis-card" style="margin-top:12px">
+      <div class="card-title" style="color:#888"><span class="emoji">🧭</span> 短期建议详解</div>
+      <ul class="advice-list" style="padding-left:0">
+        <li>每小时提醒：利用 iOS 健康 App 或第三方 App，设置每 60 分钟起身站立的提醒，配合 Stick Widget 久坐告警功能</li>
+        <li>午间步行：午餐后不要立刻坐下，在办公室或户外快走 10-15 分钟，有助于降低餐后血糖峰值</li>
+        <li>提前睡眠：夜间清醒可能与睡前使用耳机有关，建议将耳机使用限制在入睡前 30 分钟，并将闹钟提前 15 分钟以补偿入睡延迟</li>
+        <li>站立会议：下午的久坐主要来自工作，建议将部分会议改为站立会议或步行会议</li>
+      </ul>
+    </div>
+
+    <div class="analysis-card" style="margin-top:12px">
+      <div class="card-title" style="color:#888"><span class="emoji">🔧</span> 长期建议</div>
+      <ul class="advice-list" style="padding-left:0">
+        <li>步数目标：当前 2,356 步，建议未来 2 周内提升至 5,000 步/天，再逐步向 8,000 步/天迈进，避免一次性大幅增加导致运动损伤</li>
+        <li>久坐管理：建立"站立-步行-久坐"三段式工作节奏，每 45 分钟切换一次姿态，配合番茄工作法</li>
+        <li>睡眠改善：夜间清醒提示睡眠环境或习惯需要优化，建议使用白噪音 App（无需耳机）替代耳机助眠，减少对听力的长期损伤</li>
+        <li>步态监测：当前步态评分 87/100，属于良好，建议每月复查一次，重点关注双脚支撑比例变化（>35% 可能预示疲劳）</li>
+        <li>运动多样化：步态数据显示仅有一段时间集中步行，建议增加上下午各一次快走，分散运动时段而非一次性大量活动</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- 对话框 -->
+<div class="chat-input-area">
+  <div class="chat-input-wrap">
+    <input type="text" placeholder="有什么想问的，直接说…" id="chatInput">
+    <button class="chat-btn" onclick="sendMsg()">↑</button>
+  </div>
+</div>
+
+<script>
+function sendMsg() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  // 演示用，实际打开 ChatOverlay
+  input.value = '';
+  input.placeholder = '已发送：「' + msg + '」— Stick 正在思考…';
+  setTimeout(() => { input.placeholder = '有什么想问的，直接说…'; }, 2000);
+}
+document.getElementById('chatInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendMsg();
+});
+</script>
+
+</body>
+</html>

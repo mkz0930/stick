@@ -1,0 +1,856 @@
+<!doctype html>
+<!--
+  minimal-precision.html — Stick iOS 24h Timeline Redesign (Design A)
+  =====================================================================
+  Philosophy: Minimalist Precision (Apple Watch Activity Rings × Linear × Vercel)
+  ---------------------------------------------------------------------
+  Core problem: track is only 4pt wide, so 1-5 min walk segments are
+  visually invisible at 1:1 scale. We solve it with three signal
+  amplifiers that NEVER fight each other:
+
+  (1) SOLID GREEN CORE — 100% opacity walk blocks, no alpha fall-off
+  (2) HALO CAPSULE — 22pt wide green glow at 22% alpha behind every
+      walk block. Even a 1-min walk becomes a ~22pt tall green dot
+      the eye can't miss, while longer walks read as soft pulses.
+  (3) 1.5PT WHITE STROKE — the green core has a hairline outline
+      that snaps the edge to "this is solid data, not noise".
+
+  Active (last-active or current-now) walk gets a 2pt pulse ring
+  instead of the 22pt halo, so the eye knows "this one matters".
+
+  Everything else (sit/sleep) is rendered as bare 4pt column
+  segments with hairline 1.5pt gaps, monochrome orange/purple —
+  no halo, no stroke. The track is honest about what's sit.
+
+  Colors are Apple system palette exactly:
+    walk   #34C759  (Apple systemGreen)
+    sit    #FF9500  (Apple systemOrange)
+    sleep  #5856D6  (Apple systemIndigo)
+
+  Window mapping:
+    track top    = 24h ago (yesterday 17:19, offset 1440)
+    track bottom = now     (today 17:19,    offset 0)
+    y = (1440 - offset) / 1440 * TRACK_H
+    minute-of-day M → offset = ((1039 - M) % 1440)
+
+  All 21 segments (computed from HealthKit export + 17:19-now anchor):
+    sit (orange, no decoration) — 12 segments
+    walk (green halo + stroke)  —  9 segments
+    sleep (purple, no decoration) — 1 segment (02:54-06:00)
+
+  Hour labels: 24 ticks at every hour, with text only on 4-hour marks
+  to avoid clutter; minor ticks are 8pt hairlines, majors get the
+  number.
+
+  This file is design-only (not Swift). Single static HTML, no JS.
+  Layout: full iPhone 15 Pro viewport 393×852 with the stick-figure
+  stage on the LEFT and the redesigned timeline on the RIGHT,
+  exactly as the brief specified.
+
+  Spec assumptions:
+    - active walk = the most recent walk (13:35-13:39, offset 220)
+      gets the 2pt pulse instead of halo.
+    - current now indicator = thin red ring at track bottom edge.
+    - scrub thumb = not shown in static frame (per brief, focus is
+      on track + halo design).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="393" />
+<title>Stick · 24h Timeline · Minimalist Precision</title>
+<style>
+  /* ----- Reset & base ------------------------------------------------ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 393px;
+    height: 852px;
+    background: #000;
+    color: #fff;
+    font-family: -apple-system, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  /* ----- App shell --------------------------------------------------- */
+  .app {
+    position: relative;
+    width: 393px;
+    height: 852px;
+    background: #0B0B0F;          /* near-black, no blue tint */
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  /* Soft global noise/grain suppressed — this design wants glass, not grit. */
+
+  /* ----- Top status bar (we render it manually since IosFrame is React-only) */
+  .status-bar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    z-index: 60;
+    pointer-events: none;
+    color: #fff;
+  }
+  .status-bar .time {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .status-bar .right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .status-bar .signal {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 11px;
+  }
+  .status-bar .signal span {
+    width: 3px;
+    background: #fff;
+    border-radius: 1px;
+  }
+  .status-bar .signal span:nth-child(1) { height: 4px; }
+  .status-bar .signal span:nth-child(2) { height: 6px; }
+  .status-bar .signal span:nth-child(3) { height: 9px; }
+  .status-bar .signal span:nth-child(4) { height: 11px; }
+  .status-bar .wifi {
+    width: 16px; height: 12px;
+  }
+  .status-bar .battery {
+    width: 26px; height: 12px;
+    border: 1.5px solid #fff;
+    border-radius: 3px;
+    position: relative;
+    opacity: 0.9;
+  }
+  .status-bar .battery::after {
+    content: '';
+    position: absolute;
+    top: 3px; right: -3px;
+    width: 2px; height: 6px;
+    background: #fff;
+    border-radius: 0 1px 1px 0;
+  }
+  .status-bar .battery-fill {
+    position: absolute;
+    top: 1.5px; left: 1.5px;
+    width: 22px; height: 7px;
+    background: #fff;
+    border-radius: 1px;
+  }
+
+  /* Dynamic Island */
+  .island {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 124px;
+    height: 36px;
+    background: #000;
+    border-radius: 999px;
+    z-index: 70;
+  }
+
+  /* ----- App top bar (under status bar) ----------------------------- */
+  .topbar {
+    position: absolute;
+    top: 54px;
+    left: 0; right: 0;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 50;
+  }
+  .topbar .brand {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: #fff;
+  }
+  .topbar .brand .dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #34C759;
+    margin-right: 8px;
+    vertical-align: middle;
+    box-shadow: 0 0 0 3px rgba(52,199,89,0.15);
+  }
+  .topbar .meta {
+    font-size: 13px;
+    color: rgba(255,255,255,0.45);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+  }
+
+  /* ----- Stage (left half — stick figure placeholder) --------------- */
+  .stage {
+    position: absolute;
+    top: 106px;          /* status + topbar */
+    left: 0;
+    width: 257px;
+    height: 586px;
+    padding: 20px 20px 20px 24px;
+    z-index: 10;
+  }
+
+  /* state badge (top-left of stage) */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.85);
+  }
+  .badge .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #FF9500;
+  }
+
+  /* big time-of-day display */
+  .time-clock {
+    margin-top: 14px;
+    font-size: 44px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .time-clock .sec {
+    font-size: 22px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.4);
+    margin-left: 2px;
+  }
+  .time-clock .meridiem {
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.4);
+    margin-left: 8px;
+    vertical-align: 12px;
+    letter-spacing: 0.04em;
+  }
+  .date-line {
+    margin-top: 6px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 0;
+  }
+
+  /* stick figure "stage" canvas area (just a frame + abstract body) */
+  .stage-canvas {
+    position: absolute;
+    top: 200px;
+    left: 24px;
+    width: 209px;
+    height: 320px;
+    border-radius: 16px;
+    background:
+      radial-gradient(ellipse at 50% 85%, rgba(255,149,0,0.12), transparent 60%);
+    overflow: hidden;
+  }
+  .stage-canvas::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-position: -1px -1px;
+    opacity: 0.5;
+  }
+  /* stick figure — minimalist wireframe placeholder */
+  .figure {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90px;
+    height: 200px;
+  }
+  .figure svg { width: 100%; height: 100%; }
+
+  /* segment label under stick figure */
+  .segment-label {
+    position: absolute;
+    top: 488px;
+    left: 24px;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .segment-label .from-to {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.45);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .segment-label .state-name {
+    font-size: 20px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: -0.01em;
+  }
+
+  /* stat strip at bottom of stage */
+  .stat-strip {
+    position: absolute;
+    top: 568px;
+    left: 24px;
+    right: 0;
+    display: flex;
+    gap: 18px;
+  }
+  .stat-strip .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .stat-strip .stat .v {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .stat-strip .stat .k {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* ----- TIMELINE (right column) — THE STAR ------------------------- */
+  .timeline {
+    position: absolute;
+    top: 130px;
+    right: 16px;
+    width: 96px;
+    height: 510px;
+    z-index: 20;
+  }
+
+  /* timeline label */
+  .tl-head {
+    position: absolute;
+    top: -22px;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.4);
+    white-space: nowrap;
+    line-height: 1.3;
+  }
+  .tl-head .ago {
+    color: rgba(255,255,255,0.45);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    font-size: 9px;
+  }
+
+  /* hour-label column (LEFT of track) */
+  .hour-col {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 36px;
+    height: 100%;
+  }
+  .hour-row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+  .hour-row .tick {
+    width: 8px;
+    height: 1px;
+    background: rgba(255,255,255,0.16);
+  }
+  .hour-row.major .tick {
+    width: 14px;
+    background: rgba(255,255,255,0.28);
+  }
+  .hour-row .label {
+    font-size: 9px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.42);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+    line-height: 1;
+  }
+  .hour-row.major .label {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.62);
+  }
+  .hour-row.now .label {
+    color: #FF3B30;
+    font-weight: 700;
+  }
+  .hour-row.now .tick {
+    background: #FF3B30;
+  }
+
+  /* the track itself — 4pt wide, centered in remaining width */
+  .track {
+    position: absolute;
+    top: 0;
+    left: 44px;
+    width: 4px;
+    height: 100%;
+    background: transparent;
+  }
+
+  /* base inactive segments (sit / sleep) — minimal, no decoration */
+  .seg {
+    position: absolute;
+    left: 0;
+    width: 4px;
+    border-radius: 2px;
+  }
+  .seg.sit {
+    background: #FF9500;
+    opacity: 0.85;
+  }
+  .seg.sleep {
+    background: #5856D6;
+    opacity: 0.85;
+  }
+
+  /* WALK segment — 3-layer composite: halo + solid bar + stroke */
+  .walk-block {
+    position: absolute;
+    left: -9px;             /* halo is 22pt wide, track is 4pt → -9 centers it */
+    width: 22px;
+    pointer-events: none;
+    /* minimum visible capsule thickness — even 1-min walks read as
+       a clear green dot rather than a sliver */
+    min-height: 6px;
+  }
+  .walk-block .halo {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #34C759;
+    opacity: 0.32;
+    border-radius: 999px;
+  }
+  .walk-block .bar {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    bottom: 0;
+    background: #34C759;
+    border-radius: 2px;
+    /* 1.5pt white stroke for the "data is solid" signal */
+    box-shadow:
+      inset 0 0 0 0.75px #FFFFFF,
+      0 0 0 0.5px rgba(52,199,89,0.4);
+  }
+  /* active walk = last completed walk (most recent) gets a 2pt pulse ring */
+  .walk-block.active .bar {
+    box-shadow:
+      inset 0 0 0 0.75px #FFFFFF,
+      0 0 0 1px rgba(52,199,89,0.55),
+      0 0 8px rgba(52,199,89,0.35);
+  }
+  .walk-block.active .halo {
+    opacity: 0.5;
+    box-shadow: 0 0 12px rgba(52,199,89,0.45);
+  }
+
+  /* micro-label next to each walk — only on walks >2 min */
+  .walk-tag {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 9px;
+    font-weight: 600;
+    color: #34C759;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .walk-tag.active { color: #fff; }
+
+  /* now indicator at track bottom */
+  .now-line {
+    position: absolute;
+    left: -8px;
+    right: -8px;
+    bottom: 0;
+    height: 0;
+    border-top: 1px dashed rgba(255,59,48,0.4);
+  }
+  .now-marker {
+    position: absolute;
+    left: -2px;
+    bottom: -4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #FF3B30;
+    box-shadow:
+      0 0 0 2px #0B0B0F,
+      0 0 0 3px rgba(255,59,48,0.5),
+      0 0 8px rgba(255,59,48,0.6);
+  }
+
+  /* ----- Bottom input bar ------------------------------------------- */
+  .input-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 84px;
+    padding: 12px 16px 24px 16px;
+    background: rgba(11,11,15,0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .chip {
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.7);
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .chip.active {
+    background: rgba(52,199,89,0.15);
+    border-color: rgba(52,199,89,0.4);
+    color: #34C759;
+  }
+  .input {
+    flex: 1;
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.4);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ----- Legend (subtle, bottom-right under timeline) --------------- */
+  .legend {
+    position: absolute;
+    top: 644px;
+    right: 16px;
+    width: 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 20;
+  }
+  .legend-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.45);
+    letter-spacing: 0.02em;
+  }
+  .legend-row .swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .legend-row .swatch.walk {
+    background: #34C759;
+    box-shadow: 0 0 6px rgba(52,199,89,0.5);
+  }
+  .legend-row .swatch.sit {
+    background: #FF9500;
+    opacity: 0.85;
+  }
+  .legend-row .swatch.sleep {
+    background: #5856D6;
+    opacity: 0.85;
+  }
+
+  /* ----- Spec / placeholders shown in the preview block ------------- */
+  .spec-note {
+    position: absolute;
+    top: 200px;
+    right: 16px;
+    width: 96px;
+    text-align: right;
+    z-index: 30;
+    display: none;          /* hidden in main view; kept for reference */
+  }
+
+</style>
+</head>
+<body>
+  <div class="app">
+    <!-- Status bar -->
+    <div class="status-bar">
+      <span class="time">5:19</span>
+      <div class="right">
+        <div class="signal"><span></span><span></span><span></span><span></span></div>
+        <svg class="wifi" viewBox="0 0 16 12" fill="none">
+          <path d="M8 11.5a1 1 0 100-2 1 1 0 000 2z" fill="#fff"/>
+          <path d="M3 7.5a7 7 0 0110 0" stroke="#fff" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+          <path d="M1 4.5a11 11 0 0114 0" stroke="#fff" stroke-width="1.3" fill="none" stroke-linecap="round" opacity="0.7"/>
+        </svg>
+        <div class="battery"><div class="battery-fill"></div></div>
+      </div>
+    </div>
+    <div class="island"></div>
+
+    <!-- App top bar -->
+    <div class="topbar">
+      <div class="brand"><span class="dot"></span>Stick</div>
+      <div class="meta">Tue · Jun 16</div>
+    </div>
+
+    <!-- LEFT: stage -->
+    <div class="stage">
+      <span class="badge"><span class="dot"></span>SITTING</span>
+
+      <div class="time-clock">
+        5:19<span class="sec">23</span><span class="meridiem">PM</span>
+      </div>
+      <div class="date-line">Tue, Jun 16 · 11h 23m into today</div>
+
+      <!-- stage canvas with placeholder stick figure -->
+      <div class="stage-canvas">
+        <div class="figure">
+          <!-- minimalist seated wireframe stick figure -->
+          <svg viewBox="0 0 90 200" fill="none">
+            <!-- head -->
+            <circle cx="45" cy="22" r="14" stroke="#E6EBF2" stroke-width="1.8"/>
+            <!-- neck -->
+            <line x1="45" y1="36" x2="45" y2="50" stroke="#E6EBF2" stroke-width="1.8"/>
+            <!-- torso -->
+            <line x1="45" y1="50" x2="45" y2="100" stroke="#E6EBF2" stroke-width="1.8"/>
+            <!-- thighs (seated, horizontal) -->
+            <line x1="45" y1="100" x2="75" y2="100" stroke="#E6EBF2" stroke-width="1.8"/>
+            <line x1="45" y1="100" x2="15" y2="100" stroke="#E6EBF2" stroke-width="1.8"/>
+            <!-- shins (vertical down) -->
+            <line x1="75" y1="100" x2="75" y2="160" stroke="#E6EBF2" stroke-width="1.8"/>
+            <line x1="15" y1="100" x2="15" y2="160" stroke="#E6EBF2" stroke-width="1.8"/>
+            <!-- arms (resting on thighs) -->
+            <line x1="45" y1="55" x2="20" y2="100" stroke="#E6EBF2" stroke-width="1.8"/>
+            <line x1="45" y1="55" x2="70" y2="100" stroke="#E6EBF2" stroke-width="1.8"/>
+            <!-- joint dots -->
+            <circle cx="45" cy="22" r="2" fill="#FF9500"/>
+            <circle cx="45" cy="50" r="2" fill="#FF9500"/>
+            <circle cx="45" cy="100" r="2.5" fill="#FF9500"/>
+            <circle cx="75" cy="100" r="2" fill="#FF9500"/>
+            <circle cx="15" cy="100" r="2" fill="#FF9500"/>
+            <!-- chair hint -->
+            <line x1="8" y1="100" x2="82" y2="100" stroke="rgba(255,149,0,0.35)" stroke-width="1" stroke-dasharray="3 3"/>
+            <line x1="20" y1="100" x2="20" y2="92" stroke="rgba(255,149,0,0.35)" stroke-width="1"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="segment-label">
+        <span class="from-to">13:39 → now</span>
+        <span class="state-name">Long sit</span>
+      </div>
+
+      <div class="stat-strip">
+        <div class="stat">
+          <span class="v">3h 40m</span>
+          <span class="k">Sit streak</span>
+        </div>
+        <div class="stat">
+          <span class="v">9</span>
+          <span class="k">Walks</span>
+        </div>
+        <div class="stat">
+          <span class="v">21m</span>
+          <span class="k">Walked</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: timeline (the focus of this design) -->
+    <div class="timeline">
+      <div class="tl-head">
+        <span>24H</span>
+        <span class="ago">since yesterday 17:19</span>
+      </div>
+
+      <!-- hour labels (left column) -->
+      <div class="hour-col">
+        <!-- ordered top → bottom, but render at computed y-positions -->
+        <!-- 18:00 (y=582.9) -->
+        <div class="hour-row major" style="top:582.9px"><span class="tick"></span><span class="label">18</span></div>
+        <div class="hour-row" style="top:557.9px"><span class="tick"></span></div>
+        <div class="hour-row" style="top:532.9px"><span class="tick"></span></div>
+        <div class="hour-row" style="top:507.9px"><span class="tick"></span></div>
+        <div class="hour-row major" style="top:482.9px"><span class="tick"></span><span class="label">22</span></div>
+        <div class="hour-row" style="top:457.9px"><span class="tick"></span></div>
+        <!-- 00:00 (y=432.9) -->
+        <div class="hour-row major" style="top:432.9px"><span class="tick"></span><span class="label">00</span></div>
+        <div class="hour-row" style="top:407.9px"><span class="tick"></span></div>
+        <div class="hour-row major" style="top:382.9px"><span class="tick"></span><span class="label">02</span></div>
+        <div class="hour-row" style="top:357.9px"><span class="tick"></span></div>
+        <!-- 04:00 (y=332.9) -->
+        <div class="hour-row major" style="top:332.9px"><span class="tick"></span><span class="label">04</span></div>
+        <div class="hour-row" style="top:307.9px"><span class="tick"></span></div>
+        <!-- 06:00 (y=282.9) -->
+        <div class="hour-row major" style="top:282.9px"><span class="tick"></span><span class="label">06</span></div>
+        <div class="hour-row" style="top:257.9px"><span class="tick"></span></div>
+        <!-- 08:00 (y=232.9) -->
+        <div class="hour-row major" style="top:232.9px"><span class="tick"></span><span class="label">08</span></div>
+        <div class="hour-row" style="top:207.9px"><span class="tick"></span></div>
+        <!-- 10:00 (y=182.9) -->
+        <div class="hour-row major" style="top:182.9px"><span class="tick"></span><span class="label">10</span></div>
+        <div class="hour-row" style="top:157.9px"><span class="tick"></span></div>
+        <!-- 12:00 (y=132.9) -->
+        <div class="hour-row major" style="top:132.9px"><span class="tick"></span><span class="label">12</span></div>
+        <div class="hour-row" style="top:107.9px"><span class="tick"></span></div>
+        <!-- 14:00 (y=82.9) -->
+        <div class="hour-row major" style="top:82.9px"><span class="tick"></span><span class="label">14</span></div>
+        <div class="hour-row" style="top:57.9px"><span class="tick"></span></div>
+        <!-- 16:00 (y=32.9) -->
+        <div class="hour-row major" style="top:32.9px"><span class="tick"></span><span class="label">16</span></div>
+      </div>
+
+      <!-- the 4pt track + segments -->
+      <div class="track">
+        <!-- 12 sit segments (computed) -->
+        <div class="seg sit" style="top:0;     height:239.2px"></div>
+        <!-- sleep 02:54-06:00 -->
+        <div class="seg sleep" style="top:239.6px; height:77.5px"></div>
+        <div class="seg sit"   style="top:317.5px; height:52.5px"></div>
+        <!-- walk 08:08-08:09 (1 min) -->
+        <div class="walk-block" style="top:370.0px; height:1.6px">
+          <div class="halo"></div><div class="bar"></div>
+        </div>
+        <div class="seg sit"   style="top:371.6px; height:1.2px"></div>
+        <!-- walk 08:14-08:16 (2 min) -->
+        <div class="walk-block" style="top:372.8px; height:1.6px">
+          <div class="halo"></div><div class="bar"></div>
+        </div>
+        <div class="seg sit"   style="top:374.4px; height:19.2px"></div>
+        <!-- walk 09:04-09:06 (2 min) -->
+        <div class="walk-block" style="top:393.6px; height:1.6px">
+          <div class="halo"></div><div class="bar"></div>
+        </div>
+        <div class="seg sit"   style="top:395.2px; height:30.4px"></div>
+        <!-- walk 10:21-10:22 (1 min) -->
+        <div class="walk-block" style="top:425.6px; height:1.6px">
+          <div class="halo"></div><div class="bar"></div>
+        </div>
+        <div class="seg sit"   style="top:427.2px; height:0.4px"></div>
+        <!-- walk 10:25-10:26 (1 min) -->
+        <div class="walk-block" style="top:427.6px; height:1.6px">
+          <div class="halo"></div><div class="bar"></div>
+        </div>
+        <div class="seg sit"   style="top:429.2px; height:35.0px"></div>
+        <!-- walk 11:52-11:53 (1 min) -->
+        <div class="walk-block" style="top:464.2px; height:1.6px">
+          <div class="halo"></div><div class="bar"></div>
+        </div>
+        <div class="seg sit"   style="top:465.8px; height:7.9px"></div>
+        <!-- walk 12:14-12:17 (3 min) — gets label -->
+        <div class="walk-block" style="top:473.7px; height:1.6px">
+          <div class="halo"></div><div class="bar"></div>
+        </div>
+        <div class="seg sit"   style="top:475.3px; height:4.6px"></div>
+        <!-- walk 12:30-12:37 (7 min) — gets label -->
+        <div class="walk-block" style="top:479.9px; height:3.2px">
+          <div class="halo"></div><div class="bar"></div>
+          <span class="walk-tag" style="top:-9px">12:30 · 7m</span>
+        </div>
+        <div class="seg sit"   style="top:483.1px; height:23.3px"></div>
+        <!-- walk 13:35-13:39 (4 min) — ACTIVE / last completed -->
+        <div class="walk-block active" style="top:506.4px; height:1.8px">
+          <div class="halo"></div><div class="bar"></div>
+          <span class="walk-tag active" style="top:-8px">13:35 · 4m</span>
+        </div>
+        <div class="seg sit"   style="top:508.2px; height:91.8px"></div>
+
+        <!-- now marker at bottom of track (y = 510 since track height is 510) -->
+        <div class="now-line"></div>
+        <div class="now-marker"></div>
+      </div>
+    </div>
+
+    <!-- Legend (under the timeline column) -->
+    <div class="legend">
+      <div class="legend-row"><span>Walk</span><span class="swatch walk"></span></div>
+      <div class="legend-row"><span>Sit</span><span class="swatch sit"></span></div>
+      <div class="legend-row"><span>Sleep</span><span class="swatch sleep"></span></div>
+    </div>
+
+    <!-- Bottom input bar -->
+    <div class="input-bar">
+      <div class="chip active">Now</div>
+      <div class="chip">Today</div>
+      <div class="chip">Week</div>
+      <div class="input">Ask Stick…</div>
+    </div>
+
+  </div>
+</body>
+</html>

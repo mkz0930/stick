@@ -34,8 +34,13 @@ final class DailyStepsStore: ObservableObject {
 
     private init() {
         load()
-        // app 启动时，用已有快照数据恢复今日步数（避免刚启动时今日步数为 0）
-        if !HealthStore.shared.all.isEmpty {
+        // HealthStore.loadFromDisk 已改成异步，需等待 loaded 后再读
+        Task { @MainActor in
+            let deadline = ContinuousClock().now.advanced(by: .seconds(2))
+            while !HealthStore.shared.loaded, ContinuousClock().now < deadline {
+                try? await Task.sleep(nanoseconds: 50_000_000)
+            }
+            guard HealthStore.shared.loaded, !HealthStore.shared.all.isEmpty else { return }
             updateTodaySteps(from: HealthStore.shared.all)
         }
     }
