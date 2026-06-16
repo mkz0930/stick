@@ -11,6 +11,7 @@ struct DayTimelineView: View {
     let now: Date
     @Binding var scrubOffset: Int?         // 0 = 现在；>0 表示过去多少分钟
     @Binding var showDevicePicker: Bool    // 点击 "+ 连接设备" 时弹出
+    @Binding var manualStateOverride: StickState?  // swipe 切状态后的高亮目标；nil = 跟时间走
 
     @State private var hasInteracted: Bool = false   // 用户拖动后永久隐藏 hint
     @State private var pulse: Double = 0             // 0..1 循环，驱动 active 段脉冲
@@ -48,12 +49,23 @@ struct DayTimelineView: View {
         StickState.minutesOfDay(displayDate)
     }
 
-    private var displayState: StickState {
-        schedule.first { $0.startMinute <= displayMinute && displayMinute < $0.endMinute }?.state ?? .walk
+    /// 时间线高亮的目标 segment。优先级：
+    /// 1. swipe 切状态后的 `manualStateOverride`：取 schedule 里第一个匹配 state 的 segment
+    ///    （schedule 没该 state 就回退到第一个非空段，保证 timeline 始终有可视范围）
+    /// 2. 否则按当前 `displayMinute` 查 schedule
+    private var displaySegment: StickState.DaySegment? {
+        if let override = manualStateOverride,
+           let seg = schedule.first(where: { $0.state == override }) {
+            return seg
+        }
+        return schedule.first { $0.startMinute <= displayMinute && displayMinute < $0.endMinute }
     }
 
-    private var displaySegment: StickState.DaySegment? {
-        schedule.first { $0.startMinute <= displayMinute && displayMinute < $0.endMinute }
+    private var displayState: StickState {
+        if let override = manualStateOverride {
+            return override
+        }
+        return schedule.first { $0.startMinute <= displayMinute && displayMinute < $0.endMinute }?.state ?? .walk
     }
 
     // MARK: - body
@@ -67,6 +79,19 @@ struct DayTimelineView: View {
             .frame(width: 22, alignment: .leading)
             track
                 .frame(width: thumbSize, height: trackLength)
+            // 时段起止范围（仅在用户主动查看时间 / swipe 切状态时显示）
+            if isScrubbing || manualStateOverride != nil,
+               let seg = displaySegment {
+                Text("\(StickState.formatMinute(seg.startMinute)) – \(StickState.formatMinute(seg.endMinute))")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .tracking(0.4)
+                    .foregroundColor(displayState.accent)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize()
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.2), value: seg.startMinute)
+            }
             // 竖线下方：短时间灰色显示
             Text(formatClockOnly(displayDate))
                 .font(.system(size: 15, weight: .semibold, design: .monospaced))
@@ -80,6 +105,7 @@ struct DayTimelineView: View {
         }
         .animation(.easeInOut(duration: 0.25), value: isScrubbing)
         .animation(.easeInOut(duration: 0.4), value: hasInteracted)
+        .animation(.easeInOut(duration: 0.25), value: manualStateOverride)
         .onAppear {
             // 0..1 循环驱动 active 段的呼吸
             withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
@@ -381,12 +407,26 @@ struct DayTimelineView: View {
             }
 
             if isActive {
-                let pulseAlpha = 0.25 + 0.25 * pulse
+                let pulseAlpha = 0.2 + 0.5 * pulse
                 RoundedRectangle(cornerRadius: 3)
-                    .stroke(accent.opacity(0.7), lineWidth: 2)
+                    .stroke(accent, lineWidth: 2)
                     .frame(width: trackWidth, height: max(0, fillH))
                     .offset(x: -1.5, y: fillY)
                     .shadow(color: accent.opacity(pulseAlpha), radius: 4 + 2 * pulse, x: 0, y: 0)
+
+                // 段两端角标：让 active 范围起止更显眼
+                let dotSize: CGFloat = 2
+                let dotX: CGFloat = trackWidth / 2
+                let dotYTop = fillY
+                let dotYBottom = fillY + max(0, fillH)
+                Circle()
+                    .fill(accent)
+                    .frame(width: dotSize, height: dotSize)
+                    .position(x: dotX, y: dotYTop)
+                Circle()
+                    .fill(accent)
+                    .frame(width: dotSize, height: dotSize)
+                    .position(x: dotX, y: dotYBottom)
             }
         }
     }

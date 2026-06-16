@@ -77,6 +77,9 @@ struct ContentView: View {
     @StateObject private var chatHistory = ChatHistoryStore.shared
     @State private var now: Date = Date()
     @State private var scrubOffset: Int? = nil   // 0 = 现在；>0 表示过去多少分钟（窗口起点 = now - 24h）
+    /// swipe gesture 强制覆盖的状态（nil = 跟时间走）。StageHeroView 在 onEnded 命中 swipe 时写入，
+    /// 同时把 scrubOffset 跳到该 state 第一个 segment 的中点；scrubOffset 归零时自动清空。
+    @State private var manualStateOverride: StickState? = nil
     @State private var showFilm: Bool = false
     @State private var showSleepReport: Bool = false
     @State private var showSedentaryDetail: Bool = false
@@ -143,8 +146,12 @@ struct ContentView: View {
     }
 
     /// 小人显示状态：基于真实 HealthKit 步数数据生成的时刻表 + 快照兜底
-    /// 优先级：真实时刻表 (realDaySchedule) > 实时快照 > 时段硬编码
+    /// 优先级：manualStateOverride（swipe 强制覆盖）> 真实时刻表 (realDaySchedule) > 实时快照 > 时段硬编码
     private var displayState: StickState {
+        // swipe 切状态后强制使用 override，直到用户点 "回到现在"
+        if let override = manualStateOverride {
+            return override
+        }
         let dt = displayDate
         let m = StickState.minutesOfDay(dt)
 
@@ -743,6 +750,13 @@ struct ContentView: View {
             currentSitMinutes = 0
             currentSitStartTime = nil
         }
+        .onChange(of: scrubOffset) { _, newValue in
+            // scrubOffset 归零（"回到现在" 按钮 / DayTimelineView 自动 10s 复位）→ 释放 swipe override，
+            // 让 displayState 重新回到基于时间的真实状态。
+            if (newValue ?? 0) == 0 {
+                manualStateOverride = nil
+            }
+        }
         .sheet(isPresented: $showFilm) {
             MiniFilmShareSheet(isPresented: $showFilm)
                 .presentationBackground(Color.black)
@@ -897,6 +911,7 @@ struct ContentView: View {
                             inference: inference,
                             showDevicePicker: $showDevicePicker,
                             scrubOffset: $scrubOffset,
+                            manualStateOverride: $manualStateOverride,
                             onPreview: { showFilm = true },
                             onSleepAlert: { showSleepReport = true },
                             subLine: realSubLine
@@ -910,7 +925,8 @@ struct ContentView: View {
                             schedule: hk.realDaySchedule ?? StickState.daySchedule,
                             now: now,
                             scrubOffset: $scrubOffset,
-                            showDevicePicker: $showDevicePicker
+                            showDevicePicker: $showDevicePicker,
+                            manualStateOverride: $manualStateOverride
                         )
                         .frame(width: 50)
                         .frame(height: 400)
@@ -1046,6 +1062,7 @@ private struct StageHeroView: View {
     let inference: StateInference.Result?
     @Binding var showDevicePicker: Bool
     @Binding var scrubOffset: Int?            // 接收时间线 binding，stage 也可拖
+    @Binding var manualStateOverride: StickState?  // swipe 切状态后的强制状态
     var onPreview: () -> Void
     var onSleepAlert: () -> Void
     let subLine: String
@@ -1054,6 +1071,8 @@ private struct StageHeroView: View {
     @State private var dragStartOffset: Int? = nil
     @State private var dragWidth: CGFloat = 0
     @State private var isStageScrubbing: Bool = false
+    /// swipe 命中阈值：|translation.width| > 30pt 视为切状态手势
+    private let swipeThreshold: CGFloat = 30
 
     /// 主舞台水平滑动 → 切时间。手势灵敏度：1 pt = 4 min（24h / iPhone 17 Pro 屏幕宽 ≈ 393 pt）
     /// - 左滑（delta.x > 0）→ 回到过去（offset 增加）
@@ -1067,6 +1086,30 @@ private struct StageHeroView: View {
         let newOffset = max(0, min(1440, baseOffset + deltaMinutes))
         // snap 到 5 min
         scrubOffset = (newOffset / 5) * 5
+    }
+
+    /// 快速 swipe → 切到 `allCases` 里相邻 state，并跳 thumb 到该 state 第一个 segment 的中点。
+    /// direction: +1 = 右滑 (下一个 state), -1 = 左滑 (上一个 state)
+    private func cycleState(direction: Int) {
+        let allCases = StickState.allCases
+        guard !allCases.isEmpty else { return }
+        let current = manualStateOverride ?? state
+        let currentIndex = allCases.firstIndex(of: current) ?? 0
+        let nextIndex = ((currentIndex + direction) + allCases.count) % allCases.count
+        let nextState = allCases[nextIndex]
+
+        // 找到 nextState 在 daySchedule 里第一个 segment，取中点作为 thumb 跳点
+        let nowMin = StickState.minutesOfDay(Date())
+        let targetSeg = StickState.daySchedule.first { $0.state == nextState }
+        let jumpMinute = targetSeg.map { (($0.startMinute + $0.endMinute) / 2) } ?? nowMin
+        // 让 scrubOffset 落点刚好让 displayMinute = jumpMinute（处理跨午夜）
+        let rawOffset = (nowMin - jumpMinute + 1440) % 1440
+        let snappedOffset = (rawOffset / 5) * 5
+
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+            manualStateOverride = nextState
+            scrubOffset = snappedOffset == 0 ? nil : snappedOffset
+        }
     }
 
     /// 把 inference 副标拼成单行 mono 文本：CONF xx% · <first reason>
@@ -1141,31 +1184,57 @@ private struct StageHeroView: View {
                         let width = dragWidth > 0 ? dragWidth : 320
                         handleStageDrag(translation: value.translation.width, width: width)
                     }
-                    .onEnded { _ in
+                    .onEnded { value in
+                        let dx = value.translation.width
+                        // |dx| > threshold → swipe 切状态；否则保留 onChanged 已写入的 scrub 结果
+                        if abs(dx) > swipeThreshold {
+                            // 右滑 dx > 0 → 下一个 state (cycleState 内部方向约定 +1 = 右滑 = 下一个)
+                            cycleState(direction: dx > 0 ? 1 : -1)
+                        }
                         isStageScrubbing = false
                         dragStartOffset = nil
                     }
             )
-            // 拖动时显示当前时间
+            // 拖动时显示当前时间 / swipe 后显示状态 + 时段范围
             .overlay(alignment: .center) {
-                if isStageScrubbing {
+                if isStageScrubbing || manualStateOverride != nil {
                     stageScrubBadge
                 }
             }
         }
     }
 
-    /// 拖动时主舞台中央显示的当前时间徽章
+    /// 主舞台中央徽章：
+    /// - swipe 切状态后 → `状态 · HH:MM–HH:MM`
+    /// - 仅拖动时间 → `HH:MM`
     private var stageScrubBadge: some View {
         let offset = scrubOffset ?? 0
         let m = StickState.minutesOfDay(Date().addingTimeInterval(-Double(offset) * 60))
-        let hh = (m / 60) % 24
-        let mm = m % 60
+        let seg = StickState.daySchedule.first { $0.state == manualStateOverride ?? state }
+        let isOverride = manualStateOverride != nil
         return VStack(spacing: 2) {
-            Text(String(format: "%02d:%02d", hh, mm))
-                .font(.system(size: 26, weight: .black, design: .monospaced))
-                .foregroundColor(Theme.navy)
-            Text("← 左右滑动切换时间 →")
+            if isOverride, let seg = seg {
+                Text("\(StickState.formatMinute(seg.startMinute))–\(StickState.formatMinute(seg.endMinute)) · \(state.rawValue)")
+                    .font(.system(size: 22, weight: .heavy, design: .monospaced))
+                    .foregroundColor(Theme.navy)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize()
+                    .contentTransition(.numericText())
+                    .transition(.scale.combined(with: .opacity))
+            } else {
+                let hh = (m / 60) % 24
+                let mm = m % 60
+                Text(String(format: "%02d:%02d", hh, mm))
+                    .font(.system(size: 26, weight: .black, design: .monospaced))
+                    .foregroundColor(Theme.navy)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize()
+                    .contentTransition(.numericText())
+                    .transition(.scale.combined(with: .opacity))
+            }
+            Text("← 左右滑动切换状态 →")
                 .font(.system(size: 9, weight: .medium, design: .monospaced))
                 .tracking(0.6)
                 .foregroundColor(Theme.slate)
@@ -1181,7 +1250,7 @@ private struct StageHeroView: View {
                 .stroke(Theme.border, lineWidth: 0.5)
         )
         .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
-        .transition(.scale.combined(with: .opacity))
+        .animation(.easeInOut(duration: 0.2), value: isOverride)
     }
 
     // MARK: - 缺数据状态（柔色，提示连接设备）
