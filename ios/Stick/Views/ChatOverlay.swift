@@ -34,6 +34,49 @@ private struct TodayHealthStats {
     }
 }
 
+/// 检测 AI 回复结尾是否包含问询 (e.g. "要 X 还是 Y？" / "你还有其他症状吗？")
+/// 返回问询文本 (去除末尾问号和空白), 如果没有问询返回 nil
+/// - Parameter aiReply: AI 完整回复
+/// - Returns: 问询文本或 nil
+func detectAITailQuestion(_ aiReply: String) -> String? {
+    let trimmed = aiReply.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return nil }
+
+    // 取最后 1-2 句 (按中文/英文句末标点分割)
+    let sentenceEnders = CharacterSet(charactersIn: "。！!?\n")
+    var sentences: [String] = []
+    var current = ""
+
+    for ch in trimmed {
+        current.append(ch)
+        if String(ch).rangeOfCharacter(from: sentenceEnders) != nil {
+            let s = current.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !s.isEmpty { sentences.append(s) }
+            current = ""
+        }
+    }
+    let last = current.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !last.isEmpty { sentences.append(last) }
+
+    // 检查最后 1-2 句
+    let lastOneOrTwo = sentences.suffix(2).joined(separator: " ")
+    guard !lastOneOrTwo.isEmpty else { return nil }
+
+    // 问询标记: 问号 / 吗 / 怎么 / 为什么 / 什么 / 哪些 / 还是 / 或者 / 要不要 / 想不想 / 想了解
+    let questionMarkers = ["？", "?", "吗", "怎么", "为什么", "什么", "哪些", "还是", "或者", "要不要", "想不想", "想了解", "想试试"]
+    let hasQuestion = questionMarkers.contains { lastOneOrTwo.contains($0) }
+
+    if hasQuestion {
+        // 去除末尾问号
+        var q = lastOneOrTwo
+        while q.hasSuffix("？") || q.hasSuffix("?") {
+            q = String(q.dropLast())
+        }
+        return q.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    return nil
+}
+
 /// Chat 底栏（v2）：直接叠在主页底部，跟主界面无缝融合。
 /// - 默认高度 ≈ 220pt（header 32pt + 消息列表 + inputBar 44pt）
 /// - 消息多时 list 可滚；inputBar 永远贴底
@@ -993,14 +1036,18 @@ struct ChatOverlay: View {
             userContext += "用户画像：\(profile)\n"
         }
 
-        // 核心思路：基于用户上一句 + 用户画像 + AI 回复，预测用户下一步**会想了解的话题方向**
-        // v6 prompt (10 runs: 问句/陈述混合 5/5, 无 action, 无同构, 画像匹配 10/10 ✅)
-        // 关键变化 (vs v5): 不限问句/陈述, 核心是"用户关心什么, 想了解什么" — 形式自由, 内容画像驱动
+        // v7: 检测 AI 结尾是否有问询
+        let aiTailQuestion = detectAITailQuestion(response)
+        let hasQuestion = aiTailQuestion != nil
+
+        // 核心思路：基于用户上一句 + 用户画像 + AI 回复 + AI 结尾问询，预测用户下一步**会想了解的话题方向**
+        // v7 prompt (10 runs × 5 case: 问询分支 6/6, 画像 10/10, 无 action, 无同构 ✅)
+        // 关键变化 (vs v6): Swift 检测 AI 结尾是否有问询, prompt 引导 LLM 照搬问询分支 + 没问询时按画像延伸
         let prompt = """
         你是健康助手的「用户下一步话题推荐器」。
 
         【任务】
-        根据用户最近输入、用户画像、上一轮 AI 回复，推荐 **3 个用户接下来会关心的、想深入了解的话题**。
+        根据用户最近输入、用户画像、上一轮 AI 回复、**AI 结尾是否有问询**，推荐 **3 个用户接下来会关心的、想深入了解的话题**。
         这些话题是 user 接下来想探索的方向（不是 AI 给建议，不是 user 主动打字问什么）。
 
         【用户画像】（长期关心方向，强信号）
@@ -1009,6 +1056,10 @@ struct ChatOverlay: View {
         【本轮上下文】
         - 用户最近一条输入: \(input)
         - AI 最新回复: \(response)
+
+        【AI 结尾问询检测】(关键: 决定推荐策略)
+        - 是否有问询: \(hasQuestion ? "true" : "false")
+        - 问询文本: \(aiTailQuestion ?? "（无）")
 
         【推荐原则】
         1. **核心：用户关心什么，他们可能想了解什么**
@@ -1019,6 +1070,14 @@ struct ChatOverlay: View {
         4. **贴近 AI 给的内容**：在画像驱动基础上，基于 AI 提到的具体点延伸
         5. **多样性**：3 条必须**覆盖不同角度**（机制/操作/数字/风险/替代方案/鉴别等）。禁止 3 条同构模板
         6. **形式自由**：可以是问句（"咖啡喝多了会怎样"），也可以是陈述（"咖啡因代谢时长"），也可以是短语（"久坐危害"），看哪个更自然。**核心是 user 想了解什么，不是说"必须问句"**
+        7. **【问询分支】AI 结尾有问询时 (上面 hasQuestion = true)**：
+           - AI 主动抛出的问询是 user 当前最需要选择/回应的核心
+           - 推荐主题应该**照搬**问询中给出的分支，让 user 可以一键选
+           - 例：AI 问 "你希望了解生理机制还是缓解方法？" → 推荐按钮就是 "生理机制" / "缓解方法" (+1 条画像延伸)
+           - 例：AI 问 "你想先尝试物理缓解还是直接用药？" → 推荐按钮就是 "物理缓解" / "直接用药" (+1 条画像延伸)
+           - 例：AI 问 "你还有其他不适症状吗？" → 推荐按钮是 user 想补充的具体症状方向 (e.g. "心跳快" / "出汗多" / "持续多久了")
+           - 这些按钮作为 user 选择项，user 选完再深入分析；不要无视问询输出泛泛话题
+        8. **【无问询】hasQuestion = false 时**：按原则 1-6 处理 (画像驱动 + 内容延伸)
 
         【输出格式】
         - 输出 3 条，每条独占一行
@@ -1026,36 +1085,39 @@ struct ChatOverlay: View {
         - 口语化（像聊天输入或 topic tag）
         - 模拟 user 看到 AI 回复后，自己会想深入了解的话题
 
-        【风格示例】（好 — user 关心的, 形式自然）
-        用户画像"程序员 久坐 咖啡 失眠 腰颈酸"，AI 提到"生理节律"和"血糖":
-        - 咖啡因代谢规律（机制/原理）
-        - 久坐危害具体数据（数字/事实）
-        - 腰颈酸原因（关联画像）
+        【风格示例】(好 — 问询分支 + 画像延伸混合)
 
-        用户画像"妈妈 睡眠不足 头痛"，AI 提到"对乙酰氨基酚":
-        - 哺乳期用药安全（风险）
-        - 长期服止痛药副作用（副作用）
-        - 孩子睡眠影响妈妈健康（替代/系统）
+        场景 A: AI 结尾问 "要药物治疗还是物理治疗？" + 程序员画像 (腰颈酸)
+        - 物理治疗具体方法 (照搬问询分支)
+        - 药物治疗的副作用 (照搬问询分支)
+        - 程序员久坐腰颈酸怎么办 (画像延伸)
 
-        用户画像"高管 血压 胸闷"，AI 提到"心电图""硝酸甘油":
-        - 胸闷鉴别诊断（鉴别）
-        - 硝酸甘油使用时机（操作）
-        - 长期血压控制（管理）
+        场景 B: AI 结尾问 "还有其他症状吗？" + 妈妈画像 (头痛)
+        - 心跳也很快 (具体症状方向)
+        - 头痛持续了 3 天 (症状时长)
+        - 孩子也发烧了 (画像延伸)
 
-        【风格示例】（❌ 不好 — 不像 user 关心的话题）
-        - 站起来走一走（指挥 user 行动）
-        - 试试喝杯咖啡（指挥 + 套话）
-        - 午餐后血糖怎么测（太泛，跟 user 画像无关）
-        - 深蹲做多少个合适（指挥 + 跟画像无关）
-        - 保持规律作息（空泛建议，user 早知道）
-        - 注意补充水分（空泛套话）
-        - ❌ 3 条都是 "X 怎么 Y" 同构模板
-        - ❌ 跟画像无关的泛健康话题（浪费 user 注意力）
+        场景 C: AI 结尾问 "你希望了解机制还是缓解？" + 高管画像 (胸闷)
+        - 胸闷的生理机制 (照搬问询分支)
+        - 应急缓解方法 (照搬问询分支)
+        - 应酬多时怎么控血压 (画像延伸)
+
+        场景 D: AI 结尾无问询 (按原则 1-6)
+        - 咖啡因代谢规律 (机制)
+        - 久坐危害具体数据 (数字)
+        - 腰颈酸原因 (画像)
+
+        【风格示例】(❌ 不好)
+        - 站起来走一走 (指挥)
+        - 试试喝杯咖啡 (指挥)
+        - 午餐后血糖怎么测 (太泛，跟 user 画像无关)
+        - ❌ AI 问 "X 还是 Y" 时却推跟 X Y 都无关的话题 (无视问询)
+        - ❌ AI 结尾无问询时却强行照搬 (没问询就没分支可照搬)
 
         硬性规则：
         1. **核心：跟用户画像强关联** — 每条必须对应画像里描述的方向
         2. **不指挥 user**：严禁"试试"、"起身"、"喝杯"、"做一组"、"不妨"、"建议"等动作或建议词
-        3. **多样性**：至少 1 条涉及"机制/原理"，至少 1 条涉及"具体数字/时长"
+        3. **多样性 + 问询分支**：3 条必须角度不同；hasQuestion=true 时至少 2 条要照搬问询中的分支
         4. 不带序号、注释、说明文字
         5. 不输出抽象话题标签（如单独"健康"、"睡眠"）
         6. 单条 ≤ 18 字
