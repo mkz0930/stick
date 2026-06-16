@@ -475,6 +475,69 @@ final class HealthKitService: ObservableObject {
         return max(0, Int(Date().timeIntervalSince(lastMove) / 60))
     }
 
+    // MARK: - 起床时间推测
+
+    /// 根据夜间步数活动推测起床时间
+    /// 逻辑：
+    /// - 扫描昨天 22:00 到今天 10:00 的快照
+    /// - 夜间短时步数（<5分钟）是上厕所，不算起床
+    /// - 早上第一段持续 >5分钟 的步数活动 = 真正起床
+    /// - 返回 HH:mm 格式字符串
+    func guessWakeUpTime() -> String? {
+        let calendar = Calendar.current
+        let now = Date()
+
+        // 昨天 22:00
+        var yesterday = calendar.startOfDay(for: now)
+        yesterday = calendar.date(byAdding: .day, value: -1, to: yesterday)!
+        let nightStart = calendar.date(bySettingHour: 22, minute: 0, second: 0, of: yesterday)!
+
+        // 今天 10:00
+        let today = calendar.startOfDay(for: now)
+        let morningEnd = calendar.date(bySettingHour: 10, minute: 0, second: 0, of: today)!
+
+        let snapshots = HealthStore.shared.today.filter {
+            $0.timestamp >= nightStart && $0.timestamp <= morningEnd
+        }.sorted { $0.timestamp < $1.timestamp }
+
+        guard !snapshots.isEmpty else { return nil }
+
+        // 找第一段持续 >5分钟 且 单分钟 >10步 的活动
+        var i = 0
+        while i < snapshots.count {
+            let snap = snapshots[i]
+            if snap.incrementalStepCount > 10 {
+                // 找到一段步数活动的起点，往后看持续了多久
+                var duration = snap.incrementalStepCount > 0 ? 1 : 0
+                var j = i + 1
+                while j < snapshots.count {
+                    let next = snapshots[j]
+                    // 同一小时内算持续（宽松判断：只要不是完全没步数）
+                    if next.incrementalStepCount > 5 {
+                        duration += 1
+                        j += 1
+                    } else {
+                        break
+                    }
+                }
+                // 持续超过 5 分钟，且在 05:00-10:00 之间 → 起床时间
+                if duration >= 5 {
+                    let hour = calendar.component(.hour, from: snap.timestamp)
+                    if hour >= 5 && hour <= 10 {
+                        let formatter = DateFormatter()
+                        formatter.dateFormat = "HH:mm"
+                        formatter.timeZone = TimeZone(identifier: "Asia/Shanghai")
+                        return formatter.string(from: snap.timestamp)
+                    }
+                }
+                i = j
+            } else {
+                i += 1
+            }
+        }
+        return nil
+    }
+
     // MARK: - 数据导出
 
     /// 导出今日全部 HealthKit 数据（JSON 格式，北京时间）
