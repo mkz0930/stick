@@ -450,6 +450,140 @@ final class HealthKitService: ObservableObject {
         }
     }
 
+    /// 通过耳机音量暴露检测夜间清醒时段（WASO — Wake After Sleep Onset）
+    /// 在 22:00-06:00 窗口内扫描耳机音频记录：
+    /// 有记录 = 实际清醒（戴耳机听东西），即便步数为零也不算睡眠。
+    /// 返回分钟级闭合区间数组，每段代表一段清醒期。
+    func detectNightWakePeriods() async -> [ClosedRange<Int>] {
+        guard let audioType = HKObjectType.quantityType(forIdentifier: .headphoneAudioExposure) else { return [] }
+        let calendar = Calendar.current
+        let now = Date()
+
+        // 搜索窗口：昨晚 22:00 → 今早 06:00（或现在，如果现在 < 06:00）
+        let todayStart = calendar.startOfDay(for: now)
+        let windowEnd: Date
+        let h = calendar.component(.hour, from: now)
+        if h < 6 {
+            windowEnd = now
+        } else {
+            guard let w = calendar.date(bySettingHour: 6, minute: 0, second: 0, of: todayStart) else { return [] }
+            windowEnd = w
+        }
+        guard let nightStart = calendar.date(bySettingHour: 22, minute: 0, second: 0, of: todayStart.addingTimeInterval(-86400)) else { return [] }
+        guard windowEnd > nightStart else { return [] }
+
+        return await withCheckedContinuation { cont in
+            let predicate = HKQuery.predicateForSamples(withStart: nightStart, end: windowEnd, options: .strictStartDate)
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+            let q = HKSampleQuery(sampleType: audioType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
+                guard let samples = samples, !samples.isEmpty else {
+                    cont.resume(returning: [])
+                    return
+                }
+                // 聚类：间隔 >10min 算不同清醒段
+                var ranges: [ClosedRange<Int>] = []
+                var cStart: Int? = nil
+                var cLast: Int? = nil
+                for s in samples {
+                    let m = StickState.minutesOfDay(s.startDate)
+                    if cStart == nil {
+                        cStart = m; cLast = m
+                    } else if m - (cLast ?? 0) <= 10 {
+                        cLast = m
+                    } else {
+                        if let s = cStart, let l = cLast {
+                            ranges.append(s...l)
+                        }
+                        cStart = m; cLast = m
+                    }
+                }
+                if let s = cStart, let l = cLast {
+                    ranges.append(s...l)
+                }
+                cont.resume(returning: ranges)
+            }
+            store?.execute(q)
+        }
+    }
+
+    // MARK: - 步态质量摘要
+
+    /// 步态质量数据（用于活动状态分析）
+    struct WalkingQuality {
+        let avgSpeed: Double?        // m/s
+        let maxSpeed: Double?        // m/s
+        let minSpeed: Double?        // m/s
+        let avgDoubleSupport: Double? // %
+        let avgHeadphoneExposure: Double? // dB
+        let nightWakeCount: Int      // 夜间清醒段数
+        let nightWakeTotalMin: Int   // 夜间清醒总分钟数
+
+        /// 步态健康评分（0-100）
+        var gaitScore: Int {
+            var score = 80  // 基准分
+            if let sp = avgSpeed {
+                if sp >= 1.0 && sp <= 1.4 { score += 10 }  // 健康区间
+                else if sp >= 0.8 && sp <= 1.6 { score += 5 }
+                else { score -= 10 }
+            }
+            if let ds = avgDoubleSupport {
+                if ds >= 25 && ds <= 33 { score += 10 }  // 健康区间
+                else if ds >= 22 && ds <= 36 { score += 5 }
+                else { score -= 5 }
+            }
+            if nightWakeCount > 0 { score -= nightWakeCount * 3 }  // 每段夜间清醒扣分
+            return max(0, min(100, score))
+        }
+
+        /// 睡眠质量评估（基于夜间清醒）
+        var sleepQualityLabel: String {
+            if nightWakeCount == 0 { return "连续" }
+            if nightWakeCount == 1 { return "轻度中断" }
+            if nightWakeCount == 2 { return "中断" }
+            return "碎片化"
+        }
+    }
+
+    /// 综合步态质量分析（今天）
+    func todayWalkingQuality() async -> WalkingQuality {
+        let calendar = Calendar.current
+        let dayStart = calendar.startOfDay(for: Date())
+
+        // 并行查询步速、双脚支撑、耳机暴露、夜间清醒
+        async let speeds = fetchSamples(.walkingSpeed, from: dayStart, unit: HKUnit.meter().unitDivided(by: .second()))
+        async let doubleSupport = recentAverage(.walkingDoubleSupportPercentage, from: dayStart, unit: .percent())
+        async let headphone = recentAverage(.headphoneAudioExposure, from: dayStart, unit: HKUnit.decibelAWeightedSoundPressureLevel())
+        async let wakePeriods = detectNightWakePeriods()
+
+        let speedVals = (await speeds).compactMap { $0 }
+        let nightWakeCount = (await wakePeriods).count
+        let nightWakeTotalMin = (await wakePeriods).reduce(0) { $0 + ($1.upperBound - $1.lowerBound + 1) }
+
+        return WalkingQuality(
+            avgSpeed: speedVals.isEmpty ? nil : speedVals.reduce(0, +) / Double(speedVals.count),
+            maxSpeed: speedVals.max(),
+            minSpeed: speedVals.min(),
+            avgDoubleSupport: (await doubleSupport).map { $0 * 100 },
+            avgHeadphoneExposure: await headphone,
+            nightWakeCount: nightWakeCount,
+            nightWakeTotalMin: nightWakeTotalMin
+        )
+    }
+
+    /// 辅助：查询某类型近 N 个样本的值列表
+    private func fetchSamples(_ id: HKQuantityTypeIdentifier, from: Date, limit: Int = 100, unit: HKUnit) async -> [Double] {
+        guard let type = HKObjectType.quantityType(forIdentifier: id) else { return [] }
+        return await withCheckedContinuation { cont in
+            let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: .strictStartDate)
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+            let q = HKSampleQuery(sampleType: type, predicate: predicate, limit: limit, sortDescriptors: [sort]) { _, samples, _ in
+                let vals = (samples as? [HKQuantitySample])?.map { $0.quantity.doubleValue(for: unit) } ?? []
+                cont.resume(returning: vals)
+            }
+            store?.execute(q)
+        }
+    }
+
     func todaySedentaryMinutes() async -> Int {
         guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return 0 }
         let startOfDay = Calendar.current.startOfDay(for: Date())
@@ -469,6 +603,8 @@ final class HealthKitService: ObservableObject {
         let wakeUpTime = await queryWakeUpTime()
         // 检测午休：12:00-14:00 内步行之间的长间隙不计久坐
         let lunchNap = await detectLunchNap()
+        // 夜间清醒：耳机音量暴露 → 不算久坐
+        let nightWake = await detectNightWakePeriods()
 
         return await withCheckedContinuation { cont in
             var interval = DateComponents()
@@ -511,8 +647,11 @@ final class HealthKitService: ObservableObject {
                     }
                 }
 
-                // Pass 3: 统计久坐（非步行、非睡眠、非午休的分钟）
+                // Pass 3: 统计久坐（非步行、非睡眠、非午休、非夜间清醒的分钟）
                 for (ts, _) in buckets {
+                    let m = StickState.minutesOfDay(ts)
+                    // 夜间清醒：耳机暴露代表真实清醒，不算久坐
+                    if nightWake.contains(where: { $0.contains(m) }) { continue }
                     if let wakeUp = wakeUpTime, ts < wakeUp { continue }
                     if let nap = lunchNap, ts >= nap.lowerBound && ts < nap.upperBound { continue }
                     if activeMinutes.contains(ts) {
@@ -548,9 +687,10 @@ final class HealthKitService: ObservableObject {
         }
         guard hasStepData else { return }
 
-        // 推测起床时间 + 午休窗口（与 todaySedentaryMinutes 复用）
+        // 推测起床时间 + 午休窗口 + 夜间清醒期
         let wakeUp = await queryWakeUpTime()
         let nap = await detectLunchNap()
+        let nightWakePeriods = await detectNightWakePeriods()
 
         let wakeUpMinute = wakeUp.map { StickState.minutesOfDay($0) }
         let napStart = nap.map { StickState.minutesOfDay($0.lowerBound) }
@@ -601,7 +741,18 @@ final class HealthKitService: ObservableObject {
                 var lastActiveMinute: Int? = nil
                 let maxGapMinutes = 4 * 60
 
+                // 辅助：检查某分钟是否属于夜间清醒期
+                func isNightWake(_ m: Int) -> Bool {
+                    nightWakePeriods.contains { $0.contains(m) }
+                }
+
                 for minute in 0..<1440 {
+                    // 0) 夜间清醒（耳机音量暴露）→ 实际清醒，不算睡眠/久坐
+                    if isNightWake(minute) {
+                        states[minute] = .sleep   // 视觉上保持睡眠分段，避免时间线碎片化
+                        continue                    // 不更新 lastActiveMinute，不被 >4h 规则覆盖
+                    }
+
                     // 1) 起床前 → 睡眠
                     if let wu = wakeUpMinute, minute < wu {
                         states[minute] = .sleep
@@ -628,7 +779,7 @@ final class HealthKitService: ObservableObject {
                         continue
                     }
 
-                    // 5) 距上次活动 > 4h → 睡眠/离开
+                    // 5) 距上次活动 > 4h → 睡眠/离开（夜间清醒已被 step 0 提前排除，不会误判）
                     if let last = lastActiveMinute, minute - last > maxGapMinutes {
                         states[minute] = .sleep
                         continue
