@@ -59,6 +59,9 @@ struct ContentView: View {
     // HealthKit 状态推断（30s 重算一次）
     @State private var inference: StateInference.Result? = nil
 
+    /// 首页久坐分钟数（从 HealthKit 直接查询，与数据记录一致）
+    @State private var homeSedentaryMinutes: Int = 0
+
     // Chat
     @State private var showChat: Bool = false
     @State private var chatSeed: String = ""
@@ -218,7 +221,7 @@ struct ContentView: View {
 
     /// 今日累计久坐描述文本（供 FeatureRow 显示）
     var todaySitDescription: String {
-        let m = todaySitMinutes
+        let m = homeSedentaryMinutes
         if m == 0 { return "暂无久坐" }
         let hours = m / 60
         let mins = m % 60
@@ -517,6 +520,13 @@ struct ContentView: View {
                 await HealthKitService.shared.requestAuthorization()
                 HealthKitService.shared.startAutoCapture(interval: 60)
                 inference = HealthKitService.shared.currentInference
+                // 加载今日久坐分钟数（从 HealthKit 直接查询，与数据记录一致）
+                homeSedentaryMinutes = await HealthKitService.shared.todaySedentaryMinutes()
+                // 减去睡眠时间
+                if let sleepHours = await HealthKitService.shared.todaySleepHours() {
+                    let sleepMinutes = Int(sleepHours * 60)
+                    homeSedentaryMinutes = max(0, homeSedentaryMinutes - sleepMinutes)
+                }
             }
             // 检查各 metric 真实授权状态 (有/无/拒绝)
             healthAuth.refresh()
