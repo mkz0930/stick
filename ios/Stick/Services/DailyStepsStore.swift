@@ -46,11 +46,12 @@ final class DailyStepsStore: ObservableObject {
         let today = Self.todayString()
         let todayStart = Calendar.current.startOfDay(for: Date())
 
-        // 从快照集合里过滤今日，计算 stepCount 总和
+        // 今日步数: 取今日最后一条 snapshot 的 cumulativeStepCount (已是全天累计)
+        // 旧版 bug: 过滤今日所有 snapshot 求和 → 480x 膨胀
         let todayTotal = snapshots
             .filter { $0.timestamp >= todayStart }
-            .compactMap { $0.stepCount }
-            .reduce(0, +)
+            .last?
+            .cumulativeStepCount ?? 0
 
         updateOrInsert(dateString: today, steps: todayTotal)
     }

@@ -12,7 +12,10 @@ struct HealthSnapshot: Codable, Identifiable {
     let id: UUID
     let timestamp: Date
     let heartRate: Double?           // bpm
-    let stepCount: Int?              // 当前分钟内步数增量
+    /// 今日累计步数 (从 dayStart 到 timestamp 的 sum)
+    let cumulativeStepCount: Int?
+    /// 相对上一条 snapshot 的新增步数 (= currentCumulative - previousCumulative)
+    let incrementalStepCount: Int
     let activeEnergy: Double?         // 千卡
     let bodyState: String             // walk / sit / sleep
     let heartRateVariability: Double? // ms
@@ -27,7 +30,8 @@ struct HealthSnapshot: Codable, Identifiable {
 
     init(timestamp: Date = Date(),
          heartRate: Double? = nil,
-         stepCount: Int? = nil,
+         cumulativeStepCount: Int? = nil,
+         incrementalStepCount: Int = 0,
          activeEnergy: Double? = nil,
          bodyState: String = "sit",
          heartRateVariability: Double? = nil,
@@ -42,7 +46,8 @@ struct HealthSnapshot: Codable, Identifiable {
         self.id = UUID()
         self.timestamp = timestamp
         self.heartRate = heartRate
-        self.stepCount = stepCount
+        self.cumulativeStepCount = cumulativeStepCount
+        self.incrementalStepCount = incrementalStepCount
         self.activeEnergy = activeEnergy
         self.bodyState = bodyState
         self.heartRateVariability = heartRateVariability
@@ -145,10 +150,17 @@ final class HealthKitService: ObservableObject {
 
         let bodyState = currentState
         let source = sourceName()
+        // 今日累计步数；incremental = currentCumulative - previousCumulative
+        // 修复 bug: 旧版每条 snapshot 都存全天累计，sum 后 480x 膨胀。
+        // 现在 incremental 是「本分钟相对上分钟的新增步数」；cumulative 是「今日总步数」。
+        let currentCumulative = (await steps).map { Int($0) }
+        let prevCumulative = self.lastSnapshot?.cumulativeStepCount ?? currentCumulative ?? 0
+        let incremental = max(0, (currentCumulative ?? 0) - prevCumulative)
         let snapshot = HealthSnapshot(
             timestamp: now,
             heartRate: await hr,
-            stepCount: (await steps).map { Int($0) },
+            cumulativeStepCount: currentCumulative,
+            incrementalStepCount: incremental,
             activeEnergy: await energy,
             bodyState: bodyState,
             heartRateVariability: await hrv,

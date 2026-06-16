@@ -35,7 +35,8 @@ enum HealthTrendAnalyzer {
             stepTrendPct: stepTrendPct,
             avgStepDiffPct: avgStepDiffPct,
             sleepDebt: sleepDebt,
-            todaySteps: today.reduce(0) { $0 + ($1.stepCount ?? 0) }
+            // 今日步数: 取最后一条 snapshot 的 cumulativeStepCount (已是全天累计)
+            todaySteps: today.last?.cumulativeStepCount ?? 0
         )
         return HealthTrend(
             sedentaryStreakMinutes: sedentaryStreak,
@@ -98,7 +99,7 @@ enum HealthTrendAnalyzer {
 
     /// (今日步数 - 昨日步数) / 昨日步数 * 100，保留整数
     private static func computeStepTrendPct(today: [HealthSnapshot], all: [HealthSnapshot]) -> Int {
-        let todaySteps = today.reduce(0) { $0 + ($1.stepCount ?? 0) }
+        let todaySteps = today.last?.cumulativeStepCount ?? 0
 
         // 找昨日
         let calendar = Calendar.current
@@ -110,7 +111,7 @@ enum HealthTrendAnalyzer {
             let ts = snapshot.timestamp
             return ts >= yesterdayStart && ts < yesterdayEnd
         }
-        let yesterdaySteps = yesterdaySnapshots.reduce(0) { $0 + ($1.stepCount ?? 0) }
+        let yesterdaySteps = yesterdaySnapshots.last?.cumulativeStepCount ?? 0
 
         guard yesterdaySteps > 0 else { return 0 }
         return Int((Double(todaySteps - yesterdaySteps) / Double(yesterdaySteps)) * 100)
@@ -120,7 +121,7 @@ enum HealthTrendAnalyzer {
 
     /// 今日 vs all 里过去 7 天平均值的偏差
     private static func computeAvgStepDiffPct(today: [HealthSnapshot], all: [HealthSnapshot]) -> Int {
-        let todaySteps = today.reduce(0) { $0 + ($1.stepCount ?? 0) }
+        let todaySteps = today.last?.cumulativeStepCount ?? 0
 
         let calendar = Calendar.current
         let sevenDaysAgo = calendar.date(byAdding: .day, value: -7, to: Date())!
@@ -130,12 +131,12 @@ enum HealthTrendAnalyzer {
         }
         guard !recentSnapshots.isEmpty else { return 0 }
 
-        // 按天累加步数
+        // 按天取最后一条 snapshot 的 cumulativeStepCount 作为当日总步数
         let grouped = Dictionary(grouping: recentSnapshots) { snapshot -> Date in
             calendar.startOfDay(for: snapshot.timestamp)
         }
         let dailySteps = grouped.mapValues { snapshots in
-            snapshots.reduce(0) { $0 + ($1.stepCount ?? 0) }
+            snapshots.last?.cumulativeStepCount ?? 0
         }
         guard !dailySteps.isEmpty else { return 0 }
 

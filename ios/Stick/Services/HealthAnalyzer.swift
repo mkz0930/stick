@@ -74,7 +74,7 @@ final class HealthAnalyzer {
         var lastTimestamp: Date?
 
         for s in snaps {
-            let moving = (s.stepCount ?? 0) > 0
+            let moving = s.incrementalStepCount > 0
             let isSit = (s.bodyState == "sit") && !moving
             if isSit {
                 if runStart == nil { runStart = s.timestamp }
@@ -106,7 +106,7 @@ final class HealthAnalyzer {
         var lastTimestamp: Date?
 
         for s in snaps {
-            let active = (s.bodyState == "walk") || ((s.stepCount ?? 0) > 0)
+            let active = (s.bodyState == "walk") || (s.incrementalStepCount > 0)
             if active {
                 if runStart == nil { runStart = s.timestamp }
                 runMinutes += 1
@@ -158,7 +158,8 @@ final class HealthAnalyzer {
     // MARK: - 步数
 
     private func detectStepGoal(_ snaps: [HealthSnapshot]) -> [HealthInsight] {
-        let total = snaps.compactMap { $0.stepCount }.reduce(0, +)
+        // 今日步数: 最后一条 snapshot 的 cumulativeStepCount (已是全天累计)
+        let total = snaps.last?.cumulativeStepCount ?? 0
         if total < 3000 && !snaps.isEmpty {
             return [HealthInsight(
                 kind: .lowSteps, severity: .warn,

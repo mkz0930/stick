@@ -13,7 +13,7 @@ private struct TodayHealthStats {
 
     init() {
         let snapshots = HealthStore.shared.today
-        var sit = 0, walk = 0, sleep = 0, stand = 0, steps = 0, hrSum = 0, hrCount = 0
+        var sit = 0, walk = 0, sleep = 0, stand = 0, hrSum = 0, hrCount = 0
         for s in snapshots {
             switch s.bodyState {
             case "sit": sit += 1
@@ -22,14 +22,15 @@ private struct TodayHealthStats {
             case "stand": stand += 1
             default: break
             }
-            steps += s.stepCount ?? 0
             if let hr = s.heartRate { hrSum += Int(hr); hrCount += 1 }
         }
+        // 今日步数：取最后一条 snapshot 的 cumulativeStepCount（已是全天累计，不求和）
+        let totalSteps = snapshots.last?.cumulativeStepCount ?? 0
         self.sitMinutes = sit
         self.walkMinutes = walk
         self.sleepMinutes = sleep
         self.standMinutes = stand
-        self.totalSteps = steps
+        self.totalSteps = totalSteps
         self.avgHeartRate = hrCount > 0 ? hrSum / hrCount : 72
     }
 }
