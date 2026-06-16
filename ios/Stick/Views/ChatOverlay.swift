@@ -2039,7 +2039,12 @@ struct ImagePicker: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
         if let forced = sourceType {
-            picker.sourceType = forced
+            // 强制指定类型，但模拟器上相机不可用时 fallback 到相册
+            if forced == .camera && !UIImagePickerController.isSourceTypeAvailable(.camera) {
+                picker.sourceType = .photoLibrary
+            } else {
+                picker.sourceType = forced
+            }
         } else if UIImagePickerController.isSourceTypeAvailable(.camera) {
             picker.sourceType = .camera
         } else {
