@@ -111,8 +111,9 @@ struct ChatOverlay: View {
     @ObservedObject private var history = ChatHistoryStore.shared
     @ObservedObject private var userProfile = UserProfileStore.shared
     @State private var showCamera: Bool = false
+    @State private var showPhotoLibrary: Bool = false
     @State private var capturedImage: UIImage?
-    /// 打开相机前保存用户已输入的文本，拍照完成后拼图片一起发给 LLM
+    /// 打开相机/相册前保存用户已输入的文本，选完图后拼图片一起发给 LLM
     @State private var textBeforeCamera: String = ""
     /// 联网搜索状态文本（"正在联网搜索最新信息…"），nil 表示不在搜索
     @State private var searchStatus: String? = nil
@@ -183,12 +184,12 @@ struct ChatOverlay: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 self.inputFocused = true
             }
-            // 主页 + 按钮触发：自动打开相册/相机选图，发送给 LLM 视觉分析
+            // 主页 + 按钮触发：自动打开相册选图，发送给 LLM 视觉分析
             if pendingPhotoUpload {
                 textBeforeCamera = "请分析这张图片中的健康相关内容"
                 // 延迟到键盘弹出后再开 ImagePicker，避免 UI 冲突
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    showCamera = true
+                    showPhotoLibrary = true
                 }
             }
 
@@ -271,7 +272,11 @@ struct ChatOverlay: View {
             history.replaceAll(with: newHistory)
         }
         .fullScreenCover(isPresented: $showCamera) {
-            ImagePicker(image: $capturedImage)
+            ImagePicker(image: $capturedImage, sourceType: .camera)
+                .ignoresSafeArea()
+        }
+        .fullScreenCover(isPresented: $showPhotoLibrary) {
+            ImagePicker(image: $capturedImage, sourceType: .photoLibrary)
                 .ignoresSafeArea()
         }
         .onChange(of: capturedImage) { _, newImage in
@@ -1966,11 +1971,15 @@ struct DashedDivider: View {
 
 struct ImagePicker: UIViewControllerRepresentable {
     @Binding var image: UIImage?
+    /// nil = 自动（真机用相机，模拟器用相册）；指定值则强制使用
+    var sourceType: UIImagePickerController.SourceType? = nil
     @Environment(\.dismiss) private var dismiss
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
-        if UIImagePickerController.isSourceTypeAvailable(.camera) {
+        if let forced = sourceType {
+            picker.sourceType = forced
+        } else if UIImagePickerController.isSourceTypeAvailable(.camera) {
             picker.sourceType = .camera
         } else {
             picker.sourceType = .photoLibrary
