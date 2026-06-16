@@ -34,6 +34,39 @@ struct DayTimelineView: View {
     private let walkHaloWidth: CGFloat = 32         // halo 比胶囊宽 4-14pt
     private let walkHaloHeight: CGFloat = 22        // halo 高度撑出（不被 track 压扁）
     private let walkLabelMinDuration: Int = 3       // ≥3min 的步行才显示时刻标签
+    private let walkMergeGapMinutes: Int = 2        // 间隔 ≤2min 的碎步行合并成一个视觉胶囊
+    private let walkMinVisibleDuration: Int = 2     // <2min 的碎步行不显示独立胶囊
+    private let walkMinVerticalSpacing: CGFloat = 12
+
+    /// 合并后仅用于时间线渲染的步行胶囊。
+    private struct WalkVisualSegment: Identifiable {
+        let id: String
+        let startMinute: Int
+        let endMinute: Int
+        let duration: Int
+        var yCenter: CGFloat
+        let accent: Color
+    }
+
+    /// 映射到过去 24h 窗口坐标后的单个步行片段。
+    private struct WalkWindowPiece {
+        let startWin: Int
+        let endWin: Int
+        let startMinute: Int
+        let endMinute: Int
+        let duration: Int
+        let accent: Color
+    }
+
+    /// 视觉合并过程中的可变步行片段。
+    private struct MergedWalkWindow {
+        let startWin: Int
+        var endWin: Int
+        let startMinute: Int
+        var endMinute: Int
+        var duration: Int
+        let accent: Color
+    }
 
     // MARK: - 派生
 
@@ -197,9 +230,9 @@ struct DayTimelineView: View {
                     rotatedSegment(seg, in: height)
                 }
 
-                // 步行光点层（在 track 之上）
-                ForEach(schedule.filter { $0.state == .walk }) { seg in
-                    walkBurst(seg, in: height)
+                // 步行光点层：先合并碎步行，再做最小纵向避让，避免糖葫芦式堆叠。
+                ForEach(walkVisualSegments(in: height)) { seg in
+                    walkBurst(seg)
                 }
 
                 // thumb (圆环) — 圆心落在竖线中心
@@ -329,58 +362,46 @@ struct DayTimelineView: View {
 
     // MARK: - 组件
 
-    /// 步行段 = 发光圆点 + 24-40pt halo
-    /// 直径按段时长缩放：1-2min → 7pt；>5min → 12pt
-    /// halo 用 radial gradient 模拟光晕扩散
-    /// 时刻标签：≥3min 的步行右侧浮 serif italic 时刻
+    /// 步行段 = 发光横向胶囊；相邻碎步行已在渲染前合并。
     @ViewBuilder
-    private func walkBurst(_ seg: StickState.DaySegment, in height: CGFloat) -> some View {
-        let totalMin = Int(dayMinutes)
-        let startWin = ((seg.startMinute - nowMinute) + totalMin) % totalMin
-        let endWin   = ((seg.endMinute   - nowMinute) + totalMin) % totalMin
-        let total = CGFloat(totalMin)
-        let duration = seg.duration
-        // 胶囊宽度按时长插值：1min → minWidth, 8+min → maxWidth
+    private func walkBurst(_ seg: WalkVisualSegment) -> some View {
         let pillWidth = walkPillMinWidth
             + (walkPillMaxWidth - walkPillMinWidth)
-            * CGFloat(min(duration, 8)) / 8.0
-        let accent = seg.state.accent
-        let yCenter = walkBurstYCenter(startWin: startWin, endWin: endWin, totalMin: totalMin, total: total, height: height)
-        // 显示标签：≥3min 且不跨底边界
-        let showLabel = duration >= walkLabelMinDuration && startWin <= endWin
+            * CGFloat(min(seg.duration, 8)) / 8.0
+        let accent = seg.accent
+        let showLabel = seg.duration >= walkLabelMinDuration
 
         ZStack {
-            // halo 外层（横向胶囊柔光）
-            Capsule()
-                .fill(accent.opacity(0.18))
+            // halo 外层（横向矩形柔光）
+            Rectangle()
+                .fill(accent.opacity(0.06))
                 .frame(width: walkHaloWidth, height: walkHaloHeight)
 
             // halo 内层（更实一点）
-            Capsule()
-                .fill(accent.opacity(0.32))
+            Rectangle()
+                .fill(accent.opacity(0.10))
                 .frame(width: walkHaloWidth - 4, height: walkHaloHeight - 6)
 
-            // 核心胶囊（绿色实色 + 阴影）
-            Capsule()
-                .fill(accent)
+            // 核心矩形（绿色实色 + 阴影）
+            Rectangle()
+                .fill(accent.opacity(0.45))
                 .frame(width: pillWidth, height: walkPillHeight)
-                .shadow(color: accent.opacity(0.55), radius: 3, x: 0, y: 0)
+                .shadow(color: accent.opacity(0.18), radius: 3, x: 0, y: 0)
 
             // 白色高光（左侧小亮）
-            Capsule()
-                .fill(Color.white.opacity(0.65))
+            Rectangle()
+                .fill(Color.white.opacity(0.25))
                 .frame(width: pillWidth * 0.35, height: walkPillHeight * 0.35)
                 .offset(x: -pillWidth * 0.18, y: -walkPillHeight * 0.12)
 
-            // 时刻标签（≥3min 才显示）
             if showLabel {
                 Text(StickState.formatMinute(seg.startMinute))
                     .font(.system(size: 9, weight: .regular, design: .serif).italic())
-                    .foregroundColor(accent.opacity(0.85))
+                    .foregroundColor(accent.opacity(0.45))
                     .offset(x: walkHaloWidth / 2 + 6, y: 0)
             }
         }
-        .position(x: trackWidth / 2, y: yCenter)
+        .position(x: trackWidth / 2, y: seg.yCenter)
     }
 
     /// 把原 schedule 时段按"过去 24h 窗口"重新映射（竖向）
@@ -506,22 +527,118 @@ struct DayTimelineView: View {
         CGFloat(1440 - m) / dayMinutes * height
     }
 
-    /// 步行 burst 的 Y 中心（普通段取中点；跨底边界取较长段的中点）
-    private func walkBurstYCenter(startWin: Int, endWin: Int, totalMin: Int, total: CGFloat, height: CGFloat) -> CGFloat {
-        if startWin <= endWin {
-            // 普通段：取段中点
-            let midWin = (startWin + endWin) / 2
-            return CGFloat(totalMin - midWin) / total * height
-        } else {
-            // 跨底边界拆两段 — 取较长那段的中心
-            let upperLen = endWin
-            let lowerLen = totalMin - startWin
-            if upperLen >= lowerLen {
-                return CGFloat(totalMin - endWin / 2) / total * height
+    /// 生成步行视觉胶囊：过滤极短段、合并相邻段，并做纵向避让。
+    private func walkVisualSegments(in height: CGFloat) -> [WalkVisualSegment] {
+        let totalMin = Int(dayMinutes)
+        let rawSegments = schedule
+            .filter { $0.state == .walk }
+            .flatMap { walkWindowPieces(for: $0, totalMin: totalMin) }
+            .sorted { $0.startWin < $1.startWin }
+
+        guard !rawSegments.isEmpty else { return [] }
+
+        var merged: [MergedWalkWindow] = []
+        for piece in rawSegments {
+            if let last = merged.last, piece.startWin - last.endWin <= walkMergeGapMinutes {
+                var updated = last
+                updated.endWin = max(updated.endWin, piece.endWin)
+                updated.duration += piece.duration
+                updated.endMinute = piece.endMinute
+                merged[merged.count - 1] = updated
             } else {
-                let midLower = (startWin + totalMin) / 2
-                return CGFloat(totalMin - midLower) / total * height
+                merged.append(
+                    MergedWalkWindow(
+                        startWin: piece.startWin,
+                        endWin: piece.endWin,
+                        startMinute: piece.startMinute,
+                        endMinute: piece.endMinute,
+                        duration: piece.duration,
+                        accent: piece.accent
+                    )
+                )
             }
+        }
+
+        let total = CGFloat(totalMin)
+        var visualSegments = merged
+            .filter { $0.duration >= walkMinVisibleDuration }
+            .map { item in
+                let midWin = (item.startWin + item.endWin) / 2
+                let rawY = CGFloat(totalMin - midWin) / total * height
+                return WalkVisualSegment(
+                    id: "\(item.startWin)-\(item.endWin)-\(item.startMinute)",
+                    startMinute: item.startMinute,
+                    endMinute: item.endMinute,
+                    duration: item.duration,
+                    yCenter: rawY,
+                    accent: item.accent
+                )
+            }
+            .sorted { $0.yCenter < $1.yCenter }
+
+        applyWalkVerticalSpacing(to: &visualSegments, in: height)
+        return visualSegments
+    }
+
+    /// 将一天内的 walk segment 映射到过去 24h 的窗口坐标，跨 now 边界时拆成上下两段。
+    private func walkWindowPieces(for seg: StickState.DaySegment, totalMin: Int) -> [WalkWindowPiece] {
+        let startWin = ((seg.startMinute - nowMinute) + totalMin) % totalMin
+        let endWin = ((seg.endMinute - nowMinute) + totalMin) % totalMin
+        let accent = seg.state.accent
+
+        if startWin <= endWin {
+            return [
+                WalkWindowPiece(
+                    startWin: startWin,
+                    endWin: endWin,
+                    startMinute: seg.startMinute,
+                    endMinute: seg.endMinute,
+                    duration: max(0, endWin - startWin),
+                    accent: accent
+                )
+            ]
+        }
+
+        return [
+            WalkWindowPiece(
+                startWin: 0,
+                endWin: endWin,
+                startMinute: nowMinute,
+                endMinute: seg.endMinute,
+                duration: max(0, endWin),
+                accent: accent
+            ),
+            WalkWindowPiece(
+                startWin: startWin,
+                endWin: totalMin,
+                startMinute: seg.startMinute,
+                endMinute: nowMinute,
+                duration: max(0, totalMin - startWin),
+                accent: accent
+            )
+        ]
+        .filter { $0.duration >= walkMinVisibleDuration }
+    }
+
+    /// 给过近的步行胶囊增加最小纵向距离，同时限制在时间线可见范围内。
+    private func applyWalkVerticalSpacing(to segments: inout [WalkVisualSegment], in height: CGFloat) {
+        guard !segments.isEmpty else { return }
+
+        let minY = walkHaloHeight / 2
+        let maxY = max(minY, height - walkHaloHeight / 2)
+
+        for index in segments.indices {
+            let lowerBound = index == segments.startIndex
+                ? minY
+                : segments[segments.index(before: index)].yCenter + walkMinVerticalSpacing
+            segments[index].yCenter = min(max(segments[index].yCenter, lowerBound), maxY)
+        }
+
+        for index in segments.indices.reversed() {
+            let upperBound = index == segments.index(before: segments.endIndex)
+                ? maxY
+                : segments[segments.index(after: index)].yCenter - walkMinVerticalSpacing
+            segments[index].yCenter = max(min(segments[index].yCenter, upperBound), minY)
         }
     }
 
