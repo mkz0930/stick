@@ -27,10 +27,12 @@ struct DayTimelineView: View {
     private let lineAlpha: Double = 0.65       // 竖线半透明 (稍亮，跟动画同色系)
     private let thumbAlpha: Double = 0.85      // 圆环半透明
 
-    // 步行段视觉强化（爆裂光点 — Bold Burst design）
-    private let walkBurstMinDiameter: CGFloat = 7    // 1-2 min 步行 = 7pt 圆点
-    private let walkBurstMaxDiameter: CGFloat = 12   // >5 min 步行 = 12pt 圆点
-    private let walkHaloSize: CGFloat = 28          // halo 默认 28pt（4× 圆点直径）
+    // 步行段视觉强化（横向胶囊 — Bold Burst 修订）
+    private let walkPillMinWidth: CGFloat = 18      // 1-2 min 步行 = 18pt 横向胶囊
+    private let walkPillMaxWidth: CGFloat = 28      // >5 min 步行 = 28pt
+    private let walkPillHeight: CGFloat = 8         // 胶囊厚度
+    private let walkHaloWidth: CGFloat = 32         // halo 比胶囊宽 4-14pt
+    private let walkHaloHeight: CGFloat = 22        // halo 高度撑出（不被 track 压扁）
     private let walkLabelMinDuration: Int = 3       // ≥3min 的步行才显示时刻标签
 
     // MARK: - 派生
@@ -338,56 +340,44 @@ struct DayTimelineView: View {
         let endWin   = ((seg.endMinute   - nowMinute) + totalMin) % totalMin
         let total = CGFloat(totalMin)
         let duration = seg.duration
-        // 圆点直径按时长插值：1min → minDiameter, 8+min → maxDiameter
-        let diameter = walkBurstMinDiameter
-            + (walkBurstMaxDiameter - walkBurstMinDiameter)
+        // 胶囊宽度按时长插值：1min → minWidth, 8+min → maxWidth
+        let pillWidth = walkPillMinWidth
+            + (walkPillMaxWidth - walkPillMinWidth)
             * CGFloat(min(duration, 8)) / 8.0
-        // halo 大小（按圆点缩放，1-2min 圆点小 → halo 也小）
-        let haloSize = diameter * 3.5
         let accent = seg.state.accent
         let yCenter = walkBurstYCenter(startWin: startWin, endWin: endWin, totalMin: totalMin, total: total, height: height)
         // 显示标签：≥3min 且不跨底边界
         let showLabel = duration >= walkLabelMinDuration && startWin <= endWin
 
         ZStack {
-            // halo 外层（最外圈 30% alpha 柔光）
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [accent.opacity(0.35), accent.opacity(0.0)],
-                        center: .center, startRadius: 0, endRadius: haloSize / 2
-                    )
-                )
-                .frame(width: haloSize, height: haloSize)
+            // halo 外层（横向胶囊柔光）
+            Capsule()
+                .fill(accent.opacity(0.18))
+                .frame(width: walkHaloWidth, height: walkHaloHeight)
 
             // halo 内层（更实一点）
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [accent.opacity(0.55), accent.opacity(0.05)],
-                        center: .center, startRadius: 0, endRadius: haloSize * 0.45
-                    )
-                )
-                .frame(width: haloSize * 0.9, height: haloSize * 0.9)
+            Capsule()
+                .fill(accent.opacity(0.32))
+                .frame(width: walkHaloWidth - 4, height: walkHaloHeight - 6)
 
-            // 核心圆点（白核 + 绿色实色）
-            Circle()
+            // 核心胶囊（绿色实色 + 阴影）
+            Capsule()
                 .fill(accent)
-                .frame(width: diameter, height: diameter)
-                .shadow(color: accent.opacity(0.6), radius: 4)
+                .frame(width: pillWidth, height: walkPillHeight)
+                .shadow(color: accent.opacity(0.55), radius: 3, x: 0, y: 0)
 
-            // 白色高光
-            Circle()
-                .fill(Color.white.opacity(0.7))
-                .frame(width: diameter * 0.35, height: diameter * 0.35)
-                .offset(x: -diameter * 0.12, y: -diameter * 0.12)
+            // 白色高光（左侧小亮）
+            Capsule()
+                .fill(Color.white.opacity(0.65))
+                .frame(width: pillWidth * 0.35, height: walkPillHeight * 0.35)
+                .offset(x: -pillWidth * 0.18, y: -walkPillHeight * 0.12)
 
             // 时刻标签（≥3min 才显示）
             if showLabel {
                 Text(StickState.formatMinute(seg.startMinute))
                     .font(.system(size: 9, weight: .regular, design: .serif).italic())
                     .foregroundColor(accent.opacity(0.85))
-                    .offset(x: haloSize / 2 + 8, y: 0)
+                    .offset(x: walkHaloWidth / 2 + 6, y: 0)
             }
         }
         .position(x: trackWidth / 2, y: yCenter)
