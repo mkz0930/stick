@@ -303,13 +303,29 @@ final class MockHealthDataLoader {
         }
     }
 
-    /// 解析日期（支持 ISO8601 + 毫秒）
+    /// 解析日期（支持 ISO8601 + 毫秒；fallback 到无时区本地时间）
+    /// 顺序：ISO8601 + 时区 + 毫秒 → ISO8601 + 时区 → 本地无时区 + 毫秒 → 本地无时区
+    /// 导出的 HealthKit JSON 时间戳是设备本地时间（无 Z / 无 +08:00），必须按本地时区解释
     private static func parseDate(_ s: String) -> Date? {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = f.date(from: s) { return d }
-        f.formatOptions = [.withInternetDateTime]
-        return f.date(from: s)
+        // 1) ISO8601 + 时区 + 毫秒
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = iso.date(from: s) { return d }
+        // 2) ISO8601 + 时区（无毫秒）
+        iso.formatOptions = [.withInternetDateTime]
+        if let d = iso.date(from: s) { return d }
+        // 3) 本地无时区 + 毫秒
+        let localWithMs = DateFormatter()
+        localWithMs.locale = Locale(identifier: "en_US_POSIX")
+        localWithMs.timeZone = TimeZone.current
+        localWithMs.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+        if let d = localWithMs.date(from: s) { return d }
+        // 4) 本地无时区（无毫秒）
+        let local = DateFormatter()
+        local.locale = Locale(identifier: "en_US_POSIX")
+        local.timeZone = TimeZone.current
+        local.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return local.date(from: s)
     }
 }
 
