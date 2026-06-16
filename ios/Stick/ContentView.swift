@@ -779,6 +779,23 @@ struct ContentView: View {
                     currentSitStartTime = Date().addingTimeInterval(-Double(sitMins) * 60)
                 }
                 lastSitAnalysisTime = Date()
+                // 写入 SharedState（让 Widget 立即显示）
+                let snap = SharedStickState(
+                    stateRaw: displayState.rawValue,
+                    englishName: displayState.englishName,
+                    actionPhrase: displayState.actionPhrase,
+                    heartRate: realHeartRate ?? primaryHeartRate,
+                    mood: walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
+                    durationMinutes: primaryDurationMinutes,
+                    subLine: realSubLine,
+                    updatedAt: Date(),
+                    currentSedentarySeconds: sitMins * 60,
+                    sedentaryStartTime: sitMins > 0 ? Date().addingTimeInterval(-Double(sitMins) * 60) : nil
+                )
+                SharedStateStore.write(snap)
+                #if canImport(WidgetKit)
+                WidgetCenter.shared.reloadAllTimelines()
+                #endif
                 // 计算今天真实的 24h 时刻表（驱动时间轴 + 小人状态）
                 await HealthKitService.shared.computeDaySchedule()
                 // 加载步态质量
