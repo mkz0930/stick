@@ -28,7 +28,7 @@ final class MorningReportGenerator {
     private let systemPrompt = """
 你是一位专业的 iOS 健康数据分析师。根据用户昨日的 HealthKit 数据，生成一份晨间健康报告。
 
-数据来源：步数、步行速度、双脚支撑百分比、睡眠分析、耳机音量暴露（夜间清醒判断）、久坐时长。
+数据来源：步数、步行速度、双脚支撑百分比、睡眠分析、耳机音量暴露（夜间清醒判断）、久坐时长、饮食记录。
 
 输出格式（严格按以下 JSON 结构返回，不要输出任何其他内容）：
 
@@ -37,7 +37,7 @@ final class MorningReportGenerator {
   "score": 综合健康得分（0-100整数）,
   "shortAdvice": ["短期建议1", "短期建议2", "短期建议3"],
   "longAdvice": ["长期建议1", "长期建议2", "长期建议3"],
-  "detail": "详细分析段落（150-200字），涵盖睡眠结构、久坐风险、运动充足性、步态与疲惫度"
+  "detail": "详细分析段落（150-200字），涵盖睡眠结构、久坐风险、运动充足性、步态与疲惫度、饮食记录"
 }
 
 注意事项：
@@ -90,7 +90,23 @@ final class MorningReportGenerator {
         //     restingHR: restingHR
         // )
 
-        // 6. 组装用户 prompt
+        // 6. 饮食数据
+        let foodStore = FoodLogStore.shared
+        let breakfastEntries = foodStore.entries(for: date).filter { $0.meal == .breakfast }
+        let lunchEntries = foodStore.entries(for: date).filter { $0.meal == .lunch }
+        let dinnerEntries = foodStore.entries(for: date).filter { $0.meal == .dinner }
+
+        let breakfastCalories = breakfastEntries.compactMap { $0.calories }.reduce(0, +)
+        let lunchCalories = lunchEntries.compactMap { $0.calories }.reduce(0, +)
+        let dinnerCalories = dinnerEntries.compactMap { $0.calories }.reduce(0, +)
+        let totalCalories = breakfastCalories + lunchCalories + dinnerCalories
+
+        var mealCount = 0
+        if !breakfastEntries.isEmpty { mealCount += 1 }
+        if !lunchEntries.isEmpty { mealCount += 1 }
+        if !dinnerEntries.isEmpty { mealCount += 1 }
+
+        // 7. 组装用户 prompt
         let userPrompt = """
 昨日数据：
 - 睡眠: \(sleepMinutes)分钟，夜间清醒 \(nightWakes.reduce(0) { $1.count })分钟，质量: \(sleepQuality)
@@ -98,15 +114,16 @@ final class MorningReportGenerator {
 - 步行: \(walkMinutes)分钟，步数 \(steps)步
 - 久坐: \(sedentaryMinutes)分钟
 - 步态评分: \(gaitScore)/100
+- 饮食: 总\(totalCalories)大卡，早\(breakfastCalories)大卡 / 午\(lunchCalories)大卡 / 晚\(dinnerCalories)大卡，已记录\(mealCount)餐
 
 请生成健康报告。
 """
 
-        // 7. 调用 LLM
+        // 8. 调用 LLM
         let response = try await LLMService.sendMessage(userPrompt, context: systemPrompt)
         let llmData = parseLLMResponse(response)
 
-        // 8. 构建报告（心率数据暂无可用来源，传 nil/0）
+        // 9. 构建报告（心率数据暂无可用来源，传 nil/0）
         // let hrZoneData: HeartRateZoneData? = hrZoneAnalysis.map {
         //     HeartRateZoneData(
         //         zone1Percent: $0.zone1Percent,
@@ -142,6 +159,11 @@ final class MorningReportGenerator {
             maxHeartRate: nil,
             heartRateZoneAnalysis: nil,
             recoveryScore: 0,
+            breakfastCalories: breakfastEntries.isEmpty ? nil : breakfastCalories,
+            lunchCalories: lunchEntries.isEmpty ? nil : lunchCalories,
+            dinnerCalories: dinnerEntries.isEmpty ? nil : dinnerCalories,
+            totalCalories: mealCount > 0 ? totalCalories : nil,
+            mealCount: mealCount,
             llmSummary: llmData?.summary ?? "数据生成中...",
             llmScore: llmData?.score ?? 0,
             llmShortAdvice: llmData?.shortAdvice ?? [],

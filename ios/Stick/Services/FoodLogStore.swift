@@ -44,28 +44,49 @@ final class FoodLogStore: ObservableObject {
         todayEntries.compactMap { $0.calories }.reduce(0, +)
     }
 
+    /// 获取指定日期的饮食记录
+    func entries(for date: Date) -> [FoodEntry] {
+        foodEntriesByDate()[dateKey(for: date)] ?? []
+    }
+
+    /// 获取指定日期的总卡路里
+    func totalCalories(for date: Date) -> Int {
+        entries(for: date).compactMap { $0.calories }.reduce(0, +)
+    }
+
+    /// 获取指定日期的分餐次记录
+    func mealBreakdown(for date: Date) -> (breakfast: [FoodEntry], lunch: [FoodEntry], dinner: [FoodEntry]) {
+        let entries = entries(for: date)
+        return (
+            breakfast: entries.filter { $0.meal == .breakfast },
+            lunch: entries.filter { $0.meal == .lunch },
+            dinner: entries.filter { $0.meal == .dinner }
+        )
+    }
+
     // MARK: - 私有
 
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let all: [String: [FoodEntry]] = try? JSONDecoder().decode([String: [FoodEntry]].self, from: data) else { return }
-        let today = dateKey()
+        let all = foodEntriesByDate()
+        let today = dateKey(for: Date())
         todayEntries = all[today] ?? []
     }
 
     private func save() {
-        var all: [String: [FoodEntry]] = [:]
-        if let data = UserDefaults.standard.data(forKey: key),
-           let existing: [String: [FoodEntry]] = try? JSONDecoder().decode([String: [FoodEntry]].self, from: data) {
-            all = existing
-        }
-        all[dateKey()] = todayEntries
+        var all = foodEntriesByDate()
+        all[dateKey(for: Date())] = todayEntries
         if let d = try? JSONEncoder().encode(all) { UserDefaults.standard.set(d, forKey: key) }
     }
 
-    private func dateKey() -> String {
+    private func foodEntriesByDate() -> [String: [FoodEntry]] {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let all = try? JSONDecoder().decode([String: [FoodEntry]].self, from: data) else { return [:] }
+        return all
+    }
+
+    private func dateKey(for date: Date) -> String {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: Date())
+        return f.string(from: date)
     }
 }

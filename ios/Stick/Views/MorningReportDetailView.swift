@@ -38,12 +38,9 @@ struct MorningReportDetailView: View {
                         walkItems
                     }
 
-                    // 恢复与心率（暂无 Apple Watch 数据）
-                    analysisCard(title: "恢复与心率", icon: "heart.fill", color: .red) {
-                        Text("心率数据需 Apple Watch")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .padding(.vertical, 6)
+                    // 饮食分析
+                    analysisCard(title: "饮食分析", icon: "fork.knife", color: .pink) {
+                        dietItems
                     }
 
                     // AI 总结
@@ -154,6 +151,23 @@ struct MorningReportDetailView: View {
                 analysisRow("双脚支撑", String(format: "%.1f%%", ds))
             }
             analysisRow("步态评分", "\(report.gaitScore)/100")
+        }
+    }
+
+    private var dietItems: some View {
+        VStack(spacing: 0) {
+            if report.mealCount == 0 {
+                Text("暂无饮食记录")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding(.vertical, 6)
+            } else {
+                analysisRow("总卡路里", dietCaloriesText(report.totalCalories), color: .pink)
+                analysisRow("早餐", dietCaloriesText(report.breakfastCalories))
+                analysisRow("午餐", dietCaloriesText(report.lunchCalories))
+                analysisRow("晚餐", dietCaloriesText(report.dinnerCalories))
+                analysisRow("餐次记录", "已记录 \(report.mealCount)/3 餐")
+            }
         }
     }
 
@@ -323,6 +337,11 @@ struct MorningReportDetailView: View {
 
     private func minuteToTimeString(_ minute: Int) -> String {
         String(format: "%02d:%02d", minute / 60, minute % 60)
+    }
+
+    private func dietCaloriesText(_ calories: Int?) -> String {
+        guard let calories else { return "未记录" }
+        return "\(calories) 大卡"
     }
 
     private func formattedDate(_ dateStr: String) -> String {
