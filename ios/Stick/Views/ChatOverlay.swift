@@ -58,6 +58,8 @@ struct ChatOverlay: View {
     @State private var showHistoryPopover: Bool = false
     @State private var pendingScrollId: UUID? = nil   // 点击历史 → 滚动定位
     @State private var scrollToBottom: Bool = false   // true=auto-scroll(anchor:.bottom) false=history导航(anchor:.top)
+    /// 每次变化都滚到「正在加载」指示器（id = "streaming"），让动效可见
+    @State private var scrollToStreamingTrigger: Int = 0
     @State private var keyboardVisible: Bool = false  // 键盘是否可见
     /// 上次已处理的 scrollTrigger 值（用于去重）
     @State private var lastHandledTrigger: Int = 0
@@ -387,6 +389,14 @@ struct ChatOverlay: View {
                                 }
                             }
                             self.pendingScrollId = nil
+                        }
+                        .onChange(of: scrollToStreamingTrigger) { _ in
+                            // 始终滚到「正在加载」指示器，让动效可见
+                            DispatchQueue.main.async {
+                                withAnimation(.easeOut(duration: 0.25)) {
+                                    msgProxy.scrollTo("streaming", anchor: .bottom)
+                                }
+                            }
                         }
                         .onTapGesture {
                             // 点击消息区 → 滚到底部 + 收键盘
@@ -793,10 +803,16 @@ struct ChatOverlay: View {
         messages.append(ChatMessage(id: webId,      role: .assistant, content: ""))
         messages.append(ChatMessage(id: synthId,    role: .assistant, content: ""))
 
+        // 滚到「正在加载」指示器，让动效可见
+        self.scrollToStreamingTrigger &+= 1
+
         let ctx = buildContext()
         streamTask = Task {
             // 段 1: 本地分析（无搜索，快）
-            await MainActor.run { searchStatus = "正在分析您的健康数据…" }
+            await MainActor.run {
+                searchStatus = "正在分析您的健康数据…"
+                self.scrollToStreamingTrigger &+= 1
+            }
             let analysisOk = await streamInto(
                 messageId: analysisId,
                 stream: LLMService.sendMessageStream(
@@ -810,12 +826,18 @@ struct ChatOverlay: View {
             // 段 2: 联网搜索（带 enable_search，慢）
             if let imgData = imageData {
                 // 带图：跳过联网，直接用视觉模型分析
-                await MainActor.run { searchStatus = "正在分析图片…" }
+                await MainActor.run {
+                    searchStatus = "正在分析图片…"
+                    self.scrollToStreamingTrigger &+= 1
+                }
                 let stream2: AsyncThrowingStream<String, Error> = LLMService.sendMessageStreamWithImage(text, context: ctx, imageData: imgData)
                 _ = await streamInto(messageId: webId, stream: stream2)
                 await MainActor.run { searchStatus = nil }
             } else {
-                await MainActor.run { searchStatus = "正在联网搜索最新信息…" }
+                await MainActor.run {
+                    searchStatus = "正在联网搜索最新信息…"
+                    self.scrollToStreamingTrigger &+= 1
+                }
                 let webResults: [SearchResult] = await streamIntoCollectingSearch(
                     messageId: webId,
                     stream: LLMService.sendMessageStreamWithSearch(text, context: ctx)
@@ -824,7 +846,10 @@ struct ChatOverlay: View {
                 if Task.isCancelled { return }
 
                 // 段 3: 综合总结（无搜索；将联网结果作为上下文）
-                await MainActor.run { searchStatus = "正在综合分析…" }
+                await MainActor.run {
+                    searchStatus = "正在综合分析…"
+                    self.scrollToStreamingTrigger &+= 1
+                }
                 let webSummary = webResults.prefix(5).map { "[\($0.index)] \($0.title ?? $0.url)" }.joined(separator: "\n")
                 let synthPrompt = """
                 基于以下「本地分析」+「联网参考」，给用户最终建议（300字以内，可执行）。
