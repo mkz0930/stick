@@ -19,6 +19,7 @@ struct FeatureRow: View {
     let bodyScoreColor: Color
     let unifiedAlerts: [UnifiedAlert]
     let sitDurationText: String?      // 坐姿秒表 live MM:SS（sit 状态时为 "47:23" 这种，非 sit 时 nil）
+    let todaySitDescription: String    // 今日累计久坐描述，如 "累计6小时23分"
     let todaySteps: Int               // 今日累计步数（HealthKit；模拟器 demo 注入 8000+）
     @Binding var isExpanded: Bool       // 状态提升到 ContentView，让小人也能淡出
     var onAlertTap: (UnifiedAlert) -> Void = { _ in }
@@ -98,10 +99,10 @@ struct FeatureRow: View {
                 }
                 StepsLine(steps: todaySteps, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 if let ss = stateSpecificMetric {
-                    FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                    FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 }
                 ForEach(hiddenMetrics, id: \.label) { m in
-                    FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                    FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 }
                 // 异常摘要 — 折叠默认显示前 2 项，>2 项时显示 chevron 可展开看全部
                 if !unifiedAlerts.isEmpty {
@@ -122,10 +123,10 @@ struct FeatureRow: View {
                     StepsLine(steps: todaySteps, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 }
                 if let ss = stateSpecificMetric, pinnedMetricIds.contains(ss.label) {
-                    FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                    FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 }
                 ForEach(hiddenMetrics.filter { pinnedMetricIds.contains($0.label) }, id: \.label) { m in
-                    FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                    FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 }
                 if pinnedMetricIds.contains("alerts") && !unifiedAlerts.isEmpty {
                     AlertsSection(
@@ -633,6 +634,7 @@ private struct FeatureLine: View {
     let deviceSet: Set<DeviceID>
     let healthStatuses: [MetricID: MetricDataStatus]
     let sitDurationText: String?      // 坐姿秒表 live（覆盖 SEDENTARY 行的硬编码值）
+    let todaySitDescription: String    // 今日累计久坐描述（用于 SEDENTARY 行非 sit 状态时）
     var onLockTap: () -> Void = { }
     var onSedentaryTap: () -> Void = { }
     var pinnedIds: Binding<Set<String>>
@@ -644,8 +646,8 @@ private struct FeatureLine: View {
     private var isSedentary: Bool { metric.label == "SEDENTARY" }
     private var metricId: String { metric.label }
 
-    /// 优先用 live 坐姿秒表（SEDENTARY 行），否则用硬编码 metric.value
-    private var displayValue: String { sitDurationText ?? metric.value }
+    /// 优先用 live 坐姿秒表（SEDENTARY 行 sit 时），否则用今日累计描述
+    private var displayValue: String { sitDurationText ?? todaySitDescription }
 
     /// 该 metric 在当前 UI 下的呈现状态
     private var availability: MetricAvailability {

@@ -212,7 +212,7 @@ struct ContentView: View {
         healthStore.today.filter { $0.bodyState == "sit" }.count
     }
 
-    /// 久坐时长显示文本：M:SS 格式（如 90 分钟 → "90:00"）
+    /// 久坐时长显示文本：今日累计 H:MM 格式
     private var sitMinutesDisplayText: String {
         let m = todaySitMinutes
         if m == 0 { return "--:--" }
@@ -222,6 +222,18 @@ struct ContentView: View {
             return String(format: "%d:%02d", hours, mins)
         }
         return String(format: "%d:00", mins)
+    }
+
+    /// 今日累计久坐描述文本（供 FeatureRow 显示）
+    var todaySitDescription: String {
+        let m = todaySitMinutes
+        if m == 0 { return "暂无久坐" }
+        let hours = m / 60
+        let mins = m % 60
+        if hours > 0 {
+            return String(format: "累计%d小时%d分", hours, mins)
+        }
+        return String(format: "累计%d分", mins)
     }
 
     private var moodScore: Double {
@@ -546,7 +558,8 @@ struct ContentView: View {
                         bodyScore: bodyEnergy,
                         bodyScoreColor: energyColor,
                         unifiedAlerts: unifiedAlerts,
-                        sitDurationText: sitMinutesDisplayText,
+                        sitDurationText: sitDurationText,
+                        todaySitDescription: todaySitDescription,
                         todaySteps: todaySteps,
                         isExpanded: $featureRowExpanded,
                         onAlertTap: handleAlertTap,
