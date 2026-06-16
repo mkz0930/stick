@@ -237,14 +237,17 @@ final class MockHealthDataLoader {
 
     /// 把快照数组转成 24h 时刻表（每分钟聚合 + 连续段合并）
     private static func buildDaySchedule(from snapshots: [HealthSnapshot]) -> [StickState.DaySegment] {
-        // 1) 每分钟取最新 bodyState → 映射到 StickState
+        // 1) 每分钟状态 + 步数查找表
         var minuteStates: [Int: StickState] = [:]
+        var minuteSteps: [Int: Int] = [:]
         for snap in snapshots {
             let m = StickState.minutesOfDay(snap.timestamp)
-            guard let state = mapToState(snap.bodyState) else { continue }
-            minuteStates[m] = state
+            if let state = mapToState(snap.bodyState) {
+                minuteStates[m] = state
+            }
+            minuteSteps[m] = (minuteSteps[m] ?? 0) + snap.incrementalStepCount
         }
-        // 2) 连续相同 state → 合并为段
+        // 2) 连续相同 state → 合并为段，walk 段统计步数
         var segments: [StickState.DaySegment] = []
         var current: StickState? = nil
         var start = 0
@@ -252,14 +255,27 @@ final class MockHealthDataLoader {
             let state = minuteStates[m] ?? .sit
             if state != current {
                 if let cur = current {
-                    segments.append(StickState.DaySegment(state: cur, startMinute: start, endMinute: m))
+                    // 统计当前段的总步数
+                    let segmentSteps = cur == .walk ? (start..<m).reduce(0) { $0 + (minuteSteps[$1] ?? 0) } : nil
+                    segments.append(StickState.DaySegment(
+                        state: cur,
+                        startMinute: start,
+                        endMinute: m,
+                        stepCount: segmentSteps
+                    ))
                 }
                 current = state
                 start = m
             }
         }
         if let cur = current {
-            segments.append(StickState.DaySegment(state: cur, startMinute: start, endMinute: 1440))
+            let segmentSteps = cur == .walk ? (start..<1440).reduce(0) { $0 + (minuteSteps[$1] ?? 0) } : nil
+            segments.append(StickState.DaySegment(
+                state: cur,
+                startMinute: start,
+                endMinute: 1440,
+                stepCount: segmentSteps
+            ))
         }
         return segments
     }

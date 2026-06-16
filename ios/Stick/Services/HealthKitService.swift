@@ -820,14 +820,34 @@ final class HealthKitService: ObservableObject {
                     states[minute] = .sit
                 }
 
-                // Pass 4: 合并连续相同状态为 DaySegment 数组
+                // Pass 4: 按分钟索引建立步数查找表（便于按时间段汇总）
+                var stepLookup: [Int: Double] = [:]
+                for (ts, steps) in buckets {
+                    let m = StickState.minutesOfDay(ts)
+                    stepLookup[m] = steps
+                }
+
+                // Pass 5: 合并连续相同状态为 DaySegment 数组，walk 段计算总步数
                 var segments: [StickState.DaySegment] = []
                 var i = 0
                 while i < 1440 {
                     let s = states[i]
                     var j = i + 1
                     while j < 1440 && states[j] == s { j += 1 }
-                    segments.append(StickState.DaySegment(state: s, startMinute: i, endMinute: j))
+
+                    // 步行段统计该时段总步数
+                    var segmentSteps: Int? = nil
+                    if s == .walk {
+                        let total = (i..<j).reduce(0) { $0 + (stepLookup[$1] ?? 0) }
+                        segmentSteps = Int(total)
+                    }
+
+                    segments.append(StickState.DaySegment(
+                        state: s,
+                        startMinute: i,
+                        endMinute: j,
+                        stepCount: segmentSteps
+                    ))
                     i = j
                 }
 

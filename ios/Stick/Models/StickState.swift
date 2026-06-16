@@ -168,6 +168,7 @@ extension StickState {
         let state: StickState
         let startMinute: Int
         let endMinute: Int
+        let stepCount: Int?  // 该时段的总步数（仅 walk segment 有值）
         var id: Int { startMinute }
         var duration: Int { endMinute - startMinute }
         var contains: (Int) -> Bool { { $0 >= startMinute && $0 < endMinute } }
@@ -177,13 +178,13 @@ extension StickState {
     /// 22:00–07:00 标记为 .sleep（凌晨/夜间休息）
     /// 19:00–22:00 原本是 .stand，删除 .stand 后并入 .walk（晚间散步/休闲）
     static let daySchedule: [DaySegment] = [
-        DaySegment(state: .sleep, startMinute: 0,    endMinute: 420),    // 00:00 – 07:00  夜间 / 睡眠
-        DaySegment(state: .walk,  startMinute: 420,  endMinute: 510),    // 07:00 – 08:30  晨间通勤
-        DaySegment(state: .sit,   startMinute: 510,  endMinute: 720),    // 08:30 – 12:00  上午工作
-        DaySegment(state: .walk,  startMinute: 720,  endMinute: 810),    // 12:00 – 13:30  午餐 + 散步
-        DaySegment(state: .sit,   startMinute: 810,  endMinute: 1080),   // 13:30 – 18:00  下午工作
-        DaySegment(state: .walk,  startMinute: 1080, endMinute: 1320),   // 18:00 – 22:00  晚间通勤 + 休闲（合并）
-        DaySegment(state: .sleep, startMinute: 1320, endMinute: 1440),   // 22:00 – 24:00  夜间休息
+        DaySegment(state: .sleep, startMinute: 0,    endMinute: 420, stepCount: nil),    // 00:00 – 07:00  夜间 / 睡眠
+        DaySegment(state: .walk,  startMinute: 420,  endMinute: 510, stepCount: 2000),   // 07:00 – 08:30  晨间通勤
+        DaySegment(state: .sit,   startMinute: 510,  endMinute: 720, stepCount: nil),    // 08:30 – 12:00  上午工作
+        DaySegment(state: .walk,  startMinute: 720,  endMinute: 810, stepCount: 1500),   // 12:00 – 13:30  午餐 + 散步
+        DaySegment(state: .sit,   startMinute: 810,  endMinute: 1080, stepCount: nil),   // 13:30 – 18:00  下午工作
+        DaySegment(state: .walk,  startMinute: 1080, endMinute: 1320, stepCount: 3000),  // 18:00 – 22:00  晚间通勤 + 休闲（合并）
+        DaySegment(state: .sleep, startMinute: 1320, endMinute: 1440, stepCount: nil),   // 22:00 – 24:00  夜间休息
     ]
 
     /// 给定时间查到当前 state

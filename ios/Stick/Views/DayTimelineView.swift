@@ -17,6 +17,7 @@ struct DayTimelineView: View {
     @State private var pulse: Double = 0             // 0..1 循环，驱动 active 段脉冲
     @State private var autoResetWorkItem: DispatchWorkItem? = nil  // 10s 无操作自动回 now
     @State private var showPlayback: Bool = false    // 24h 回放 sheet
+    @State private var frozenNowMinute: Int? = nil   // 拖动时冻结 now，避免坐标跳变
 
     private let dayMinutes: CGFloat = 1440
     private let trackWidth: CGFloat = 4        // 极细线（竖线宽度）
@@ -28,14 +29,14 @@ struct DayTimelineView: View {
     private let thumbAlpha: Double = 0.85      // 圆环半透明
 
     // 步行段视觉强化（横向胶囊 — Bold Burst 修订）
-    private let walkPillMinWidth: CGFloat = 18      // 1-2 min 步行 = 18pt 横向胶囊
-    private let walkPillMaxWidth: CGFloat = 28      // >5 min 步行 = 28pt
-    private let walkPillHeight: CGFloat = 8         // 胶囊厚度
-    private let walkHaloWidth: CGFloat = 32         // halo 比胶囊宽 4-14pt
-    private let walkHaloHeight: CGFloat = 22        // halo 高度撑出（不被 track 压扁）
-    private let walkLabelMinDuration: Int = 3       // ≥3min 的步行才显示时刻标签
-    private let walkMergeGapMinutes: Int = 2        // 间隔 ≤2min 的碎步行合并成一个视觉胶囊
-    private let walkMinVisibleDuration: Int = 2     // <2min 的碎步行不显示独立胶囊
+    private let walkPillMinWidth: CGFloat = 8       // 1min 短步行 = 8pt 胶囊（更窄）
+    private let walkPillMaxWidth: CGFloat = 24      // >10min 长步行 = 24pt（更紧凑）
+    private let walkPillHeight: CGFloat = 5         // 胶囊更细
+    private let walkHaloWidth: CGFloat = 30         // halo 同步缩小
+    private let walkHaloHeight: CGFloat = 15        // halo 高度
+    private let walkLabelMinDuration: Int = 8       // ≥8min 长步行才显示时刻标签
+    private let walkMergeGapMinutes: Int = 3        // 间隔 ≤3min 的碎步行合并（减少数量）
+    private let walkMinVisibleDuration: Int = 3     // <3min 的碎步行不显示独立胶囊
     private let walkMinVerticalSpacing: CGFloat = 12
 
     /// 合并后仅用于时间线渲染的步行胶囊。
@@ -44,33 +45,44 @@ struct DayTimelineView: View {
         let startMinute: Int
         let endMinute: Int
         let duration: Int
+        let stepCount: Int?  // 该段总步数（控制颜色深浅）
         var yCenter: CGFloat
         let accent: Color
     }
 
     /// 映射到过去 24h 窗口坐标后的单个步行片段。
     private struct WalkWindowPiece {
+        let segmentId: Int       // 原始 DaySegment 的 id（稳定不变）
+        let splitTag: String      // "single" / "upper" / "lower"（拆分标记）
         let startWin: Int
         let endWin: Int
         let startMinute: Int
         let endMinute: Int
         let duration: Int
+        let stepCount: Int?      // 原始 segment 的总步数
         let accent: Color
     }
 
     /// 视觉合并过程中的可变步行片段。
     private struct MergedWalkWindow {
+        let segmentId: Int
+        let splitTag: String
         let startWin: Int
         var endWin: Int
         let startMinute: Int
         var endMinute: Int
         var duration: Int
+        var stepCount: Int?      // 合并后的总步数
         let accent: Color
     }
 
     // MARK: - 派生
 
-    private var nowMinute: Int { StickState.minutesOfDay(now) }
+    private var nowMinute: Int {
+        // 拖动时冻结 now，避免坐标跳变
+        if let frozen = frozenNowMinute { return frozen }
+        return StickState.minutesOfDay(now)
+    }
 
     private var isScrubbing: Bool {
         guard let s = scrubOffset else { return false }
@@ -247,17 +259,22 @@ struct DayTimelineView: View {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
+                        if frozenNowMinute == nil {
+                            frozenNowMinute = StickState.minutesOfDay(now)  // 开始拖动时，冻结 now 坐标
+                        }
                         let y = max(0, min(value.location.y, height))
                         // y=height → offset=0 (现在, 底); y=0 → offset=1440 (24h 前, 顶)
                         let raw = Int((1 - y / height) * dayMinutes)
                         let snapped = (raw / snapStep) * snapStep
-                        scrubOffset = max(0, min(snapped, 1440))
+                        let clamped = max(0, min(snapped, 1440))
+                        scrubOffset = clamped == 0 ? nil : clamped
                         if !hasInteracted && scrubOffset != nil {
                             hasInteracted = true
                         }
                         scheduleAutoReset()
                     }
                     .onEnded { _ in
+                        frozenNowMinute = nil  // 结束拖动，解冻 now
                         scheduleAutoReset()
                     }
             )
@@ -353,6 +370,7 @@ struct DayTimelineView: View {
         let item = DispatchWorkItem {
             withAnimation(.easeInOut(duration: 0.45)) {
                 scrubOffset = nil
+                frozenNowMinute = nil  // 回 now 时解冻
             }
             autoResetWorkItem = nil
         }
@@ -367,37 +385,49 @@ struct DayTimelineView: View {
     private func walkBurst(_ seg: WalkVisualSegment) -> some View {
         let pillWidth = walkPillMinWidth
             + (walkPillMaxWidth - walkPillMinWidth)
-            * CGFloat(min(seg.duration, 8)) / 8.0
+            * CGFloat(min(seg.duration, 10)) / 10.0
         let accent = seg.accent
         let showLabel = seg.duration >= walkLabelMinDuration
 
-        ZStack {
+        // 根据步数计算透明度：步越少越淡，步越多越深
+        // 500步以下：极淡；2000步以上：全深度；中间线性插值
+        let stepCount = seg.stepCount ?? 1000
+        let stepRatio = min(1.0, max(0.1, Double(stepCount) / 2000.0))
+
+        // 基础透明度乘步数比例
+        let baseOpacityCore = 0.35 * stepRatio
+        let baseOpacityHaloOuter = 0.04 * stepRatio
+        let baseOpacityHaloInner = 0.08 * stepRatio
+        let baseOpacityShadow = 0.12 * stepRatio
+        let baseOpacityLabel = 0.35 * stepRatio
+
+        return ZStack {
             // halo 外层（横向矩形柔光）
             Rectangle()
-                .fill(accent.opacity(0.06))
+                .fill(accent.opacity(baseOpacityHaloOuter))
                 .frame(width: walkHaloWidth, height: walkHaloHeight)
 
             // halo 内层（更实一点）
             Rectangle()
-                .fill(accent.opacity(0.10))
+                .fill(accent.opacity(baseOpacityHaloInner))
                 .frame(width: walkHaloWidth - 4, height: walkHaloHeight - 6)
 
             // 核心矩形（绿色实色 + 阴影）
             Rectangle()
-                .fill(accent.opacity(0.45))
+                .fill(accent.opacity(baseOpacityCore))
                 .frame(width: pillWidth, height: walkPillHeight)
-                .shadow(color: accent.opacity(0.18), radius: 3, x: 0, y: 0)
+                .shadow(color: accent.opacity(baseOpacityShadow), radius: 3, x: 0, y: 0)
 
             // 白色高光（左侧小亮）
             Rectangle()
-                .fill(Color.white.opacity(0.25))
+                .fill(Color.white.opacity(0.15 * stepRatio))
                 .frame(width: pillWidth * 0.35, height: walkPillHeight * 0.35)
                 .offset(x: -pillWidth * 0.18, y: -walkPillHeight * 0.12)
 
             if showLabel {
                 Text(StickState.formatMinute(seg.startMinute))
                     .font(.system(size: 9, weight: .regular, design: .serif).italic())
-                    .foregroundColor(accent.opacity(0.45))
+                    .foregroundColor(accent.opacity(baseOpacityLabel))
                     .offset(x: walkHaloWidth / 2 + 6, y: 0)
             }
         }
@@ -544,15 +574,24 @@ struct DayTimelineView: View {
                 updated.endWin = max(updated.endWin, piece.endWin)
                 updated.duration += piece.duration
                 updated.endMinute = piece.endMinute
+                // 合并步数
+                if let ls = last.stepCount, let ps = piece.stepCount {
+                    updated.stepCount = ls + ps
+                } else {
+                    updated.stepCount = last.stepCount ?? piece.stepCount
+                }
                 merged[merged.count - 1] = updated
             } else {
                 merged.append(
                     MergedWalkWindow(
+                        segmentId: piece.segmentId,
+                        splitTag: piece.splitTag,
                         startWin: piece.startWin,
                         endWin: piece.endWin,
                         startMinute: piece.startMinute,
                         endMinute: piece.endMinute,
                         duration: piece.duration,
+                        stepCount: piece.stepCount,
                         accent: piece.accent
                     )
                 )
@@ -566,10 +605,11 @@ struct DayTimelineView: View {
                 let midWin = (item.startWin + item.endWin) / 2
                 let rawY = CGFloat(totalMin - midWin) / total * height
                 return WalkVisualSegment(
-                    id: "\(item.startWin)-\(item.endWin)-\(item.startMinute)",
+                    id: "walk-\(item.segmentId)-\(item.splitTag)",  // 完全稳定，不随 now 变化
                     startMinute: item.startMinute,
                     endMinute: item.endMinute,
                     duration: item.duration,
+                    stepCount: item.stepCount,
                     yCenter: rawY,
                     accent: item.accent
                 )
@@ -585,15 +625,20 @@ struct DayTimelineView: View {
         let startWin = ((seg.startMinute - nowMinute) + totalMin) % totalMin
         let endWin = ((seg.endMinute - nowMinute) + totalMin) % totalMin
         let accent = seg.state.accent
+        let baseId = seg.id  // 原始 segment 的 id，稳定不变
+        let steps = seg.stepCount  // 传递原始步数
 
         if startWin <= endWin {
             return [
                 WalkWindowPiece(
+                    segmentId: baseId,
+                    splitTag: "single",
                     startWin: startWin,
                     endWin: endWin,
                     startMinute: seg.startMinute,
                     endMinute: seg.endMinute,
                     duration: max(0, endWin - startWin),
+                    stepCount: steps,
                     accent: accent
                 )
             ]
@@ -601,19 +646,25 @@ struct DayTimelineView: View {
 
         return [
             WalkWindowPiece(
+                segmentId: baseId,
+                splitTag: "upper",
                 startWin: 0,
                 endWin: endWin,
-                startMinute: nowMinute,
+                startMinute: seg.startMinute,  // 用原始值，不用 nowMinute
                 endMinute: seg.endMinute,
                 duration: max(0, endWin),
+                stepCount: steps,
                 accent: accent
             ),
             WalkWindowPiece(
+                segmentId: baseId,
+                splitTag: "lower",
                 startWin: startWin,
                 endWin: totalMin,
-                startMinute: seg.startMinute,
-                endMinute: nowMinute,
+                startMinute: seg.startMinute,  // 用原始值，不用 nowMinute
+                endMinute: seg.endMinute,
                 duration: max(0, totalMin - startWin),
+                stepCount: steps,
                 accent: accent
             )
         ]
