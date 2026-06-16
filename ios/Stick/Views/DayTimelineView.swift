@@ -8,12 +8,15 @@ import SwiftUI
 ///  - 状态名卡片右上角 "NOW" 区域也可点击 → 回现在
 struct DayTimelineView: View, Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool {
-        // 只在分钟边界、拖动状态变化时才重绘，避免每秒 Date 抖动导致乱跳
-        let minuteEqual = StickState.minutesOfDay(lhs.now) == StickState.minutesOfDay(rhs.now)
+        // schedule 结构和内容稳定时视为相等；stepCount 不参与比较（步数实时变化不触发重绘）
+        // 这样 24h 轴的视觉位置完全稳定，不会因 stepCount 抖动导致跳变
+        let lhsSigs = lhs.schedule.map { "\($0.startMinute)-\($0.endMinute)-\($0.state)" }
+        let rhsSigs = rhs.schedule.map { "\($0.startMinute)-\($0.endMinute)-\($0.state)" }
+        let scheduleEqual = lhsSigs == rhsSigs
         let scrubEqual = lhs.scrubOffset == rhs.scrubOffset
         let manualEqual = lhs.manualStateOverride == rhs.manualStateOverride
-        let scheduleEqual = lhs.schedule.map(\.id) == rhs.schedule.map(\.id)
-        return minuteEqual && scrubEqual && manualEqual && scheduleEqual
+        let showDeviceEqual = lhs.showDevicePicker == rhs.showDevicePicker
+        return scheduleEqual && scrubEqual && manualEqual && showDeviceEqual
     }
     let schedule: [StickState.DaySegment]
     let now: Date
