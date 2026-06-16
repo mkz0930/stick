@@ -673,7 +673,9 @@ struct ContentView: View {
                 mood: walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
                 durationMinutes: primaryDurationMinutes,
                 subLine: realSubLine,
-                updatedAt: Date()
+                updatedAt: Date(),
+                currentSedentarySeconds: currentSitMinutes * 60,
+                sedentaryStartTime: currentSitStartTime
             )
             SharedStateStore.write(snap)
             // 通知 WidgetKit 立刻刷新 widget timeline（不等到 5min 后）

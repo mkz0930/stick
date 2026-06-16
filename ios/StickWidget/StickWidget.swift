@@ -13,6 +13,7 @@ import SwiftUI
 struct StickWidgetBundle: WidgetBundle {
     var body: some Widget {
         StickRiskAlertWidget()              // 2x2  · 久坐血小板沉积风险告警
+        SedentaryTimerLiveActivity()        // Live Activity · 久坐秒表
     }
 }
 

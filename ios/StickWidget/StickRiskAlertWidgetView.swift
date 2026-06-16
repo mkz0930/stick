@@ -10,19 +10,38 @@ struct StickRiskAlertEntry: TimelineEntry {
     let date: Date
     let sitDurationMinutes: Int
     let heartRate: Int
+    let elapsedSeconds: Int
+    let startTime: Date?
 }
 
 struct RiskAlertProvider: TimelineProvider {
     func placeholder(in context: Context) -> StickRiskAlertEntry {
-        StickRiskAlertEntry(date: Date(), sitDurationMinutes: 90, heartRate: 75)
+        StickRiskAlertEntry(date: Date(), sitDurationMinutes: 90, heartRate: 75, elapsedSeconds: 5420, startTime: Date().addingTimeInterval(-5420))
     }
     func getSnapshot(in context: Context, completion: @escaping (StickRiskAlertEntry) -> Void) {
-        completion(StickRiskAlertEntry(date: Date(), sitDurationMinutes: 90, heartRate: 75))
+        let shared = SharedStateStore.read()
+        let minutes = shared.currentSedentarySeconds / 60
+        completion(StickRiskAlertEntry(
+            date: Date(),
+            sitDurationMinutes: minutes,
+            heartRate: shared.heartRate,
+            elapsedSeconds: shared.currentSedentarySeconds,
+            startTime: shared.sedentaryStartTime
+        ))
     }
     func getTimeline(in context: Context, completion: @escaping (Timeline<StickRiskAlertEntry>) -> Void) {
         let now = Date()
-        let entry = StickRiskAlertEntry(date: now, sitDurationMinutes: 90, heartRate: 75)
-        completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(5 * 60))))
+        let shared = SharedStateStore.read()
+        let minutes = shared.currentSedentarySeconds / 60
+        let entry = StickRiskAlertEntry(
+            date: now,
+            sitDurationMinutes: minutes,
+            heartRate: shared.heartRate,
+            elapsedSeconds: shared.currentSedentarySeconds,
+            startTime: shared.sedentaryStartTime
+        )
+        // 每分钟刷新一次
+        completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(60))))
     }
 }
 
@@ -92,31 +111,57 @@ struct OpenChatIntent: AppIntent {
 struct StickRiskAlertWidgetView: View {
     let entry: StickRiskAlertEntry
 
+    /// 格式化开始时间：显示"从 HH:MM 开始"
+    private var startTimeText: String {
+        guard let start = entry.startTime else { return "" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return "从 \(formatter.string(from: start)) 开始"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            VesselCanvas(duration: entry.sitDurationMinutes)
-                .frame(height: 90)
+            // 顶部：火柴人坐着图标
+            Image(systemName: "figure.sitting")
+                .font(.system(size: 28, weight: .medium))
+                .foregroundColor(.orange)
+                .padding(.top, 8)
+
+            Spacer()
+
+            // 中间：大字体分钟数
+            VStack(spacing: 2) {
+                Text("\(entry.sitDurationMinutes) 分钟")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.15))
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            // 底部：开始时间
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("久坐 \(entry.sitDurationMinutes) 分钟")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.15))
+                    Text(startTimeText)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color(red: 0.50, green: 0.56, blue: 0.62))
                     Text("心率 \(entry.heartRate) bpm")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Color(red: 0.40, green: 0.40, blue: 0.40))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color(red: 0.50, green: 0.56, blue: 0.62))
                 }
                 Spacer()
                 Button(intent: OpenRiskAlertIntent(sitDurationMinutes: entry.sitDurationMinutes, heartRate: entry.heartRate)) {
                     Text("查看")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Color.red, in: RoundedRectangle(cornerRadius: 6))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.red, in: RoundedRectangle(cornerRadius: 5))
                 }
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.bottom, 10)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.white)
@@ -294,7 +339,13 @@ private struct VesselCanvas: View {
 
 struct StickRiskAlertWidgetView_Previews: PreviewProvider {
     static var previews: some View {
-        StickRiskAlertWidgetView(entry: StickRiskAlertEntry(date: .now, sitDurationMinutes: 90, heartRate: 75))
-            .previewContext(WidgetPreviewContext(family: .systemSmall))
+        StickRiskAlertWidgetView(entry: StickRiskAlertEntry(
+            date: .now,
+            sitDurationMinutes: 45,
+            heartRate: 75,
+            elapsedSeconds: 2700,
+            startTime: Date().addingTimeInterval(-2700)
+        ))
+        .previewContext(WidgetPreviewContext(family: .systemSmall))
     }
 }

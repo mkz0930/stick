@@ -23,6 +23,10 @@ struct SharedStickState: Codable, Equatable {
     var subLine: String
     /// 最后更新时间（用于 widget 显示 "X 分钟前更新"）
     var updatedAt: Date
+    /// 当前连续久坐秒数（Live Activity 和 Widget 共享）
+    var currentSedentarySeconds: Int
+    /// 久坐 session 开始时间
+    var sedentaryStartTime: Date?
 
     static let placeholder = SharedStickState(
         stateRaw: "walk",
@@ -32,7 +36,9 @@ struct SharedStickState: Codable, Equatable {
         mood: "良好",
         durationMinutes: 18,
         subLine: "步态稳定 · 心率 92 bpm",
-        updatedAt: Date()
+        updatedAt: Date(),
+        currentSedentarySeconds: 0,
+        sedentaryStartTime: nil
     )
 }
 
