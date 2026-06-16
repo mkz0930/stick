@@ -38,9 +38,12 @@ struct MorningReportDetailView: View {
                         walkItems
                     }
 
-                    // 恢复与心率
+                    // 恢复与心率（暂无 Apple Watch 数据）
                     analysisCard(title: "恢复与心率", icon: "heart.fill", color: .red) {
-                        recoveryItems
+                        Text("心率数据需 Apple Watch")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .padding(.vertical, 6)
                     }
 
                     // AI 总结
