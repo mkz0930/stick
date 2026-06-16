@@ -264,6 +264,30 @@ final class HealthKitService: ObservableObject {
 
     func startAutoCapture(interval: TimeInterval = 60) {
         stopAutoCapture()
+
+        // 模拟器且无数据时，生成 mock 快照（模拟用户45分钟前走路，现在坐着）
+        if HealthStore.shared.today.isEmpty {
+            let mockWalkTime = Date().addingTimeInterval(-45 * 60)
+            let mockSnapshot = HealthSnapshot(
+                timestamp: mockWalkTime,
+                heartRate: 72,
+                cumulativeStepCount: 1000,
+                incrementalStepCount: 50,
+                activeEnergy: 50,
+                bodyState: "walk",
+                heartRateVariability: 30,
+                restingHeartRate: 65,
+                standHours: nil,
+                exerciseMinutes: 5,
+                mindfulMinutes: nil,
+                respiratoryRate: 16,
+                distance: 800,
+                flightsClimbed: 2,
+                sourceName: "Mock Simulator"
+            )
+            HealthStore.shared.today.insert(mockSnapshot)
+        }
+
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             guard let self else { return }
             Task {
