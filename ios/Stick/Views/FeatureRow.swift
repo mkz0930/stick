@@ -84,11 +84,15 @@ struct FeatureRow: View {
         return Metric(label: m.label, value: realValue, status: m.status, statusKind: m.statusKind, desc: "睡眠时长", hint: "今日累计 \(realValue)", metricID: m.metricID)
     }
 
-    /// 状态的三项指标（walk 时 DURATION、sleep 时 SLEEP 使用真实值），去掉姿态（POSTURE）
+    /// 状态的三项指标（walk 时 DURATION、sleep 时 SLEEP 使用真实值），去掉姿态（POSTURE）。
+    /// walk 时再去掉心情（MOOD）—— 跟 StressLine（"压力值"）功能重叠（moodScore + stressScore = 100）。
     private var displayMetrics: [Metric] {
         let primary = state == .sleep ? realSleepPrimaryMetric : state.primaryMetric
         let tertiary = state == .walk ? realTertiaryMetric : state.tertiaryMetric
-        return [primary, state.secondaryMetric, tertiary].filter { $0.label != "POSTURE" }
+        let excluded: Set<String> = state == .walk
+            ? ["POSTURE", "MOOD"]
+            : ["POSTURE"]
+        return [primary, state.secondaryMetric, tertiary].filter { !excluded.contains($0.label) }
     }
 
     /// 3 个指标中"心率"那行（任意位置）
