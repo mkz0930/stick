@@ -44,6 +44,11 @@ struct MorningReport: Codable, Identifiable, Hashable {
     let heartRateZoneAnalysis: HeartRateZoneData? // 心率区间分布
     let recoveryScore: Int       // 恢复指数 0-100
 
+    // HealthKit 睡眠数据 (可选，向后兼容老报告)
+    let healthkitBedtime: Int?       // minute 0-1439, 昨日首次 inBed/asleep
+    let healthkitWakeUpMinute: Int?  // minute 0-1439, 今日最近 awake
+    let lastWalkBeforeBed: Int?      // minute 0-1439, 昨日入睡前最后一次 walk
+
     // 饮食数据
     let breakfastCalories: Int?
     let lunchCalories: Int?
@@ -84,6 +89,9 @@ struct MorningReport: Codable, Identifiable, Hashable {
         maxHeartRate: Int?,
         heartRateZoneAnalysis: HeartRateZoneData?,
         recoveryScore: Int,
+        healthkitBedtime: Int? = nil,
+        healthkitWakeUpMinute: Int? = nil,
+        lastWalkBeforeBed: Int? = nil,
         breakfastCalories: Int?,
         lunchCalories: Int?,
         dinnerCalories: Int?,
@@ -118,6 +126,9 @@ struct MorningReport: Codable, Identifiable, Hashable {
         self.maxHeartRate = maxHeartRate
         self.heartRateZoneAnalysis = heartRateZoneAnalysis
         self.recoveryScore = recoveryScore
+        self.healthkitBedtime = healthkitBedtime
+        self.healthkitWakeUpMinute = healthkitWakeUpMinute
+        self.lastWalkBeforeBed = lastWalkBeforeBed
         self.breakfastCalories = breakfastCalories
         self.lunchCalories = lunchCalories
         self.dinnerCalories = dinnerCalories
@@ -155,6 +166,9 @@ struct MorningReport: Codable, Identifiable, Hashable {
         maxHeartRate = try container.decodeIfPresent(Int.self, forKey: .maxHeartRate)
         heartRateZoneAnalysis = try container.decodeIfPresent(HeartRateZoneData.self, forKey: .heartRateZoneAnalysis)
         recoveryScore = try container.decode(Int.self, forKey: .recoveryScore)
+        healthkitBedtime = try container.decodeIfPresent(Int.self, forKey: .healthkitBedtime)
+        healthkitWakeUpMinute = try container.decodeIfPresent(Int.self, forKey: .healthkitWakeUpMinute)
+        lastWalkBeforeBed = try container.decodeIfPresent(Int.self, forKey: .lastWalkBeforeBed)
         breakfastCalories = try container.decodeIfPresent(Int.self, forKey: .breakfastCalories)
         lunchCalories = try container.decodeIfPresent(Int.self, forKey: .lunchCalories)
         dinnerCalories = try container.decodeIfPresent(Int.self, forKey: .dinnerCalories)

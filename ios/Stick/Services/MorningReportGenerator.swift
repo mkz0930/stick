@@ -52,45 +52,52 @@ final class MorningReportGenerator {
         let scorer = BodyStateScorer.shared
 
         // 1. 收集昨日数据
-        let snapshots = await hk.queryYesterdaySnapshots()
         let sleepMinutes = await hk.queryYesterdaySleepMinutes()
         let walkMinutes = await hk.queryYesterdayWalkMinutes()
         let sedentaryMinutes = await hk.queryYesterdaySedentaryMinutes()
         let steps = await hk.queryYesterdaySteps()
         let wakeUpMinute = await hk.queryYesterdayWakeUpMinute()
 
-        // 2. 夜间清醒检测
+        // 2. HealthKit 睡眠分析 (真实入睡/醒来/睡前行走的 ground truth)
+        let sleepResult = await hk.analyzeSleep(forYesterday: date)
+        let healthkitBedtimeMinute: Int? = sleepResult.bedtime.map { StickState.minutesOfDay($0) }
+        let healthkitWakeUpMinute: Int? = sleepResult.wakeTime.map { StickState.minutesOfDay($0) }
+        let lastWalkBeforeBedMinute: Int? = sleepResult.lastWalkTime.map { StickState.minutesOfDay($0) }
+
+        // 3. 夜间清醒检测 (耳机音量暴露辅助)
         let nightWakes = await hk.detectNightWakePeriods()
         let nightWakeCount = nightWakes.count
+        // 优先用 HealthKit 的 awake 段数 (更准确)，耳机检测仅作兜底
+        let effectiveAwakeCount = sleepResult.totalAsleepMinutes > 0 ? sleepResult.awakeCount : nightWakeCount
         let sleepQuality: String
-        switch nightWakeCount {
+        switch effectiveAwakeCount {
         case 0: sleepQuality = "连续"
         case 1: sleepQuality = "轻度中断"
         case 2: sleepQuality = "中断"
         default: sleepQuality = "碎片化"
         }
 
-        // 3. 步态评分
+        // 4. 步态评分
         let gaitScore = scorer.computeGaitScore(
             speed: await hk.todayWalkingSpeed(),
             doubleSupport: await hk.todayWalkingDoubleSupport(),
-            nightWakeCount: nightWakeCount
+            nightWakeCount: effectiveAwakeCount
         )
 
-        // 4. 心率数据分析（暂无 Apple Watch，数据均为 0/空）
+        // 5. 心率数据分析（暂无 Apple Watch，数据均为 0/空）
         // let avgHR = await hk.yesterdayAverageHeartRate()
         // let maxHR = await hk.yesterdayMaxHeartRate()
         // let hrv = await hk.yesterdayHRV()
         // let restingHR = await hk.yesterdayRestingHeartRate()
         // let hrZoneAnalysis = await hk.analyzeYesterdayHeartRateZones()
 
-        // 5. 恢复指数（依赖心率数据，暂无 Apple Watch）
+        // 6. 恢复指数（依赖心率数据，暂无 Apple Watch）
         // let recoveryScore = scorer.computeRecoveryScore(
         //     hrv: hrv,
         //     restingHR: restingHR
         // )
 
-        // 6. 饮食数据
+        // 7. 饮食数据
         let foodStore = FoodLogStore.shared
         let breakfastEntries = foodStore.entries(for: date).filter { $0.meal == .breakfast }
         let lunchEntries = foodStore.entries(for: date).filter { $0.meal == .lunch }
@@ -106,10 +113,24 @@ final class MorningReportGenerator {
         if !lunchEntries.isEmpty { mealCount += 1 }
         if !dinnerEntries.isEmpty { mealCount += 1 }
 
-        // 7. 组装用户 prompt
+        // 8. 组装用户 prompt
+        let sleepWindowLine: String
+        if let bed = healthkitBedtimeMinute, let wake = healthkitWakeUpMinute {
+            sleepWindowLine = "- 昨夜睡眠时段: \(minuteToTimeString(bed)) → \(minuteToTimeString(wake))"
+        } else {
+            sleepWindowLine = "- 昨夜睡眠时段: 无 HealthKit 数据"
+        }
+        let lastWalkLine: String
+        if let lastWalk = lastWalkBeforeBedMinute {
+            lastWalkLine = "- 入睡前最后步行: \(minuteToTimeString(lastWalk))"
+        } else {
+            lastWalkLine = "- 入睡前最后步行: 无数据"
+        }
         let userPrompt = """
 昨日数据：
-- 睡眠: \(sleepMinutes)分钟，夜间清醒 \(nightWakes.reduce(0) { $1.count })分钟，质量: \(sleepQuality)
+- 睡眠: \(sleepMinutes)分钟，夜间清醒 \(effectiveAwakeCount)次，质量: \(sleepQuality)
+\(sleepWindowLine)
+\(lastWalkLine)
 - 起床时间: \(minuteToTimeString(wakeUpMinute))
 - 步行: \(walkMinutes)分钟，步数 \(steps)步
 - 久坐: \(sedentaryMinutes)分钟
@@ -119,23 +140,11 @@ final class MorningReportGenerator {
 请生成健康报告。
 """
 
-        // 8. 调用 LLM
+        // 9. 调用 LLM
         let response = try await LLMService.sendMessage(userPrompt, context: systemPrompt)
         let llmData = parseLLMResponse(response)
 
-        // 9. 构建报告（心率数据暂无可用来源，传 nil/0）
-        // let hrZoneData: HeartRateZoneData? = hrZoneAnalysis.map {
-        //     HeartRateZoneData(
-        //         zone1Percent: $0.zone1Percent,
-        //         zone2Percent: $0.zone2Percent,
-        //         zone3Percent: $0.zone3Percent,
-        //         zone4Percent: $0.zone4Percent,
-        //         zone5Percent: $0.zone5Percent,
-        //         predominantZone: $0.predominantZone,
-        //         timeInHighIntensity: $0.timeInHighIntensity
-        //     )
-        // }
-
+        // 10. 构建报告（心率数据暂无可用来源，传 nil/0）
         return MorningReport(
             id: UUID(),
             date: Self.dateFormatter.string(from: date),
@@ -159,6 +168,9 @@ final class MorningReportGenerator {
             maxHeartRate: nil,
             heartRateZoneAnalysis: nil,
             recoveryScore: 0,
+            healthkitBedtime: healthkitBedtimeMinute,
+            healthkitWakeUpMinute: healthkitWakeUpMinute,
+            lastWalkBeforeBed: lastWalkBeforeBedMinute,
             breakfastCalories: breakfastEntries.isEmpty ? nil : breakfastCalories,
             lunchCalories: lunchEntries.isEmpty ? nil : lunchCalories,
             dinnerCalories: dinnerEntries.isEmpty ? nil : dinnerCalories,

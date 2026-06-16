@@ -1188,7 +1188,13 @@ extension HealthKitService {
     }
 
     /// 查询昨日睡眠总分钟数
+    /// 优先用 HealthKit sleepAnalysis 累加 asleep 段；无数据时回退到 body state 计数
     func queryYesterdaySleepMinutes() async -> Int {
+        let result = await analyzeSleep(forYesterday: Date())
+        if result.totalAsleepMinutes > 0 {
+            return result.totalAsleepMinutes
+        }
+        // fallback: body state 计数
         let snapshots = await queryYesterdaySnapshots()
         return snapshots.filter { $0.bodyState == "sleep" }.count
     }
@@ -1212,7 +1218,12 @@ extension HealthKitService {
     }
 
     /// 查询昨日起床时间（分钟，0-1439）
+    /// 优先用 HealthKit sleepAnalysis 的 awake 段；无数据时回退到 body state 首条 walk
     func queryYesterdayWakeUpMinute() async -> Int {
+        if let wakeMin = await todayWakeUpMinuteFromHealthKit() {
+            return wakeMin
+        }
+        // fallback: body state
         let snapshots = await queryYesterdaySnapshots()
         guard let first = snapshots.first(where: { $0.bodyState == "walk" }) else { return 0 }
         return StickState.minutesOfDay(first.timestamp)
@@ -1347,5 +1358,181 @@ extension HealthKitService {
         let calendar = Calendar.current
         let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
         return await recentAverage(.restingHeartRate, from: yesterday, unit: HKUnit.count().unitDivided(by: .minute()))
+    }
+}
+
+// MARK: - 睡眠分析 (HealthKit sleepAnalysis 原始数据)
+
+/// 单段睡眠样本
+struct SleepStageRecord: Codable, Hashable {
+    enum Stage: String, Codable {
+        case inBed   // 在床上 (尚未入睡)
+        case asleep  // 入睡 (兼容 asleepUnspecified / Core / Deep / REM)
+        case awake   // 床内清醒
+    }
+    let stage: Stage
+    let startDate: Date
+    let endDate: Date
+}
+
+/// 睡眠分析结果
+struct SleepAnalysisResult {
+    /// 入睡时刻 (昨日首次 inBed/asleep 起点)
+    let bedtime: Date?
+    /// 醒来的最近 awake 起点 (无 awake 时用最后一段 inBed/asleep 的 endDate)
+    let wakeTime: Date?
+    /// 昨日累计入睡分钟数 (排除 inBed / awake)
+    let totalAsleepMinutes: Int
+    /// 入睡前最后一次 walk 时刻 (来自 body state snapshots)
+    let lastWalkTime: Date?
+    /// 夜间清醒段数
+    let awakeCount: Int
+    /// 睡眠质量分级
+    let quality: String
+}
+
+extension HealthKitService {
+    /// 把 HKCategoryValueSleepAnalysis 数值映射到我们的 Stage
+    /// - value 0: .inBed (iOS 16+)
+    /// - value 1: .inBed
+    /// - value 2: .asleep (asleepUnspecified)
+    /// - value 3: .asleep (asleepCore) - iOS 16+
+    /// - value 4: .awake
+    /// - value 5: .asleep (asleepDeep) - iOS 16+
+    /// - value 6: .asleep (asleepREM) - iOS 16+
+    private nonisolated func mapSleepStage(_ rawValue: Int) -> SleepStageRecord.Stage? {
+        switch rawValue {
+        case 0, 1:
+            return .inBed
+        case 2, 3, 5, 6:
+            return .asleep
+        case 4:
+            return .awake
+        default:
+            return nil
+        }
+    }
+
+    /// 查询最近 N 天内所有 sleepAnalysis 样本
+    /// - Parameter daysBack: 从今天起回溯多少天 (含今天)
+    /// - Returns: 按 startDate 升序排列的样本
+    func querySleepAnalysis(daysBack: Int) async -> [SleepStageRecord] {
+        guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else { return [] }
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
+        guard let start = calendar.date(byAdding: .day, value: -max(daysBack, 1), to: startOfToday) else { return [] }
+        let end = Date()
+
+        return await withCheckedContinuation { (cont: CheckedContinuation<[SleepStageRecord], Never>) in
+            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+            let q = HKSampleQuery(
+                sampleType: sleepType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [sort]
+            ) { _, samples, _ in
+                let records: [SleepStageRecord] = (samples as? [HKCategorySample])?.compactMap { sample in
+                    guard let stage = self.mapSleepStage(sample.value) else { return nil }
+                    return SleepStageRecord(stage: stage, startDate: sample.startDate, endDate: sample.endDate)
+                } ?? []
+                cont.resume(returning: records)
+            }
+            store?.execute(q)
+        }
+    }
+
+    /// 分析昨日 (date 减一天) 的睡眠 + 今日早起数据
+    /// - Parameter date: 报告日期 (生成器传入 "今天" 的 date，函数内部取前一天作为 "昨日")
+    func analyzeSleep(forYesterday date: Date) async -> SleepAnalysisResult {
+        let calendar = Calendar.current
+        // 报告 date 视为 "今天"，昨日 = date - 1 天
+        let reportDayStart = calendar.startOfDay(for: date)
+        guard let yesterdayStart = calendar.date(byAdding: .day, value: -1, to: reportDayStart) else {
+            return SleepAnalysisResult(
+                bedtime: nil, wakeTime: nil, totalAsleepMinutes: 0,
+                lastWalkTime: nil, awakeCount: 0, quality: "连续"
+            )
+        }
+        // 睡眠窗口: 昨日 18:00 ~ 今日 12:00 (覆盖从晚 6 点到次日中午的所有可能睡眠段)
+        guard let windowStart = calendar.date(bySettingHour: 18, minute: 0, second: 0, of: yesterdayStart),
+              let windowEnd = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: reportDayStart)
+        else {
+            return SleepAnalysisResult(
+                bedtime: nil, wakeTime: nil, totalAsleepMinutes: 0,
+                lastWalkTime: nil, awakeCount: 0, quality: "连续"
+            )
+        }
+
+        // 1) 拉取最近 2 天样本，过滤到睡眠窗口
+        let allRecords = await querySleepAnalysis(daysBack: 2)
+        let windowRecords = allRecords.filter { rec in
+            rec.startDate >= windowStart && rec.startDate < windowEnd
+        }
+
+        // 2) bedtime = 窗口内最早的 inBed / asleep 起点
+        let bedCandidates = windowRecords.filter { $0.stage == .inBed || $0.stage == .asleep }
+        let bedtime = bedCandidates.min(by: { $0.startDate < $1.startDate })?.startDate
+
+        // 3) wakeTime: 优先取最后一段 awake 的 startDate；无 awake 时取最后一段 inBed/asleep 的 endDate
+        let awakeRecords = windowRecords.filter { $0.stage == .awake }
+        let wakeTime: Date? = {
+            if let lastAwake = awakeRecords.max(by: { $0.startDate < $1.startDate }) {
+                return lastAwake.startDate
+            }
+            if let lastBed = bedCandidates.max(by: { $0.endDate < $1.endDate }) {
+                return lastBed.endDate
+            }
+            return nil
+        }()
+
+        // 4) totalAsleepMinutes = 窗口内 asleep 段累计秒数 / 60
+        let totalSeconds = windowRecords
+            .filter { $0.stage == .asleep }
+            .reduce(0.0) { sum, rec in
+                sum + rec.endDate.timeIntervalSince(rec.startDate)
+            }
+        let totalAsleepMinutes = Int(totalSeconds / 60.0)
+
+        // 5) awakeCount = 窗口内 awake 段数
+        let awakeCount = awakeRecords.count
+
+        // 6) quality 按 awakeCount 分级
+        let quality: String
+        switch awakeCount {
+        case 0: quality = "连续"
+        case 1: quality = "轻度中断"
+        case 2: quality = "中断"
+        default: quality = "碎片化"
+        }
+
+        // 7) lastWalkTime: 来自 body state snapshots，取 bedtime 之前最后一次 walk
+        var lastWalkTime: Date? = nil
+        if let bedtime {
+            // 找 bedtime 之前的 walk snapshots
+            let all = HealthStore.shared.all
+            let walksBeforeBed = all.filter { $0.bodyState == "walk" && $0.timestamp < bedtime }
+            lastWalkTime = walksBeforeBed.max(by: { $0.timestamp < $1.timestamp })?.timestamp
+        }
+
+        return SleepAnalysisResult(
+            bedtime: bedtime,
+            wakeTime: wakeTime,
+            totalAsleepMinutes: totalAsleepMinutes,
+            lastWalkTime: lastWalkTime,
+            awakeCount: awakeCount,
+            quality: quality
+        )
+    }
+
+    /// 今日最早醒来的分钟 (0-1439)。优先用 HealthKit sleep awake stage，回退到 nil
+    func todayWakeUpMinuteFromHealthKit() async -> Int? {
+        let records = await querySleepAnalysis(daysBack: 2)
+        let calendar = Calendar.current
+        let todayStart = calendar.startOfDay(for: Date())
+        // 找今天范围内的 awake 段，取最早的 startDate
+        let todayAwake = records.filter { $0.stage == .awake && $0.startDate >= todayStart }
+        guard let firstAwake = todayAwake.min(by: { $0.startDate < $1.startDate }) else { return nil }
+        return StickState.minutesOfDay(firstAwake.startDate)
     }
 }
