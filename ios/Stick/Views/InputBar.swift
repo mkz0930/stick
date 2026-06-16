@@ -19,11 +19,11 @@ struct InputBar: View {
 
     /// 顶部 feature chips（横向滚动）
     private let features: [InputFeature] = [
-        InputFeature(icon: "cross.case.fill",    title: "AI 诊室",   seed: "AI 医生问诊"),
+        InputFeature(icon: "fork.knife",         title: "饮食建议",  seed: "推荐健康饮食方案"),
         InputFeature(icon: "doc.text.fill",      title: "报告解读",  seed: "解读我的健康报告"),
         InputFeature(icon: "camera.viewfinder",  title: "拍食物",    seed: "拍照分析我的饮食状态"),
         InputFeature(icon: "person.badge.plus",  title: "就医",      seed: "推荐合适的医院和科室"),
-        InputFeature(icon: "fork.knife",         title: "饮食建议",  seed: "推荐健康饮食方案"),
+        InputFeature(icon: "cross.case.fill",    title: "AI 诊室",   seed: "AI 医生问诊"),
     ]
 
     var body: some View {
