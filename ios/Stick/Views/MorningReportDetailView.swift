@@ -1,8 +1,13 @@
 // ios/Stick/Views/MorningReportDetailView.swift
 import SwiftUI
 
+extension Notification.Name {
+    static let openChatWithPhoto = Notification.Name("morningReport.openChatWithPhoto")
+}
+
 struct MorningReportDetailView: View {
     let report: MorningReport
+    @Environment(\.dismiss) private var dismiss
     @State private var adviceTab: Int = 0
     @State private var detailExpanded: Bool = false
 
@@ -54,6 +59,9 @@ struct MorningReportDetailView: View {
                     if detailExpanded {
                         detailContent
                     }
+
+                    // 底部操作按钮
+                    bottomActionButtons
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 100)
@@ -320,6 +328,53 @@ struct MorningReportDetailView: View {
             .font(.caption)
             .foregroundColor(.secondary)
             .padding(.top, 8)
+    }
+
+    // MARK: - 底部操作按钮
+
+    private var bottomActionButtons: some View {
+        VStack(spacing: 8) {
+            Divider()
+            HStack(spacing: 12) {
+                actionButton(
+                    icon: "camera.viewfinder",
+                    title: "拍食物",
+                    color: .pink,
+                    action: { postNotification(seed: "拍照分析我的饮食状态") }
+                )
+                actionButton(
+                    icon: "doc.text.fill",
+                    title: "报告解读",
+                    color: .blue,
+                    action: { postNotification(seed: "解读我的健康报告") }
+                )
+            }
+        }
+        .padding(.top, 8)
+    }
+
+    private func actionButton(icon: String, title: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+            }
+            .foregroundColor(color)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(color.opacity(0.1))
+            .cornerRadius(8)
+        }
+    }
+
+    private func postNotification(seed: String) {
+        dismiss()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            NotificationCenter.default.post(name: .openChatWithPhoto, object: seed)
+        }
     }
 
     // MARK: - Helpers

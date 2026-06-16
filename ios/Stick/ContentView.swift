@@ -234,6 +234,16 @@ struct ContentView: View {
         seed.hasPrefix("久坐风险提醒:")
     }
 
+    private var aiReport: AIAnalysisReport? { nil }
+
+    private func handleAlertTap(_ a: UnifiedAlert) {
+        if a.kind == .aiLive, a.aiReport != nil {
+            showAIReport = true
+        } else {
+            selectedAlert = a
+        }
+    }
+
     /// 上午 + 状态好 = 兴奋 UI。
     /// 上午 06:00–12:00 之内只有 .walk（07:00–08:30 通勤）是真正"好"的状态，
     /// 其余时段（睡 / 坐）状态不健康，不应触发兴奋装饰。
@@ -246,6 +256,32 @@ struct ContentView: View {
     private var isMorningCalm: Bool {
         let m = StickState.minutesOfDay(displayDate)
         return displayState == .sit && m >= 510 && m < 720
+    }
+
+    private var displayMoodLine: MoodLineInfo? {
+        switch displayState {
+        case .sleep:
+            return nil
+        case .stand:
+            return MoodLineInfo(text: "待机", tone: .calm, spark: .stable)
+        case .walk:
+            if isMorningEnergetic {
+                return MoodLineInfo(text: "兴奋", tone: .excited, spark: .excited)
+            }
+            let m = StickState.minutesOfDay(displayDate)
+            if m >= 720 && m < 810 {
+                return MoodLineInfo(text: "轻松", tone: .good, spark: .relaxed)
+            }
+            if m >= 1080 {
+                return MoodLineInfo(text: "愉悦", tone: .good, spark: .evening)
+            }
+            return MoodLineInfo(text: "良好", tone: .good, spark: .good)
+        case .sit:
+            if isMorningCalm {
+                return MoodLineInfo(text: "专注", tone: .calm, spark: .focused)
+            }
+            return MoodLineInfo(text: "平稳", tone: .good, spark: .stable)
+        }
     }
 
     /// 给当前展示状态派生火柴人心情覆盖。
@@ -394,6 +430,13 @@ struct ContentView: View {
         case .sit:   return 78
         case .sleep: return 56
         }
+    }
+
+    private var unifiedAlerts: [UnifiedAlert] {
+        AlertAggregator.aggregate(
+            snapshots: HealthStore.shared.today,
+            aiReport: aiReport
+        )
     }
 
     /// 今日累计步数：取最后一条 snapshot 的 cumulativeStepCount（全天累计值）。
@@ -724,6 +767,14 @@ struct ContentView: View {
             SleepReportView(onClose: { showSleepReport = false })
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openChatWithPhoto)) { note in
+            if let seed = note.object as? String {
+                chatSeed = seed
+                chatKey += 1
+                chatPendingPhoto = true
+                showChat = true
+            }
         }
         .onAppear {
             // Preview 模式完全短路 — 不跑 HealthKit / Timer / refresh
