@@ -486,40 +486,39 @@ final class HealthKitService: ObservableObject {
                     return
                 }
                 var sedentaryCount = 0
-                var lastActiveTime: Date? = nil   // 上一次有步数的时间
-                let maxGapSeconds: TimeInterval = 4 * 3600   // 4 小时
-                var walkingCooldown = 0
-                let walkGraceMinutes = 3
+                var lastActiveTime: Date? = nil
+                let maxGapSeconds: TimeInterval = 4 * 3600
 
-                results.enumerateStatistics(from: startOfDay, to: now) { statistics, _ in
-                    let steps = statistics.sumQuantity()?.doubleValue(for: HKUnit.count()) ?? 0
-                    let bucketStart = statistics.startDate
+                // Pass 1: 收集所有分钟 bucket
+                var buckets: [(Date, Double)] = []
+                results.enumerateStatistics(from: startOfDay, to: now) { stat, _ in
+                    let s = stat.sumQuantity()?.doubleValue(for: HKUnit.count()) ?? 0
+                    buckets.append((stat.startDate, s))
+                }
+                buckets.sort { $0.0 < $1.0 }
 
-                    // 起床前全部算睡眠，不计久坐
-                    if let wakeUp = wakeUpTime, bucketStart < wakeUp {
-                        return
+                // Pass 2: 根据步数反推步行时间，往前标记活动分钟
+                // 每条步数样本代表之前 ~步数/100 分钟的步行
+                var activeMinutes = Set<Date>()
+                for (ts, steps) in buckets {
+                    guard steps > 0 else { continue }
+                    let walkMinutes = max(1, min(30, Int(steps / 100.0) + 1))
+                    for i in 0..<walkMinutes {
+                        let t = ts.addingTimeInterval(-Double(i) * 60)
+                        if t >= startOfDay && t <= now { activeMinutes.insert(t) }
                     }
-                    // 午休时间不计久坐
-                    if let nap = lunchNap, bucketStart >= nap.lowerBound && bucketStart < nap.upperBound {
-                        return
-                    }
+                }
 
-                    if steps == 0 {
-                        // 距离上次活动 >4h → 整段跳过（可能在睡眠/没带手机）
-                        if let last = lastActiveTime, bucketStart.timeIntervalSince(last) > maxGapSeconds {
-                            return
-                        }
-                        // 步行宽限期：步数后 3 分钟内算步行/过渡期，不计久坐
-                        if walkingCooldown > 0 {
-                            walkingCooldown -= 1
-                            return
-                        }
-                        sedentaryCount += 1
-                    } else {
-                        // 有步数 → 标记为活动 + 开启步行宽限期
-                        lastActiveTime = bucketStart
-                        walkingCooldown = walkGraceMinutes
+                // Pass 3: 统计久坐（非步行、非睡眠、非午休的分钟）
+                for (ts, _) in buckets {
+                    if let wakeUp = wakeUpTime, ts < wakeUp { continue }
+                    if let nap = lunchNap, ts >= nap.lowerBound && ts < nap.upperBound { continue }
+                    if activeMinutes.contains(ts) {
+                        lastActiveTime = ts
+                        continue
                     }
+                    if let last = lastActiveTime, ts.timeIntervalSince(last) > maxGapSeconds { continue }
+                    sedentaryCount += 1
                 }
                 cont.resume(returning: sedentaryCount)
             }
