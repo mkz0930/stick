@@ -228,9 +228,13 @@ struct ChatOverlay: View {
         }
         .onChange(of: capturedImage) { _, newImage in
             if let image = newImage, let data = image.jpegData(compressionQuality: 0.7) {
-                // 优先用拍照前用户已输入的文本，没有则用默认消息
-                let textToSend = textBeforeCamera.trimmingCharacters(in: .whitespacesAndNewlines)
-                    .isEmpty ? "请分析这张图片中的健康相关内容" : textBeforeCamera
+                // 优先用 chip 预填或用户已输入的文本，没有则用默认消息
+                let currentText = input.trimmingCharacters(in: .whitespacesAndNewlines)
+                let textToSend = currentText.isEmpty
+                    ? (textBeforeCamera.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        ? "请分析这张图片中的健康相关内容"
+                        : textBeforeCamera)
+                    : currentText
                 input = textToSend
                 send(imageData: data)
                 textBeforeCamera = ""
@@ -621,6 +625,9 @@ struct ChatOverlay: View {
         InputFeature(icon: "fork.knife",         title: "饮食建议",  seed: "推荐健康饮食方案"),
     ]
 
+    /// 需要"打开相机后文字+图片一起发送"的 chip（只这两个走相机，其他都是视觉提示）
+    private let cameraChips: Set<String> = ["报告解读", "拍食物"]
+
     private var inputBar: some View {
         VStack(alignment: .leading, spacing: 12) {
             // 1. 顶部 feature chips (横向滚动)
@@ -628,14 +635,13 @@ struct ChatOverlay: View {
                 HStack(spacing: 8) {
                     ForEach(features) { f in
                         Button {
-                            if f.title == "报告解读" {
-                                // 报告解读：保留当前输入 + 打开相机，拍照后一起发送
+                            if cameraChips.contains(f.title) {
+                                // 拍食物 / 报告解读：保留当前输入 + 预填 chip 文案 + 打开相机
                                 textBeforeCamera = input
-                                showCamera = true
-                            } else {
                                 input = f.seed
-                                send()
+                                showCamera = true
                             }
+                            // 其他 chip：不发不填，纯视觉提示（点击不响应）
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: f.icon)
