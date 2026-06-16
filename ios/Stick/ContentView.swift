@@ -82,11 +82,12 @@ struct ContentView: View {
     @State private var manualStateOverride: StickState? = nil
     @State private var showFilm: Bool = false
     @State private var showSleepReport: Bool = false
-    @State private var showSedentaryDetail: Bool = false
     @State private var showPersonal: Bool = false
     @State private var openDataRecord: Bool = false
     @State private var openWidgetPreview: Bool = false
     @State private var showDevicePicker: Bool = false
+    @State private var showSedentaryDetail: Bool = false
+    @State private var featureRowExpanded: Bool = false
     @State private var showAIReport: Bool = false
     @State private var selectedAlert: UnifiedAlert? = nil
     @State private var deviceSet: Set<DeviceID> = [.iPhone]
@@ -94,8 +95,6 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase: ScenePhase
     /// 上次切到后台的时间（用于黑屏期间久坐反推）
     @State private var backgroundedAt: Date? = nil
-    /// FeatureRow 展开态（提升到 ContentView，让 StageHeroView 也能读到 — 控制小人淡出）
-    @State private var featureRowExpanded: Bool = false
     /// 订阅 HealthStore：30s 一次 captureSnapshot() 会把 HealthSnapshot 写到 .today，
     /// 触发本视图重渲 → todaySteps computed property 重新求和，FeatureRow StepsLine 实时刷新。
     @ObservedObject private var healthStore: HealthStore = HealthStore.shared
@@ -256,33 +255,6 @@ struct ContentView: View {
         return .normal
     }
 
-    /// 白天心情监测：当前 mood 文本 + 色调。sleep 时返回 nil（行隐藏）。
-    private var displayMoodLine: MoodLineInfo? {
-        switch displayState {
-        case .sleep:
-            return nil
-        case .stand:
-            return MoodLineInfo(text: "待机", tone: .calm, spark: .stable)
-        case .walk:
-            if isMorningEnergetic {
-                return MoodLineInfo(text: "兴奋", tone: .excited, spark: .excited)
-            }
-            let m = StickState.minutesOfDay(displayDate)
-            if m >= 720 && m < 810 {
-                return MoodLineInfo(text: "轻松", tone: .good, spark: .relaxed)
-            }
-            if m >= 1080 {
-                return MoodLineInfo(text: "愉悦", tone: .good, spark: .evening)
-            }
-            return MoodLineInfo(text: "良好", tone: .good, spark: .good)
-        case .sit:
-            if isMorningCalm {
-                return MoodLineInfo(text: "专注", tone: .calm, spark: .focused)
-            }
-            return MoodLineInfo(text: "平稳", tone: .good, spark: .stable)
-        }
-    }
-
     /// 身体能量 0..100。综合真实步态评分 + 状态：
     ///   - walk + gaitScore ≥ 80: 80-95 (步态好 → 能量高)
     ///   - walk + gaitScore < 80: 65-79
@@ -424,23 +396,6 @@ struct ContentView: View {
         }
     }
 
-    /// 实时风险分析：仅在「晚间走路 + HR > 115」时返回报告
-    private var aiReport: AIAnalysisReport? {
-        AIRiskAnalyzer.analyze(
-            state: displayState,
-            heartRate: currentHeartRate,
-            at: displayDate
-        )
-    }
-
-    /// 今日所有异常（AI 实时 + HealthAnalyzer 历史 + 参考睡眠异常）
-    private var unifiedAlerts: [UnifiedAlert] {
-        AlertAggregator.aggregate(
-            snapshots: HealthStore.shared.today,
-            aiReport: aiReport
-        )
-    }
-
     /// 今日累计步数：取最后一条 snapshot 的 cumulativeStepCount（全天累计值）。
     /// 每条 snapshot 的 cumulativeStepCount = recentSum(dayStart→now)，是全天累计而非增量，
     /// 所以取最新一条即为今日总步数，无需 sum。
@@ -451,15 +406,6 @@ struct ContentView: View {
     /// 今日行走分钟数：bodyState == "walk" 的快照数
     private var todayWalkMinutes: Int {
         healthStore.today.filter { $0.bodyState == "walk" }.count
-    }
-
-    /// 点击异常行：AI 实时报告 → AIAnalysisView；其他 → AlertDetailView
-    private func handleAlertTap(_ a: UnifiedAlert) {
-        if a.kind == .aiLive, a.aiReport != nil {
-            showAIReport = true
-        } else {
-            selectedAlert = a
-        }
     }
 
     /// Preview 模式检测 — Xcode 跑 #Preview 时设了这个环境变量
@@ -582,11 +528,16 @@ struct ContentView: View {
                     }
             )
         }
-        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { nowVal in
             // Preview 模式跳过 — 不让 Timer 反复触发重渲染
             guard !Self.isRunningForPreviews else { return }
-            // 1s 校准一次（让坐姿秒表 / DURATION 等 live 数据每秒跳一次）
-            now = Date()
+            // 更新 now（每秒都在变，但 DayTimelineView 用 Equatable 只在分钟边界触发重绘）
+            let oldMin = StickState.minutesOfDay(now)
+            let newMin = StickState.minutesOfDay(nowVal)
+            // 分钟边界、或刚启动时（now 与 nowVal 相差 >60s）才写 now，大幅减少 ContentView body 重绘
+            if oldMin != newMin || nowVal.timeIntervalSince(now) > 60 {
+                now = nowVal
+            }
             // 每 30 秒基于真实快照重新分析连续久坐时长
             if Date().timeIntervalSince(lastSitAnalysisTime) >= 30 {
                 lastSitAnalysisTime = Date()
@@ -769,20 +720,6 @@ struct ContentView: View {
                 .presentationBackground(Color.black)
         }
         // Chat 改到外层 ZStack（贴底）
-        .sheet(isPresented: $showAIReport) {
-            if let r = aiReport {
-                AIAnalysisView(report: r, onClose: { showAIReport = false })
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-            }
-        }
-        .sheet(item: $selectedAlert) { a in
-            alertDetailView(for: a)
-                .presentationDetents([.medium, .large])        // 弹到底 + 拖到中间
-                .presentationDragIndicator(.visible)            // 顶部小横条
-                .presentationBackgroundInteraction(.enabled(upThrough: .medium))  // 半屏时点外部能交互主页
-                .presentationCornerRadius(28)                  // 顶部圆角
-        }
         .sheet(isPresented: $showSleepReport) {
             SleepReportView(onClose: { showSleepReport = false })
                 .presentationDetents([.large])
@@ -926,8 +863,6 @@ struct ContentView: View {
                             onSleepAlert: { showSleepReport = true },
                             subLine: realSubLine
                         )
-                        .opacity(featureRowExpanded ? 0.04 : 1.0)
-                        .animation(.easeInOut(duration: 0.28), value: featureRowExpanded)
                         .frame(maxWidth: .infinity)
                         .frame(height: 400)
 
@@ -1050,14 +985,6 @@ struct ContentView: View {
         comps.hour = minutes / 60
         comps.minute = minutes % 60
         return c.date(from: comps) ?? Date()
-    }
-
-    /// 通用异常详情 sheet — 历史洞察（睡眠不足 / 久坐 / 步数等）使用
-    @ViewBuilder
-    private func alertDetailView(for a: UnifiedAlert) -> some View {
-        AlertDetailView(alert: a) { selectedAlert = nil }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
     }
 }
 

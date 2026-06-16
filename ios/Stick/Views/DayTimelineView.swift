@@ -6,7 +6,15 @@ import SwiftUI
 ///  - 状态色 thumb 可拖，0 = 右端（现在），1440 = 左端（24h 前）
 ///  - 拖离现在后右下出现"回到现在"按钮（spring 弹回）
 ///  - 状态名卡片右上角 "NOW" 区域也可点击 → 回现在
-struct DayTimelineView: View {
+struct DayTimelineView: View, Equatable {
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        // 只在分钟边界、拖动状态变化时才重绘，避免每秒 Date 抖动导致乱跳
+        let minuteEqual = StickState.minutesOfDay(lhs.now) == StickState.minutesOfDay(rhs.now)
+        let scrubEqual = lhs.scrubOffset == rhs.scrubOffset
+        let manualEqual = lhs.manualStateOverride == rhs.manualStateOverride
+        let scheduleEqual = lhs.schedule.map(\.id) == rhs.schedule.map(\.id)
+        return minuteEqual && scrubEqual && manualEqual && scheduleEqual
+    }
     let schedule: [StickState.DaySegment]
     let now: Date
     @Binding var scrubOffset: Int?         // 0 = 现在；>0 表示过去多少分钟
@@ -78,11 +86,14 @@ struct DayTimelineView: View {
 
     // MARK: - 派生
 
-    private var nowMinute: Int {
-        // 拖动时冻结 now，避免坐标跳变
+    /// 稳定的当前分钟（只在分钟边界变化，每秒 Date 变化不影响）
+    /// 同时拖动时完全冻结
+    private var stableNowMinute: Int {
         if let frozen = frozenNowMinute { return frozen }
+        // 只取分钟级，忽略秒的抖动
         return StickState.minutesOfDay(now)
     }
+
 
     private var isScrubbing: Bool {
         guard let s = scrubOffset else { return false }
@@ -443,8 +454,8 @@ struct DayTimelineView: View {
     @ViewBuilder
     private func rotatedSegment(_ seg: StickState.DaySegment, in height: CGFloat) -> some View {
         let totalMin = Int(dayMinutes)
-        let startWin = ((seg.startMinute - nowMinute) + totalMin) % totalMin
-        let endWin   = ((seg.endMinute   - nowMinute) + totalMin) % totalMin
+        let startWin = ((seg.startMinute - stableNowMinute) + totalMin) % totalMin
+        let endWin   = ((seg.endMinute   - stableNowMinute) + totalMin) % totalMin
         let thumbWin = totalMin - displayOffset
         let total = CGFloat(totalMin)
         let accent = seg.state.accent
@@ -622,8 +633,8 @@ struct DayTimelineView: View {
 
     /// 将一天内的 walk segment 映射到过去 24h 的窗口坐标，跨 now 边界时拆成上下两段。
     private func walkWindowPieces(for seg: StickState.DaySegment, totalMin: Int) -> [WalkWindowPiece] {
-        let startWin = ((seg.startMinute - nowMinute) + totalMin) % totalMin
-        let endWin = ((seg.endMinute - nowMinute) + totalMin) % totalMin
+        let startWin = ((seg.startMinute - stableNowMinute) + totalMin) % totalMin
+        let endWin = ((seg.endMinute - stableNowMinute) + totalMin) % totalMin
         let accent = seg.state.accent
         let baseId = seg.id  // 原始 segment 的 id，稳定不变
         let steps = seg.stepCount  // 传递原始步数
