@@ -552,16 +552,6 @@ struct DataRecordView: View {
                     .background(RoundedRectangle(cornerRadius: 12).fill(Theme.card).overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.border, lineWidth: 1)))
                 }
 
-                // 久坐记录 (单卡)
-                DashboardCard(
-                    icon: "figure.seated.side",
-                    iconColor: Color(red: 0.92, green: 0.55, blue: 0.20),
-                    title: "久坐记录",
-                    sub: "今日累计",
-                    value: "\(vm.sitMinutes)",
-                    valueUnit: "分钟"
-                )
-
                 // 心情记录 (单卡)
                 DashboardCard(
                     icon: "face.smiling",
