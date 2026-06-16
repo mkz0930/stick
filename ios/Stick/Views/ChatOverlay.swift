@@ -868,6 +868,7 @@ struct ChatOverlay: View {
                     - 不引用联网信息
                     - 不重复用户的原话
                     - 不要说"根据数据"等套话
+                    - 严禁出现"设闹钟/设置提醒/定时通知/下载app/买手环/加群/挂号"——本 app 没这些功能
                     """,
                     context: ctx
                 )
@@ -954,12 +955,13 @@ struct ChatOverlay: View {
             }
             if Task.isCancelled { return }
 
-            // 解析食物记录并存储；同时从所有 assistant 消息里剥掉 [FOOD] 行
+            // 解析食物记录并存储；同时从所有 assistant 消息里剥掉 [FOOD] 行 + 兜底过滤禁用功能
             await MainActor.run {
                 for i in messages.indices {
                     if messages[i].role == .assistant {
                         parseAndStoreFoodEntry(from: messages[i].content)
                         messages[i].content = stripFoodLine(messages[i].content)
+                        messages[i].content = stripUnavailableFeatureLines(messages[i].content)
                     }
                 }
             }
@@ -1007,6 +1009,20 @@ struct ChatOverlay: View {
         guard let regex = try? NSRegularExpression(pattern: "\\n?\\[FOOD\\][^\\n]*") else { return text }
         let range = NSRange(text.startIndex..., in: text)
         return regex.stringByReplacingMatches(in: text, range: range, withTemplate: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// 兜底过滤：剥掉含\"提醒/闹钟/定时/下载/手环/加群\"的整行/整句
+    /// 防止 LLM 偶尔还是瞎建议（本 app 没这些功能）
+    private func stripUnavailableFeatureLines(_ text: String) -> String {
+        // 触发词列表：扩展性强
+        let bannedTokens = ["提醒", "闹钟", "定时", "下载", "手环", "加群", "挂号", "公众号"]
+        let lines = text.components(separatedBy: "\n")
+        let kept = lines.filter { line in
+            // 整行含任意触发词则过滤
+            !bannedTokens.contains { line.contains($0) }
+        }
+        return kept.joined(separator: "\n")
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
