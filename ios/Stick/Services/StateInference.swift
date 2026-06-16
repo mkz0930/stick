@@ -31,8 +31,9 @@ struct StateInference {
             return Result(state: .sit, confidence: 0.3, reasons: ["无数据"])
         }
 
-        // 1) 步数 (最近 5 分钟总和)
-        let recentSteps = recent.compactMap { $0.stepCount }.reduce(0, +)
+        // 1) 步数 (最近 5 分钟总和 = 5 个 incrementalStepCount 之和)
+        // 旧版 bug: 把 5 个 cumulativeStepCount 求和 → 5x 膨胀（每条都是今日累计）
+        let recentSteps = recent.reduce(0) { $0 + $1.incrementalStepCount }
         // 2) 当前心率
         let currentHR = recent.last?.heartRate
         // 3) HRV

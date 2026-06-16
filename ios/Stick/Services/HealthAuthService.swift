@@ -103,7 +103,7 @@ final class HealthAuthService: ObservableObject {
         let snapshots = HealthStore.shared.today.filter { $0.timestamp >= cutoff }
         guard !snapshots.isEmpty else { return false }
         switch metric {
-        case .steps:           return snapshots.contains { $0.stepCount != nil }
+        case .steps:           return snapshots.contains { $0.cumulativeStepCount != nil }
         case .distance:        return snapshots.contains { $0.distance != nil }
         case .activeEnergy:    return snapshots.contains { $0.activeEnergy != nil }
         case .standHours:      return snapshots.contains { $0.standHours != nil }

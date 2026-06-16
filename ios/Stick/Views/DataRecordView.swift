@@ -84,7 +84,7 @@ final class DataRecordViewModel: ObservableObject {
     }
 
     var totalSteps: Int {
-        today.last?.stepCount ?? 0
+        today.last?.cumulativeStepCount ?? 0
     }
 
     var totalEnergy: Int {
@@ -391,7 +391,8 @@ struct DataRecordView: View {
     private func buildInsightContext() -> String {
         let snaps = vm.today
         var sit = 0, walk = 0, sleep = 0, stand = 0
-        var steps = snaps.reduce(0) { $0 + ($1.stepCount ?? 0) }
+        // 今日步数: 取最后一条 snapshot 的 cumulativeStepCount (已是全天累计)
+        var steps = snaps.last?.cumulativeStepCount ?? 0
         var hrSum = 0.0, hrCount = 0
         var energy = 0.0
         for s in snaps {

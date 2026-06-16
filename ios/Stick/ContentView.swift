@@ -318,11 +318,11 @@ struct ContentView: View {
         )
     }
 
-    /// 今日累计步数：取最后一条 snapshot 的 stepCount（全天累计值）。
-    /// 每条 snapshot 的 stepCount = recentSum(dayStart→now)，是全天累计而非增量，
+    /// 今日累计步数：取最后一条 snapshot 的 cumulativeStepCount（全天累计值）。
+    /// 每条 snapshot 的 cumulativeStepCount = recentSum(dayStart→now)，是全天累计而非增量，
     /// 所以取最新一条即为今日总步数，无需 sum。
     private var todaySteps: Int {
-        healthStore.today.last?.stepCount ?? 0
+        healthStore.today.last?.cumulativeStepCount ?? 0
     }
 
     /// 点击异常行：AI 实时报告 → AIAnalysisView；其他 → AlertDetailView
