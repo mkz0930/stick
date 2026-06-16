@@ -622,8 +622,9 @@ struct ContentView: View {
                     if newMinutes == 0 {
                         currentSitStartTime = nil
                     }
-                    // 新增：定期写入 SharedState
-                    if displayState == .sit {
+                    // 定期写入 SharedState（同步到 Widget）
+                    if displayState == .sit && newMinutes > 0 {
+                        let startTime = Date().addingTimeInterval(-Double(newMinutes) * 60)
                         let snap = SharedStickState(
                             stateRaw: displayState.rawValue,
                             englishName: displayState.englishName,
@@ -633,8 +634,8 @@ struct ContentView: View {
                             durationMinutes: primaryDurationMinutes,
                             subLine: realSubLine,
                             updatedAt: Date(),
-                            currentSedentarySeconds: currentSitMinutes * 60,
-                            sedentaryStartTime: currentSitStartTime
+                            currentSedentarySeconds: newMinutes * 60,
+                            sedentaryStartTime: startTime
                         )
                         SharedStateStore.write(snap)
                     }
