@@ -764,7 +764,8 @@ struct ChatOverlay: View {
                 .onSubmit { send() }
 
             Button {
-                // TODO: 扩展功能（暂时 noop）
+                textBeforeCamera = input
+                showPhotoLibrary = true
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 18, weight: .semibold))
