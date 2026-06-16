@@ -50,6 +50,15 @@
 		B29900000000000000000A17 /* DailyStepsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A17 /* DailyStepsStore.swift */; };
 		B299000000000000000000A18 /* BodyMetricsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A18 /* BodyMetricsStore.swift */; };
 		B299000000000000000000A19 /* FoodLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A19 /* FoodLogStore.swift */; };
+		B299000000000000000000A1C /* Models/MorningReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = F299000000000000000000A1C /* MorningReport.swift */; };
+		B299000000000000000000A1D /* Services/MorningReportStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F299000000000000000000A1D /* MorningReportStore.swift */; };
+		B299000000000000000000A1E /* Services/BodyStateScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F299000000000000000000A1E /* BodyStateScorer.swift */; };
+		B299000000000000000000A1F /* Services/MorningReportGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F299000000000000000000A1F /* MorningReportGenerator.swift */; };
+		B299000000000000000000A20 /* Services/MorningReportTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F299000000000000000000A20 /* MorningReportTrigger.swift */; };
+		B299000000000000000000A21 /* Services/NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F299000000000000000000A21 /* NotificationService.swift */; };
+		B10000000000000000000027 /* Views/MorningReportTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000027 /* MorningReportTab.swift */; };
+		B10000000000000000000028 /* Views/MorningReportDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000028 /* MorningReportDetailView.swift */; };
+		B10000000000000000000029 /* Views/TrendDataPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000029 /* TrendDataPage.swift */; };
 		B40000000000000000000001 /* StickWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000001 /* StickWidget.swift */; };
 		B40000000000000000000010 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
 		B40000000000000000000011 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000010 /* SharedState.swift */; };
@@ -132,6 +141,15 @@
 		F29900000000000000000A17 /* DailyStepsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyStepsStore.swift; sourceTree = "<group>"; };
 		F29900000000000000000A18 /* BodyMetricsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyMetricsStore.swift; sourceTree = "<group>"; };
 		F29900000000000000000A19 /* FoodLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLogStore.swift; sourceTree = "<group>"; };
+		F299000000000000000000A1C /* MorningReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningReport.swift; sourceTree = "<group>"; };
+		F299000000000000000000A1D /* MorningReportStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningReportStore.swift; sourceTree = "<group>"; };
+		F299000000000000000000A1E /* BodyStateScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyStateScorer.swift; sourceTree = "<group>"; };
+		F299000000000000000000A1F /* MorningReportGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningReportGenerator.swift; sourceTree = "<group>"; };
+		F299000000000000000000A20 /* MorningReportTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningReportTrigger.swift; sourceTree = "<group>"; };
+		F299000000000000000000A21 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		F10000000000000000000027 /* MorningReportTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningReportTab.swift; sourceTree = "<group>"; };
+		F10000000000000000000028 /* MorningReportDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningReportDetailView.swift; sourceTree = "<group>"; };
+		F10000000000000000000029 /* TrendDataPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendDataPage.swift; sourceTree = "<group>"; };
 		F29900000000000000000A1A /* RealHealthAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealHealthAnalyzer.swift; sourceTree = "<group>"; };
 		F29900000000000000000A1B /* MockHealthDataLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockHealthDataLoader.swift; sourceTree = "<group>"; };
 		F40000000000000000000001 /* StickWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickWidget.swift; sourceTree = "<group>"; };
@@ -218,6 +236,7 @@
 			isa = PBXGroup;
 			children = (
 				F1000000000000000000000A /* StickState.swift */,
+				F299000000000000000000A1C /* MorningReport.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -239,6 +258,9 @@
 				F10000000000000000000014 /* AIAnalysisView.swift */,
 				F10000000000000000000015 /* AlertsPanel.swift */,
 				F10000000000000000000016 /* AlertDetailView.swift */,
+				F10000000000000000000027 /* MorningReportTab.swift */,
+				F10000000000000000000028 /* MorningReportDetailView.swift */,
+				F10000000000000000000029 /* TrendDataPage.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -268,6 +290,11 @@
 				F29900000000000000000A0B /* AISleepAnalyzer.swift */,
 				F29900000000000000000A1A /* RealHealthAnalyzer.swift */,
 				F29900000000000000000A1B /* MockHealthDataLoader.swift */,
+				F299000000000000000000A1D /* MorningReportStore.swift */,
+				F299000000000000000000A1E /* BodyStateScorer.swift */,
+				F299000000000000000000A1F /* MorningReportGenerator.swift */,
+				F299000000000000000000A20 /* MorningReportTrigger.swift */,
+				F299000000000000000000A21 /* NotificationService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -436,6 +463,15 @@
 				B29900000000000000000A17 /* DailyStepsStore.swift in Sources */,
 				B299000000000000000000A18 /* BodyMetricsStore.swift in Sources */,
 				B299000000000000000000A19 /* FoodLogStore.swift in Sources */,
+				B299000000000000000000A1C /* Models/MorningReport.swift in Sources */,
+				B299000000000000000000A1D /* Services/MorningReportStore.swift in Sources */,
+				B299000000000000000000A1E /* Services/BodyStateScorer.swift in Sources */,
+				B299000000000000000000A1F /* Services/MorningReportGenerator.swift in Sources */,
+				B299000000000000000000A20 /* Services/MorningReportTrigger.swift in Sources */,
+				B299000000000000000000A21 /* Services/NotificationService.swift in Sources */,
+				B10000000000000000000027 /* Views/MorningReportTab.swift in Sources */,
+				B10000000000000000000028 /* Views/MorningReportDetailView.swift in Sources */,
+				B10000000000000000000029 /* Views/TrendDataPage.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
