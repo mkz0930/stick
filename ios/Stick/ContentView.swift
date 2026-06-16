@@ -627,6 +627,21 @@ struct ContentView: View {
                 walkingQuality = WalkingQualityData.from(wq)
                 let hr = await HealthKitService.shared.todayHeartRate()
                 realHeartRate = hr
+                // 持续更新 SharedState（让 Widget 始终显示最新的久坐秒数）
+                let sessionMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
+                let snap = SharedStickState(
+                    stateRaw: displayState.rawValue,
+                    englishName: displayState.englishName,
+                    actionPhrase: displayState.actionPhrase,
+                    heartRate: hr ?? realHeartRate ?? primaryHeartRate,
+                    mood: walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
+                    durationMinutes: primaryDurationMinutes,
+                    subLine: realSubLine,
+                    updatedAt: Date(),
+                    currentSedentarySeconds: sessionMins * 60,
+                    sedentaryStartTime: sessionMins > 0 ? Date().addingTimeInterval(-Double(sessionMins) * 60) : nil
+                )
+                SharedStateStore.write(snap)
                 // 每 5 分钟重新生成一次 24h 时刻表（不必 30s 一次，太重）
                 if Calendar.current.component(.minute, from: Date()) % 5 == 0 {
                     await HealthKitService.shared.computeDaySchedule()
