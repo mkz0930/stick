@@ -22,7 +22,7 @@ struct DayTimelineView: View {
     private let trackLength: CGFloat = 200     // 竖线总长
     private let thumbSize: CGFloat = 14        // 圆环缩小
     private let segmentGap: CGFloat = 0.8
-    private let snapStep: Int = 5          // 5 分钟一格
+    private let snapStep: Int = 1          // 1 分钟一格（拖动更细腻）
     private let lineAlpha: Double = 0.65       // 竖线半透明 (稍亮，跟动画同色系)
     private let thumbAlpha: Double = 0.85      // 圆环半透明
 
@@ -163,6 +163,20 @@ struct DayTimelineView: View {
                     rotatedSegment(seg, in: height)
                 }
 
+                // 步行段右侧小圆点（让绿色更容易被看到）
+                ForEach(schedule.filter { $0.state == .walk }) { seg in
+                    let totalMin = Int(dayMinutes)
+                    let startWin = ((seg.startMinute - nowMinute) + totalMin) % totalMin
+                    let endWin   = ((seg.endMinute   - nowMinute) + totalMin) % totalMin
+                    let total = CGFloat(totalMin)
+                    let yTop = CGFloat(totalMin - endWin) / total * height
+                    let segH = max(6, CGFloat(endWin - startWin) / total * height)
+                    Circle()
+                        .fill(seg.state.accent)
+                        .frame(width: 4, height: 4)
+                        .position(x: trackWidth + 8, y: yTop + segH / 2)
+                }
+
                 // thumb (圆环) — 圆心落在竖线中心
                 let yPos = yPosition(forOffset: displayOffset, in: height)
                 thumb
@@ -300,41 +314,46 @@ struct DayTimelineView: View {
         let startWin = ((seg.startMinute - nowMinute) + totalMin) % totalMin
         let endWin   = ((seg.endMinute   - nowMinute) + totalMin) % totalMin
         let thumbWin = totalMin - displayOffset
-        let gap: CGFloat = 1.5
         let total = CGFloat(totalMin)
         let accent = seg.state.accent
+
+        // 步行段强制最小高度（1分钟步行也至少占 6pt，保证能看见）
+        let minHeight: CGFloat = 6
+        let isWalk = seg.state == .walk
 
         if startWin <= endWin {
             // 普通段（不跨边）
             let yTop = CGFloat(totalMin - endWin) / total * height
-            let segH = CGFloat(endWin - startWin) / total * height
+            let rawSegH = CGFloat(endWin - startWin) / total * height
+            let segH = isWalk ? max(minHeight, rawSegH) : rawSegH
             let isActive = (startWin...endWin).contains(thumbWin)
-            singlePiece(
-                yTop: yTop, segH: segH,
-                fillY: yTop + gap / 2, fillH: max(0, segH - gap),
-                isActive: isActive, accent: accent
-            )
+
+            // 步行段：最小高度 + 无 gap
+            let gap: CGFloat = 1.5
+            let fillY: CGFloat = isWalk ? yTop : yTop + gap / 2
+            let fillH: CGFloat = isWalk ? segH : max(0, segH - gap)
+
+            singlePiece(yTop: yTop, segH: segH, fillY: fillY, fillH: fillH, isActive: isActive, accent: accent, isWalk: isWalk)
         } else {
             // 跨底边界：拆成两段
-            // 上半段：0 → endWin (顶)
             let uY = CGFloat(totalMin - endWin) / total * height
-            let uH = CGFloat(endWin) / total * height
-            // 下半段：startWin → totalMin (底)
-            let lY = CGFloat(0)
-            let lH = CGFloat(totalMin - startWin) / total * height
+            let rawUH = CGFloat(endWin) / total * height
+            let lY: CGFloat = 0
+            let rawLH = CGFloat(totalMin - startWin) / total * height
+            let uH = isWalk ? max(minHeight, rawUH) : rawUH
+            let lH = isWalk ? max(minHeight, rawLH) : rawLH
             let upActive = thumbWin >= 0 && thumbWin < endWin
             let downActive = thumbWin >= startWin && thumbWin < totalMin
+
             ZStack {
-                singlePiece(
-                    yTop: uY, segH: uH,
-                    fillY: uY + gap / 2, fillH: max(0, uH - gap / 2),
-                    isActive: upActive, accent: accent
-                )
-                singlePiece(
-                    yTop: lY, segH: lH,
-                    fillY: lY + gap / 2, fillH: max(0, lH - gap / 2),
-                    isActive: downActive, accent: accent
-                )
+                let gap: CGFloat = 1.5
+                let uFillY: CGFloat = isWalk ? uY : uY + gap / 2
+                let uFillH: CGFloat = isWalk ? uH : max(0, uH - gap / 2)
+                singlePiece(yTop: uY, segH: uH, fillY: uFillY, fillH: uFillH, isActive: upActive, accent: accent, isWalk: isWalk)
+
+                let lFillY: CGFloat = isWalk ? lY : lY + gap / 2
+                let lFillH: CGFloat = isWalk ? lH : max(0, lH - gap / 2)
+                singlePiece(yTop: lY, segH: lH, fillY: lFillY, fillH: lFillH, isActive: downActive, accent: accent, isWalk: isWalk)
             }
         }
     }
@@ -344,13 +363,23 @@ struct DayTimelineView: View {
     private func singlePiece(
         yTop: CGFloat, segH: CGFloat,
         fillY: CGFloat, fillH: CGFloat,
-        isActive: Bool, accent: Color
+        isActive: Bool, accent: Color,
+        isWalk: Bool = false
     ) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 3)
                 .fill(accent.opacity(lineAlpha))
                 .frame(width: trackWidth, height: max(0, fillH))
                 .offset(x: 0, y: fillY)
+
+            // 步行段加柔光高亮（让绿色更容易被注意到）
+            if isWalk {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(accent.opacity(0.15))
+                    .frame(width: trackWidth + 4, height: max(0, fillH) + 2)
+                    .offset(x: -2, y: fillY - 1)
+            }
+
             if isActive {
                 let pulseAlpha = 0.25 + 0.25 * pulse
                 RoundedRectangle(cornerRadius: 3)
