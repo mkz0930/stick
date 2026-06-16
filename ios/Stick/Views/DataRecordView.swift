@@ -81,6 +81,12 @@ struct DataRecordView: View {
         return String(format: "%.1f", v)
     }
 
+    /// 血氧显示值：或 --
+    private var bloodOxygenValue: String {
+        guard let v = BodyMetricsStore.shared.bloodOxygen else { return "--" }
+        return "\(v)"
+    }
+
     /// 今日饮食记录条目
     private var dietEntries: [FoodEntry] {
         FoodLogStore.shared.todayEntries
@@ -402,8 +408,8 @@ struct DataRecordView: View {
                             icon: "lungs.fill",
                             iconColor: Theme.dashBlood,
                             title: "血氧",
-                            sub: "暂无数据",
-                            value: "--",
+                            sub: "来自对话分析",
+                            value: bloodOxygenValue,
                             valueUnit: "%"
                         )
                         DashboardCard(
