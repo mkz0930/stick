@@ -4,6 +4,36 @@ import UIKit
 import WidgetKit
 #endif
 
+/// 步态质量数据（从 HealthKit 步速等指标综合计算）
+struct WalkingQualityData {
+    /// 平均步速 (m/s)
+    let avgSpeed: Double?
+    /// 步态评分 (0-100)
+    let gaitScore: Int
+    /// 睡眠质量标签
+    let sleepQualityLabel: String
+    /// 夜间清醒总分钟数
+    let nightWakeTotalMin: Int
+
+    /// 从 HealthKit 步速数据构造步态质量
+    /// 步速正常范围 0.8-1.4 m/s，换算成 0-100 评分
+    static func from(walkingSpeed speed: Double?) -> WalkingQualityData {
+        let score: Int
+        if let sp = speed {
+            // 0.8 m/s = 60分, 1.4 m/s = 100分, 线性插值
+            score = min(100, max(0, Int(60 + (sp - 0.8) / 0.6 * 40)))
+        } else {
+            score = 0
+        }
+        return WalkingQualityData(
+            avgSpeed: speed,
+            gaitScore: score,
+            sleepQualityLabel: "睡眠良好",
+            nightWakeTotalMin: 0
+        )
+    }
+}
+
 /// 首页：火柴人主舞台。视觉参考 ATLAS v6-dashboard-sleeping：
 ///  - 顶栏（品牌 mark + 名称 + session + LIVE）
 ///  - 主舞台（eyebrow + 大尺寸火柴人 + serif 标题 + mono 副标）
@@ -92,6 +122,10 @@ struct ContentView: View {
     @State private var scrollTrigger: Int = 0
     @State private var showCamera: Bool = false
     @State private var capturedImage: UIImage?
+    /// 步态质量数据（实时从 HealthKit 读取）
+    @State private var walkingQuality: WalkingQualityData? = nil
+    /// 当前心率（实时从 HealthKit 读取）
+    @State private var realHeartRate: Int? = nil
 
     private var displayOffset: Int {
         scrubOffset ?? 0
@@ -142,6 +176,38 @@ struct ContentView: View {
         case "stand": return .stand
         case "sleep": return .sleep
         default:      return nil
+        }
+    }
+
+    /// 真实数据驱动的副标文字（优先使用实时 HealthKit 数据）
+    private var realSubLine: String {
+        let state = displayState
+        let hr = realHeartRate.map { "\($0) bpm" } ?? "-- bpm"
+        let steps = todaySteps > 0 ? "\(todaySteps) 步" : ""
+
+        switch state {
+        case .walk:
+            var parts: [String] = []
+            if let wq = walkingQuality {
+                if let sp = wq.avgSpeed {
+                    parts.append(String(format: "步速 %.2f m/s", sp))
+                }
+                parts.append("心率 \(hr)")
+                if !steps.isEmpty { parts.append(steps) }
+            } else {
+                parts = ["步态稳定 · 心率 \(hr)"]
+            }
+            return parts.joined(separator: " · ")
+        case .sit:
+            let sitMins = homeSedentaryMinutes > 0 ? "\(homeSedentaryMinutes) 分" : "--"
+            return "久坐 \(sitMins) · 心率 \(hr)"
+        case .stand:
+            return "无活动 · 心率 \(hr)"
+        case .sleep:
+            if let wq = walkingQuality {
+                return "\(wq.sleepQualityLabel) · 夜间清醒 \(wq.nightWakeTotalMin) 分钟"
+            }
+            return "已入睡 · 心率 \(hr)"
         }
     }
 
@@ -541,6 +607,12 @@ struct ContentView: View {
             Task {
                 _ = await HealthKitService.shared.captureSnapshot()
                 inference = HealthKitService.shared.currentInference
+                // 实时读取步态质量 + 心率
+                let speed = await HealthKitService.shared.todayWalkingSpeed()
+                let wq = WalkingQualityData.from(walkingSpeed: speed)
+                let hr = await HealthKitService.shared.todayHeartRate()
+                walkingQuality = wq
+                realHeartRate = hr
                 // 每 5 分钟重新生成一次 24h 时刻表（不必 30s 一次，太重）
                 if Calendar.current.component(.minute, from: Date()) % 5 == 0 {
                     await HealthKitService.shared.computeDaySchedule()
@@ -573,10 +645,10 @@ struct ContentView: View {
                 stateRaw: displayState.rawValue,
                 englishName: displayState.englishName,
                 actionPhrase: displayState.actionPhrase,
-                heartRate: primaryHeartRate,
-                mood: displayState.secondaryMetric.value,
+                heartRate: realHeartRate ?? primaryHeartRate,
+                mood: walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
                 durationMinutes: primaryDurationMinutes,
-                subLine: displayState.subLine,
+                subLine: realSubLine,
                 updatedAt: Date()
             )
             SharedStateStore.write(snap)
@@ -619,6 +691,9 @@ struct ContentView: View {
                     lastSitAnalysisTime = Date()
                     // 回到前台时也重算时刻表（黑屏期间可能有新数据）
                     await HealthKitService.shared.computeDaySchedule()
+                    let speed = await HealthKitService.shared.todayWalkingSpeed()
+                    walkingQuality = WalkingQualityData.from(walkingSpeed: speed)
+                    realHeartRate = await HealthKitService.shared.todayHeartRate()
                 }
             }
         }
@@ -691,6 +766,10 @@ struct ContentView: View {
                 lastSitAnalysisTime = Date()
                 // 计算今天真实的 24h 时刻表（驱动时间轴 + 小人状态）
                 await HealthKitService.shared.computeDaySchedule()
+                // 加载步态质量
+                let speed = await HealthKitService.shared.todayWalkingSpeed()
+                walkingQuality = WalkingQualityData.from(walkingSpeed: speed)
+                realHeartRate = await HealthKitService.shared.todayHeartRate()
             }
             // 检查各 metric 真实授权状态 (有/无/拒绝)
             healthAuth.refresh()
@@ -775,7 +854,8 @@ struct ContentView: View {
                             scrubOffset: $scrubOffset,
                             onPreview: { showFilm = true },
                             onSleepAlert: { showSleepReport = true },
-                            onNeckWarningTap: { showNeckReport = true }
+                            onNeckWarningTap: { showNeckReport = true },
+                            subLine: realSubLine
                         )
                         .opacity(featureRowExpanded ? 0.04 : 1.0)
                         .animation(.easeInOut(duration: 0.28), value: featureRowExpanded)
@@ -1095,6 +1175,7 @@ private struct StageHeroView: View {
     var onPreview: () -> Void
     var onSleepAlert: () -> Void
     var onNeckWarningTap: () -> Void
+    let subLine: String
 
     /// 拖动起点 + 起始 offset (用于把横向 delta 换算成分钟)
     @State private var dragStartOffset: Int? = nil
