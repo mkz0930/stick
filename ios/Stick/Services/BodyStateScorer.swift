@@ -52,4 +52,42 @@ final class BodyStateScorer {
     func compute(gait: Int, sleep: Int, sedentary: Int) -> Int {
         return gait * 40 / 100 + sleep * 30 / 100 + sedentary * 30 / 100
     }
+
+    /// 计算恢复指数（基于HRV和静息心率）
+    /// - higher HRV = better recovery
+    /// - lower resting HR (vs personal baseline) = better fitness
+    /// - Returns 0-100 (higher = better recovery)
+    func computeRecoveryScore(
+        hrv: Double?,
+        restingHR: Double?,
+        baselineHRV: Double? = nil,
+        baselineRHR: Double? = nil
+    ) -> Int {
+        var score = 60  // Base score
+
+        // HRV bonus: higher HRV indicates better recovery
+        if let hrv = hrv {
+            if hrv > 40 { score += 20 }
+            else if hrv > 30 { score += 10 }
+            else if hrv < 20 { score -= 10 }
+        }
+
+        // Resting HR bonus: lower RHR indicates better fitness
+        if let rhr = restingHR {
+            if let baseline = baselineRHR {
+                // Compare to personal baseline
+                let delta = rhr - baseline
+                if delta < -5 { score += 20 }
+                else if delta < 0 { score += 10 }
+                else if delta > 10 { score -= 10 }
+            } else {
+                // Absolute value comparison
+                if rhr < 60 { score += 20 }
+                else if rhr < 70 { score += 10 }
+                else if rhr > 80 { score -= 10 }
+            }
+        }
+
+        return max(0, min(100, score))
+    }
 }

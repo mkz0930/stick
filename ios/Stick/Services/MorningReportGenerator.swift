@@ -28,7 +28,16 @@ final class MorningReportGenerator {
     private let systemPrompt = """
 你是一位专业的 iOS 健康数据分析师。根据用户昨日的 HealthKit 数据，生成一份晨间健康报告。
 
-数据来源：步数、步行速度、双脚支撑百分比、睡眠分析、耳机音量暴露（夜间清醒判断）、久坐时长。
+数据来源：步数、步行速度、双脚支撑百分比、睡眠分析、耳机音量暴露（夜间清醒判断）、久坐时长、心率区间、恢复指数。
+
+心率区间参考（基于最大心率220-年龄）：
+- Zone 1 (50-60%): 很轻运动/休息
+- Zone 2 (60-70%): 轻度活动/热身
+- Zone 3 (70-80%): 中等强度/有氧
+- Zone 4 (80-90%): 高强度/无氧门槛
+- Zone 5 (90-100%): 极限强度
+
+恢复指数：基于HRV和静息心率评估身体恢复状态，>70分表示恢复良好。
 
 输出格式（严格按以下 JSON 结构返回，不要输出任何其他内容）：
 
@@ -37,7 +46,7 @@ final class MorningReportGenerator {
   "score": 综合健康得分（0-100整数）,
   "shortAdvice": ["短期建议1", "短期建议2", "短期建议3"],
   "longAdvice": ["长期建议1", "长期建议2", "长期建议3"],
-  "detail": "详细分析段落（150-200字），涵盖睡眠结构、久坐风险、运动充足性、步态与疲惫度"
+  "detail": "详细分析段落（150-200字），涵盖睡眠结构、久坐风险、运动充足性、步态与疲惫度、心率健康"
 }
 
 注意事项：
@@ -77,7 +86,20 @@ final class MorningReportGenerator {
             nightWakeCount: nightWakeCount
         )
 
-        // 4. 组装用户 prompt
+        // 4. 心率数据分析
+        let avgHR = await hk.yesterdayAverageHeartRate()
+        let maxHR = await hk.yesterdayMaxHeartRate()
+        let hrv = await hk.yesterdayHRV()
+        let restingHR = await hk.yesterdayRestingHeartRate()
+        let hrZoneAnalysis = await hk.analyzeYesterdayHeartRateZones()
+
+        // 5. 恢复指数
+        let recoveryScore = scorer.computeRecoveryScore(
+            hrv: hrv,
+            restingHR: restingHR
+        )
+
+        // 6. 组装用户 prompt
         let userPrompt = """
 昨日数据：
 - 睡眠: \(sleepMinutes)分钟，夜间清醒 \(nightWakes.reduce(0) { $1.count })分钟，质量: \(sleepQuality)
@@ -85,15 +107,30 @@ final class MorningReportGenerator {
 - 步行: \(walkMinutes)分钟，步数 \(steps)步
 - 久坐: \(sedentaryMinutes)分钟
 - 步态评分: \(gaitScore)/100
+- 心率: 平均\(avgHR != nil ? "\(Int(avgHR!))" : "N/A")bpm，最高\(maxHR != nil ? "\(Int(maxHR!))" : "N/A")bpm
+- 心率区间: Z1\(String(format: "%.0f", hrZoneAnalysis?.zone1Percent ?? 0))% Z2\(String(format: "%.0f", hrZoneAnalysis?.zone2Percent ?? 0))% Z3\(String(format: "%.0f", hrZoneAnalysis?.zone3Percent ?? 0))% Z4\(String(format: "%.0f", hrZoneAnalysis?.zone4Percent ?? 0))% Z5\(String(format: "%.0f", hrZoneAnalysis?.zone5Percent ?? 0))%
+- 恢复指数: \(recoveryScore)/100（>70良好，<40需休息）
 
 请生成健康报告。
 """
 
-        // 5. 调用 LLM
+        // 7. 调用 LLM
         let response = try await LLMService.sendMessage(userPrompt, context: systemPrompt)
         let llmData = parseLLMResponse(response)
 
-        // 6. 构建报告
+        // 8. 构建报告
+        let hrZoneData: HeartRateZoneData? = hrZoneAnalysis.map {
+            HeartRateZoneData(
+                zone1Percent: $0.zone1Percent,
+                zone2Percent: $0.zone2Percent,
+                zone3Percent: $0.zone3Percent,
+                zone4Percent: $0.zone4Percent,
+                zone5Percent: $0.zone5Percent,
+                predominantZone: $0.predominantZone,
+                timeInHighIntensity: $0.timeInHighIntensity
+            )
+        }
+
         return MorningReport(
             id: UUID(),
             date: Self.dateFormatter.string(from: date),
@@ -110,6 +147,13 @@ final class MorningReportGenerator {
             longestSedentaryRange: nil,
             wakeUpMinute: wakeUpMinute,
             gaitScore: gaitScore,
+            fatigueIndex: 0,
+            doubleSupportZScore: nil,
+            isDoubleSupportAnomaly: false,
+            avgHeartRate: avgHR.map { Int($0) },
+            maxHeartRate: maxHR.map { Int($0) },
+            heartRateZoneAnalysis: hrZoneData,
+            recoveryScore: recoveryScore,
             llmSummary: llmData?.summary ?? "数据生成中...",
             llmScore: llmData?.score ?? 0,
             llmShortAdvice: llmData?.shortAdvice ?? [],

@@ -1190,3 +1190,134 @@ extension HealthKitService {
         return StickState.minutesOfDay(first.timestamp)
     }
 }
+
+// MARK: - 心率区间分析
+
+struct HeartRateZoneAnalysis {
+    let zone1Percent: Double   // 50-60% max HR (very light)
+    let zone2Percent: Double   // 60-70% max HR (light)
+    let zone3Percent: Double   // 70-80% max HR (moderate)
+    let zone4Percent: Double   // 80-90% max HR (hard)
+    let zone5Percent: Double   // 90-100% max HR (max)
+    let avgHR: Double
+    let maxHR: Double
+    let minHR: Double
+    let predominantZone: Int   // 1-5
+    let timeInHighIntensity: Double  // % time in zone 4-5
+}
+
+extension HealthKitService {
+    /// 昨日心率区间分析（基于220-age公式）
+    /// - Parameter age: 年龄，默认35岁
+    /// - Returns: 心率区间分布和统计数据
+    func analyzeYesterdayHeartRateZones(age: Int = 35) async -> HeartRateZoneAnalysis? {
+        guard let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate) else { return nil }
+
+        let calendar = Calendar.current
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
+        let endOfYesterday = calendar.date(byAdding: .day, value: 1, to: yesterday)!
+
+        let samples = await withCheckedContinuation { (cont: CheckedContinuation<[Double], Never>) in
+            let predicate = HKQuery.predicateForSamples(withStart: yesterday, end: endOfYesterday, options: .strictStartDate)
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+            let q = HKSampleQuery(sampleType: heartRateType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
+                let hrValues = (samples as? [HKQuantitySample])?.map {
+                    $0.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+                } ?? []
+                cont.resume(returning: hrValues)
+            }
+            store?.execute(q)
+        }
+
+        guard !samples.isEmpty else { return nil }
+
+        let maxHR = Double(220 - age)
+        var zoneCounts = [0, 0, 0, 0, 0]
+        var totalHR: Double = 0
+        var maxVal = samples.max() ?? 0
+        var minVal = samples.min() ?? 0
+
+        for hr in samples {
+            totalHR += hr
+            let ratio = hr / maxHR
+            let zone: Int
+            if ratio < 0.6 { zone = 0 }      // Zone 1: 50-60%
+            else if ratio < 0.7 { zone = 1 } // Zone 2: 60-70%
+            else if ratio < 0.8 { zone = 2 } // Zone 3: 70-80%
+            else if ratio < 0.9 { zone = 3 } // Zone 4: 80-90%
+            else { zone = 4 }                 // Zone 5: 90-100%
+            zoneCounts[zone] += 1
+        }
+
+        let total = Double(samples.count)
+        let zonePercents = zoneCounts.map { Double($0) / total * 100 }
+        let avgHR = totalHR / total
+
+        // Find predominant zone
+        var predominantZone = 1
+        var maxCount = 0
+        for (i, count) in zoneCounts.enumerated() {
+            if count > maxCount {
+                maxCount = count
+                predominantZone = i + 1
+            }
+        }
+
+        // High intensity = zones 4-5
+        let highIntensityPercent = (zoneCounts[3] + zoneCounts[4]) > 0
+            ? Double(zoneCounts[3] + zoneCounts[4]) / total * 100 : 0
+
+        return HeartRateZoneAnalysis(
+            zone1Percent: zonePercents[0],
+            zone2Percent: zonePercents[1],
+            zone3Percent: zonePercents[2],
+            zone4Percent: zonePercents[3],
+            zone5Percent: zonePercents[4],
+            avgHR: avgHR,
+            maxHR: maxVal,
+            minHR: minVal,
+            predominantZone: predominantZone,
+            timeInHighIntensity: highIntensityPercent
+        )
+    }
+
+    /// 获取昨日平均心率
+    func yesterdayAverageHeartRate() async -> Double? {
+        let calendar = Calendar.current
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
+        return await recentAverage(.heartRate, from: yesterday, unit: HKUnit.count().unitDivided(by: .minute()))
+    }
+
+    /// 获取昨日最高心率
+    func yesterdayMaxHeartRate() async -> Double? {
+        guard let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate) else { return nil }
+        let calendar = Calendar.current
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
+        let endOfYesterday = calendar.date(byAdding: .day, value: 1, to: yesterday)!
+
+        return await withCheckedContinuation { cont in
+            let predicate = HKQuery.predicateForSamples(withStart: yesterday, end: endOfYesterday, options: .strictStartDate)
+            let q = HKSampleQuery(sampleType: heartRateType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
+                let maxHR = (samples as? [HKQuantitySample])?.map {
+                    $0.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+                }.max()
+                cont.resume(returning: maxHR)
+            }
+            store?.execute(q)
+        }
+    }
+
+    /// 昨日 HRV 平均值 (SDNN in ms)
+    func yesterdayHRV() async -> Double? {
+        let calendar = Calendar.current
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
+        return await recentAverage(.heartRateVariabilitySDNN, from: yesterday, unit: HKUnit.secondUnit(with: .milli))
+    }
+
+    /// 昨日静息心率
+    func yesterdayRestingHeartRate() async -> Double? {
+        let calendar = Calendar.current
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
+        return await recentAverage(.restingHeartRate, from: yesterday, unit: HKUnit.count().unitDivided(by: .minute()))
+    }
+}

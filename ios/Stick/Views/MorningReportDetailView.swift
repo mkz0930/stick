@@ -38,6 +38,11 @@ struct MorningReportDetailView: View {
                         walkItems
                     }
 
+                    // 恢复与心率
+                    analysisCard(title: "恢复与心率", icon: "heart.fill", color: .red) {
+                        recoveryItems
+                    }
+
                     // AI 总结
                     aiSummaryCard
 
@@ -146,6 +151,69 @@ struct MorningReportDetailView: View {
                 analysisRow("双脚支撑", String(format: "%.1f%%", ds))
             }
             analysisRow("步态评分", "\(report.gaitScore)/100")
+        }
+    }
+
+    private var recoveryItems: some View {
+        VStack(spacing: 0) {
+            // 恢复指数
+            let recoveryColor: Color = report.recoveryScore > 70 ? .green : (report.recoveryScore >= 40 ? .orange : .red)
+            analysisRow("恢复指数", "\(report.recoveryScore)/100", color: recoveryColor)
+            // 平均心率
+            if let avgHR = report.avgHeartRate {
+                analysisRow("平均心率", "\(avgHR) bpm")
+            }
+            // 最高心率
+            if let maxHR = report.maxHeartRate {
+                analysisRow("最高心率", "\(maxHR) bpm")
+            }
+            // 心率区间分布条
+            if let zones = report.heartRateZoneAnalysis {
+                hrZoneBar(zones: zones)
+            }
+        }
+    }
+
+    private func hrZoneBar(zones: HeartRateZoneData) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("心率区间分布").font(.caption).foregroundColor(.secondary)
+            GeometryReader { geo in
+                HStack(spacing: 1) {
+                    if zones.zone1Percent > 0 {
+                        Rectangle().fill(Color.blue).frame(width: geo.size.width * CGFloat(zones.zone1Percent) / 100)
+                    }
+                    if zones.zone2Percent > 0 {
+                        Rectangle().fill(Color.green).frame(width: geo.size.width * CGFloat(zones.zone2Percent) / 100)
+                    }
+                    if zones.zone3Percent > 0 {
+                        Rectangle().fill(Color.yellow).frame(width: geo.size.width * CGFloat(zones.zone3Percent) / 100)
+                    }
+                    if zones.zone4Percent > 0 {
+                        Rectangle().fill(Color.orange).frame(width: geo.size.width * CGFloat(zones.zone4Percent) / 100)
+                    }
+                    if zones.zone5Percent > 0 {
+                        Rectangle().fill(Color.red).frame(width: geo.size.width * CGFloat(zones.zone5Percent) / 100)
+                    }
+                }
+                .cornerRadius(4)
+            }
+            .frame(height: 8)
+            HStack(spacing: 8) {
+                zoneLegend("Z1", color: .blue)
+                zoneLegend("Z2", color: .green)
+                zoneLegend("Z3", color: .yellow)
+                zoneLegend("Z4", color: .orange)
+                zoneLegend("Z5", color: .red)
+            }
+            .font(.caption2)
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func zoneLegend(_ label: String, color: Color) -> some View {
+        HStack(spacing: 2) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(label).foregroundColor(.secondary)
         }
     }
 
