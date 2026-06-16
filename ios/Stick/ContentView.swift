@@ -135,6 +135,8 @@ struct ContentView: View {
     @State private var walkingQuality: WalkingQualityData? = nil
     /// 当前心率（实时从 HealthKit 读取）
     @State private var realHeartRate: Int? = nil
+    /// 今日睡眠时长（小时，HealthKit sleepAnalysis 汇总；nil = 未授权或无数据）
+    @State private var todaySleepHours: Double? = nil
 
     private var displayOffset: Int {
         scrubOffset ?? 0
@@ -829,6 +831,7 @@ struct ContentView: View {
                 let wq = await HealthKitService.shared.todayWalkingQuality()
                 walkingQuality = WalkingQualityData.from(wq)
                 realHeartRate = await HealthKitService.shared.todayHeartRate()
+                todaySleepHours = await HealthKitService.shared.todaySleepHours()
             }
             // 检查各 metric 真实授权状态 (有/无/拒绝)
             healthAuth.refresh()
@@ -882,6 +885,7 @@ struct ContentView: View {
                         todaySitDescription: todaySitDescription,
                         todaySteps: todaySteps,
                         todayWalkMinutes: todayWalkMinutes,
+                        todaySleepHours: todaySleepHours,
                         isExpanded: $featureRowExpanded,
                         onAlertTap: handleAlertTap,
                         onLockTap: { showDevicePicker = true },

@@ -22,6 +22,7 @@ struct FeatureRow: View {
     let todaySitDescription: String    // 今日累计久坐描述，如 "累计6小时23分"
     let todaySteps: Int               // 今日累计步数（HealthKit；模拟器 demo 注入 8000+）
     let todayWalkMinutes: Int         // 今日行走分钟数
+    let todaySleepHours: Double?      // 今日睡眠小时数（HealthKit sleepAnalysis 汇总；nil = 未授权/无数据）
     @Binding var isExpanded: Bool       // 状态提升到 ContentView，让小人也能淡出
     var onAlertTap: (UnifiedAlert) -> Void = { _ in }
     var onLockTap: () -> Void = { }   // 点击锁 → 跳添加设备界面
@@ -73,9 +74,21 @@ struct FeatureRow: View {
         return Metric(label: m.label, value: realValue, status: m.status, statusKind: m.statusKind, desc: m.desc, hint: "今日累计 \(todayWalkMinutes) 分钟行走", metricID: m.metricID)
     }
 
-    /// 状态的三项指标（walk 时 DURATION 使用真实值）
+    /// 睡眠状态下用真实睡眠时长（小时）替代硬编码的"82 质量评分"
+    private var realSleepPrimaryMetric: Metric {
+        let m = state.primaryMetric
+        let h = todaySleepHours ?? 0
+        let hours = Int(h)
+        let minutes = Int((h - Double(hours)) * 60)
+        let realValue = "\(hours)h\(String(format: "%02d", minutes))m"
+        return Metric(label: m.label, value: realValue, status: m.status, statusKind: m.statusKind, desc: "睡眠时长", hint: "今日累计 \(realValue)", metricID: m.metricID)
+    }
+
+    /// 状态的三项指标（walk 时 DURATION、sleep 时 SLEEP 使用真实值），去掉姿态（POSTURE）
     private var displayMetrics: [Metric] {
-        [state.primaryMetric, state.secondaryMetric, state == .walk ? realTertiaryMetric : state.tertiaryMetric]
+        let primary = state == .sleep ? realSleepPrimaryMetric : state.primaryMetric
+        let tertiary = state == .walk ? realTertiaryMetric : state.tertiaryMetric
+        return [primary, state.secondaryMetric, tertiary].filter { $0.label != "POSTURE" }
     }
 
     /// 3 个指标中"心率"那行（任意位置）
