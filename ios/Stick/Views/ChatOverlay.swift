@@ -1606,7 +1606,7 @@ struct MessageRow: View {
             VStack(alignment: .leading, spacing: 7) {
                 // 一个大泡泡
                 VStack(alignment: .leading, spacing: 8) {
-                    AssistantText(text: message.content, accent: state.accent)
+                    AssistantText(text: message.content, accent: state.accent, searchResults: message.searchResults)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
@@ -1707,81 +1707,168 @@ struct MessageRow: View {
 private struct AssistantText: View {
     let text: String
     let accent: Color
+    /// 联网搜索结果，用于把文本里的 [n] 角标渲染成可点击链接
+    let searchResults: [SearchResult]
+
+    init(text: String, accent: Color, searchResults: [SearchResult] = []) {
+        self.text = text
+        self.accent = accent
+        self.searchResults = searchResults
+    }
 
     private var lines: [String] {
         text.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
     }
 
-    private func parseLine(_ line: String) -> some View {
-        // 警告段落：温暖琥珀色高亮
-        if line.contains("警告") || line.hasPrefix("⚠") {
-            return AnyView(
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Image(systemName: "lightbulb.fill")
-                        .font(.system(size: 13))
-                        .foregroundColor(Color(red: 0.88, green: 0.55, blue: 0.2))
-                    Text(line)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(Color(red: 0.65, green: 0.4, blue: 0.1))
+    /// 解析行内 [n] 角标 → 可点击 Link，未找到则降级为普通文本
+    private func renderInlineText(_ raw: String, baseFont: Font, baseColor: Color) -> Text {
+        // 匹配 [数字] 形式
+        let pattern = "\\[(\\d+)\\]"
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return Text(raw).font(baseFont).foregroundColor(baseColor)
+        }
+        let nsText = raw as NSString
+        let matches = regex.matches(in: raw, range: NSRange(location: 0, length: nsText.length))
+        if matches.isEmpty {
+            return Text(raw).font(baseFont).foregroundColor(baseColor)
+        }
+
+        // 用 AttributedString 拼接：找到的 [n] 替换为 link
+        var result = AttributedString()
+        var cursor = 0
+        for m in matches {
+            // 拼接 [n] 之前的普通文本
+            let plainStart = cursor
+            let plainEnd = m.range.location
+            if plainEnd > plainStart {
+                let plainRange = NSRange(location: plainStart, length: plainEnd - plainStart)
+                var plain = AttributedString(nsText.substring(with: plainRange))
+                plain.font = baseFont
+                plain.foregroundColor = baseColor
+                result += plain
+            }
+            // [n] 本身
+            let tokenRange = m.range
+            let tokenStr = nsText.substring(with: tokenRange)
+            let idxStr = nsText.substring(with: m.range(at: 1))
+            if let idx = Int(idxStr), let ref = searchResults.first(where: { $0.index == idx }) {
+                var linkAttr = AttributedString(tokenStr)
+                linkAttr.font = .system(size: 12, weight: .bold, design: .monospaced)
+                linkAttr.foregroundColor = accent
+                linkAttr.underlineStyle = .single
+                if let url = URL(string: ref.url) {
+                    linkAttr.link = url
                 }
-            )
+                result += linkAttr
+            } else {
+                // 找不到对应 ref：按普通文本渲染
+                var plain = AttributedString(tokenStr)
+                plain.font = baseFont
+                plain.foregroundColor = baseColor
+                result += plain
+            }
+            cursor = m.range.location + m.range.length
+        }
+        // 结尾剩余
+        if cursor < nsText.length {
+            let tailRange = NSRange(location: cursor, length: nsText.length - cursor)
+            var plain = AttributedString(nsText.substring(with: tailRange))
+            plain.font = baseFont
+            plain.foregroundColor = baseColor
+            result += plain
+        }
+        return Text(result)
+    }
+
+    /// 把含 [n] 角标的字符串用 SwiftUI Text（含 link tap）渲染
+    private func renderRichText(_ raw: String, font: Font, color: Color) -> Text {
+        return renderInlineText(raw, baseFont: font, baseColor: color)
+    }
+
+    @ViewBuilder
+    private func parseLine(_ line: String) -> some View {
+        // 【段落标题】- 加粗加大、accent 色，作为分段标题
+        if let title = sectionTitle(line) {
+            HStack(spacing: 6) {
+                Rectangle()
+                    .fill(accent)
+                    .frame(width: 3, height: 14)
+                Text(title)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(accent)
+            }
+            .padding(.top, 4)
+            .padding(.bottom, 2)
+        }
+        // 警告段落：温暖琥珀色高亮
+        else if line.contains("警告") || line.hasPrefix("⚠") {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(red: 0.88, green: 0.55, blue: 0.2))
+                renderRichText(line, font: .system(size: 14, weight: .medium), color: Color(red: 0.65, green: 0.4, blue: 0.1))
+            }
         }
         // 粗体标题行 **xxx**
-        if line.hasPrefix("**") && line.hasSuffix("**") && line.count > 4 {
+        else if line.hasPrefix("**") && line.hasSuffix("**") && line.count > 4 {
             let inner = String(line.dropFirst(2).dropLast(2))
-            return AnyView(
-                Text(inner)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(Theme.navy)
-            )
+            Text(inner)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundColor(Theme.navy)
         }
         // bullet 行 - xxx 或 * xxx
-        for prefix in ["- ", "• ", "· ", "* "] {
-            if line.hasPrefix(prefix) {
-                let body = String(line.dropFirst(prefix.count))
-                return AnyView(
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("·")
-                            .font(.system(size: 16, weight: .heavy))
-                            .foregroundColor(accent)
-                        Text(body)
-                            .font(.system(size: 15, weight: .regular))
-                            .lineSpacing(3)
-                            .foregroundColor(Theme.navy)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                )
+        else if let body = bulletBody(line) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("·")
+                    .font(.system(size: 16, weight: .heavy))
+                    .foregroundColor(accent)
+                renderRichText(body, font: .system(size: 15, weight: .regular), color: Theme.navy)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         // 编号行 1. xxx 或 1) xxx
-        let numberedPattern = try! NSRegularExpression(pattern: "^([0-9]+)[.)、\\s]+(.+)$")
-        if let match = numberedPattern.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) {
-            if let numRange = Range(match.range(at: 1), in: line),
-               let bodyRange = Range(match.range(at: 2), in: line) {
-                let num = String(line[numRange])
-                let body = String(line[bodyRange])
-                return AnyView(
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("\(num).")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(accent)
-                        Text(body)
-                            .font(.system(size: 15, weight: .regular))
-                            .lineSpacing(3)
-                            .foregroundColor(Theme.navy)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                )
+        else if let (num, body) = numberedBody(line) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(num).")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(accent)
+                renderRichText(body, font: .system(size: 15, weight: .regular), color: Theme.navy)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        // 普通行
-        return AnyView(
-            Text(line)
-                .font(.system(size: 15, weight: .regular))
-                .lineSpacing(3)
-                .foregroundColor(Theme.navy)
+        // 普通行（含可能的 [n] 角标）
+        else {
+            renderRichText(line, font: .system(size: 15, weight: .regular), color: Theme.navy)
                 .fixedSize(horizontal: false, vertical: true)
-        )
+        }
+    }
+
+    private func bulletBody(_ line: String) -> String? {
+        for prefix in ["- ", "• ", "· ", "* "] {
+            if line.hasPrefix(prefix) {
+                return String(line.dropFirst(prefix.count))
+            }
+        }
+        return nil
+    }
+
+    private func numberedBody(_ line: String) -> (String, String)? {
+        let numberedPattern = try! NSRegularExpression(pattern: "^([0-9]+)[.)、\\s]+(.+)$")
+        guard let match = numberedPattern.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) else { return nil }
+        guard let numRange = Range(match.range(at: 1), in: line),
+              let bodyRange = Range(match.range(at: 2), in: line) else { return nil }
+        return (String(line[numRange]), String(line[bodyRange]))
+    }
+
+    /// 提取 【xxx】 段落标题；无则返回 nil
+    private func sectionTitle(_ line: String) -> String? {
+        // 必须整行就是 【xxx】 形式（允许空白）
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard trimmed.hasPrefix("【"), trimmed.hasSuffix("】"), trimmed.count > 4 else { return nil }
+        let inner = String(trimmed.dropFirst().dropLast())
+        // 排除内容里夹带的【】（不是整行只有【】）
+        guard !inner.contains("【"), !inner.contains("】") else { return nil }
+        return inner
     }
 
     var body: some View {
