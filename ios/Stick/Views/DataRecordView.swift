@@ -87,6 +87,19 @@ struct DataRecordView: View {
         return "\(v)"
     }
 
+    /// 睡眠时长显示值：或 --
+    private var sleepValue: String {
+        guard let v = BodyMetricsStore.shared.sleepHours else { return "--" }
+        if v == 0 { return "0" } // 失眠
+        return String(format: "%.1f", v)
+    }
+
+    /// 运动时长显示值：或 --
+    private var exerciseValue: String {
+        guard let v = BodyMetricsStore.shared.exerciseMinutes else { return "--" }
+        return "\(v)"
+    }
+
     /// 今日饮食记录条目
     private var dietEntries: [FoodEntry] {
         FoodLogStore.shared.todayEntries
@@ -282,8 +295,9 @@ struct DataRecordView: View {
                         icon: "moon.zzz.fill",
                         iconColor: Theme.dashSleep,
                         title: "睡眠",
-                        sub: "暂无数据",
-                        value: "--"
+                        sub: "来自对话分析",
+                        value: sleepValue,
+                        valueUnit: "小时"
                     )
                     DashboardCard(
                         icon: "figure.walk",
@@ -301,8 +315,8 @@ struct DataRecordView: View {
                         icon: "figure.run",
                         iconColor: Theme.dashSteps,
                         title: "运动记录",
-                        sub: "暂无数据",
-                        value: "--",
+                        sub: "来自对话分析",
+                        value: exerciseValue,
                         valueUnit: "分钟"
                     )
                     VStack(alignment: .leading, spacing: 8) {
