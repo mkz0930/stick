@@ -354,14 +354,6 @@ struct DataRecordView: View {
                     .font(.system(size: 13))
                     .foregroundColor(Theme.slate)
             }
-            if !vm.userProfile.isEmpty {
-                Text(vm.userProfile)
-                    .font(.system(size: 13))
-                    .foregroundColor(Theme.navy)
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Theme.navy.opacity(0.06)))
-            }
             // LLM 生成的洞察: loading / 文本
             if isLoadingInsight {
                 HStack(spacing: 6) {
