@@ -1051,11 +1051,13 @@ final class HealthKitService: ObservableObject {
 
     // MARK: - 数据导出
 
-    /// 导出今日全部 HealthKit 数据（JSON 格式，北京时间）
-    func exportTodayData() async -> URL? {
+    /// 导出最近 N 天的 HealthKit 数据（JSON 格式，北京时间）。`days = 1` 等同于今日。
+    func exportRecentData(days: Int) async -> URL? {
         guard HKHealthStore.isHealthDataAvailable() else { return nil }
-        let dayStart = Calendar.current.startOfDay(for: Date())
         let now = Date()
+        let dayStart = Calendar.current.startOfDay(for: now)
+        // N 天前 0 点（days=1 → 今日 0 点）
+        let fromDate = Calendar.current.date(byAdding: .day, value: -(days - 1), to: dayStart) ?? dayStart
 
         // 北京时间格式化器（不带时区偏移后缀）
         let bjTz = TimeZone(identifier: "Asia/Shanghai") ?? TimeZone.current
@@ -1534,5 +1536,21 @@ extension HealthKitService {
         let todayAwake = records.filter { $0.stage == .awake && $0.startDate >= todayStart }
         guard let firstAwake = todayAwake.min(by: { $0.startDate < $1.startDate }) else { return nil }
         return StickState.minutesOfDay(firstAwake.startDate)
+    }
+
+    /// 导出今日健康数据为 JSON 文件，返回文件 URL
+    func exportTodayData() async -> URL? {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        encoder.dateEncodingStrategy = .iso8601
+        let data = (try? encoder.encode(HealthStore.shared.today)) ?? Data()
+        let fileName = "Stick_Export_\(ISO8601DateFormatter().string(from: Date())).json"
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        do {
+            try data.write(to: tempURL)
+            return tempURL
+        } catch {
+            return nil
+        }
     }
 }

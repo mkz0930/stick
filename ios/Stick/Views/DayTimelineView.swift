@@ -52,14 +52,12 @@ struct DayTimelineView: View, Equatable {
     private let snapStep: Int = 1          // 1 分钟一格（拖动更细腻）
     private let lineAlpha: Double = 0.65       // 竖线半透明 (稍亮，跟动画同色系)
     private let thumbAlpha: Double = 0.85      // 圆环半透明
-    /// 睡眠压缩高度（固定 30pt，占顶部一小段，剩余空间给活动时段）
-    private let sleepFixedHeight: CGFloat = 30
 
     // 步行段视觉强化（竖向方框 — 时长比例）
-    private let walkBoxMinHeight: CGFloat = 16      // 最短步行(3min) 的方框高度
-    private let walkBoxMaxHeight: CGFloat = 120      // >60min 步行 = 120pt 方框
-    private let walkBoxWidth: CGFloat = 32          // 方框宽度（固定，比 track 宽很多）
-    private let walkBoxBorderWidth: CGFloat = 1.5   // 方框描边
+    private let walkBoxMinHeight: CGFloat = 16     // 最短步行固定最小高度（保证可见）
+    private let walkBoxMaxHeight: CGFloat = 80     // >30min 步行 = 80pt 上限
+    private let walkBoxWidth: CGFloat = 32         // 方框宽度
+    private let walkBoxBorderWidth: CGFloat = 2.0  // 方框描边（更明显）
     private let walkLabelMinDuration: Int = 5       // ≥5min 才显示时刻标签
     private let walkMergeGapMinutes: Int = 3       // 间隔 ≤3min 的碎步行合并
     private let walkMinVisibleDuration: Int = 1      // ≥1min 的步行都显示（短步行用小框）
@@ -289,8 +287,8 @@ struct DayTimelineView: View, Equatable {
                     walkBurst(seg)
                 }
 
-                // thumb (圆环) — 圆心落在竖线中心（压缩坐标）
-                let yPos = thumbY(forOffset: displayOffset, in: height)
+                // thumb (圆环) — 圆心落在竖线中心
+                let yPos = windowY(forMinute: displayOffset, in: height)
                 thumb
                     .position(x: trackWidth / 2, y: yPos)
                     .opacity(thumbAlpha)
@@ -331,7 +329,7 @@ struct DayTimelineView: View, Equatable {
                 ForEach(0..<7, id: \.self) { i in
                     let offMin = i * 4 * 60
                     let isNow = offMin == 0
-                    let yPos = yPosition(forOffset: offMin, in: height)
+                    let yPos = windowY(forMinute: offMin, in: height)
                     // 短刻线 (无数字)
                     Rectangle()
                         .fill(isNow ? displayState.accent : Theme.slate.opacity(0.3))
@@ -494,20 +492,18 @@ struct DayTimelineView: View, Equatable {
         let isSleep = seg.state == .sleep
 
         if startWin <= endWin {
-            // 普通段（不跨边）用压缩坐标
-            let yTop = compressedY(forWindowMinute: endWin, in: height)
-            let yBottom = compressedY(forWindowMinute: startWin, in: height)
+            let yTop = windowY(forMinute: endWin, in: height)
+            let yBottom = windowY(forMinute: startWin, in: height)
             let segH = max(0, yBottom - yTop - segmentGap)
             let yMid = (yTop + yBottom) / 2
             let isActive = (startWin...endWin).contains(thumbWin)
             singlePiece(yTop: yTop, yMid: yMid, segH: segH, isActive: isActive, accent: accent, isSleep: isSleep)
         } else {
-            // 跨底边界：拆成两段
-            let uTop = compressedY(forWindowMinute: endWin, in: height)
-            let uBottom = compressedY(forWindowMinute: 0, in: height)
+            let uTop = windowY(forMinute: endWin, in: height)
+            let uBottom = height
             let uH = max(0, uBottom - uTop - segmentGap)
-            let lTop = compressedY(forWindowMinute: startWin, in: height)
-            let lBottom = height
+            let lTop = windowY(forMinute: startWin, in: height)
+            let lBottom = windowY(forMinute: 0, in: height)
             let lH = max(0, lBottom - lTop - segmentGap)
             let upActive = thumbWin >= 0 && thumbWin < endWin
             let downActive = thumbWin >= startWin && thumbWin < totalMin
@@ -588,40 +584,17 @@ struct DayTimelineView: View, Equatable {
 
     // MARK: - 几何
 
-    /// 睡眠固定在顶部的坐标映射（压缩睡眠高度，舒展活动时段）
-    /// 分钟 0-420 (睡眠) → 顶部固定高度 sleepFixedHeight
-    /// 分钟 420-1440 (活动) → 线性映射到底部
-    private func compressedY(forMinute m: Int, in height: CGFloat) -> CGFloat {
-        let activeHeight = height - sleepFixedHeight
-        if m <= 420 {
-            // 睡眠压缩到顶部
-            return height - sleepFixedHeight * CGFloat(m) / 420.0
-        } else {
-            // 活动时段：从 sleepFixedHeight 到底部
-            let activeRatio = CGFloat(m - 420) / CGFloat(1440 - 420)
-            return sleepFixedHeight + (1 - activeRatio) * activeHeight
-        }
-    }
-
-    /// 普通坐标（兼容旧逻辑）
-    private func yPosition(forOffset m: Int, in height: CGFloat) -> CGFloat {
-        // offset 0 → 底 (现在); 1440 → 顶 (24h 前)
+    /// 分钟映射到 y 坐标（原始 1440 等比）
+    private func yPosition(forMinute m: Int, in height: CGFloat) -> CGFloat {
         CGFloat(1440 - m) / dayMinutes * height
     }
 
-    /// thumb 位置（用压缩坐标，底部=now）
-    private func thumbY(forOffset offset: Int, in height: CGFloat) -> CGFloat {
-        // offset=0 → 底部; offset=1440 → 顶部
-        let nowMinute = min(1440, max(0, 1440 - offset))
-        return compressedY(forMinute: nowMinute, in: height)
-    }
-
-    /// 把窗口 minute 映射到压缩坐标的 y
-    private func compressedY(forWindowMinute winM: Int, in height: CGFloat) -> CGFloat {
-        // 窗口坐标系: 0=底(now), 1440=顶(24h前)
-        // 先转回绝对分钟
-        let absMinute = (1440 - winM + 1440) % 1440
-        return compressedY(forMinute: absMinute, in: height)
+    /// 把窗口 minute 映射到 y
+    private func windowY(forMinute m: Int, in height: CGFloat) -> CGFloat {
+        // 窗口坐标系: winM=0 → 底(now), winM=1440 → 顶(24h前)
+        // abs = (winM + nowMinute) % 1440
+        let abs = (m + stableNowMinute) % 1440
+        return yPosition(forMinute: abs, in: height)
     }
 
     /// 生成步行视觉胶囊：过滤极短段、合并相邻段，并做纵向避让。
@@ -671,7 +644,7 @@ struct DayTimelineView: View, Equatable {
             .filter { ($0.stepCount ?? 0) >= walkMinSteps }  // <100步不显示
             .map { item in
                 let midWin = (item.startWin + item.endWin) / 2
-                let rawY = compressedY(forWindowMinute: midWin, in: height)
+                let rawY = windowY(forMinute: midWin, in: height)
                 return WalkVisualSegment(
                     id: "walk-\(item.segmentId)-\(item.splitTag)",  // 完全稳定，不随 now 变化
                     startMinute: item.startMinute,
