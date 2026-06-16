@@ -49,11 +49,11 @@ final class HealthAnalyzer {
         // 7) 锻炼时间不足 — 暂时注释（无真实数据源）
         // insights.append(contentsOf: detectExerciseTime(snapshots))
 
-        // 8) 睡眠窗口
-        insights.append(contentsOf: detectSleep(snapshots))
+        // 8) 睡眠窗口 — 暂时注释（暂无真实睡眠数据，会误触发）
+        // insights.append(contentsOf: detectSleep(snapshots))
 
-        // 8b) 睡眠异常 (vs. 参考 7-9h)
-        insights.append(contentsOf: detectSleepAbnormality(snapshots))
+        // 8b) 睡眠异常 (vs. 参考 7-9h) — 暂时注释（暂无真实睡眠数据，会误触发）
+        // insights.append(contentsOf: detectSleepAbnormality(snapshots))
 
         // 9) 距离 / 楼层
         insights.append(contentsOf: detectDistance(snapshots))
