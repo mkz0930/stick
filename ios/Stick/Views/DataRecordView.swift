@@ -13,6 +13,10 @@ struct HKLiveData: Equatable {
     var flights: Int = 0
     var distance: Double = 0
     var heartRate: Int?
+    // 新增 mobility
+    var walkingSpeed: Double?          // 步速 m/s
+    var walkingDoubleSupport: Double?  // 双脚支撑时间 %
+    var headphoneExposure: Double?    // 耳机音量 dB
 }
 
 @MainActor
@@ -43,6 +47,10 @@ final class DataRecordViewModel: ObservableObject {
             data.distance = dist / 1000
         }
         data.heartRate = await service.todayHeartRate()
+        // 新增 mobility 数据
+        data.walkingSpeed = await service.todayWalkingSpeed()
+        data.walkingDoubleSupport = await service.todayWalkingDoubleSupport()
+        data.headphoneExposure = await service.todayHeadphoneExposure()
         hkData = data
     }
 
@@ -107,6 +115,18 @@ struct DataRecordView: View {
     private var hkEnergy: String { hkData.energy > 0 ? "\(hkData.energy)" : "--" }
     private var hkFlights: String { hkData.flights > 0 ? "\(hkData.flights)" : "--" }
     private var hkDistance: String { hkData.distance > 0 ? String(format: "%.1f", hkData.distance) : "--" }
+
+    // MARK: - Mobility Computed Properties
+
+    private var hkWalkingSpeed: String {
+        guard let v = hkData.walkingSpeed else { return "--" }
+        return String(format: "%.1f", v)
+    }
+
+    private var hkDoubleSupport: String {
+        guard let v = hkData.walkingDoubleSupport else { return "--" }
+        return String(format: "%.1f", v)
+    }
 
     /// 血压显示值：收缩压/舒张压 或 --
     private var bpValue: String {
@@ -203,6 +223,25 @@ struct DataRecordView: View {
                         sub: "今日累计",
                         value: hkDistance,
                         valueUnit: "km"
+                    )
+                }
+                // 新增 mobility 卡片
+                HStack(spacing: 10) {
+                    DashboardCard(
+                        icon: "figure.walk.motion",
+                        iconColor: Theme.dashSteps,
+                        title: "步速",
+                        sub: "今日平均",
+                        value: hkWalkingSpeed,
+                        valueUnit: "m/s"
+                    )
+                    DashboardCard(
+                        icon: "waveform.path.ecg",
+                        iconColor: Theme.dashBlood,
+                        title: "步态分析",
+                        sub: "双支撑比例",
+                        value: hkDoubleSupport,
+                        valueUnit: "%"
                     )
                 }
             }
