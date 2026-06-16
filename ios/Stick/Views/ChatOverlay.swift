@@ -1787,58 +1787,119 @@ private struct AssistantText: View {
         text.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
     }
 
-    /// 解析行内 [n] 角标 → 可点击 Link，未找到则降级为普通文本
+    /// 解析行内 [n] 角标 + **xxx** 加粗段 → AttributedString 拼接后返回 Text
+    /// - 行内 `**xxx**` 段：剥掉首尾 `**`，用 baseFont.bold() 渲染
+    /// - 行内 `[n]` 角标：只在 searchResults 非空时识别（避免 [1] 被误当 link）
+    /// - 当 [n] 落在 **xxx** 内部时，外层 ** 优先，避免双重处理
     private func renderInlineText(_ raw: String, baseFont: Font, baseColor: Color) -> Text {
-        // 匹配 [数字] 形式
-        let pattern = "\\[(\\d+)\\]"
-        guard let regex = try? NSRegularExpression(pattern: pattern) else {
-            return Text(raw).font(baseFont).foregroundColor(baseColor)
-        }
+        let refs: [SearchResult]? = searchResults.isEmpty ? nil : searchResults
+        return renderInlineTextWithBold(raw, baseFont: baseFont, baseColor: baseColor, refs: refs)
+    }
+
+    /// 内部实现：bold 段 + bracket 角标合并处理
+    private func renderInlineTextWithBold(
+        _ raw: String,
+        baseFont: Font,
+        baseColor: Color,
+        refs: [SearchResult]?
+    ) -> Text {
         let nsText = raw as NSString
-        let matches = regex.matches(in: raw, range: NSRange(location: 0, length: nsText.length))
-        if matches.isEmpty {
+        let length = nsText.length
+        if length == 0 {
             return Text(raw).font(baseFont).foregroundColor(baseColor)
         }
 
-        // 用 AttributedString 拼接：找到的 [n] 替换为 link
+        // 收集所有 match 位置（bold 优先，bracket 在 bold 内部时跳过）
+        struct Hit {
+            let start: Int
+            let end: Int
+            let kind: Kind
+            let captured: String
+        }
+        enum Kind { case bold, bracket }
+        var hits: [Hit] = []
+
+        // 行内 **xxx** 加粗段（非贪婪，1-200 字符非星号非换行）
+        let boldRegex = try! NSRegularExpression(pattern: "\\*\\*([^*\\n]{1,200}?)\\*\\*")
+        for m in boldRegex.matches(in: raw, range: NSRange(location: 0, length: length)) {
+            let inner = nsText.substring(with: m.range(at: 1))
+            hits.append(Hit(
+                start: m.range.location,
+                end: m.range.location + m.range.length,
+                kind: .bold,
+                captured: inner
+            ))
+        }
+
+        // [n] 角标（[1] / (2) 都行），只在有 refs 时识别
+        if let refs = refs, !refs.isEmpty {
+            let bracketRegex = try! NSRegularExpression(pattern: "[\\[\\(](\\d+)[\\]\\)]")
+            for m in bracketRegex.matches(in: raw, range: NSRange(location: 0, length: length)) {
+                let mStart = m.range.location
+                let mEnd = mStart + m.range.length
+                // 跳过已被 bold 段覆盖的位置
+                if hits.contains(where: { $0.start <= mStart && mEnd <= $0.end }) {
+                    continue
+                }
+                let tokenStr = nsText.substring(with: m.range)
+                hits.append(Hit(
+                    start: mStart,
+                    end: mEnd,
+                    kind: .bracket,
+                    captured: tokenStr
+                ))
+            }
+        }
+
+        if hits.isEmpty {
+            return Text(raw).font(baseFont).foregroundColor(baseColor)
+        }
+
+        // 按 start 排序
+        hits.sort { $0.start < $1.start }
+
+        // 拼接 AttributedString
         var result = AttributedString()
         var cursor = 0
-        for m in matches {
-            // 拼接 [n] 之前的普通文本
-            let plainStart = cursor
-            let plainEnd = m.range.location
-            if plainEnd > plainStart {
-                let plainRange = NSRange(location: plainStart, length: plainEnd - plainStart)
+        for hit in hits {
+            // 拼接 hit 之前的普通文本
+            if hit.start > cursor {
+                let plainRange = NSRange(location: cursor, length: hit.start - cursor)
                 var plain = AttributedString(nsText.substring(with: plainRange))
                 plain.font = baseFont
                 plain.foregroundColor = baseColor
                 result += plain
             }
-            // [n] 本身
-            let tokenRange = m.range
-            let tokenStr = nsText.substring(with: tokenRange)
-            let idxStr = nsText.substring(with: m.range(at: 1))
-            if let idx = Int(idxStr), let ref = searchResults.first(where: { $0.index == idx }) {
-                var linkAttr = AttributedString(tokenStr)
-                linkAttr.font = .system(size: 12, weight: .bold, design: .monospaced)
-                linkAttr.foregroundColor = accent
-                linkAttr.underlineStyle = .single
-                if let url = URL(string: ref.url) {
-                    linkAttr.link = url
+            switch hit.kind {
+            case .bold:
+                var bold = AttributedString(hit.captured)
+                bold.font = baseFont.weight(.bold)
+                bold.foregroundColor = baseColor
+                result += bold
+            case .bracket:
+                // 提取数字，找 ref
+                let digits = hit.captured.filter { $0.isNumber }
+                if let idx = Int(digits), let ref = refs?.first(where: { $0.index == idx }) {
+                    var linkAttr = AttributedString(hit.captured)
+                    linkAttr.font = .system(size: 12, weight: .bold, design: .monospaced)
+                    linkAttr.foregroundColor = accent
+                    linkAttr.underlineStyle = .single
+                    if let url = URL(string: ref.url) {
+                        linkAttr.link = url
+                    }
+                    result += linkAttr
+                } else {
+                    var plain = AttributedString(hit.captured)
+                    plain.font = baseFont
+                    plain.foregroundColor = baseColor
+                    result += plain
                 }
-                result += linkAttr
-            } else {
-                // 找不到对应 ref：按普通文本渲染
-                var plain = AttributedString(tokenStr)
-                plain.font = baseFont
-                plain.foregroundColor = baseColor
-                result += plain
             }
-            cursor = m.range.location + m.range.length
+            cursor = hit.end
         }
         // 结尾剩余
-        if cursor < nsText.length {
-            let tailRange = NSRange(location: cursor, length: nsText.length - cursor)
+        if cursor < length {
+            let tailRange = NSRange(location: cursor, length: length - cursor)
             var plain = AttributedString(nsText.substring(with: tailRange))
             plain.font = baseFont
             plain.foregroundColor = baseColor
