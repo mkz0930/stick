@@ -118,9 +118,14 @@ enum SharedStateStore {
         return seed
     }
 
+    /// 持有 observer box 避免被释放（observePendingChatSeed 内部使用）
+    private static var observerBoxHolder: ObserverBox?
+
     /// 主 app 监听 widget 写入事件（即使在前台也能收到）
     static func observePendingChatSeed(_ handler: @escaping () -> Void) {
-        let observer = Unmanaged.passUnretained(ObserverBox(handler)).toOpaque()
+        let box = ObserverBox(handler)
+        observerBoxHolder = box  // 强引用持有，防止被释放
+        let observer = Unmanaged.passUnretained(box).toOpaque()
         let center = CFNotificationCenterGetDarwinNotifyCenter()
         CFNotificationCenterAddObserver(
             center,
