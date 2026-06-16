@@ -1149,17 +1149,11 @@ private struct StageHeroView: View {
                     .id(state)
                     .transition(.opacity)
 
-                // 右上角：状态名 + 副标（能量徽章已搬到顶部卡片区）
+                // 右上角：状态名 + 副标（睡眠异常 chip 已移除 — 暂无真实数据源）
                 HStack {
                     Spacer(minLength: 0)
                     VStack(alignment: .trailing, spacing: 2) {
-                        HStack(spacing: 6) {
-                            if state == .sleep {
-                                SleepAlertChip(count: 2, onTap: onSleepAlert)
-                                    .transition(.scale.combined(with: .opacity))
-                            }
-                            }
-                        // CONF xx% · 无数据 副标已去掉
+                        // 睡眠 chip 已删除，避免误提示
                     }
                 }
                 .padding(4)

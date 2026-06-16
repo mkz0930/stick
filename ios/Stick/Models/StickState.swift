@@ -103,7 +103,8 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
         case .walk:  return Metric(label: "DURATION",   value: "18 min", status: "STABLE",  statusKind: .info, desc: "行走 · 累计",   hint: "接近目标",     metricID: .exerciseMinutes)
         case .stand: return Metric(label: "STATUS",     value: "STANDBY", status: "IDLE",   statusKind: .info, desc: "活动状态",     hint: "等下一步动作",  metricID: nil)
         case .sit:   return Metric(label: "HEART RATE", value: "78 bpm", status: "STABLE",  statusKind: .info, desc: "心率 · 静息",   hint: "专注态偏低",   metricID: .heartRate)
-        case .sleep: return Metric(label: "TURNS",      value: "4",     status: "CALM",    statusKind: .ok,   desc: "翻身次数",       hint: "无久压点",     metricID: nil)
+        // 翻身指标已删除（无真实数据源）
+        case .sleep: return Metric(label: "STATUS",     value: "RESTING", status: "DEEP",   statusKind: .ok,   desc: "睡眠 · 状态",   hint: "无数据时占位",  metricID: nil)
         }
     }
 
@@ -153,7 +154,6 @@ struct Metric {
         case "MOOD":       return "心情"
         case "SLEEP":      return "睡眠"
         case "DURATION":   return "时长"
-        case "TURNS":      return "翻身"
         default:           return label
         }
     }
