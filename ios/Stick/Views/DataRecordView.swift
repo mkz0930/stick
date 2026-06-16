@@ -18,6 +18,8 @@ struct HKLiveData: Equatable {
     var walkingSpeed: Double?          // 步速 m/s
     var walkingDoubleSupport: Double?  // 双脚支撑时间 %
     var headphoneExposure: Double?    // 耳机音量 dB
+    // 今日久坐分钟数（直接从 HealthKit 每分钟步数样本统计）
+    var sedentaryMinutes: Int = 0
 }
 
 @MainActor
@@ -53,6 +55,8 @@ final class DataRecordViewModel: ObservableObject {
         data.walkingSpeed = await service.todayWalkingSpeed()
         data.walkingDoubleSupport = await service.todayWalkingDoubleSupport()
         data.headphoneExposure = await service.todayHeadphoneExposure()
+        // 读取今日久坐分钟数（直接从 HealthKit）
+        data.sedentaryMinutes = await service.todaySedentaryMinutes()
         hkData = data
     }
 
@@ -134,6 +138,17 @@ struct DataRecordView: View {
         guard let v = hkData.sleepHours else { return "--" }
         if v <= 0 { return "--" }
         return String(format: "%.1f", v)
+    }
+
+    private var hkSedentaryValue: String {
+        let m = hkData.sedentaryMinutes
+        if m == 0 { return "--" }
+        let hours = m / 60
+        let mins = m % 60
+        if hours > 0 {
+            return String(format: "%d:%02d", hours, mins)
+        }
+        return String(format: "%d分", mins)
     }
 
     /// 血压显示值：收缩压/舒张压 或 --
@@ -260,6 +275,15 @@ struct DataRecordView: View {
                     sub: "来自健康 App",
                     value: hkSleepValue,
                     valueUnit: "小时"
+                )
+                // 久坐（直接从 HealthKit 每分钟步数样本统计）
+                DashboardCard(
+                    icon: "figure.seated.side",
+                    iconColor: Color(red: 0.92, green: 0.55, blue: 0.20),
+                    title: "久坐",
+                    sub: "今日累计",
+                    value: hkSedentaryValue,
+                    valueUnit: ""
                 )
             }
         }

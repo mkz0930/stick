@@ -319,4 +319,44 @@ final class HealthKitService: ObservableObject {
     func todayHeadphoneExposure() async -> Double? {
         await recentAverage(.headphoneAudioExposure, from: Calendar.current.startOfDay(for: Date()), unit: HKUnit.decibelAWeightedSoundPressureLevel())
     }
+
+    // MARK: - Sedentary Minutes
+
+    /// 从 HealthKit 直接读取今日久坐分钟数
+    /// 每分钟采样一次，统计步数为 0 的采样点数即为久坐分钟数
+    func todaySedentaryMinutes() async -> Int {
+        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return 0 }
+        let startOfDay = Calendar.current.startOfDay(for: Date())
+        let now = Date()
+
+        return await withCheckedContinuation { cont in
+            let calendar = Calendar.current
+            var interval = DateComponents()
+            interval.minute = 1
+
+            let query = HKStatisticsCollectionQuery(
+                quantityType: stepType,
+                quantitySamplePredicate: nil,
+                options: .cumulativeSum,
+                anchorDate: startOfDay,
+                intervalComponents: interval
+            )
+
+            query.initialResultsHandler = { _, results, error in
+                guard let results = results else {
+                    cont.resume(returning: 0)
+                    return
+                }
+                var sedentaryCount = 0
+                results.enumerateStatistics(from: startOfDay, to: now) { statistics, _ in
+                    let steps = statistics.sumQuantity()?.doubleValue(for: HKUnit.count()) ?? 0
+                    if steps == 0 {
+                        sedentaryCount += 1
+                    }
+                }
+                cont.resume(returning: sedentaryCount)
+            }
+            store?.execute(query)
+        }
+    }
 }
