@@ -27,6 +27,11 @@ struct DayTimelineView: View {
     private let lineAlpha: Double = 0.65       // 竖线半透明 (稍亮，跟动画同色系)
     private let thumbAlpha: Double = 0.85      // 圆环半透明
 
+    // 步行段视觉强化（不破坏时间轴时间准确性）
+    private let walkHaloHeight: CGFloat = 22    // 步行段上下各 11pt 的外发光（强视觉锚点）
+    private let walkBarMinHeight: CGFloat = 8   // 即使 1 分钟的步行也至少 8pt 高
+    private let walkBarWidth: CGFloat = 6       // 步行竖线比坐/睡粗（4 → 6pt）
+
     // MARK: - 派生
 
     private var nowMinute: Int { StickState.minutesOfDay(now) }
@@ -184,23 +189,14 @@ struct DayTimelineView: View {
         GeometryReader { geo in
             let height = geo.size.height
             ZStack(alignment: .topLeading) {
+                // 步行段外发光层（先画，在所有段底层）
+                ForEach(schedule.filter { $0.state == .walk }) { seg in
+                    walkHalo(seg, in: height)
+                }
+
                 // 色条（按"过去 24h"重新映射，竖向）
                 ForEach(schedule) { seg in
                     rotatedSegment(seg, in: height)
-                }
-
-                // 步行段右侧小圆点（让绿色更容易被看到）
-                ForEach(schedule.filter { $0.state == .walk }) { seg in
-                    let totalMin = Int(dayMinutes)
-                    let startWin = ((seg.startMinute - nowMinute) + totalMin) % totalMin
-                    let endWin   = ((seg.endMinute   - nowMinute) + totalMin) % totalMin
-                    let total = CGFloat(totalMin)
-                    let yTop = CGFloat(totalMin - endWin) / total * height
-                    let segH = max(6, CGFloat(endWin - startWin) / total * height)
-                    Circle()
-                        .fill(seg.state.accent)
-                        .frame(width: 4, height: 4)
-                        .position(x: trackWidth + 8, y: yTop + segH / 2)
                 }
 
                 // thumb (圆环) — 圆心落在竖线中心
@@ -330,6 +326,48 @@ struct DayTimelineView: View {
 
     // MARK: - 组件
 
+    /// 步行段的外发光层（在所有段底层，绿色柔光圆角矩形）
+    /// 用强视觉锚点解决"短步行段(<1分钟)看不出来"的问题
+    @ViewBuilder
+    private func walkHalo(_ seg: StickState.DaySegment, in height: CGFloat) -> some View {
+        let totalMin = Int(dayMinutes)
+        let startWin = ((seg.startMinute - nowMinute) + totalMin) % totalMin
+        let endWin   = ((seg.endMinute   - nowMinute) + totalMin) % totalMin
+        let total = CGFloat(totalMin)
+
+        if startWin <= endWin {
+            // 普通段
+            let yTop = CGFloat(totalMin - endWin) / total * height
+            let rawSegH = CGFloat(endWin - startWin) / total * height
+            // 步行段：bar 至少 walkBarMinHeight 高，halo 撑到 walkHaloHeight
+            let barH = max(walkBarMinHeight, rawSegH)
+            let haloCenter = yTop + barH / 2
+            Capsule()
+                .fill(seg.state.accent.opacity(0.22))
+                .frame(width: trackWidth + 8, height: walkHaloHeight)
+                .position(x: trackWidth / 2, y: haloCenter)
+        } else {
+            // 跨底边界：两段都画 halo
+            let uY = CGFloat(totalMin - endWin) / total * height
+            let rawUH = CGFloat(endWin) / total * height
+            let lY: CGFloat = 0
+            let rawLH = CGFloat(totalMin - startWin) / total * height
+            let uBarH = max(walkBarMinHeight, rawUH)
+            let lBarH = max(walkBarMinHeight, rawLH)
+
+            ZStack {
+                Capsule()
+                    .fill(seg.state.accent.opacity(0.22))
+                    .frame(width: trackWidth + 8, height: walkHaloHeight)
+                    .position(x: trackWidth / 2, y: uY + uBarH / 2)
+                Capsule()
+                    .fill(seg.state.accent.opacity(0.22))
+                    .frame(width: trackWidth + 8, height: walkHaloHeight)
+                    .position(x: trackWidth / 2, y: lY + lBarH / 2)
+            }
+        }
+    }
+
     /// 把原 schedule 时段按"过去 24h 窗口"重新映射（竖向）
     /// 窗口坐标系：顶 = 24h 前 (offset 1440)，底 = 现在 (offset 0)
     /// 段位置 = 该段在窗口里的窗口坐标 offset / 1440
@@ -343,18 +381,17 @@ struct DayTimelineView: View {
         let total = CGFloat(totalMin)
         let accent = seg.state.accent
 
-        // 步行段强制最小高度（1分钟步行也至少占 6pt，保证能看见）
-        let minHeight: CGFloat = 6
         let isWalk = seg.state == .walk
 
         if startWin <= endWin {
             // 普通段（不跨边）
             let yTop = CGFloat(totalMin - endWin) / total * height
             let rawSegH = CGFloat(endWin - startWin) / total * height
-            let segH = isWalk ? max(minHeight, rawSegH) : rawSegH
+            // 步行段强制最小高度（1分钟步行也至少 walkBarMinHeight），保证能看见
+            let segH = isWalk ? max(walkBarMinHeight, rawSegH) : rawSegH
             let isActive = (startWin...endWin).contains(thumbWin)
 
-            // 步行段：最小高度 + 无 gap
+            // 步行段：无 gap；坐/睡段：留 gap
             let gap: CGFloat = 1.5
             let fillY: CGFloat = isWalk ? yTop : yTop + gap / 2
             let fillH: CGFloat = isWalk ? segH : max(0, segH - gap)
@@ -366,8 +403,8 @@ struct DayTimelineView: View {
             let rawUH = CGFloat(endWin) / total * height
             let lY: CGFloat = 0
             let rawLH = CGFloat(totalMin - startWin) / total * height
-            let uH = isWalk ? max(minHeight, rawUH) : rawUH
-            let lH = isWalk ? max(minHeight, rawLH) : rawLH
+            let uH = isWalk ? max(walkBarMinHeight, rawUH) : rawUH
+            let lH = isWalk ? max(walkBarMinHeight, rawLH) : rawLH
             let upActive = thumbWin >= 0 && thumbWin < endWin
             let downActive = thumbWin >= startWin && thumbWin < totalMin
 
@@ -385,6 +422,7 @@ struct DayTimelineView: View {
     }
 
     /// 一段矩形（带可选 active 描边）— 竖向
+    /// 步行段使用更宽 + 实心（避免被坐/睡段淹没）
     @ViewBuilder
     private func singlePiece(
         yTop: CGFloat, segH: CGFloat,
@@ -392,26 +430,23 @@ struct DayTimelineView: View {
         isActive: Bool, accent: Color,
         isWalk: Bool = false
     ) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(accent.opacity(lineAlpha))
-                .frame(width: trackWidth, height: max(0, fillH))
-                .offset(x: 0, y: fillY)
+        let barWidth: CGFloat = isWalk ? walkBarWidth : trackWidth
+        let barOffsetX: CGFloat = isWalk ? (trackWidth - walkBarWidth) / 2 : 0
+        let barCornerRadius: CGFloat = isWalk ? 3 : 2
 
-            // 步行段加柔光高亮（让绿色更容易被注意到）
-            if isWalk {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(accent.opacity(0.15))
-                    .frame(width: trackWidth + 4, height: max(0, fillH) + 2)
-                    .offset(x: -2, y: fillY - 1)
-            }
+        ZStack {
+            // 主体：步行段用实色 + 更亮；坐/睡用半透明
+            RoundedRectangle(cornerRadius: barCornerRadius)
+                .fill(isWalk ? accent : accent.opacity(lineAlpha))
+                .frame(width: barWidth, height: max(0, fillH))
+                .offset(x: barOffsetX, y: fillY)
 
             if isActive {
-                let pulseAlpha = 0.2 + 0.5 * pulse
-                RoundedRectangle(cornerRadius: 3)
-                    .stroke(accent, lineWidth: 2)
-                    .frame(width: trackWidth, height: max(0, fillH))
-                    .offset(x: -1.5, y: fillY)
+                let pulseAlpha = 0.25 + 0.25 * pulse
+                RoundedRectangle(cornerRadius: barCornerRadius)
+                    .stroke(accent.opacity(0.7), lineWidth: 2)
+                    .frame(width: barWidth, height: max(0, fillH))
+                    .offset(x: barOffsetX - 1.5, y: fillY)
                     .shadow(color: accent.opacity(pulseAlpha), radius: 4 + 2 * pulse, x: 0, y: 0)
 
                 // 段两端角标：让 active 范围起止更显眼
