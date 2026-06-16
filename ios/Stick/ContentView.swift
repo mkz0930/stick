@@ -649,6 +649,9 @@ struct ContentView: View {
                     sedentaryStartTime: sessionMins > 0 ? Date().addingTimeInterval(-Double(sessionMins) * 60) : nil
                 )
                 SharedStateStore.write(snap)
+                #if canImport(WidgetKit)
+                WidgetCenter.shared.reloadAllTimelines()
+                #endif
                 // 每 5 分钟重新生成一次 24h 时刻表（不必 30s 一次，太重）
                 if Calendar.current.component(.minute, from: Date()) % 5 == 0 {
                     await HealthKitService.shared.computeDaySchedule()

@@ -265,8 +265,13 @@ final class HealthKitService: ObservableObject {
     func startAutoCapture(interval: TimeInterval = 60) {
         stopAutoCapture()
 
-        // 模拟器且无数据时，生成 mock 快照（模拟用户45分钟前走路，现在坐着）
-        if HealthStore.shared.today.isEmpty {
+        // 模拟器无有效步数时，生成 mock 快照（模拟用户45分钟前走路，现在坐着）。
+        // 不能只判断 today.isEmpty：上次启动可能已持久化 0 步快照，导致 mock 永远不再注入。
+        #if targetEnvironment(simulator)
+        let hasRecentSignificantMovement = HealthStore.shared.today.contains {
+            $0.timestamp >= Date().addingTimeInterval(-4 * 3600) && $0.incrementalStepCount > 10
+        }
+        if !hasRecentSignificantMovement {
             let mockWalkTime = Date().addingTimeInterval(-45 * 60)
             let mockSnapshot = HealthSnapshot(
                 timestamp: mockWalkTime,
@@ -286,7 +291,9 @@ final class HealthKitService: ObservableObject {
                 sourceName: "Mock Simulator"
             )
             HealthStore.shared.append(mockSnapshot)
+            lastSnapshot = mockSnapshot
         }
+        #endif
 
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             guard let self else { return }
