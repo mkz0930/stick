@@ -377,6 +377,77 @@ final class HealthKitService: ObservableObject {
         }
     }
 
+    /// 在 12:00-14:00 午休窗口内，通过步数聚类推断午休时间
+    /// 如果两个步行活动之间有 ≥30min 的连续无步数间隔 → 那段间隔是午休，不计久坐
+    private func detectLunchNap() async -> ClosedRange<Date>? {
+        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return nil }
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: Date())
+        guard let windowStart = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: startOfDay),
+              let windowEnd = calendar.date(bySettingHour: 14, minute: 0, second: 0, of: startOfDay) else { return nil }
+        let now = Date()
+        let effectiveEnd = min(windowEnd, now)
+        guard effectiveEnd > windowStart else { return nil }
+
+        return await withCheckedContinuation { cont in
+            var interval = DateComponents()
+            interval.minute = 1
+
+            let query = HKStatisticsCollectionQuery(
+                quantityType: stepType,
+                quantitySamplePredicate: nil,
+                options: .cumulativeSum,
+                anchorDate: startOfDay,
+                intervalComponents: interval
+            )
+
+            query.initialResultsHandler = { _, results, _ in
+                guard let results else { cont.resume(returning: nil); return }
+
+                // 1) 收集窗口内每分钟步数
+                var buckets: [(Date, Double)] = []
+                results.enumerateStatistics(from: windowStart, to: effectiveEnd) { stat, _ in
+                    let s = stat.sumQuantity()?.doubleValue(for: .count()) ?? 0
+                    buckets.append((stat.startDate, s))
+                }
+                buckets.sort { $0.0 < $1.0 }
+
+                // 2) 聚类步行时段：连续有步数的分钟归为一组，间隔 >10min 算不同组
+                var clusters: [(Date, Date)] = [] // (start, end) of each walking cluster
+                var cStart: Date? = nil
+                var cLast: Date? = nil
+                for (ts, steps) in buckets {
+                    if steps > 0 {
+                        if cStart == nil { cStart = ts }
+                        cLast = ts
+                    } else {
+                        // 连续无步数 >10min → 当前步行组结束
+                        if let last = cLast, ts.timeIntervalSince(last) > 10 * 60 {
+                            if let start = cStart { clusters.append((start, last)) }
+                            cStart = nil; cLast = nil
+                        }
+                    }
+                }
+                if let start = cStart, let last = cLast { clusters.append((start, last)) }
+
+                // 3) 如果 ≥2 组步行活动，找它们之间的间隙
+                guard clusters.count >= 2 else { cont.resume(returning: nil); return }
+                let sorted = clusters.sorted { $0.0 < $1.0 }
+                for i in 1..<sorted.count {
+                    let gapStart = sorted[i-1].1  // 上一组步行的结束
+                    let gapEnd = sorted[i].0      // 下一组步行的开始
+                    let gapMin = gapEnd.timeIntervalSince(gapStart) / 60
+                    if gapMin >= 30 && gapMin <= 120 {
+                        cont.resume(returning: gapStart...gapEnd)
+                        return
+                    }
+                }
+                cont.resume(returning: nil)
+            }
+            store?.execute(query)
+        }
+    }
+
     func todaySedentaryMinutes() async -> Int {
         guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return 0 }
         let startOfDay = Calendar.current.startOfDay(for: Date())
@@ -394,6 +465,8 @@ final class HealthKitService: ObservableObject {
 
         // 推测起床时间：起床前全部算睡眠，不计久坐
         let wakeUpTime = await queryWakeUpTime()
+        // 检测午休：12:00-14:00 内步行之间的长间隙不计久坐
+        let lunchNap = await detectLunchNap()
 
         return await withCheckedContinuation { cont in
             var interval = DateComponents()
@@ -422,6 +495,10 @@ final class HealthKitService: ObservableObject {
 
                     // 起床前全部算睡眠，不计久坐
                     if let wakeUp = wakeUpTime, bucketStart < wakeUp {
+                        return
+                    }
+                    // 午休时间不计久坐
+                    if let nap = lunchNap, bucketStart >= nap.lowerBound && bucketStart < nap.upperBound {
                         return
                     }
 
@@ -540,8 +617,10 @@ final class HealthKitService: ObservableObject {
     /// 2. 再从 HealthKit 直接查最近一次 >10 步的原始样本
     /// 3. 取两个来源中**更晚**的那个（更精确地反映"最后一次活动"）
     /// 4. 若最后活动时间在起床前 → 从起床时间开始算久坐
+    /// 5. 若最后活动在午休前 → 从午休结束开始算久坐
     func currentSedentarySessionMinutes(hours: Double = 4) async -> Int {
         let wakeUp = await queryWakeUpTime()
+        let lunchNap = await detectLunchNap()
         let lastFromSnapshots = lastSignificantMovementTime(hours: hours)
         let lastFromHK = await queryLatestStepTime(hours: hours)
         // 取两个来源中更晚的（更接近真实"最后活动时间"）
@@ -555,6 +634,10 @@ final class HealthKitService: ObservableObject {
         // 最后活动在起床前 → 从起床时间开始算（夜间起夜不算活动）
         if let lastMove, let wakeUp, lastMove < wakeUp {
             return max(0, Int(Date().timeIntervalSince(wakeUp) / 60))
+        }
+        // 最后活动在午休结束前 → 从午休结束开始算（午睡不算久坐）
+        if let lastMove, let nap = lunchNap, lastMove < nap.upperBound {
+            return max(0, Int(Date().timeIntervalSince(nap.upperBound) / 60))
         }
         guard let lastMove else { return 0 }
         return max(0, Int(Date().timeIntervalSince(lastMove) / 60))
