@@ -443,8 +443,8 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
     ctx.transform = rBase
 
     // 左臂（伸向键盘，与右手对称敲击）
-    let lElbow = CGPoint(x: 60, y: 175)
-    let lHand  = CGPoint(x: 25, y: 200)
+    let lElbow = CGPoint(x: 130, y: 175)
+    let lHand  = CGPoint(x: 148, y: 200)
     strokeLine(ctx: &ctx, from: shoulder, to: lElbow, color: stroke, width: w, alpha: lineAlpha)
     drawDot(ctx: &ctx, at: lElbow, r: 3, color: joint, filled: true, alpha: jointAlpha)
     // 左手敲击动画：与右手同频率但相位差 0.3，看起来像双手交替敲键
