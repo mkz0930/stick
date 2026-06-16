@@ -68,6 +68,8 @@ struct ChatOverlay: View {
     @State private var capturedImage: UIImage?
     /// 打开相机前保存用户已输入的文本，拍照完成后拼图片一起发给 LLM
     @State private var textBeforeCamera: String = ""
+    /// 联网搜索状态文本（"正在联网搜索最新信息…"），nil 表示不在搜索
+    @State private var searchStatus: String? = nil
 
     private let suggestedQuestions: [String] = [
         "今天步数多少",
@@ -345,7 +347,7 @@ struct ChatOverlay: View {
                                         ProgressView()
                                             .controlSize(.small)
                                             .tint(state.accent)
-                                        Text("正在生成建议…")
+                                        Text(searchStatus ?? "正在生成建议…")
                                             .font(.system(size: 14, weight: .regular))
                                             .foregroundColor(Theme.slate)
                                     }
@@ -786,6 +788,8 @@ struct ChatOverlay: View {
         BodyMetricsStore.shared.extract(from: text)
 
         isStreaming = true
+        // 启动联网搜索的加载态（用户问题含「最新/今天/新闻/价格」等关键词才真正触发；UI 先显示）
+        searchStatus = "正在联网搜索最新信息…"
 
         let assistantId = UUID()
         messages.append(ChatMessage(id: assistantId, role: .assistant, content: ""))
@@ -797,6 +801,8 @@ struct ChatOverlay: View {
                 let flushInterval: TimeInterval = 0.1
                 var buffer = ""
                 var lastFlush = Date()
+                // 收到第一个 chunk 后就关闭"联网搜索"状态
+                var firstChunkReceived = false
 
                 let flushBuffer: @Sendable () async -> Void = {
                     guard !buffer.isEmpty else { return }
@@ -813,12 +819,33 @@ struct ChatOverlay: View {
                     if let imgData = imageData {
                         return LLMService.sendMessageStreamWithImage(text, context: ctx, imageData: imgData)
                     } else {
-                        return LLMService.sendMessageStream(text, context: ctx)
+                        return LLMService.sendMessageStreamWithSearch(text, context: ctx)
                     }
                 }()
 
                 for try await chunk in stream {
                     if Task.isCancelled { break }
+
+                    // 检测搜索引用 sentinel："__SEARCH_RESULTS__:<json>"
+                    if chunk.hasPrefix("__SEARCH_RESULTS__:") {
+                        let json = String(chunk.dropFirst("__SEARCH_RESULTS__:".count))
+                        if let data = json.data(using: .utf8),
+                           let refs = try? JSONDecoder().decode([SearchResult].self, from: data),
+                           !refs.isEmpty {
+                            await MainActor.run {
+                                if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
+                                    messages[idx].searchResults = refs
+                                }
+                            }
+                        }
+                        continue
+                    }
+
+                    if !firstChunkReceived {
+                        firstChunkReceived = true
+                        await MainActor.run { searchStatus = nil }
+                    }
+
                     buffer += chunk
                     if Date().timeIntervalSince(lastFlush) >= flushInterval {
                         await flushBuffer()
@@ -844,14 +871,16 @@ struct ChatOverlay: View {
                     }
                 }
             }
-            await MainActor.run { isStreaming = false }
+            await MainActor.run {
+                isStreaming = false
+                searchStatus = nil
+            }
 
             // 记录本次分析时间（一小时内的后续回复不再做个性化长分析）
             LLMService.markAnalysisDone()
 
             // 流结束后生成追问建议
             await generateSuggestions(for: assistantId)
-
             // 更新用户画像
             await summarizeUserProfile()
         }
@@ -1283,13 +1312,16 @@ struct ChatMessage: Identifiable, Equatable {
     var suggestions: [String] = []
     /// 用户消息可选带的图片数据
     var imageData: Data? = nil
+    /// 联网搜索引用（assistant 消息可能有，文本里带 [n] 角标对应）
+    var searchResults: [SearchResult] = []
 
-    init(id: UUID = UUID(), role: Role, content: String, suggestions: [String] = [], imageData: Data? = nil) {
+    init(id: UUID = UUID(), role: Role, content: String, suggestions: [String] = [], imageData: Data? = nil, searchResults: [SearchResult] = []) {
         self.id = id
         self.role = role
         self.content = content
         self.suggestions = suggestions
         self.imageData = imageData
+        self.searchResults = searchResults
     }
 }
 
@@ -1371,6 +1403,56 @@ struct MessageRow: View {
                         }
                     }
                     .padding(.top, 2)
+                }
+
+                // 联网搜索引用（紧凑型横滑 chip 列表）
+                if !message.searchResults.isEmpty {
+                    searchResultsBar(message.searchResults, accent: state.accent)
+                        .padding(.top, 4)
+                }
+            }
+        }
+    }
+
+    /// 联网搜索来源 chip 列表（横滑 + 角标编号 [n]）
+    @ViewBuilder
+    private func searchResultsBar(_ refs: [SearchResult], accent: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 4) {
+                Image(systemName: "globe")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(Theme.slate)
+                Text("参考来源")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(Theme.slate)
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(refs) { ref in
+                        if let url = URL(string: ref.url) {
+                            Link(destination: url) {
+                                HStack(spacing: 4) {
+                                    Text("[\(ref.index)]")
+                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                        .foregroundColor(accent)
+                                    Text(ref.siteName ?? ref.title ?? ref.url)
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(Theme.navy)
+                                        .lineLimit(1)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.white)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(Theme.border, lineWidth: 0.5)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

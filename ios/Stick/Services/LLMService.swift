@@ -55,6 +55,21 @@ struct LLMService {
         return content
     }
 
+    /// 一次性问答 + 返回联网搜索引用
+    static func sendMessageWithSearch(_ message: String, context: String) async throws -> (content: String, searchResults: [SearchResult]) {
+        let request = try makeRequest(context: context, message: message, stream: false, enableSearch: true)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            throw LLMError.httpError(statusCode: code)
+        }
+        let r = try JSONDecoder().decode(LLMResponse.self, from: data)
+        guard let msg = r.choices.first?.message, let content = msg.content, !content.isEmpty else {
+            throw LLMError.noContent
+        }
+        return (content, msg.searchInfo?.searchResults ?? [])
+    }
+
     /// 带图片的流式问答（视觉模型）
     static func sendMessageStreamWithImage(
         _ message: String,
@@ -127,12 +142,13 @@ struct LLMService {
     /// 流式问答：每段文本通过 AsyncThrowingStream 吐出
     static func sendMessageStream(
         _ message: String,
-        context: String
+        context: String,
+        enableSearch: Bool = false
     ) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    let request = try makeRequest(context: context, message: message, stream: true)
+                    let request = try makeRequest(context: context, message: message, stream: true, enableSearch: enableSearch)
                     // makeRequest 内部已设置 timeoutInterval = 60
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
                     guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
@@ -182,9 +198,91 @@ struct LLMService {
         }
     }
 
+    /// 流式问答 + 联网搜索（返回内容 chunks + 末尾的搜索引用）
+    /// - 在流末尾 yield 一个特殊 sentinel `"__SEARCH_RESULTS__:<encoded JSON>"`，
+    ///   客户端解析这个 sentinel 拿到引用并展示。
+    static func sendMessageStreamWithSearch(
+        _ message: String,
+        context: String
+    ) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let request = try makeRequest(context: context, message: message, stream: true, enableSearch: true)
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                    guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+                        throw LLMError.httpError(statusCode: code)
+                    }
+
+                    // 整段响应收集起来，末尾用完整 LLMResponse 解析 search_info
+                    var fullText = ""
+                    var gotAnyChunk = false
+                    var collectedData = Data()
+                    for try await line in bytes.lines {
+                        if Task.isCancelled { break }
+                        guard line.hasPrefix("data: ") else { continue }
+                        let jsonStr = String(line.dropFirst(6))
+                        if jsonStr == "[DONE]" { break }
+
+                        if let data = jsonStr.data(using: .utf8) {
+                            collectedData.append(data)
+                            if let chunk = try? JSONDecoder().decode(StreamResponse.self, from: data),
+                               let content = chunk.choices.first?.delta.content,
+                               !content.isEmpty {
+                                gotAnyChunk = true
+                                fullText += content
+                                continuation.yield(content)
+                            }
+                        }
+                    }
+
+                    // 末尾再发一次非流式请求，拿到 search_info 引用
+                    if gotAnyChunk {
+                        do {
+                            let (_, searchResults) = try await sendMessageWithSearch(message, context: context)
+                            if !searchResults.isEmpty,
+                               let json = try? JSONEncoder().encode(searchResults),
+                               let str = String(data: json, encoding: .utf8) {
+                                continuation.yield("__SEARCH_RESULTS__:" + str)
+                            }
+                        } catch {
+                            // 静默失败，搜索引用非关键
+                        }
+                    } else {
+                        // 完全没收到流，回退到非流式
+                        let (fallback, searchResults) = try await sendMessageWithSearch(message, context: context)
+                        if !fallback.isEmpty {
+                            let chunkSize = 2
+                            var idx = fallback.startIndex
+                            while idx < fallback.endIndex {
+                                let next = fallback.index(idx, offsetBy: chunkSize, limitedBy: fallback.endIndex) ?? fallback.endIndex
+                                let piece = String(fallback[idx..<next])
+                                continuation.yield(piece)
+                                if Task.isCancelled { break }
+                                try? await Task.sleep(nanoseconds: 25_000_000)
+                                idx = next
+                            }
+                            if !searchResults.isEmpty,
+                               let json = try? JSONEncoder().encode(searchResults),
+                               let str = String(data: json, encoding: .utf8) {
+                                continuation.yield("__SEARCH_RESULTS__:" + str)
+                            }
+                        }
+                    }
+                    _ = fullText
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
     // MARK: - 请求构造
 
-    private static func makeRequest(context: String, message: String, stream: Bool) throws -> URLRequest {
+    private static func makeRequest(context: String, message: String, stream: Bool, enableSearch: Bool = false) throws -> URLRequest {
         guard let url = URL(string: "\(baseURL)/chat/completions") else {
             throw LLMError.invalidURL
         }
@@ -193,7 +291,7 @@ struct LLMService {
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 60
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "model": model,
             "stream": stream,
             "messages": [
@@ -204,6 +302,14 @@ struct LLMService {
             "temperature": 0.75,
             "top_p": 0.8
         ]
+        if enableSearch {
+            // DashScope 联网搜索：模型按需检索并把结果作为上下文，响应里返回引用 URL
+            body["enable_search"] = true
+            body["search_options"] = [
+                "forced_search": false,   // 让模型自己决定是否需要搜索
+                "search_strategy": "standard"
+            ]
+        }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         return request
     }
@@ -344,7 +450,32 @@ struct LLMChoice: Codable {
 }
 struct LLMMessage: Codable {
     let role: String
-    let content: String
+    let content: String?
+    /// 联网搜索引用（DashScope enable_search=true 时返回，可能为空）
+    let searchInfo: SearchInfo?
+
+    enum CodingKeys: String, CodingKey {
+        case role, content
+        case searchInfo = "search_info"
+    }
+}
+
+/// 联网搜索结果引用
+struct SearchInfo: Codable {
+    let searchResults: [SearchResult]
+
+    enum CodingKeys: String, CodingKey {
+        case searchResults = "search_results"
+    }
+}
+
+struct SearchResult: Codable, Identifiable, Hashable {
+    let index: Int          // 角标编号（与文本里的 [n] 对应）
+    let url: String         // 来源 URL
+    let title: String?      // 标题
+    let siteName: String?   // 站点名
+
+    var id: Int { index }
 }
 
 /// 流式 chunk
