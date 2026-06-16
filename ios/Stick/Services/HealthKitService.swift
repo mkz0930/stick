@@ -1053,9 +1053,30 @@ final class HealthKitService: ObservableObject {
 
     /// 导出今日全部 HealthKit 数据（JSON 格式，北京时间）
     func exportTodayData() async -> URL? {
-        guard HKHealthStore.isHealthDataAvailable() else { return nil }
         let dayStart = Calendar.current.startOfDay(for: Date())
         let now = Date()
+        return await exportHealthRange(from: dayStart, to: now, fileSuffix: nil)
+    }
+
+    /// 导出最近 7 天 HealthKit 数据（JSON 格式，北京时间）
+    /// - Returns: 临时目录里的 JSON 文件 URL；失败返回 nil
+    func exportLast7Days() async -> URL? {
+        let calendar = Calendar.current
+        let now = Date()
+        guard let start = calendar.date(byAdding: .day, value: -6, to: calendar.startOfDay(for: now)) else {
+            return nil
+        }
+        return await exportHealthRange(from: start, to: now, fileSuffix: "7d")
+    }
+
+    /// 把指定日期范围的全部 HealthKit 数据导出成 JSON 写到临时目录
+    /// - Parameters:
+    ///   - from: 起始时间（含）
+    ///   - to: 结束时间（含）
+    ///   - fileSuffix: 文件名后缀（如 "7d"），nil 则用默认 `health_export_<timestamp>_<device>.json`
+    /// - Returns: 临时文件 URL；失败返回 nil
+    private func exportHealthRange(from: Date, to: Date, fileSuffix: String?) async -> URL? {
+        guard HKHealthStore.isHealthDataAvailable() else { return nil }
 
         // 北京时间格式化器（不带时区偏移后缀）
         let bjTz = TimeZone(identifier: "Asia/Shanghai") ?? TimeZone.current
@@ -1064,8 +1085,8 @@ final class HealthKitService: ObservableObject {
         dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
 
         var exportData: [String: Any] = [
-            "导出时间": dateFormatter.string(from: now),
-            "数据开始": dateFormatter.string(from: dayStart),
+            "导出时间": dateFormatter.string(from: to),
+            "数据开始": dateFormatter.string(from: from),
             "数据类型": []
         ]
 
@@ -1089,7 +1110,7 @@ final class HealthKitService: ObservableObject {
 
         for (name, id, unit) in types {
             guard let type = HKObjectType.quantityType(forIdentifier: id) else { continue }
-            let samples = await fetchSamples(type: type, unit: unit, from: dayStart, to: now)
+            let samples = await fetchSamples(type: type, unit: unit, from: from, to: to)
             results.append([
                 "类型": name,
                 "identifier": id.rawValue,
@@ -1100,7 +1121,7 @@ final class HealthKitService: ObservableObject {
 
         // 睡眠
         if let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
-            let sleepSamples = await fetchCategorySamples(type: sleepType, from: dayStart, to: now)
+            let sleepSamples = await fetchCategorySamples(type: sleepType, from: from, to: to)
             results.append([
                 "类型": "睡眠分析",
                 "identifier": HKCategoryTypeIdentifier.sleepAnalysis.rawValue,
@@ -1122,9 +1143,10 @@ final class HealthKitService: ObservableObject {
             let nameFormatter = DateFormatter()
             nameFormatter.dateFormat = "yyyyMMdd_HHmm"
             nameFormatter.timeZone = bjTz
-            let timeStr = nameFormatter.string(from: now)
+            let timeStr = nameFormatter.string(from: to)
             let deviceName = UIDevice.current.name.replacingOccurrences(of: " ", with: "_")
-            let fileName = "health_export_\(timeStr)_\(deviceName).json"
+            let suffix = fileSuffix.map { "_\($0)" } ?? ""
+            let fileName = "health_export_\(timeStr)_\(deviceName)\(suffix).json"
             let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
             try jsonData.write(to: tempURL)
             return tempURL
