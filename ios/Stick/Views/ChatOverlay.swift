@@ -861,8 +861,9 @@ struct ChatOverlay: View {
                 messageId: analysisId,
                 stream: LLMService.sendMessageStream(
                     """
-                    只输出 1-2 句「用户当下最突出的健康现状/问题」总结，60 字以内。
+                    第一行输出【个性化分析】标题，第二行开始写 1-2 句「用户当下最突出的健康现状/问题」总结，60 字以内。
                     严格规则：
+                    - 第一行必须是【个性化分析】（保持这个格式）
                     - 只描述现状，不给建议
                     - 不引用联网信息
                     - 不重复用户的原话
@@ -892,9 +893,9 @@ struct ChatOverlay: View {
                     messageId: webId,
                     stream: LLMService.sendMessageStreamWithSearch(
                         """
-                        基于联网结果，简洁给出与用户问题相关的「关键信息/事实」2-3 条。
-                        80 字以内。
+                        第一行输出【联网参考】标题，第二行开始写与用户问题相关的「关键信息/事实」2-3 条，80 字以内。
                         严格规则：
+                        - 第一行必须是【联网参考】（保持这个格式）
                         - 必须是联网结果的事实，不是自己的分析
                         - 不要重复用户的原话
                         - 用 [n] 角标对应来源
