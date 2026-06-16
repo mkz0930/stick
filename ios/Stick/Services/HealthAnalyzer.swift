@@ -28,7 +28,7 @@ final class HealthAnalyzer {
 
         var insights: [HealthInsight] = []
 
-        // 1) 久坐检测 — 连续 30 分钟 bodyState == sit 且步数 == 0
+        // 1) 久坐检测 — 连续 2 小时 bodyState == sit 且步数 == 0
         insights.append(contentsOf: detectSedentary(snapshots))
 
         // 2) 活跃时段 — 连续 walk 5+ 分钟
@@ -81,11 +81,12 @@ final class HealthAnalyzer {
                 runMinutes += 1
                 lastTimestamp = s.timestamp
             } else {
-                if let s_ = runStart, runMinutes >= 30 {
+                // 久坐阈值：连续 2 小时才算异常（避免每次小憩都触发）
+                if let s_ = runStart, runMinutes >= 120 {
                     out.append(HealthInsight(
                         kind: .sedentary,
-                        severity: runMinutes >= 60 ? .alert : .warn,
-                        title: runMinutes >= 60 ? "久坐超过 1 小时" : "久坐 30 分钟以上",
+                        severity: runMinutes >= 180 ? .alert : .warn,
+                        title: runMinutes >= 180 ? "久坐超过 3 小时" : "久坐超过 2 小时",
                         detail: "建议起身活动 5 分钟, 拉伸颈肩",
                         timestampRange: "\(hhmm(s_))–\(hhmm(lastTimestamp ?? s_))",
                         numericValue: "\(runMinutes) 分钟"
