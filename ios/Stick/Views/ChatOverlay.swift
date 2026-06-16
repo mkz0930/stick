@@ -183,8 +183,12 @@ struct ChatOverlay: View {
             // 检查短期标签是否过期
             UserInterestTagStore.shared.resetShortTermIfExpired()
             // 自动弹出键盘（延迟 0.1s，等 overlay 动画完成后再弹）
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.inputFocused = true
+            // 但如果是相机/相册自动开图场景，跳过键盘弹起（避免 UI 冲突）
+            let willAutoOpenImage = pendingCamera || pendingPhotoUpload
+            if !willAutoOpenImage {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self.inputFocused = true
+                }
             }
             // 主页 + 按钮触发：自动打开相册选图，发送给 LLM 视觉分析
             if pendingPhotoUpload {
