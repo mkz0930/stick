@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// 火柴人 3 状态（走 / 坐 / 睡）。整个 app 围绕这个枚举。
+/// 火柴人 4 状态（走 / 站 / 坐 / 睡）。整个 app 围绕这个枚举。
 enum StickState: String, CaseIterable, Identifiable, Hashable {
     case walk  = "走"
+    case stand = "站"
     case sit   = "坐"
     case sleep = "睡"
 
@@ -11,6 +12,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
     var englishName: String {
         switch self {
         case .walk:  return "WALKING"
+        case .stand: return "STANDING"
         case .sit:   return "SITTING"
         case .sleep: return "SLEEPING"
         }
@@ -22,6 +24,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
     var eyebrow: String {
         switch self {
         case .walk:  return "OUTDOOR · COMMUTE · WALK"
+        case .stand: return "HOME · IDLE · STANDING"
         case .sit:   return "OFFICE · DEEP WORK · SITTING"
         case .sleep: return "BEDROOM · DEEP SLEEP · LIVE"
         }
@@ -31,6 +34,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
     var actionPhrase: String {
         switch self {
         case .walk:  return "能量输出"
+        case .stand: return "静态待机"
         case .sit:   return "深度专注"
         case .sleep: return "深度修复"
         }
@@ -45,6 +49,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
     var subLine: String {
         switch self {
         case .walk:  return "步态稳定 · 步频 118 spm · 心率 92 bpm"
+        case .stand: return "无活动 · 心率平稳 · 待命中"
         case .sit:   return "久坐 47 分 · 颈椎前倾 +18° · 心率 78 bpm"
         case .sleep: return "已入睡 2 小时 47 分 · 深睡 1h32m · 侧卧 92%"
         }
@@ -54,6 +59,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
     var caption: String {
         switch self {
         case .walk:  return "正在户外行走"
+        case .stand: return "正在站立待机"
         case .sit:   return "正在专注工作"
         case .sleep: return "已入睡"
         }
@@ -63,6 +69,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
     var summary: String {
         switch self {
         case .walk:  return "步态稳定 · 心率 92 bpm"
+        case .stand: return "无运动 · 心率平稳"
         case .sit:   return "久坐 47 分 · 颈椎前倾 +18°"
         case .sleep: return "侧卧 · 呼吸 13/分"
         }
@@ -74,6 +81,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
     var primaryMetric: Metric {
         switch self {
         case .walk:  return Metric(label: "HEART RATE", value: "92 bpm", status: "ACTIVE",  statusKind: .ok,   desc: "心率 · 正常",   hint: "有氧区间",      metricID: .heartRate)
+        case .stand: return Metric(label: "HEART RATE", value: "--",      status: "IDLE",    statusKind: .info, desc: "心率 · 待机",   hint: "暂无活动数据",   metricID: .heartRate)
         case .sit:   return Metric(label: "SEDENTARY",  value: "47:23", status: "WARN",    statusKind: .warn, desc: "持续久坐",       hint: "建议起身活动",  metricID: nil)
         case .sleep: return Metric(label: "SLEEP",      value: "82",    status: "GOOD",    statusKind: .ok,   desc: "睡眠质量评分",   hint: "较 7 日均值 +4", metricID: .sleepStage)
         }
@@ -83,6 +91,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
     var secondaryMetric: Metric {
         switch self {
         case .walk:  return Metric(label: "MOOD",       value: "良好",   status: "GOOD",    statusKind: .ok,   desc: "心情 · 愉悦",   hint: "压力偏低",     metricID: nil)
+        case .stand: return Metric(label: "POSTURE",    value: "OK",      status: "GOOD",    statusKind: .ok,   desc: "姿态 · 正常",   hint: "无颈椎前倾",   metricID: .posture)
         case .sit:   return Metric(label: "POSTURE",    value: "POOR",    status: "WARN",    statusKind: .warn, desc: "姿态 · 前倾",   hint: "颈角异常 +18°", metricID: .posture)
         case .sleep: return Metric(label: "HEART RATE", value: "56 bpm",  status: "DEEP",    statusKind: .info, desc: "心率 · 深睡区", hint: "HRV 68 ms",    metricID: .heartRate)
         }
@@ -92,6 +101,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
     var tertiaryMetric: Metric {
         switch self {
         case .walk:  return Metric(label: "DURATION",   value: "18 min", status: "STABLE",  statusKind: .info, desc: "行走 · 累计",   hint: "接近目标",     metricID: .exerciseMinutes)
+        case .stand: return Metric(label: "STATUS",     value: "STANDBY", status: "IDLE",   statusKind: .info, desc: "活动状态",     hint: "等下一步动作",  metricID: nil)
         case .sit:   return Metric(label: "HEART RATE", value: "78 bpm", status: "STABLE",  statusKind: .info, desc: "心率 · 静息",   hint: "专注态偏低",   metricID: .heartRate)
         case .sleep: return Metric(label: "TURNS",      value: "4",     status: "CALM",    statusKind: .ok,   desc: "翻身次数",       hint: "无久压点",     metricID: nil)
         }
@@ -103,6 +113,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
     var accent: Color {
         switch self {
         case .walk:  return Color(red: 0.02, green: 0.59, blue: 0.41)  // #059669  ATLAS 绿
+        case .stand: return Color(red: 0.55, green: 0.71, blue: 0.06)  // 黄绿
         case .sit:   return Color(red: 0.92, green: 0.34, blue: 0.05)  // #EA580C  ATLAS 橙
         case .sleep: return Color(red: 0.70, green: 0.60, blue: 0.98)  // 浅紫
         }
@@ -112,6 +123,7 @@ enum StickState: String, CaseIterable, Identifiable, Hashable {
     var accentSoft: Color {
         switch self {
         case .walk:  return Color(red: 0.85, green: 0.94, blue: 0.90)
+        case .stand: return Color(red: 0.93, green: 0.97, blue: 0.85)
         case .sit:   return Color(red: 0.99, green: 0.91, blue: 0.83)
         case .sleep: return Color(red: 0.95, green: 0.93, blue: 1.0)
         }

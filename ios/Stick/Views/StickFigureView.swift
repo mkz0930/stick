@@ -103,6 +103,21 @@ private func drawScene(ctx: inout GraphicsContext, state: StickState, accent: Co
         }
         ctx.fill(far2, with: .color(accent.opacity(0.12)))
 
+    case .stand:
+        // 站立姿态：地面 + 简单的待机指示线（轻动效，提示在待机）
+        strokeLine(ctx: &ctx, from: CGPoint(x: 10, y: ground), to: CGPoint(x: 230, y: ground),
+                   color: accent.opacity(0.4), width: 1.0)
+        // 静态呼吸圈（提示在待机）
+        for i in 0..<2 {
+            let breathPhase = ((t + Double(i) * 1.5).truncatingRemainder(dividingBy: 3.0)) / 3.0
+            let alpha = (1 - breathPhase) * 0.25
+            let radius = CGFloat(8 + breathPhase * 10)
+            let r = Path(ellipseIn: CGRect(x: 110 - radius, y: 90 - radius,
+                                           width: radius * 2, height: radius * 2))
+            ctx.stroke(r, with: .color(accent.opacity(max(0, alpha))), lineWidth: 0.8)
+        }
+        return
+
     case .sit:
         // 椅子：座面 + 椅背 + 升降柱 + 五星脚
         let seatY: CGFloat = 218
@@ -640,6 +655,7 @@ private func drawSleep(ctx: inout GraphicsContext, stroke: Color, fill: Color, j
 private func drawFigure(ctx: inout GraphicsContext, state: StickState, mood: StickFigureMood, tiredness: Double, neckWarning: Double, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double, lineAlpha: CGFloat, jointAlpha: CGFloat) {
     switch state {
     case .walk:  drawWalk(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
+    case .stand: drawSit(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood, tiredness: 0, neckWarning: 0, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
     case .sit:   drawSit(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood, tiredness: tiredness, neckWarning: neckWarning, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
     case .sleep: drawSleep(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
     }

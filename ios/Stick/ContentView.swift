@@ -59,6 +59,8 @@ struct ContentView: View {
     /// 订阅 HealthStore：30s 一次 captureSnapshot() 会把 HealthSnapshot 写到 .today，
     /// 触发本视图重渲 → todaySteps computed property 重新求和，FeatureRow StepsLine 实时刷新。
     @ObservedObject private var healthStore: HealthStore = HealthStore.shared
+    /// 观察 HealthKitService：步数打断久坐时立即响应
+    @ObservedObject private var hkService: HealthKitService = .shared
 
     // HealthKit 状态推断（30s 重算一次）
     @State private var inference: StateInference.Result? = nil
@@ -99,8 +101,36 @@ struct ContentView: View {
         now.addingTimeInterval(-Double(displayOffset) * 60)
     }
 
+    /// 小人显示状态：基于真实 HealthStore 快照（bodyState）计算
+    /// - 有快照：取最近 1 分钟内的 bodyState 映射
+    /// - 深夜时段（23-7 点）按 sleep 处理
+    /// - 无任何数据 → .stand（不瞎猜 walk）
     private var displayState: StickState {
-        StickState.currentSegment(at: displayDate)?.state ?? .walk
+        // 1. 优先看是否有当前连续快照（最近 1 分钟内有 bodyState 记录）
+        if let latest = HealthStore.shared.today.sorted(by: { $0.timestamp > $1.timestamp }).first {
+            let age = Date().timeIntervalSince(latest.timestamp)
+            if age < 90, let mapped = mapBodyState(latest.bodyState) {
+                return mapped
+            }
+        }
+        // 2. 深夜时段 → sleep
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour >= 23 || hour < 7 {
+            return .sleep
+        }
+        // 3. 没有任何数据时显示站立（不瞎猜 walk）
+        return .stand
+    }
+
+    /// 把 HealthStore 的 bodyState 字符串映射到 StickState
+    private func mapBodyState(_ raw: String) -> StickState? {
+        switch raw {
+        case "walk":  return .walk
+        case "sit":   return .sit
+        case "stand": return .stand
+        case "sleep": return .sleep
+        default:      return nil
+        }
     }
 
     private var isScrubbing: Bool {
@@ -154,6 +184,8 @@ struct ContentView: View {
         switch displayState {
         case .sleep:
             return nil
+        case .stand:
+            return MoodLineInfo(text: "待机", tone: .calm, spark: .stable)
         case .walk:
             if isMorningEnergetic {
                 return MoodLineInfo(text: "兴奋", tone: .excited, spark: .excited)
@@ -194,6 +226,8 @@ struct ContentView: View {
         switch displayState {
         case .walk:
             return isMorningEnergetic ? 90 : 72
+        case .stand:
+            return 65   // 站立待机中，能量平稳
         case .sit:
             if isMorningCalm    { return 78 }
             if isAfternoonTired { return 55 - 40 * figureTiredness }
@@ -232,6 +266,7 @@ struct ContentView: View {
 
     private var moodScore: Double {
         // walk: 兴奋 92, 良好 75, 愉悦 80
+        // stand: 平稳 70
         // sit: 专注 82, 疲倦 30, 平稳 65
         // sleep: 25
         switch displayState {
@@ -241,6 +276,8 @@ struct ContentView: View {
             if m >= 720 && m < 810 { return 78 }   // 午餐后轻松
             if m >= 1080            { return 80 }   // 晚间愉悦
             return 75                              // 普通 walk
+        case .stand:
+            return 70                              // 平稳待机
         case .sit:
             if isMorningCalm      { return 82 }
             if isAfternoonTired   { return max(20, 50 - 30 * figureTiredness) }  // 50→20
@@ -298,6 +335,7 @@ struct ContentView: View {
                 return Int(base.rounded())
             }
             return 92
+        case .stand: return 70   // 站立待机：平稳静息
         case .sit:   return 78
         case .sleep: return 56
         }
@@ -548,6 +586,15 @@ struct ContentView: View {
                     lastSitAnalysisTime = Date()
                 }
             }
+        }
+        .onChange(of: hkService.lastMovementTime) { oldValue, newValue in
+            // HealthKit 检测到明显步数增加 → 立即打断久坐，重新计时
+            guard let newMovement = newValue, oldValue != newValue else { return }
+            guard !Self.isRunningForPreviews else { return }
+            // 只要检测到新的大步数（>30步/分钟），立即清零计时器
+            // 下一次 currentSedentarySessionMinutes 分析会基于新的快照重新计算
+            currentSitMinutes = 0
+            currentSitStartTime = nil
         }
         .sheet(isPresented: $showFilm) {
             MiniFilmShareSheet(isPresented: $showFilm)
