@@ -443,6 +443,14 @@ struct DataRecordView: View {
                         value: sleepValue,
                         valueUnit: "小时"
                     )
+                    DashboardCard(
+                        icon: "figure.walk",
+                        iconColor: Theme.dashSteps,
+                        title: "步数",
+                        sub: "今日累计",
+                        value: hkSteps,
+                        valueUnit: "步"
+                    )
                 }
 
                 // 第二行: 运动记录 + 饮食记录
