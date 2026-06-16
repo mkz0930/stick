@@ -53,16 +53,15 @@ struct DayTimelineView: View, Equatable {
     private let lineAlpha: Double = 0.65       // 竖线半透明 (稍亮，跟动画同色系)
     private let thumbAlpha: Double = 0.85      // 圆环半透明
 
-    // 步行段视觉强化（横向胶囊 — Bold Burst 修订）
-    private let walkPillMinWidth: CGFloat = 8       // 1min 短步行 = 8pt 胶囊（更窄）
-    private let walkPillMaxWidth: CGFloat = 24      // >10min 长步行 = 24pt（更紧凑）
-    private let walkPillHeight: CGFloat = 5         // 胶囊更细
-    private let walkHaloWidth: CGFloat = 30         // halo 同步缩小
-    private let walkHaloHeight: CGFloat = 15        // halo 高度
-    private let walkLabelMinDuration: Int = 8       // ≥8min 长步行才显示时刻标签
-    private let walkMergeGapMinutes: Int = 3        // 间隔 ≤3min 的碎步行合并（减少数量）
-    private let walkMinVisibleDuration: Int = 3     // <3min 的碎步行不显示独立胶囊
-    private let walkMinVerticalSpacing: CGFloat = 12
+    // 步行段视觉强化（竖向方框 — 时长比例）
+    private let walkBoxMinHeight: CGFloat = 16      // 最短步行(3min) 的方框高度
+    private let walkBoxMaxHeight: CGFloat = 120      // >60min 步行 = 120pt 方框
+    private let walkBoxWidth: CGFloat = 32          // 方框宽度（固定，比 track 宽很多）
+    private let walkBoxBorderWidth: CGFloat = 1.5   // 方框描边
+    private let walkLabelMinDuration: Int = 5       // ≥5min 才显示时刻标签
+    private let walkMergeGapMinutes: Int = 3       // 间隔 ≤3min 的碎步行合并
+    private let walkMinVisibleDuration: Int = 3      // <3min 的碎步行不显示
+    private let walkMinVerticalSpacing: CGFloat = 8  // 最小纵向间距
 
     /// 合并后仅用于时间线渲染的步行胶囊。
     private struct WalkVisualSegment: Identifiable {
@@ -420,55 +419,55 @@ struct DayTimelineView: View, Equatable {
 
     // MARK: - 组件
 
-    /// 步行段 = 发光横向胶囊；相邻碎步行已在渲染前合并。
+    /// 步行段 = 竖向方框，高度按步行时长比例，描边明显。
     @ViewBuilder
     private func walkBurst(_ seg: WalkVisualSegment) -> some View {
-        let pillWidth = walkPillMinWidth
-            + (walkPillMaxWidth - walkPillMinWidth)
-            * CGFloat(min(seg.duration, 10)) / 10.0
         let accent = seg.accent
+
+        // 方框高度按时长比例：3min=最小，60+min=最大
+        let boxHeight = walkBoxMinHeight
+            + (walkBoxMaxHeight - walkBoxMinHeight)
+            * CGFloat(min(seg.duration, 60)) / 60.0
+
+        // 步数比例：控制填充透明度（少步=淡，多步=深）
+        let stepCount = seg.stepCount ?? 1000
+        let stepRatio = min(1.0, max(0.08, Double(stepCount) / 2000.0))
+        let fillOpacity = 0.15 * stepRatio
+        let borderOpacity = 0.6 * stepRatio
+
         let showLabel = seg.duration >= walkLabelMinDuration
 
-        // 根据步数计算透明度：步越少越淡，步越多越深
-        // 500步以下：极淡；2000步以上：全深度；中间线性插值
-        let stepCount = seg.stepCount ?? 1000
-        let stepRatio = min(1.0, max(0.1, Double(stepCount) / 2000.0))
-
-        // 基础透明度乘步数比例
-        let baseOpacityCore = 0.35 * stepRatio
-        let baseOpacityHaloOuter = 0.04 * stepRatio
-        let baseOpacityHaloInner = 0.08 * stepRatio
-        let baseOpacityShadow = 0.12 * stepRatio
-        let baseOpacityLabel = 0.35 * stepRatio
-
         return ZStack {
-            // halo 外层（横向矩形柔光）
-            Rectangle()
-                .fill(accent.opacity(baseOpacityHaloOuter))
-                .frame(width: walkHaloWidth, height: walkHaloHeight)
+            // 方框整体（描边 + 淡填充）
+            RoundedRectangle(cornerRadius: 3)
+                .fill(accent.opacity(fillOpacity))
+                .frame(width: walkBoxWidth, height: boxHeight)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3)
+                        .stroke(accent.opacity(borderOpacity), lineWidth: walkBoxBorderWidth)
+                )
+                .shadow(color: accent.opacity(0.12 * stepRatio), radius: 2, x: 0, y: 0)
 
-            // halo 内层（更实一点）
-            Rectangle()
-                .fill(accent.opacity(baseOpacityHaloInner))
-                .frame(width: walkHaloWidth - 4, height: walkHaloHeight - 6)
+            // 步数标签（方框内部显示步数，少步时透明度更低）
+            if seg.stepCount != nil && seg.stepCount! > 0 {
+                Text("\(seg.stepCount!)")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundColor(accent.opacity(0.5 + 0.4 * stepRatio))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
 
-            // 核心矩形（绿色实色 + 阴影）
-            Rectangle()
-                .fill(accent.opacity(baseOpacityCore))
-                .frame(width: pillWidth, height: walkPillHeight)
-                .shadow(color: accent.opacity(baseOpacityShadow), radius: 3, x: 0, y: 0)
-
-            // 白色高光（左侧小亮）
-            Rectangle()
-                .fill(Color.white.opacity(0.15 * stepRatio))
-                .frame(width: pillWidth * 0.35, height: walkPillHeight * 0.35)
-                .offset(x: -pillWidth * 0.18, y: -walkPillHeight * 0.12)
-
+            // 时刻标签（方框右侧）
             if showLabel {
-                Text(StickState.formatMinute(seg.startMinute))
-                    .font(.system(size: 9, weight: .regular, design: .serif).italic())
-                    .foregroundColor(accent.opacity(baseOpacityLabel))
-                    .offset(x: walkHaloWidth / 2 + 6, y: 0)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(StickState.formatMinute(seg.startMinute))
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundColor(accent.opacity(0.55))
+                    Text("\(seg.duration)min")
+                        .font(.system(size: 8, weight: .regular, design: .monospaced))
+                        .foregroundColor(accent.opacity(0.35))
+                }
+                .offset(x: walkBoxWidth / 2 + 14)
             }
         }
         .position(x: trackWidth / 2, y: seg.yCenter)
@@ -711,12 +710,12 @@ struct DayTimelineView: View, Equatable {
         .filter { $0.duration >= walkMinVisibleDuration }
     }
 
-    /// 给过近的步行胶囊增加最小纵向距离，同时限制在时间线可见范围内。
+    /// 给过近的步行方框增加最小纵向距离，同时限制在时间线可见范围内。
     private func applyWalkVerticalSpacing(to segments: inout [WalkVisualSegment], in height: CGFloat) {
         guard !segments.isEmpty else { return }
 
-        let minY = walkHaloHeight / 2
-        let maxY = max(minY, height - walkHaloHeight / 2)
+        let minY = walkBoxMaxHeight / 2
+        let maxY = max(minY, height - walkBoxMaxHeight / 2)
 
         for index in segments.indices {
             let lowerBound = index == segments.startIndex
