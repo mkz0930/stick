@@ -406,7 +406,7 @@ struct ChatOverlay: View {
                         ScrollView {
                             LazyVStack(alignment: .leading, spacing: 10) {
                                 ForEach(messages) { msg in
-                                    MessageRow(message: msg, state: state) { suggestion in
+                                    MessageRow(message: msg, state: state, isStreaming: isStreaming) { suggestion in
                                         sendDirect(suggestion)
                                     }
                                         .id(msg.id)
@@ -1644,6 +1644,8 @@ struct ChatMessage: Identifiable, Equatable {
 struct MessageRow: View {
     let message: ChatMessage
     let state: StickState
+    /// AI 正在流失输出 → 个性化分析段默认折叠
+    var isStreaming: Bool = false
     var onSuggestionTap: ((String) -> Void)? = nil
 
     var body: some View {
@@ -1675,7 +1677,7 @@ struct MessageRow: View {
             VStack(alignment: .leading, spacing: 7) {
                 // 一个大泡泡
                 VStack(alignment: .leading, spacing: 8) {
-                    AssistantText(text: message.content, accent: state.accent, searchResults: message.searchResults)
+                    AssistantText(text: message.content, accent: state.accent, searchResults: message.searchResults, isStreaming: isStreaming)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
@@ -1795,15 +1797,34 @@ private struct AssistantText: View {
     let accent: Color
     /// 联网搜索结果，用于把文本里的 [n] 角标渲染成可点击链接
     let searchResults: [SearchResult]
+    /// AI 正在流失输出 → 个性化分析段默认折叠
+    var isStreaming: Bool = false
 
-    init(text: String, accent: Color, searchResults: [SearchResult] = []) {
+    @State private var analysisExpanded: Bool = false
+
+    init(text: String, accent: Color, searchResults: [SearchResult] = [], isStreaming: Bool = false) {
         self.text = text
         self.accent = accent
         self.searchResults = searchResults
+        self.isStreaming = isStreaming
     }
 
     private var lines: [String] {
         text.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+    }
+
+    /// 【个性化分析】段的行索引范围（含标题行，到下一个【xxx】段前一行；不存在返回 nil）
+    private var analysisRange: ClosedRange<Int>? {
+        guard let start = lines.firstIndex(where: { sectionTitle($0) == "个性化分析" }) else { return nil }
+        var end = lines.count - 1
+        for i in (start + 1)..<lines.count {
+            if sectionTitle(lines[i]) != nil {
+                end = i - 1
+                break
+            }
+        }
+        guard end >= start else { return nil }
+        return start...end
     }
 
     /// 解析行内 [n] 角标 + **xxx** 加粗段 → AttributedString 拼接后返回 Text
@@ -2020,12 +2041,85 @@ private struct AssistantText: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                if line.isEmpty {
-                    Color.clear.frame(height: 4)
-                } else {
-                    parseLine(line)
+            if let range = analysisRange {
+                // 标题前的内容（如有）
+                ForEach(Array(0..<range.lowerBound), id: \.self) { i in
+                    renderLine(i)
                 }
+                // 个性化分析段：可折叠
+                analysisSection(range: range)
+                // 段之后的剩余行
+                ForEach(Array((range.upperBound + 1)..<lines.count), id: \.self) { i in
+                    renderLine(i)
+                }
+            } else {
+                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                    if line.isEmpty {
+                        Color.clear.frame(height: 4)
+                    } else {
+                        parseLine(line)
+                    }
+                }
+            }
+        }
+        .onAppear {
+            analysisExpanded = !isStreaming
+        }
+        .onChange(of: isStreaming) { _, nowStreaming in
+            analysisExpanded = !nowStreaming
+        }
+    }
+
+    /// 渲染指定索引的单行（空行给间距）
+    @ViewBuilder
+    private func renderLine(_ i: Int) -> some View {
+        let line = lines[i]
+        if line.isEmpty {
+            Color.clear.frame(height: 4)
+        } else {
+            parseLine(line)
+        }
+    }
+
+    /// 个性化分析段：标题可点击切换折叠/展开
+    private func analysisSection(range: ClosedRange<Int>) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            // 标题行（点击切换）
+            Button {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    analysisExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Rectangle()
+                        .fill(accent)
+                        .frame(width: 3, height: 14)
+                    Text(sectionTitle(lines[range.lowerBound]) ?? lines[range.lowerBound])
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(accent)
+                    Spacer(minLength: 4)
+                    Image(systemName: analysisExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(accent.opacity(0.7))
+                    Text(analysisExpanded ? "收起" : "展开")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundColor(accent.opacity(0.7))
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
+            .padding(.bottom, 2)
+
+            // 内容
+            if analysisExpanded {
+                ForEach(Array((range.lowerBound + 1)...range.upperBound), id: \.self) { i in
+                    renderLine(i)
+                }
+            } else if isStreaming {
+                Text("AI 正在分析…")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(Theme.slate)
+                    .padding(.leading, 9)
             }
         }
     }
