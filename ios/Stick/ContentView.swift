@@ -127,6 +127,8 @@ struct ContentView: View {
     @State private var chatPendingPhoto: Bool = false
     /// 主页相机按钮 / 相机 chip（拍食物、报告解读）触发：开 chat + 标记让 ChatOverlay 自动激活 chip + 开相机
     @State private var chatPendingCamera: Bool = false
+    /// autoTopic chip（饮食建议）触发：开 chat + 标记让 ChatOverlay 自动调 LLM 给出个性化建议
+    @State private var chatPendingTopic: String? = nil
     /// 点击历史记录 → 滚动到该消息的 UUID
     @State private var targetScrollId: UUID? = nil
     /// 滚动触发器：每次历史导航 +1，overlay 用 onChange 响应（不重建 overlay）
@@ -471,11 +473,13 @@ struct ContentView: View {
                     scrollTrigger: scrollTrigger,
                     pendingPhotoUpload: chatPendingPhoto,
                     pendingCamera: chatPendingCamera,
+                    pendingTopic: chatPendingTopic,
                     onClose: {
                         dismissKeyboard()
                         showChat = false
                         chatPendingPhoto = false   // 重置标记，下次开 chat 不再自动开图
                         chatPendingCamera = false  // 重置标记
+                        chatPendingTopic = nil     // 重置标记
                     }
                 )
                 .id(chatKey)
@@ -959,7 +963,9 @@ struct ContentView: View {
                         onOpenChat: openChat,
                         onOpenCamera: openCamera,
                         onPlusTap: openChatWithPhoto,
-                        lastHistoryPrompt: chatHistory.loadedMessages.last(where: { $0.role == "user" })?.content
+                        lastHistoryPrompt: chatHistory.loadedMessages.last(where: { $0.role == "user" })?.content,
+                        autoTopics: ["饮食建议"],
+                        onAutoTopic: openChatWithTopic
                     )
                     .padding(.horizontal, 16)
                 }
@@ -987,6 +993,14 @@ struct ContentView: View {
         chatSeed = ""
         chatKey += 1
         chatPendingCamera = true
+        showChat = true
+    }
+
+    /// autoTopic chip（饮食建议）触发：开 chat + 让 ChatOverlay 自动调 LLM 给出个性化建议
+    private func openChatWithTopic(_ title: String, _ seed: String) {
+        chatSeed = seed
+        chatKey += 1
+        chatPendingTopic = title
         showChat = true
     }
 

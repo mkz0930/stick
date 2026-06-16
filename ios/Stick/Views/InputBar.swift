@@ -16,6 +16,10 @@ struct InputBar: View {
     var onPlusTap: (() -> Void)? = nil
     /// 聊天历史最后一条用户问题 — 输入框 placeholder 显示, 提示有记录
     var lastHistoryPrompt: String? = nil
+    /// 需要自动发送的 chip 标题（点击后 ChatOverlay 自动调 LLM，按用户情况生成回复）
+    var autoTopics: Set<String> = []
+    /// autoTopic 点击回调（首页接到后设置 chatPendingTopic → ChatOverlay 自动 LLM）
+    var onAutoTopic: ((_ title: String, _ seed: String) -> Void)? = nil
 
     /// 顶部 feature chips（横向滚动）
     private let features: [InputFeature] = [
@@ -52,6 +56,9 @@ struct InputBar: View {
                         // 拍食物 / 报告解读 是相机 chip：走 onOpenCamera，让 ChatOverlay 内部自动激活并开相机
                         if InputBar.cameraChipTitles.contains(f.title), let cb = onOpenCamera {
                             cb()
+                        } else if autoTopics.contains(f.title), let cb = onAutoTopic {
+                            // 标记的 autoTopic chip：触发 onAutoTopic 让 ChatOverlay 自动调 LLM
+                            cb(f.title, f.seed)
                         } else {
                             onOpenChat(f.seed)
                         }

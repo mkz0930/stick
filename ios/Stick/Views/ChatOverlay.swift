@@ -95,6 +95,8 @@ struct ChatOverlay: View {
     var pendingPhotoUpload: Bool = false
     /// true 时 onAppear 自动激活相机 chip 并开相机（主页相机按钮 / 拍食物 chip 触发）
     var pendingCamera: Bool = false
+    /// 非空时 onAppear 自动调 LLM 给出对应 topic 的个性化建议（如"饮食建议"）
+    var pendingTopic: String? = nil
     var onClose: () -> Void
 
     @State private var messages: [ChatMessage] = []
@@ -249,6 +251,20 @@ struct ChatOverlay: View {
                 _ = UserProfileStore.shared.recordUserMessage()
                 self.pendingScrollId = userMsgId
                 generateRiskAnalysis(seed: seed)
+            } else if let topic = pendingTopic, !topic.isEmpty {
+                // autoTopic chip 触发：把 user msg 加入列表 + 走专属生成流程
+                input = initialText
+                let userMsgId = UUID()
+                messages.append(ChatMessage(id: userMsgId, role: .user, content: initialText))
+                history.append(PersistedChatMessage(id: userMsgId, role: "user", content: initialText))
+                _ = UserProfileStore.shared.recordUserMessage()
+                self.pendingScrollId = userMsgId
+                if topic == "饮食建议" {
+                    generateDietAdvice(seed: initialText)
+                } else {
+                    // 未知 topic：fallback 通用 send
+                    send()
+                }
             } else {
                 // 普通 chat seed：作为用户消息发送
                 input = initialText
@@ -1613,6 +1629,91 @@ struct ChatOverlay: View {
             // 流结束后生成追问建议
             await generateSuggestions(for: assistantId)
         }
+    }
+
+    /// 饮食建议专属流程：基于用户今日健康数据，调用 LLM 给个性化推荐
+    private func generateDietAdvice(seed: String) {
+        isStreaming = true
+
+        let assistantId = UUID()
+        messages.append(ChatMessage(id: assistantId, role: .assistant, content: ""))
+
+        let ctx = buildDietContext()
+        streamTask = Task {
+            do {
+                for try await chunk in LLMService.sendMessageStream(seed, context: ctx) {
+                    if Task.isCancelled { break }
+                    await MainActor.run {
+                        if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
+                            messages[idx].content += chunk
+                        }
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
+                        let err = (error as? LLMError)?.errorDescription ?? error.localizedDescription
+                        messages[idx].content = "⚠️ \(err)"
+                    }
+                }
+            }
+            await MainActor.run {
+                isStreaming = false
+                input = ""
+            }
+            await generateSuggestions(for: assistantId)
+        }
+    }
+
+    /// 饮食建议专属 context：基于用户今日健康数据
+    private func buildDietContext() -> String {
+        let time = StickState.formatMinute(StickState.minutesOfDay(.now))
+        let hour = Calendar.current.component(.hour, from: .now)
+        let period: String
+        switch hour {
+        case 5..<11:  period = "上午"
+        case 11..<14: period = "中午"
+        case 14..<18: period = "下午"
+        case 18..<22: period = "晚上"
+        default:      period = "深夜"
+        }
+
+        let stats = TodayHealthStats()
+        let trend = HealthTrendAnalyzer.analyze(
+            today: HealthStore.shared.today,
+            all: HealthStore.shared.all
+        )
+
+        return """
+        【用户当前状态】
+        - 当前时间: \(time) (\(period))
+        - 当前姿态: \(state.actionPhrase)
+
+        【今日健康数据】
+        - 久坐: \(stats.sitMinutes) 分钟
+        - 行走: \(stats.walkMinutes) 分钟
+        - 站立: \(stats.standMinutes) 分钟
+        - 步数: \(stats.totalSteps) 步
+        - 平均心率: \(stats.avgHeartRate) bpm
+
+        \(trend.semanticLines.isEmpty ? "" : "【健康趋势】\n" + trend.semanticLines.joined(separator: "\n") + "\n")
+
+        【本次对话目标】
+        用户点击了"饮食建议"chip，需要基于今日健康数据（久坐/步数/心率等）给出个性化饮食推荐。
+
+        请严格按以下结构回复：
+
+        1. 【今日饮食重点】1-2 句话，结合用户今日的活动量（步数/久坐）给一句核心建议（如"久坐较多 → 多吃富钾食物"）
+        2. 【推荐 3 类食物】每类 1-2 个具体例子 + 1 句话说明为什么适合他
+        3. 【避开 1-2 类】结合用户当前状态，列出今日应少吃的
+        4. 【今日餐次节奏】如果现在是早上/中午/晚上，给具体的饮食时间建议
+
+        【语气要求】
+        - 温暖、口语化，像营养师朋友提醒
+        - 不要说教，不要给医疗建议
+        - 食物要具体（如"香蕉/牛油果/三文鱼"而不是"水果"）
+        - 总字数 ≤ 350字
+        """
     }
 }
 
