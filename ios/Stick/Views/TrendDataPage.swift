@@ -55,7 +55,8 @@ struct TrendDataPage: View {
                         unit: "",
                         values: trendReports.map { walkingStabilityScore(report: $0) },
                         qualityValues: nil,
-                        baseColor: .blue
+                        baseColor: .blue,
+                        referenceValue: stabilityBaseline14d
                     )
 
                     // 身体状态得分折线图
@@ -97,6 +98,15 @@ struct TrendDataPage: View {
         }
     }
 
+    /// 步行稳定度 14 天滚动均值（用于参考基线）
+    /// 排除当天未来得及生成报告的天；至少需要 3 个有效样本才有参考价值
+    private var stabilityBaseline14d: Double? {
+        let last14 = Array(MorningReportStore.shared.reports.prefix(14))
+        let values = last14.map { walkingStabilityScore(report: $0) }.filter { $0 > 0 }
+        guard values.count >= 3 else { return nil }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
     private static var dateFormatter: DateFormatter {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
@@ -125,6 +135,8 @@ struct MetricTrendCard: View {
     let values: [Double]
     let qualityValues: [String]?
     let baseColor: Color
+    /// 可选：参考基线（如 14 天均值），会在柱状图上画一条水平虚线
+    var referenceValue: Double? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -133,6 +145,11 @@ struct MetricTrendCard: View {
                     .font(.caption)
                     .foregroundColor(baseColor)
                 Spacer()
+                if let ref = referenceValue {
+                    Text(String(format: "14天 %.0f", ref))
+                        .font(.caption2)
+                        .foregroundColor(.secondary.opacity(0.7))
+                }
                 Text(averageText)
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -143,7 +160,7 @@ struct MetricTrendCard: View {
                 }
             }
 
-            // 柱状图
+            // 柱状图（含参考基线）
             HStack(alignment: .bottom, spacing: 4) {
                 ForEach(Array(barData.enumerated()), id: \.offset) { idx, height in
                     VStack {
@@ -159,6 +176,22 @@ struct MetricTrendCard: View {
                 }
             }
             .frame(height: 40)
+            .overlay(alignment: .topLeading) {
+                if let refY = referenceLineY {
+                    // 参考基线虚线
+                    HStack(spacing: 2) {
+                        Rectangle()
+                            .fill(baseColor.opacity(0.5))
+                            .frame(height: 1)
+                            .frame(maxWidth: .infinity)
+                        Text(String(format: "%.0f", referenceValue ?? 0))
+                            .font(.system(size: 8))
+                            .foregroundColor(baseColor.opacity(0.7))
+                    }
+                    .offset(y: refY)
+                    .allowsHitTesting(false)
+                }
+            }
         }
         .padding()
         .background(Color(uiColor: .secondarySystemBackground))
@@ -169,6 +202,15 @@ struct MetricTrendCard: View {
     private var barData: [CGFloat] {
         guard let maxVal = values.max(), maxVal > 0 else { return values.map { _ in 4 } }
         return values.map { CGFloat($0 / maxVal) * 36 }
+    }
+
+    /// 参考基线在柱状图区域内的 y 坐标
+    private var referenceLineY: CGFloat? {
+        guard let ref = referenceValue,
+              let maxVal = values.max(),
+              maxVal > 0 else { return nil }
+        let ratio = CGFloat(ref / maxVal)
+        return max(0, min(36, ratio * 36))
     }
 
     private var showLabels: Bool { values.count <= 7 }
