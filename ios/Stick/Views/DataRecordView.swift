@@ -13,6 +13,7 @@ struct HKLiveData: Equatable {
     var flights: Int = 0
     var distance: Double = 0
     var heartRate: Int?
+    var sleepHours: Double?           // 睡眠时长 小时（来自 Health App 手动记录）
     // 新增 mobility
     var walkingSpeed: Double?          // 步速 m/s
     var walkingDoubleSupport: Double?  // 双脚支撑时间 %
@@ -47,6 +48,7 @@ final class DataRecordViewModel: ObservableObject {
             data.distance = dist / 1000
         }
         data.heartRate = await service.todayHeartRate()
+        data.sleepHours = await service.todaySleepHours()
         // 新增 mobility 数据
         data.walkingSpeed = await service.todayWalkingSpeed()
         data.walkingDoubleSupport = await service.todayWalkingDoubleSupport()
@@ -125,6 +127,12 @@ struct DataRecordView: View {
 
     private var hkDoubleSupport: String {
         guard let v = hkData.walkingDoubleSupport else { return "--" }
+        return String(format: "%.1f", v)
+    }
+
+    private var hkSleepValue: String {
+        guard let v = hkData.sleepHours else { return "--" }
+        if v <= 0 { return "--" }
         return String(format: "%.1f", v)
     }
 
@@ -244,6 +252,15 @@ struct DataRecordView: View {
                         valueUnit: "%"
                     )
                 }
+                // 睡眠（来自 Health App 手动记录）
+                DashboardCard(
+                    icon: "moon.zzz.fill",
+                    iconColor: Theme.dashSleep,
+                    title: "睡眠时长",
+                    sub: "来自健康 App",
+                    value: hkSleepValue,
+                    valueUnit: "小时"
+                )
             }
         }
     }

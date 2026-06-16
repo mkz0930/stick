@@ -204,6 +204,24 @@ final class HealthKitService: ObservableObject {
         }
     }
 
+    /// 今日睡眠总时长（从 Health App 手动记录的睡眠数据）
+    func todaySleepHours() async -> Double? {
+        guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else { return nil }
+        let startOfDay = Calendar.current.startOfDay(for: Date())
+        return await withCheckedContinuation { (cont: CheckedContinuation<Double?, Never>) in
+            let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: nil, options: [])
+            let q = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
+                let totalSeconds = (samples as? [HKCategorySample])?.reduce(0.0) { sum, sample in
+                    // HKCategorySample.value 对于 sleepAnalysis: 1=InBed, 2=Asleep, 4=Awake
+                    let seconds = sample.endDate.timeIntervalSince(sample.startDate)
+                    return sum + seconds
+                } ?? 0
+                cont.resume(returning: totalSeconds / 3600.0)
+            }
+            store?.execute(q)
+        }
+    }
+
     // MARK: - 推断身体状态 (来自加速度 + 心率)
 
     /// 当前身体状态 (多信号融合推断)
