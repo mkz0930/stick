@@ -200,7 +200,10 @@ struct DataRecordView: View {
     }
 
     /// 睡眠时长显示值：或 --
-    /// 优先用户对话里说过的（BodyMetricsStore），否则回退到 HealthKit sleepAnalysis
+    /// 三层 fallback：
+    /// 1. 用户对话里说过的（BodyMetricsStore）
+    /// 2. HealthKit sleepAnalysis
+    /// 3. body state 快照推断（HealthStore.shared.today 中 bodyState == "sleep" 的时间跨度）
     private var sleepValue: String {
         if let v = BodyMetricsStore.shared.sleepHours {
             if v == 0 { return "0" } // 失眠
@@ -209,6 +212,10 @@ struct DataRecordView: View {
         if let v = hk.sleepHours, v > 0 {
             return String(format: "%.1f", v)
         }
+        // 第三层：body state 快照推断
+        if vm.sleepMinutes > 0 {
+            return String(format: "%.1f", Double(vm.sleepMinutes) / 60.0)
+        }
         return "--"
     }
 
@@ -216,6 +223,7 @@ struct DataRecordView: View {
     private var sleepSub: String {
         if BodyMetricsStore.shared.sleepHours != nil { return "来自对话分析" }
         if (hk.sleepHours ?? 0) > 0 { return "来自 HealthKit" }
+        if vm.sleepMinutes > 0 { return "来自本地推断" }
         return "暂无数据"
     }
 
