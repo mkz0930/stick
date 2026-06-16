@@ -106,65 +106,23 @@ struct OpenChatIntent: AppIntent {
     }
 }
 
-// MARK: - View
+// MARK: - View：简洁版（血栓沉积 + 血管图）
 
 struct StickRiskAlertWidgetView: View {
     let entry: StickRiskAlertEntry
 
-    /// 格式化开始时间：显示"从 HH:MM 开始"
-    private var startTimeText: String {
-        guard let start = entry.startTime else { return "" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return "从 \(formatter.string(from: start)) 开始"
-    }
-
     var body: some View {
-        VStack(spacing: 0) {
-            // 顶部：火柴人坐着图标
-            Image(systemName: "figure.sitting")
-                .font(.system(size: 28, weight: .medium))
-                .foregroundColor(.orange)
-                .padding(.top, 8)
+        VStack(spacing: 4) {
+            // 顶部文字
+            Text("血栓沉积：\(entry.sitDurationMinutes)分钟")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.15))
 
-            Spacer()
-
-            // 中间：大字体分钟数
-            VStack(spacing: 2) {
-                Text("\(entry.sitDurationMinutes) 分钟")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.15))
-                    .minimumScaleFactor(0.6)
-                    .lineLimit(1)
-            }
-
-            Spacer()
-
-            // 底部：开始时间
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(startTimeText)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Color(red: 0.50, green: 0.56, blue: 0.62))
-                    Text("心率 \(entry.heartRate) bpm")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Color(red: 0.50, green: 0.56, blue: 0.62))
-                }
-                Spacer()
-                Button(intent: OpenRiskAlertIntent(sitDurationMinutes: entry.sitDurationMinutes, heartRate: entry.heartRate)) {
-                    Text("查看")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.red, in: RoundedRectangle(cornerRadius: 5))
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 10)
+            // 血管图形
+            VesselCanvas(duration: entry.sitDurationMinutes)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.white)
+        .background(Color(red: 1.0, green: 0.97, blue: 0.91))
     }
 }
 
