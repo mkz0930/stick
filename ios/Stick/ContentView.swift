@@ -925,6 +925,7 @@ struct ContentView: View {
                             showDevicePicker: $showDevicePicker,
                             manualStateOverride: $manualStateOverride
                         )
+                        .equatable()  // schedule 内容稳定时跳过 body 重绘，杜绝轴乱变
                         .frame(width: 50)
                         .frame(height: 400)
                     }
