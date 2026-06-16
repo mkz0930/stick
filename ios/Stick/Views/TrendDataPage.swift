@@ -273,36 +273,196 @@ struct BodyScoreTrendChart: View {
     let scores: [Int]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("身体状态得分")
-                .font(.caption)
-                .foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            // Header: 标题 + 当前值
+            HStack(alignment: .firstTextBaseline) {
+                Label("身体状态得分", systemImage: "heart.text.square.fill")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                Spacer()
+                if let current = currentScore {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("\(current)")
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundColor(scoreColor(current))
+                            .contentTransition(.numericText())
+                        Text("/100")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
 
             if scores.isEmpty {
                 Text("暂无数据")
                     .font(.caption)
                     .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 20)
             } else {
-                HStack(alignment: .bottom, spacing: 4) {
-                    ForEach(Array(scores.enumerated()), id: \.offset) { idx, score in
-                        VStack {
-                            Spacer()
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(scoreColor(score))
-                                .frame(height: max(4, CGFloat(score) / 100 * 40))
-                            Text("\(score)")
-                                .font(.system(size: 8))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                .frame(height: 60)
+                // 主图：彩色区域 + 折线 + 数据点
+                chartArea
+
+                // 底部：min / avg / max + 14天均值对照
+                statsRow
             }
         }
         .padding()
         .background(Color(uiColor: .secondarySystemBackground))
         .cornerRadius(12)
         .padding(.horizontal)
+    }
+
+    // MARK: - 子视图
+
+    private var chartArea: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            let height: CGFloat = 100
+            ZStack(alignment: .bottom) {
+                // 1. 背景区域色带：60 以下红 / 60-80 橙 / 80+ 绿
+                HStack(spacing: 0) {
+                    Rectangle().fill(Color.red.opacity(0.06))
+                        .frame(width: width * 0.6)
+                    Rectangle().fill(Color.orange.opacity(0.06))
+                        .frame(width: width * 0.2)
+                    Rectangle().fill(Color.green.opacity(0.06))
+                        .frame(width: width * 0.2)
+                }
+                .frame(height: height)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+
+                // 2. 折线 + 数据点
+                lineLayer(width: width, height: height)
+
+                // 3. 14天均值参考线
+                if let avg = average14d {
+                    let y = height - CGFloat(avg) / 100 * height
+                    HStack(spacing: 4) {
+                        Rectangle()
+                            .fill(Color.secondary.opacity(0.5))
+                            .frame(height: 1)
+                        Text(String(format: "14天均值 %.0f", avg))
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    .offset(y: -y)
+                    .allowsHitTesting(false)
+                }
+            }
+        }
+        .frame(height: 100)
+    }
+
+    private func lineLayer(width: CGFloat, height: CGFloat) -> some View {
+        let n = max(scores.count, 1)
+        let stepX = scores.count > 1 ? width / CGFloat(n - 1) : 0
+        let points: [CGPoint] = scores.enumerated().map { i, s in
+            CGPoint(
+                x: scores.count == 1 ? width / 2 : CGFloat(i) * stepX,
+                y: height - CGFloat(s) / 100 * height
+            )
+        }
+        return ZStack {
+            // 折线
+            Path { p in
+                guard let first = points.first else { return }
+                p.move(to: first)
+                for pt in points.dropFirst() { p.addLine(to: pt) }
+            }
+            .stroke(scores.last.map { scoreColor($0) } ?? .secondary,
+                    style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+
+            // 数据点
+            ForEach(Array(points.enumerated()), id: \.offset) { idx, pt in
+                Circle()
+                    .fill(scoreColor(scores[idx]))
+                    .frame(width: scores.count <= 7 ? 8 : 5,
+                           height: scores.count <= 7 ? 8 : 5)
+                    .overlay(
+                        Circle().stroke(Color(uiColor: .secondarySystemBackground), lineWidth: 1.5)
+                    )
+                    .position(pt)
+            }
+
+            // 最新点高亮 + 数值标签
+            if let last = points.last, let lastScore = scores.last, scores.count <= 14 {
+                Text("\(lastScore)")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule().fill(scoreColor(lastScore))
+                    )
+                    .position(x: last.x, y: max(12, last.y - 12))
+            }
+        }
+    }
+
+    private var statsRow: some View {
+        HStack(spacing: 12) {
+            statItem(label: "最低", value: minScore, color: .red)
+            Divider().frame(height: 24)
+            statItem(label: "平均", value: avgScore, color: .orange)
+            Divider().frame(height: 24)
+            statItem(label: "最高", value: maxScore, color: .green)
+            if let trend = trendVsAvg {
+                Divider().frame(height: 24)
+                HStack(spacing: 2) {
+                    Image(systemName: trend > 0 ? "arrow.up.right" : (trend < 0 ? "arrow.down.right" : "arrow.right"))
+                        .font(.system(size: 10, weight: .bold))
+                    Text(String(format: "%+.0f", trend))
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundColor(trend > 0 ? .green : (trend < 0 ? .red : .secondary))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func statItem(label: String, value: Int?, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 9))
+                .foregroundColor(.secondary)
+            Text(value.map { "\($0)" } ?? "--")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundColor(color)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - 计算属性
+
+    private var currentScore: Int? { scores.first }
+
+    private var minScore: Int? {
+        guard !scores.isEmpty else { return nil }
+        return scores.min()
+    }
+
+    private var maxScore: Int? {
+        guard !scores.isEmpty else { return nil }
+        return scores.max()
+    }
+
+    private var avgScore: Int? {
+        guard !scores.isEmpty else { return nil }
+        return Int(Double(scores.reduce(0, +)) / Double(scores.count))
+    }
+
+    private var average14d: Double? {
+        let last14 = Array(scores.prefix(14))
+        guard last14.count >= 3 else { return nil }
+        return Double(last14.reduce(0, +)) / Double(last14.count)
+    }
+
+    /// 当前 vs 14天均值差（正数=优于均值，负数=低于均值）
+    private var trendVsAvg: Int? {
+        guard let current = currentScore, let avg = average14d else { return nil }
+        return current - Int(avg.rounded())
     }
 
     private func scoreColor(_ score: Int) -> Color {
