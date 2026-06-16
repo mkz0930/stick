@@ -442,14 +442,23 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
                 fill: fill, stroke: stroke, width: 1.8, alpha: lineAlpha)
     ctx.transform = rBase
 
-    // 左臂（垂在身侧）
-    let lElbow = CGPoint(x: 92, y: 195)
-    let lHand  = CGPoint(x: 90, y: 230)
+    // 左臂（伸向键盘，与右手对称敲击）
+    let lElbow = CGPoint(x: 60, y: 175)
+    let lHand  = CGPoint(x: 25, y: 200)
     strokeLine(ctx: &ctx, from: shoulder, to: lElbow, color: stroke, width: w, alpha: lineAlpha)
     drawDot(ctx: &ctx, at: lElbow, r: 3, color: joint, filled: true, alpha: jointAlpha)
-    strokeLine(ctx: &ctx, from: lElbow, to: lHand, color: stroke, width: w, alpha: lineAlpha)
-    drawEllipse(ctx: &ctx, rect: CGRect(x: lHand.x - 5, y: lHand.y - 3, width: 10, height: 6),
+    // 左手敲击动画：与右手同频率但相位差 0.3，看起来像双手交替敲键
+    let leftTapPhase = t * tapSpeed + 0.3
+    let leftTapBump: CGFloat = CGFloat(max(0, sin(leftTapPhase)) * pow(sin(leftTapPhase * 0.5) * 0.5 + 0.5, 2) * 3.5)
+    let lBase = ctx.transform
+    ctx.transform = lBase
+        .translatedBy(x: lElbow.x, y: lElbow.y)
+        .rotated(by: CGFloat(sin(leftTapPhase) * 0.08))
+        .translatedBy(x: -lElbow.x, y: -lElbow.y)
+    strokeLine(ctx: &ctx, from: lElbow, to: CGPoint(x: lHand.x, y: lHand.y + leftTapBump), color: stroke, width: w, alpha: lineAlpha)
+    drawEllipse(ctx: &ctx, rect: CGRect(x: lHand.x - 9, y: lHand.y - 3 + leftTapBump, width: 18, height: 7),
                 fill: fill, stroke: stroke, width: 1.8, alpha: lineAlpha)
+    ctx.transform = lBase
 
     // 大腿（水平）
     let rHip   = CGPoint(x: 110, y: 224)
