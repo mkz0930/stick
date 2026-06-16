@@ -50,10 +50,10 @@ struct TrendDataPage: View {
                     )
 
                     MetricTrendCard(
-                        title: "双脚支撑",
-                        icon: "figure.walk.circle",
-                        unit: "%",
-                        values: trendReports.map { $0.doubleSupport ?? 0.0 },
+                        title: "步行稳定度",
+                        icon: "figure.walk.motion",
+                        unit: "",
+                        values: trendReports.map { walkingStabilityScore(report: $0) },
                         qualityValues: nil,
                         baseColor: .blue
                     )
@@ -102,6 +102,20 @@ struct TrendDataPage: View {
         f.dateFormat = "yyyy-MM-dd"
         return f
     }
+}
+
+// MARK: - 步行稳定度（速度归一化残差）
+
+/// 步行稳定度 0-100：基于双脚支撑残差
+/// expected_ds = 0.45 - 0.13 × speed
+/// residual = actual_ds - expected_ds
+/// stability = clamp(100 - residual × 500, 0, 100)
+/// 残差 ≈ 0 → 100；残差 +0.1 → 50；残差 +0.2 → 0
+private func walkingStabilityScore(report: MorningReport) -> Double {
+    guard let ds = report.doubleSupport, let speed = report.avgSpeed else { return 0 }
+    let expectedDS = 0.45 - 0.13 * speed
+    let residual = ds - expectedDS
+    return max(0, min(100, 100 - residual * 500))
 }
 
 struct MetricTrendCard: View {
