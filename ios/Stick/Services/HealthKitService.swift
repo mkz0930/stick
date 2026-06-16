@@ -1116,47 +1116,53 @@ final class HealthKitService: ObservableObject {
             store?.execute(q)
         }
     }
+}
 
-    // MARK: - 昨日数据查询（用于 Morning Report）
+// MARK: - 昨日数据查询（用于 Morning Report）
 
-    extension HealthKitService {
-        /// 查询昨日（00:00 ~ 23:59）的快照数据
-        func queryYesterdaySnapshots() async -> [HealthSnapshot] {
-            let calendar = Calendar.current
-            let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
-            let endOfYesterday = calendar.date(byAdding: .day, value: 1, to: yesterday)!
-            return HealthStore.shared.all.filter { $0.timestamp >= yesterday && $0.timestamp < endOfYesterday }
-        }
+extension HealthKitService {
+    /// 当日是否有步数数据（用于判断是否启用晨间报告）
+    var hasStepData: Bool {
+        let startOfDay = Calendar.current.startOfDay(for: Date())
+        return HealthStore.shared.today.contains { $0.cumulativeStepCount ?? 0 > 0 }
+    }
 
-        /// 查询昨日睡眠总分钟数
-        func queryYesterdaySleepMinutes() async -> Int {
-            let snapshots = await queryYesterdaySnapshots()
-            return snapshots.filter { $0.bodyState == "sleep" }.count
-        }
+    /// 查询昨日（00:00 ~ 23:59）的快照数据
+    func queryYesterdaySnapshots() async -> [HealthSnapshot] {
+        let calendar = Calendar.current
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
+        let endOfYesterday = calendar.date(byAdding: .day, value: 1, to: yesterday)!
+        return HealthStore.shared.all.filter { $0.timestamp >= yesterday && $0.timestamp < endOfYesterday }
+    }
 
-        /// 查询昨日步行总分钟数
-        func queryYesterdayWalkMinutes() async -> Int {
-            let snapshots = await queryYesterdaySnapshots()
-            return snapshots.filter { $0.bodyState == "walk" }.count
-        }
+    /// 查询昨日睡眠总分钟数
+    func queryYesterdaySleepMinutes() async -> Int {
+        let snapshots = await queryYesterdaySnapshots()
+        return snapshots.filter { $0.bodyState == "sleep" }.count
+    }
 
-        /// 查询昨日久坐总分钟数
-        func queryYesterdaySedentaryMinutes() async -> Int {
-            let snapshots = await queryYesterdaySnapshots()
-            return snapshots.filter { $0.bodyState == "sit" }.count
-        }
+    /// 查询昨日步行总分钟数
+    func queryYesterdayWalkMinutes() async -> Int {
+        let snapshots = await queryYesterdaySnapshots()
+        return snapshots.filter { $0.bodyState == "walk" }.count
+    }
 
-        /// 查询昨日总步数
-        func queryYesterdaySteps() async -> Int {
-            let snapshots = await queryYesterdaySnapshots()
-            return snapshots.last?.cumulativeStepCount ?? 0
-        }
+    /// 查询昨日久坐总分钟数
+    func queryYesterdaySedentaryMinutes() async -> Int {
+        let snapshots = await queryYesterdaySnapshots()
+        return snapshots.filter { $0.bodyState == "sit" }.count
+    }
 
-        /// 查询昨日起床时间（分钟，0-1439）
-        func queryYesterdayWakeUpMinute() async -> Int {
-            let snapshots = await queryYesterdaySnapshots()
-            guard let first = snapshots.first(where: { $0.bodyState == "walk" }) else { return 0 }
-            return StickState.minutesOfDay(first.timestamp)
-        }
+    /// 查询昨日总步数
+    func queryYesterdaySteps() async -> Int {
+        let snapshots = await queryYesterdaySnapshots()
+        return snapshots.last?.cumulativeStepCount ?? 0
+    }
+
+    /// 查询昨日起床时间（分钟，0-1439）
+    func queryYesterdayWakeUpMinute() async -> Int {
+        let snapshots = await queryYesterdaySnapshots()
+        guard let first = snapshots.first(where: { $0.bodyState == "walk" }) else { return 0 }
+        return StickState.minutesOfDay(first.timestamp)
     }
 }

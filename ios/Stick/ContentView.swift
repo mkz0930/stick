@@ -674,8 +674,8 @@ struct ContentView: View {
                     }
                     lastSitAnalysisTime = Date()
                 }
-            } else {
-                // 离开坐姿：立即清空计时
+            } else if !isScrubbing {
+                // 离开坐姿：立即清空计时（预览模式不改真实计时器）
                 currentSitMinutes = 0
                 currentSitStartTime = nil
             }
