@@ -102,8 +102,8 @@ struct MorningReportDetailView: View {
             Text("昨日 24h 状态分布")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            // 简化时间条，用 StickState.daySchedule 渲染
-            DayTimelineView(schedule: StickState.daySchedule, displayMinute: minutesOfDay)
+            // 简化时间条
+            SimpleTimelineBar()
                 .frame(height: 12)
             HStack(spacing: 12) {
                 ForEach(["睡眠", "步行", "久坐"], id: \.self) { label in
@@ -304,4 +304,31 @@ private func analysisCard<Content: View>(title: String, icon: String, color: Col
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(Color(uiColor: .secondarySystemBackground))
     .cornerRadius(12)
+}
+
+/// 简化24h时间条（用于报告页展示）
+struct SimpleTimelineBar: View {
+    var body: some View {
+        GeometryReader { geo in
+            HStack(spacing: 0) {
+                ForEach(StickState.daySchedule) { segment in
+                    let width = geo.size.width * CGFloat(segment.endMinute - segment.startMinute) / 1440.0
+                    Rectangle()
+                        .fill(colorForState(segment.state))
+                        .frame(width: max(1, width))
+                }
+            }
+        }
+        .background(Color(white: 0.15))
+        .cornerRadius(6)
+    }
+
+    private func colorForState(_ state: StickState) -> Color {
+        switch state {
+        case .walk: return .green
+        case .sit: return .orange
+        case .stand: return .blue
+        case .sleep: return .purple
+        }
+    }
 }

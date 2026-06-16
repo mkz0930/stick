@@ -285,7 +285,7 @@ final class HealthKitService: ObservableObject {
                 flightsClimbed: 2,
                 sourceName: "Mock Simulator"
             )
-            HealthStore.shared.today.insert(mockSnapshot)
+            HealthStore.shared.append(mockSnapshot)
         }
 
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
