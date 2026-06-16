@@ -52,6 +52,8 @@ struct DayTimelineView: View, Equatable {
     private let snapStep: Int = 1          // 1 分钟一格（拖动更细腻）
     private let lineAlpha: Double = 0.65       // 竖线半透明 (稍亮，跟动画同色系)
     private let thumbAlpha: Double = 0.85      // 圆环半透明
+    /// 睡眠压缩高度（固定 30pt，占顶部一小段，剩余空间给活动时段）
+    private let sleepFixedHeight: CGFloat = 30
 
     // 步行段视觉强化（竖向方框 — 时长比例）
     private let walkBoxMinHeight: CGFloat = 16      // 最短步行(3min) 的方框高度
@@ -60,8 +62,9 @@ struct DayTimelineView: View, Equatable {
     private let walkBoxBorderWidth: CGFloat = 1.5   // 方框描边
     private let walkLabelMinDuration: Int = 5       // ≥5min 才显示时刻标签
     private let walkMergeGapMinutes: Int = 3       // 间隔 ≤3min 的碎步行合并
-    private let walkMinVisibleDuration: Int = 3      // <3min 的碎步行不显示
+    private let walkMinVisibleDuration: Int = 1      // ≥1min 的步行都显示（短步行用小框）
     private let walkMinVerticalSpacing: CGFloat = 8  // 最小纵向间距
+    private let walkMinSteps: Int = 100              // <100 步的步行不显示
 
     /// 合并后仅用于时间线渲染的步行胶囊。
     private struct WalkVisualSegment: Identifiable {
@@ -286,8 +289,8 @@ struct DayTimelineView: View, Equatable {
                     walkBurst(seg)
                 }
 
-                // thumb (圆环) — 圆心落在竖线中心
-                let yPos = yPosition(forOffset: displayOffset, in: height)
+                // thumb (圆环) — 圆心落在竖线中心（压缩坐标）
+                let yPos = thumbY(forOffset: displayOffset, in: height)
                 thumb
                     .position(x: trackWidth / 2, y: yPos)
                     .opacity(thumbAlpha)
@@ -491,76 +494,70 @@ struct DayTimelineView: View, Equatable {
         let isSleep = seg.state == .sleep
 
         if startWin <= endWin {
-            // 普通段（不跨边）
-            let yTop = CGFloat(totalMin - endWin) / total * height
-            let segH = CGFloat(endWin - startWin) / total * height
+            // 普通段（不跨边）用压缩坐标
+            let yTop = compressedY(forWindowMinute: endWin, in: height)
+            let yBottom = compressedY(forWindowMinute: startWin, in: height)
+            let segH = max(0, yBottom - yTop - segmentGap)
+            let yMid = (yTop + yBottom) / 2
             let isActive = (startWin...endWin).contains(thumbWin)
-
-            singlePiece(yTop: yTop, segH: segH, isActive: isActive, accent: accent, isSleep: isSleep)
+            singlePiece(yTop: yTop, yMid: yMid, segH: segH, isActive: isActive, accent: accent, isSleep: isSleep)
         } else {
             // 跨底边界：拆成两段
-            let uY = CGFloat(totalMin - endWin) / total * height
-            let uH = CGFloat(endWin) / total * height
-            let lY: CGFloat = 0
-            let lH = CGFloat(totalMin - startWin) / total * height
+            let uTop = compressedY(forWindowMinute: endWin, in: height)
+            let uBottom = compressedY(forWindowMinute: 0, in: height)
+            let uH = max(0, uBottom - uTop - segmentGap)
+            let lTop = compressedY(forWindowMinute: startWin, in: height)
+            let lBottom = height
+            let lH = max(0, lBottom - lTop - segmentGap)
             let upActive = thumbWin >= 0 && thumbWin < endWin
             let downActive = thumbWin >= startWin && thumbWin < totalMin
 
             ZStack {
-                singlePiece(yTop: uY, segH: uH, isActive: upActive, accent: accent, isSleep: isSleep)
-                singlePiece(yTop: lY, segH: lH, isActive: downActive, accent: accent, isSleep: isSleep)
+                singlePiece(yTop: uTop, yMid: (uTop + uBottom) / 2, segH: uH, isActive: upActive, accent: accent, isSleep: isSleep)
+                singlePiece(yTop: lTop, yMid: (lTop + lBottom) / 2, segH: lH, isActive: downActive, accent: accent, isSleep: isSleep)
             }
         }
     }
 
-    /// 一段矩形（坐姿：实线；睡姿：虚线）— 竖向
+    /// 一段矩形（坐姿：实线；睡姿：虚线）— 竖向，接收压缩后的坐标
     @ViewBuilder
     private func singlePiece(
-        yTop: CGFloat, segH: CGFloat,
+        yTop: CGFloat, yMid: CGFloat, segH: CGFloat,
         isActive: Bool, accent: Color,
         isSleep: Bool = false
     ) -> some View {
-        let gap: CGFloat = 1.5
-        let fillY = yTop + gap / 2
-        let fillH = max(0, segH - gap)
-
         ZStack {
-            // 睡段用虚线（stroke dashed）
             if isSleep {
                 Rectangle()
                     .stroke(accent.opacity(0.5),
                             style: StrokeStyle(lineWidth: trackWidth, lineCap: .round, dash: [2.5, 2.5]))
-                    .frame(width: trackWidth, height: max(0, fillH))
-                    .offset(x: 0, y: fillY)
+                    .frame(width: trackWidth, height: max(0, segH))
+                    .position(x: trackWidth / 2, y: yMid)
             } else {
-                // 坐段：实色细线
                 RoundedRectangle(cornerRadius: 1.5)
                     .fill(accent.opacity(lineAlpha))
-                    .frame(width: trackWidth, height: max(0, fillH))
-                    .offset(x: 0, y: fillY)
+                    .frame(width: trackWidth, height: max(0, segH))
+                    .position(x: trackWidth / 2, y: yMid)
             }
 
             if isActive {
                 let pulseAlpha = 0.25 + 0.25 * pulse
                 RoundedRectangle(cornerRadius: 1.5)
                     .stroke(accent.opacity(0.7), lineWidth: 1.5)
-                    .frame(width: trackWidth + 2, height: max(0, fillH))
-                    .offset(x: -1, y: fillY)
+                    .frame(width: trackWidth + 2, height: max(0, segH))
+                    .position(x: trackWidth / 2, y: yMid)
                     .shadow(color: accent.opacity(pulseAlpha), radius: 4 + 2 * pulse, x: 0, y: 0)
 
-                // 段两端角标：让 active 范围起止更显眼
                 let dotSize: CGFloat = 2
                 let dotX: CGFloat = trackWidth / 2
-                let dotYTop = fillY
-                let dotYBottom = fillY + max(0, fillH)
                 Circle()
                     .fill(accent)
                     .frame(width: dotSize, height: dotSize)
-                    .position(x: dotX, y: dotYTop)
+                    .position(x: dotX, y: yTop)
                 Circle()
                     .fill(accent)
                     .frame(width: dotSize, height: dotSize)
-                    .position(x: dotX, y: dotYBottom)
+                    .position(x: dotX, y: yTop + max(0, segH))
             }
         }
     }
@@ -591,9 +588,40 @@ struct DayTimelineView: View, Equatable {
 
     // MARK: - 几何
 
+    /// 睡眠固定在顶部的坐标映射（压缩睡眠高度，舒展活动时段）
+    /// 分钟 0-420 (睡眠) → 顶部固定高度 sleepFixedHeight
+    /// 分钟 420-1440 (活动) → 线性映射到底部
+    private func compressedY(forMinute m: Int, in height: CGFloat) -> CGFloat {
+        let activeHeight = height - sleepFixedHeight
+        if m <= 420 {
+            // 睡眠压缩到顶部
+            return height - sleepFixedHeight * CGFloat(m) / 420.0
+        } else {
+            // 活动时段：从 sleepFixedHeight 到底部
+            let activeRatio = CGFloat(m - 420) / CGFloat(1440 - 420)
+            return sleepFixedHeight + (1 - activeRatio) * activeHeight
+        }
+    }
+
+    /// 普通坐标（兼容旧逻辑）
     private func yPosition(forOffset m: Int, in height: CGFloat) -> CGFloat {
         // offset 0 → 底 (现在); 1440 → 顶 (24h 前)
         CGFloat(1440 - m) / dayMinutes * height
+    }
+
+    /// thumb 位置（用压缩坐标，底部=now）
+    private func thumbY(forOffset offset: Int, in height: CGFloat) -> CGFloat {
+        // offset=0 → 底部; offset=1440 → 顶部
+        let nowMinute = min(1440, max(0, 1440 - offset))
+        return compressedY(forMinute: nowMinute, in: height)
+    }
+
+    /// 把窗口 minute 映射到压缩坐标的 y
+    private func compressedY(forWindowMinute winM: Int, in height: CGFloat) -> CGFloat {
+        // 窗口坐标系: 0=底(now), 1440=顶(24h前)
+        // 先转回绝对分钟
+        let absMinute = (1440 - winM + 1440) % 1440
+        return compressedY(forMinute: absMinute, in: height)
     }
 
     /// 生成步行视觉胶囊：过滤极短段、合并相邻段，并做纵向避让。
@@ -640,9 +668,10 @@ struct DayTimelineView: View, Equatable {
         let total = CGFloat(totalMin)
         var visualSegments = merged
             .filter { $0.duration >= walkMinVisibleDuration }
+            .filter { ($0.stepCount ?? 0) >= walkMinSteps }  // <100步不显示
             .map { item in
                 let midWin = (item.startWin + item.endWin) / 2
-                let rawY = CGFloat(totalMin - midWin) / total * height
+                let rawY = compressedY(forWindowMinute: midWin, in: height)
                 return WalkVisualSegment(
                     id: "walk-\(item.segmentId)-\(item.splitTag)",  // 完全稳定，不随 now 变化
                     startMinute: item.startMinute,
