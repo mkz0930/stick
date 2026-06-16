@@ -8,28 +8,36 @@ import WidgetKit
 struct WalkingQualityData {
     /// 平均步速 (m/s)
     let avgSpeed: Double?
+    /// 双支撑时间占比 (%)
+    let avgDoubleSupport: Double?
     /// 步态评分 (0-100)
     let gaitScore: Int
     /// 睡眠质量标签
     let sleepQualityLabel: String
+    /// 夜间清醒次数
+    let nightWakeCount: Int
     /// 夜间清醒总分钟数
     let nightWakeTotalMin: Int
 
-    /// 从 HealthKit 步速数据构造步态质量
-    /// 步速正常范围 0.8-1.4 m/s，换算成 0-100 评分
-    static func from(walkingSpeed speed: Double?) -> WalkingQualityData {
-        let score: Int
-        if let sp = speed {
-            // 0.8 m/s = 60分, 1.4 m/s = 100分, 线性插值
-            score = min(100, max(0, Int(60 + (sp - 0.8) / 0.6 * 40)))
-        } else {
-            score = 0
+    /// 从真实 HealthKitService.WalkingQuality 构造
+    static func from(_ wq: HealthKitService.WalkingQuality?) -> WalkingQualityData {
+        guard let wq else {
+            return WalkingQualityData(
+                avgSpeed: nil,
+                avgDoubleSupport: nil,
+                gaitScore: 60,
+                sleepQualityLabel: "--",
+                nightWakeCount: 0,
+                nightWakeTotalMin: 0
+            )
         }
         return WalkingQualityData(
-            avgSpeed: speed,
-            gaitScore: score,
-            sleepQualityLabel: "睡眠良好",
-            nightWakeTotalMin: 0
+            avgSpeed: wq.avgSpeed,
+            avgDoubleSupport: wq.avgDoubleSupport,
+            gaitScore: wq.gaitScore,
+            sleepQualityLabel: wq.sleepQualityLabel,
+            nightWakeCount: wq.nightWakeCount,
+            nightWakeTotalMin: wq.nightWakeTotalMin
         )
     }
 }
@@ -295,25 +303,39 @@ struct ContentView: View {
         return (t - 0.6) / 0.2
     }
 
-    /// 身体能量 0..100。综合 state + 时段 + tiredness：
-    ///   - walk 兴奋(上午): 90 / walk 其他: 72
-    ///   - sit 专注(上午): 78 / sit 疲倦(下午): 55→15 随 tiredness 衰减
-    ///   - sit 其他: 55
-    ///   - sleep: 8→45 随已睡时长缓慢回升（"充电中"）
+    /// 身体能量 0..100。综合真实步态评分 + 状态：
+    ///   - walk + gaitScore ≥ 80: 80-95 (步态好 → 能量高)
+    ///   - walk + gaitScore < 80: 65-79
+    ///   - sit: 真实久坐分或 60
+    ///   - sleep: 基于夜间清醒评分
     private var bodyEnergy: Double {
+        guard let wq = walkingQuality else {
+            // fallback to hardcoded
+            switch displayState {
+            case .walk: return 72
+            case .stand: return 65
+            case .sit: return 55
+            case .sleep: return 25
+            }
+        }
+
         switch displayState {
         case .walk:
-            return isMorningEnergetic ? 90 : 72
+            if wq.gaitScore >= 80 { return 90 }
+            if wq.gaitScore >= 60 { return 75 }
+            return 60
         case .stand:
-            return 65   // 站立待机中，能量平稳
+            return 65
         case .sit:
-            if isMorningCalm    { return 78 }
-            if isAfternoonTired { return 55 - 40 * figureTiredness }
-            return 55
+            // 久坐时长越长能量越低
+            let sit = Double(homeSedentaryMinutes)
+            let sitPenalty = min(30, sit / 6.0)  // 每6分钟久坐扣1分，上限30分
+            return max(25, 75 - sitPenalty)
         case .sleep:
-            let m = StickState.minutesOfDay(displayDate)
-            let hoursSlept = max(0, min(8, Double(m) / 60.0))
-            return min(45, 8 + hoursSlept * 5)
+            // 夜间清醒越多睡眠修复效果越差
+            if wq.nightWakeCount == 0 { return 40 }
+            if wq.nightWakeCount == 1 { return 30 }
+            return 20
         }
     }
 
@@ -342,23 +364,26 @@ struct ContentView: View {
         return String(format: "%.1fh", Double(m) / 60.0)
     }
 
+    /// 心情得分 0..100。综合步态评分 + 状态：
     private var moodScore: Double {
-        // walk: 兴奋 92, 良好 75, 愉悦 80
-        // stand: 平稳 70
-        // sit: 专注 82, 疲倦 30, 平稳 65
-        // sleep: 25
+        guard let wq = walkingQuality else {
+            switch displayState {
+            case .walk: return 75
+            case .stand: return 70
+            case .sit: return 65
+            case .sleep: return 25
+            }
+        }
+
         switch displayState {
         case .walk:
-            if isMorningEnergetic { return 92 }
-            let m = StickState.minutesOfDay(displayDate)
-            if m >= 720 && m < 810 { return 78 }   // 午餐后轻松
-            if m >= 1080            { return 80 }   // 晚间愉悦
-            return 75                              // 普通 walk
+            if wq.gaitScore >= 85 { return 92 }
+            if wq.gaitScore >= 70 { return 80 }
+            return 70
         case .stand:
-            return 70                              // 平稳待机
+            return 70
         case .sit:
-            if isMorningCalm      { return 82 }
-            if isAfternoonTired   { return max(20, 50 - 30 * figureTiredness) }  // 50→20
+            if homeSedentaryMinutes > 120 { return 55 }  // 久坐超2小时 → 心情差
             return 65
         case .sleep:
             return 25
@@ -608,10 +633,9 @@ struct ContentView: View {
                 _ = await HealthKitService.shared.captureSnapshot()
                 inference = HealthKitService.shared.currentInference
                 // 实时读取步态质量 + 心率
-                let speed = await HealthKitService.shared.todayWalkingSpeed()
-                let wq = WalkingQualityData.from(walkingSpeed: speed)
+                let wq = await HealthKitService.shared.todayWalkingQuality()
+                walkingQuality = WalkingQualityData.from(wq)
                 let hr = await HealthKitService.shared.todayHeartRate()
-                walkingQuality = wq
                 realHeartRate = hr
                 // 每 5 分钟重新生成一次 24h 时刻表（不必 30s 一次，太重）
                 if Calendar.current.component(.minute, from: Date()) % 5 == 0 {
@@ -691,8 +715,8 @@ struct ContentView: View {
                     lastSitAnalysisTime = Date()
                     // 回到前台时也重算时刻表（黑屏期间可能有新数据）
                     await HealthKitService.shared.computeDaySchedule()
-                    let speed = await HealthKitService.shared.todayWalkingSpeed()
-                    walkingQuality = WalkingQualityData.from(walkingSpeed: speed)
+                    let wq = await HealthKitService.shared.todayWalkingQuality()
+                    walkingQuality = WalkingQualityData.from(wq)
                     realHeartRate = await HealthKitService.shared.todayHeartRate()
                 }
             }
@@ -767,8 +791,8 @@ struct ContentView: View {
                 // 计算今天真实的 24h 时刻表（驱动时间轴 + 小人状态）
                 await HealthKitService.shared.computeDaySchedule()
                 // 加载步态质量
-                let speed = await HealthKitService.shared.todayWalkingSpeed()
-                walkingQuality = WalkingQualityData.from(walkingSpeed: speed)
+                let wq = await HealthKitService.shared.todayWalkingQuality()
+                walkingQuality = WalkingQualityData.from(wq)
                 realHeartRate = await HealthKitService.shared.todayHeartRate()
             }
             // 检查各 metric 真实授权状态 (有/无/拒绝)
