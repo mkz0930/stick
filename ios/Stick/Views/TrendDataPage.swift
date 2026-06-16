@@ -49,6 +49,15 @@ struct TrendDataPage: View {
                         baseColor: .orange
                     )
 
+                    MetricTrendCard(
+                        title: "双脚支撑",
+                        icon: "figure.walk.circle",
+                        unit: "%",
+                        values: trendReports.map { $0.doubleSupport ?? 0.0 },
+                        qualityValues: nil,
+                        baseColor: .blue
+                    )
+
                     // 身体状态得分折线图
                     BodyScoreTrendChart(scores: trendReports.map { $0.llmScore })
 
