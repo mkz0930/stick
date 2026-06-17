@@ -183,7 +183,7 @@ struct ContentView: View {
         let isNapHour = hour == 13 && minute >= 0 && minute < 30
 
         // 1. 近期的真实快照：walk 始终覆盖时段默认
-        if let latest = HealthStore.shared.today.sorted(by: { $0.timestamp > $1.timestamp }).first {
+        if let latest = HealthStore.shared.today.max(by: { $0.timestamp < $1.timestamp }) {
             let age = Date().timeIntervalSince(latest.timestamp)
             if age < 90, let mapped = mapBodyState(latest.bodyState) {
                 if mapped == .walk { return .walk }
