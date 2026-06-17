@@ -2000,8 +2000,8 @@ private struct AssistantText: View {
         }
 
         // [n] 角标（[1] / (2) 都行），只在有 refs 时识别
-        if let refs = refs, !refs.isEmpty {
-            guard let bracketRegex = try? NSRegularExpression(pattern: "[\\[\\(](\\d+)[\\]\\)]") else { continue }
+        if let refs = refs, !refs.isEmpty,
+           let bracketRegex = try? NSRegularExpression(pattern: "[\\[\\(](\\d+)[\\]\\)]") {
             for m in bracketRegex.matches(in: raw, range: NSRange(location: 0, length: length)) {
                 let mStart = m.range.location
                 let mEnd = mStart + m.range.length
