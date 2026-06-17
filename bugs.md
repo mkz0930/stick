@@ -3,6 +3,7 @@
 
 | 日期 | 摘要 | 根因 | 修复 |
 |---|---|---|---|
+| 2026-06-18 | `DayTimelineView` `scrubOffset` 上限 `1440`，拖到 y=0 时 thumb 与 `00:00(now)` 位置重叠 | `abs = (1440 + stableNowMinute) % 1440 = stableNowMinute`，1440 和 0 都映射到当前分钟 | 改为上限 `1439`，正确显示 23:59，合入 `1e0a0fe` |
 | 2026-06-18 | `MockHealthDataLoader` `buckets[key]!` force unwrap；`HealthExport/HealthTypeBlock/HealthDataPoint.encode(to:)` 用 `fatalError()` 占位，若触发直接 crash | `buckets[key]` 可能为 nil；Codable encode 用占位实现 | `buckets[key] ?? Bucket()`；实现正确的 Codable encode，合入 `0ed0429` |
 | 2026-06-18 | `analyzeYesterdayHeartRateZones` 2 处 `calendar.date(byAdding:)!` force unwrap | `calendar.date` 可能返回 nil | 改为 `guard let` + `return nil`，合入 `ff9b9a3` |
 | 2026-06-18 | `HealthKitService`/`HealthTrendAnalyzer`/`MorningReportStore` 9 处 `calendar.date(byAdding:...)!` force unwrap | `calendar.date` 在极端情况可能返回 nil | 改为 `guard let` + 优雅降级（return nil/0/[]），合入 `646e147` |
