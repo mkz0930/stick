@@ -523,20 +523,30 @@ final class HealthKitService: ObservableObject {
                     return
                 }
                 // 聚类：间隔 >10min 算不同清醒段
+                // ⚠️ 连续性判断必须用 Date.timeIntervalSince 算真实秒数差，
+                //    不能用 minutesOfDay 差：跨午夜的样本（如 23:55 → 00:01）会出现
+                //    minutesOfDay 差 = -1434 被误判为 ≤10 连续，闭合时
+                //    cStart=1435 > cLast=1 触发 'Range requires lowerBound <= upperBound'
+                //    断言崩溃。
                 var ranges: [ClosedRange<Int>] = []
                 var cStart: Int? = nil
                 var cLast: Int? = nil
+                var lastDate: Date? = nil
                 for s in samples {
                     let m = StickState.minutesOfDay(s.startDate)
                     if cStart == nil {
                         cStart = m; cLast = m
-                    } else if m - (cLast ?? 0) <= 10 {
+                        lastDate = s.startDate
+                    } else if let last = lastDate,
+                              s.startDate.timeIntervalSince(last) / 60.0 <= 10 {
                         cLast = m
+                        lastDate = s.startDate
                     } else {
                         if let s = cStart, let l = cLast {
                             ranges.append(s...l)
                         }
                         cStart = m; cLast = m
+                        lastDate = s.startDate
                     }
                 }
                 if let s = cStart, let l = cLast {
