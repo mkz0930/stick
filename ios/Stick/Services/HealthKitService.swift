@@ -1075,7 +1075,7 @@ final class HealthKitService: ObservableObject {
         let now = Date()
 
         // 昨天 22:00
-        var yesterday = calendar.startOfDay(for: now)
+        let yesterday = calendar.startOfDay(for: now)
         guard let yesterdayPrev = calendar.date(byAdding: .day, value: -1, to: yesterday),
               let nightStart = calendar.date(bySettingHour: 22, minute: 0, second: 0, of: yesterdayPrev) else {
             return nil
