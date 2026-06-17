@@ -543,14 +543,27 @@ final class HealthKitService: ObservableObject {
                         lastDate = s.startDate
                     } else {
                         if let s = cStart, let l = cLast {
-                            ranges.append(s...l)
+                            // 跨午夜 cluster（如 23:55 醒来 → 00:01 又睡）：
+                            // minutesOfDay 会让 s=1435, l=1，s>l 不能直接构 Range。
+                            // 拆成两段以保持语义完整。
+                            if s <= l {
+                                ranges.append(s...l)
+                            } else {
+                                ranges.append(s...1439)
+                                ranges.append(0...l)
+                            }
                         }
                         cStart = m; cLast = m
                         lastDate = s.startDate
                     }
                 }
                 if let s = cStart, let l = cLast {
-                    ranges.append(s...l)
+                    if s <= l {
+                        ranges.append(s...l)
+                    } else {
+                        ranges.append(s...1439)
+                        ranges.append(0...l)
+                    }
                 }
                 cont.resume(returning: ranges)
             }
