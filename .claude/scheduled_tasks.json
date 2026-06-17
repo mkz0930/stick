@@ -5,7 +5,7 @@
       "cron": "*/10 * * * *",
       "prompt": "使用两个agent，一个开发修复阻塞的问题，一个检查是否完成，并调用swift skill，优化整个项目",
       "createdAt": 1781701899848,
-      "lastFiredAt": 1781734496819,
+      "lastFiredAt": 1781735261514,
       "recurring": true
     }
   ]
