@@ -8,13 +8,13 @@ struct AlertDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header
+            AlertDetailHeader(alert: alert, onClose: onClose)
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    summaryCard
-                    refCard
-                    actionsCard
-                    footer
+                    AlertDetailSummaryCard(alert: alert)
+                    AlertDetailRefCard(alert: alert)
+                    AlertDetailActionsCard(alert: alert)
+                    AlertDetailFooter()
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
@@ -23,41 +23,52 @@ struct AlertDetailView: View {
         }
         .background(Theme.bgTop.ignoresSafeArea())
     }
+}
 
-    // MARK: - 顶栏
+// MARK: - 顶栏
 
-    private var header: some View {
-        AlertDetailHeader(alert: alert, onClose: onClose)
-    }
+private struct AlertDetailHeader: View {
+    let alert: UnifiedAlert
+    let onClose: () -> Void
 
-    // MARK: - 组件
-
-    @ViewBuilder
-    private func sectionHeader(_ title: String, icon: String) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(alert.severity.color)
-            Text(title)
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .tracking(1.6)
-                .foregroundColor(Theme.slate)
+    var body: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("异常详情")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .tracking(2.0)
+                    .foregroundColor(Theme.slate)
+                Text(alert.title)
+                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .foregroundColor(Theme.navy)
+                    .lineLimit(2)
+                    .lineSpacing(2)
+            }
+            Spacer()
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(Theme.navy)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(Theme.card))
+                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
-    }
-
-    private var cardBg: some View {
-        RoundedRectangle(cornerRadius: 6, style: .continuous)
-            .fill(Theme.card)
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .stroke(Theme.border, lineWidth: 1)
-            )
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+        .padding(.bottom, 12)
+        .background(Theme.bgTop)
     }
 }
 
-    // MARK: - 概览
+// MARK: - 概览
 
-    private var summaryCard: some View {
+private struct AlertDetailSummaryCard: View {
+    let alert: UnifiedAlert
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: alert.icon)
@@ -68,7 +79,7 @@ struct AlertDetailView: View {
                     .tracking(1.6)
                     .foregroundColor(alert.severity.color)
                 Spacer()
-                severityBadge
+                AlertDetailSeverityBadge(alert: alert)
             }
             Text(alert.detail)
                 .font(.system(size: 15, weight: .medium, design: .serif))
@@ -97,8 +108,12 @@ struct AlertDetailView: View {
                 .stroke(alert.severity.color.opacity(0.32), lineWidth: 1)
         )
     }
+}
 
-    private var severityBadge: some View {
+private struct AlertDetailSeverityBadge: View {
+    let alert: UnifiedAlert
+
+    var body: some View {
         HStack(spacing: 5) {
             Circle()
                 .fill(alert.severity.color)
@@ -115,17 +130,21 @@ struct AlertDetailView: View {
                 .fill(alert.severity.color.opacity(0.12))
         )
     }
+}
 
-    // MARK: - 参考
+// MARK: - 参考
 
-    private var refCard: some View {
+private struct AlertDetailRefCard: View {
+    let alert: UnifiedAlert
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionHeader("参考 · REFERENCE", icon: "scope")
+            AlertDetailSectionHeader(title: "参考 · REFERENCE", icon: "scope", accent: alert.severity.color)
             refContent
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(cardBg)
+        .background(AlertDetailCardBg())
     }
 
     @ViewBuilder
@@ -133,26 +152,26 @@ struct AlertDetailView: View {
         switch alert.source {
         case .sleep:
             VStack(alignment: .leading, spacing: 8) {
-                refRow("推荐时长", "7-9h (成人)", "WHO / NSF")
-                refRow("测量来源", "HealthStore", "近 24h 睡眠窗口")
+                AlertDetailRefRow(key: "推荐时长", value: "7-9h (成人)", source: "WHO / NSF")
+                AlertDetailRefRow(key: "测量来源", value: "HealthStore", source: "近 24h 睡眠窗口")
                 if let nv = alert.numericValue {
-                    refRow("实测", nv, "vs. 参考下限 7.0h")
+                    AlertDetailRefRow(key: "实测", value: nv, source: "vs. 参考下限 7.0h")
                 }
             }
         case .activity:
             VStack(alignment: .leading, spacing: 8) {
-                refRow("推荐步数", "≥ 6000 步/日", "WHO")
-                refRow("推荐锻炼", "≥ 30 min 中等强度", "WHO")
+                AlertDetailRefRow(key: "推荐步数", value: "≥ 6000 步/日", source: "WHO")
+                AlertDetailRefRow(key: "推荐锻炼", value: "≥ 30 min 中等强度", source: "WHO")
                 if let nv = alert.numericValue {
-                    refRow("实测", nv, "vs. 推荐值")
+                    AlertDetailRefRow(key: "实测", value: nv, source: "vs. 推荐值")
                 }
             }
         case .heartRate:
             VStack(alignment: .leading, spacing: 8) {
-                refRow("静息基线", "60-80 bpm", "AHA")
-                refRow("走路区间", "95-115 bpm", "中等强度")
+                AlertDetailRefRow(key: "静息基线", value: "60-80 bpm", source: "AHA")
+                AlertDetailRefRow(key: "走路区间", value: "95-115 bpm", source: "中等强度")
                 if let nv = alert.numericValue {
-                    refRow("实测", nv, "实时")
+                    AlertDetailRefRow(key: "实测", value: nv, source: "实时")
                 }
             }
         case .posture, .mood, .respiratory, .generic:
@@ -165,48 +184,34 @@ struct AlertDetailView: View {
             .foregroundColor(Theme.slate)
         }
     }
+}
 
-    private func refRow(_ k: String, _ v: String, _ src: String) -> some View {
+private struct AlertDetailRefRow: View {
+    let key: String
+    let value: String
+    let source: String
+
+    var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(k)
+            Text(key)
                 .font(.system(size: 10, weight: .medium, design: .monospaced))
                 .foregroundColor(Theme.slate)
                 .frame(width: 70, alignment: .leading)
-            Text(v)
+            Text(value)
                 .font(.system(size: 12, weight: .heavy, design: .rounded))
                 .foregroundColor(Theme.navy)
             Spacer()
-            Text(src)
+            Text(source)
                 .font(.system(size: 9, weight: .regular, design: .monospaced))
                 .foregroundColor(Theme.mist)
         }
     }
+}
 
-    // MARK: - 建议
+// MARK: - 建议
 
-    private var actionsCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionHeader("建议 · ACTIONS", icon: "lightbulb")
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(actionsForAlert.enumerated()), id: \.offset) { idx, txt in
-                    HStack(alignment: .top, spacing: 10) {
-                        Text(String(format: "%02d", idx + 1))
-                            .font(.system(size: 10, weight: .heavy, design: .monospaced))
-                            .foregroundColor(alert.severity.color)
-                            .frame(width: 18, alignment: .leading)
-                        Text(txt)
-                            .font(.system(size: 13, weight: .regular, design: .serif))
-                            .foregroundColor(Theme.navy)
-                            .lineSpacing(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(cardBg)
-    }
+private struct AlertDetailActionsCard: View {
+    let alert: UnifiedAlert
 
     private var actionsForAlert: [String] {
         switch alert.source {
@@ -236,9 +241,35 @@ struct AlertDetailView: View {
         }
     }
 
-    // MARK: - 页脚
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            AlertDetailSectionHeader(title: "建议 · ACTIONS", icon: "lightbulb", accent: alert.severity.color)
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(actionsForAlert.enumerated()), id: \.offset) { idx, txt in
+                    HStack(alignment: .top, spacing: 10) {
+                        Text(String(format: "%02d", idx + 1))
+                            .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                            .foregroundColor(alert.severity.color)
+                            .frame(width: 18, alignment: .leading)
+                        Text(txt)
+                            .font(.system(size: 13, weight: .regular, design: .serif))
+                            .foregroundColor(Theme.navy)
+                            .lineSpacing(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AlertDetailCardBg())
+    }
+}
 
-    private var footer: some View {
+// MARK: - 页脚
+
+private struct AlertDetailFooter: View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Image(systemName: "info.circle")
@@ -254,23 +285,30 @@ struct AlertDetailView: View {
         }
         .padding(.top, 4)
     }
+}
 
-    // MARK: - 组件
+// MARK: - 组件
 
-    @ViewBuilder
-    private func sectionHeader(_ title: String, icon: String) -> some View {
+private struct AlertDetailSectionHeader: View {
+    let title: String
+    let icon: String
+    let accent: Color
+
+    var body: some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.system(size: 11, weight: .bold))
-                .foregroundColor(alert.severity.color)
+                .foregroundColor(accent)
             Text(title)
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                 .tracking(1.6)
                 .foregroundColor(Theme.slate)
         }
     }
+}
 
-    private var cardBg: some View {
+private struct AlertDetailCardBg: View {
+    var body: some View {
         RoundedRectangle(cornerRadius: 6, style: .continuous)
             .fill(Theme.card)
             .overlay(
