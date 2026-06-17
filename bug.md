@@ -204,4 +204,47 @@ private final class ObserverBox {
 
 ---
 
+## 2026-06-17 · `exportTodayData()` 返回 HealthStore 快照数组（误用数据源）
+
+**症状**
+- 真机点"今天"导出按钮，下载下来的 `Stick_Export_<ISO>.json` 文件只有 20+ 条记录（且全是 sit 状态的本地快照）
+- 导出文件结构是数组 `[{"id":"...","bodyState":"sit","timestamp":"...","incrementalStepCount":0,...}]`，不是预期的 dict `{导出时间, 数据类型:[...]}`
+- 同一时段点"7天"按钮能正常导出多类型数据
+
+**根因**
+文件 `ios/Stick/Services/HealthKitService.swift` 的 `exportTodayData()` 在某次编辑后被改成了：
+
+```swift
+func exportTodayData() async -> URL? {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = .prettyPrinted
+    encoder.dateEncodingStrategy = .iso8601
+    let data = (try? encoder.encode(HealthStore.shared.today)) ?? Data()   // ← bug
+    ...
+}
+```
+
+`HealthStore.shared.today` 是 app 每分钟抓 HK 后聚合的 `HealthSnapshot` 数组，仅覆盖 app 运行时长（真机可能只 1 天），用于 export 会严重不完整。
+
+**为什么 `exportLast7Days()` 不受影响**：它单独定义在主类里，调 `exportHealthRange` 查 HK 原始样本；只有 `exportTodayData()` 被改坏了。
+
+**修复**（commit `74e06fd`）
+删掉导 HealthStore 的版本，改回 `await exportRecentData(days: 1)` 走 HK 路径：
+
+```swift
+func exportTodayData() async -> URL? {
+    await exportRecentData(days: 1)
+}
+```
+
+**关键教训**
+- **export 函数必须查 HealthKit，不能查 HealthStore**。HealthStore 是聚合缓存，新装 app 数据极少。
+- 输出 JSON 是 `[...]` 数组 → 错（这是 HealthStore 快照）。
+- 输出 JSON 是 `{导出时间, 数据类型:[...]}` dict → 对（这是 HK 多类型分组）。
+- 编辑已有 export 函数前先看 `exportHealthRange` 模板，确认走 HK 原始样本。
+
+详细架构说明 + mock 注入调试约定见 `~/.claude/projects/-Users-horse-work-stick/memory/healthkit_vs_healthstore.md`。
+
+---
+
 <!-- 新 bug 加在上方，时间倒序 -->
