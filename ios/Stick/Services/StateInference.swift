@@ -141,7 +141,10 @@ struct StateInference {
         }
 
         // === F. 决策 ===
-        let best = score.max(by: { $0.value < $1.value })!
+        // score 字典始终有 3 个 key（.walk/.sit/.sleep），但用 guard 防御未来修改
+        guard let best = score.max(by: { $0.value < $1.value }) else {
+            return Result(state: .sit, confidence: 0.3, reasons: ["推理异常"])
+        }
         let totalScore = score.values.reduce(0, +)
         let confidence = totalScore > 0 ? min(1.0, best.value / max(totalScore, 5)) : 0.3
 
