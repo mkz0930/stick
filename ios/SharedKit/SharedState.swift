@@ -155,8 +155,9 @@ enum SharedStateStore {
 
     /// 用于跨进程回调持有闭包
     /// 用 NSLock 保护 handler 的读写，确保从 Darwin callback（任意线程）读取时数据安全
-    /// NSLock is Sendable in Swift 6; lock protects all mutable state so the class is thread-safe
-    private final class ObserverBox: Sendable {
+    /// 注意：不标注 Sendable，因为 @Sendable 要求所有存储属性不可变，
+    /// 而此类需要通过 updateHandler 更新闭包。lock 已提供线程安全保证。
+    private final class ObserverBox {
         private let lock = NSLock()
         private var _handler: () -> Void
         var handler: () -> Void {
