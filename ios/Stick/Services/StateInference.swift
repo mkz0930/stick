@@ -48,28 +48,34 @@ struct StateInference {
         var score: [State: Double] = [.walk: 0, .sit: 0, .sleep: 0]
         var reasons: [String] = []
 
-        // === A. 时段基线 (睡眠窗口) ===
-        if h >= 22 || h < 7 {
+        // === A. 时段基线 (睡眠窗口: 22-08 夜间 + 12-14 午睡) ===
+        if h >= 22 || h < 8 {
             score[.sleep]! += 1.5
-            reasons.append("睡眠时段 \(h):00")
+            reasons.append("睡眠时段 \(h):00 (夜间)")
+        } else if h >= 12 && h < 14 {
+            score[.sleep]! += 0.8
+            reasons.append("午睡时段 \(h):00")
         } else if (11 <= h && h <= 13) || h == 18 {
             score[.walk]! += 0.3   // 午饭/晚饭散步
             reasons.append("用餐时段")
         }
 
-        // === A2. 持续静止信号 (跨时段检测睡眠/休息) ===
-        // 取最近 30 条 ≈ 30 分钟，如果 90% 以上 0 步 → 强 sleep 信号
-        // 修复：白天小憩、午睡、白天长时间不活动也能被识别为 sleep
-        let longWindow = Array(snapshots.suffix(30))
-        if longWindow.count >= 20 {
-            let zeroCount = longWindow.filter { $0.incrementalStepCount == 0 }.count
-            let zeroRatio = Double(zeroCount) / Double(longWindow.count)
-            if zeroRatio >= 0.9 {
-                score[.sleep]! += 2.5
-                reasons.append("持续 \(zeroCount)/\(longWindow.count) 分钟 0 步")
-            } else if zeroRatio >= 0.7 {
-                score[.sleep]! += 1.0
-                reasons.append("长时间低活动 (\(Int(zeroRatio * 100))% 0 步)")
+        // === A2. 持续静止信号 (门控: 仅在睡眠窗口内才识别为 sleep) ===
+        // 睡眠窗口: 22:00-08:00 (夜间) 或 12:00-14:00 (午睡)
+        // 避免白天开会/看书/通勤中断被误识别为 sleep
+        let inSleepWindow = (h >= 22 || h < 8) || (h >= 12 && h < 14)
+        if inSleepWindow {
+            let longWindow = Array(snapshots.suffix(30))
+            if longWindow.count >= 20 {
+                let zeroCount = longWindow.filter { $0.incrementalStepCount == 0 }.count
+                let zeroRatio = Double(zeroCount) / Double(longWindow.count)
+                if zeroRatio >= 0.9 {
+                    score[.sleep]! += 2.5
+                    reasons.append("持续 \(zeroCount)/\(longWindow.count) 分钟 0 步 (睡眠窗口)")
+                } else if zeroRatio >= 0.7 {
+                    score[.sleep]! += 1.0
+                    reasons.append("长时间低活动 (\(Int(zeroRatio * 100))% 0 步, 睡眠窗口)")
+                }
             }
         }
 
