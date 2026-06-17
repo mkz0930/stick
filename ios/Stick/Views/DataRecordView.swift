@@ -370,10 +370,12 @@ struct DataRecordView: View {
         .preferredColorScheme(.light)
         .onAppear {
             vm.refresh()
+        }
+        .task {
             // vm.hkData 为 @Published：赋值后自动触发 view 重渲染，UI 通过 hk 计算属性读取
-            Task { await vm.loadHKData() }
+            await vm.loadHKData()
             // 每次打开都调 LLM 生成一句洞察
-            Task { await generateInsight() }
+            await generateInsight()
         }
         .sheet(isPresented: $showExportSheet) {
             if let url = exportURL {
