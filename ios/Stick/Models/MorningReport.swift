@@ -66,6 +66,10 @@ struct MorningReport: Codable, Identifiable, Hashable {
     // 通知状态
     let notified: Bool
 
+    // 睡眠准确度反馈（0=不准确, 1=准确, nil=未评）
+    let sleepAccuracyFeedback: Int?
+    let sleepFeedbackDate: Date?
+
     init(
         id: UUID,
         date: String,
@@ -102,7 +106,9 @@ struct MorningReport: Codable, Identifiable, Hashable {
         llmShortAdvice: [String],
         llmLongAdvice: [String],
         llmDetail: String,
-        notified: Bool
+        notified: Bool,
+        sleepAccuracyFeedback: Int? = nil,
+        sleepFeedbackDate: Date? = nil
     ) {
         self.id = id
         self.date = date
@@ -140,6 +146,24 @@ struct MorningReport: Codable, Identifiable, Hashable {
         self.llmLongAdvice = llmLongAdvice
         self.llmDetail = llmDetail
         self.notified = notified
+        self.sleepAccuracyFeedback = sleepAccuracyFeedback
+        self.sleepFeedbackDate = sleepFeedbackDate
+    }
+
+    // 显式声明以支持自定义 init(from:);否则编译器不会为所有 let 属性自动生成
+    private enum CodingKeys: String, CodingKey {
+        case id, date, generatedAt
+        case sleepMinutes, sleepQuality, sleepMidnightWake
+        case walkMinutes, steps, avgSpeed, doubleSupport
+        case sedentaryMinutes, longestSedentaryMin, longestSedentaryRange
+        case wakeUpMinute
+        case gaitScore, fatigueIndex, doubleSupportZScore, isDoubleSupportAnomaly
+        case avgHeartRate, maxHeartRate, heartRateZoneAnalysis, recoveryScore
+        case healthkitBedtime, healthkitWakeUpMinute, lastWalkBeforeBed
+        case breakfastCalories, lunchCalories, dinnerCalories, totalCalories, mealCount
+        case llmSummary, llmScore, llmShortAdvice, llmLongAdvice, llmDetail
+        case notified
+        case sleepAccuracyFeedback, sleepFeedbackDate
     }
 
     init(from decoder: Decoder) throws {
@@ -180,5 +204,7 @@ struct MorningReport: Codable, Identifiable, Hashable {
         llmLongAdvice = try container.decode([String].self, forKey: .llmLongAdvice)
         llmDetail = try container.decode(String.self, forKey: .llmDetail)
         notified = try container.decode(Bool.self, forKey: .notified)
+        sleepAccuracyFeedback = try container.decodeIfPresent(Int.self, forKey: .sleepAccuracyFeedback)
+        sleepFeedbackDate = try container.decodeIfPresent(Date.self, forKey: .sleepFeedbackDate)
     }
 }
