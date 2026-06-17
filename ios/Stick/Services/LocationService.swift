@@ -25,7 +25,6 @@ final class LocationService: NSObject, ObservableObject {
     /// 上次反向地理编码的时间戳（同坐标不再请求）
     private var lastGeocodeAt: Date?
     private var lastGeocodeCoord: CLLocationCoordinate2D?
-    private var lastGeocodeCity: String?
 
     override private init() {
         self.manager = CLLocationManager()
@@ -113,7 +112,6 @@ extension LocationService: CLLocationManagerDelegate {
                 let city = pm.locality ?? pm.subAdministrativeArea ?? pm.administrativeArea
                 if let city = city, !city.isEmpty {
                     self.currentCity = city
-                    self.lastGeocodeCity = city
                 }
             }
         }
