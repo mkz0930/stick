@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SwiftUI
 
 /// 一条持久化的 chat 消息 (UserDefaults JSON)
 struct PersistedChatMessage: Codable, Identifiable, Equatable {
