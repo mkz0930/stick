@@ -126,7 +126,7 @@ struct ContentView: View {
     /// 当前久坐 session 开始时刻（从快照时间推算，用于秒级跳动）
     @State private var currentSitStartTime: Date? = nil
     /// 上次分析时间（控制30秒刷新一次）
-    @State private var lastSitAnalysisTime: Date = .distantPast
+    @State private var lastSitAnalysisTime: Date = Date()
     /// Timer 触发器，每秒更新驱动 live 秒表刷新（Date 值保证 SwiftUI 检测到变化）
     @State private var timerTick: Date = Date()
 
