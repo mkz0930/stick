@@ -151,41 +151,7 @@ struct PersonalView: View {
     // MARK: - 顶部用户栏
 
     private var topUserBar: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(Theme.card)
-                    .overlay(Circle().stroke(Theme.borderSoft, lineWidth: 1))
-                Text("X")
-                    .font(.system(size: 22, weight: .semibold, design: .rounded))
-                    .foregroundColor(StickState.walk.accent)
-            }
-            .frame(width: 48, height: 48)
-
-            Text("xxx")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(Theme.navy)
-
-            Spacer()
-
-            // 六边形 (设置)
-            Button {} label: {
-                Image(systemName: "hexagon")
-                    .font(.system(size: 20, weight: .light))
-                    .foregroundColor(Theme.navy)
-                    .frame(width: 48, height: 48)
-                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
-            }
-
-            // 三横线 (关闭)
-            Button(action: onClose) {
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(Theme.navy)
-                    .frame(width: 48, height: 48)
-                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
-            }
-        }
+        TopUserBarView(onClose: onClose)
     }
 
     // MARK: - 智能设备
@@ -468,6 +434,48 @@ struct PersonalView: View {
             }
         } message: {
             Text("将永久删除全部 \(chatHistory.loadedMessages.count) 条消息，此操作不可恢复。")
+        }
+    }
+}
+
+private struct TopUserBarView: View {
+    let onClose: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Theme.card)
+                    .overlay(Circle().stroke(Theme.borderSoft, lineWidth: 1))
+                Text("X")
+                    .font(.system(size: 22, weight: .semibold, design: .rounded))
+                    .foregroundColor(StickState.walk.accent)
+            }
+            .frame(width: 48, height: 48)
+
+            Text("xxx")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(Theme.navy)
+
+            Spacer()
+
+            // 六边形 (设置)
+            Button {} label: {
+                Image(systemName: "hexagon")
+                    .font(.system(size: 20, weight: .light))
+                    .foregroundColor(Theme.navy)
+                    .frame(width: 48, height: 48)
+                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+            }
+
+            // 三横线 (关闭)
+            Button(action: onClose) {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(Theme.navy)
+                    .frame(width: 48, height: 48)
+                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+            }
         }
     }
 }
