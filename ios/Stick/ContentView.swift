@@ -1157,17 +1157,6 @@ struct ContentView: View {
         }
     }
 
-    private func minutesToDate(_ minutes: Int) -> Date {
-        let c = Calendar.current
-        let nowComps = c.dateComponents([.year, .month, .day], from: Date())
-        var comps = DateComponents()
-        comps.year = nowComps.year
-        comps.month = nowComps.month
-        comps.day = nowComps.day
-        comps.hour = minutes / 60
-        comps.minute = minutes % 60
-        return c.date(from: comps) ?? Date()
-    }
 }
 
 // MARK: - 主舞台（v6 风格）
