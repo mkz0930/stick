@@ -859,13 +859,20 @@ final class HealthKitService: ObservableObject {
                         continue
                     }
 
-                    // 5) 距上次活动 > 4h → 睡眠/离开（夜间清醒已被 step 0 提前排除，不会误判）
+                    // 5) 夜间（22:00-07:00）→ 睡眠（独立于 gap 检测，覆盖午夜跨点的错误计算）
+                    let h = minute / 60
+                    if h >= 22 || h < 7 {
+                        states[minute] = .sleep
+                        continue
+                    }
+
+                    // 6) 距上次活动 > 4h → 睡眠/离开（夜间清醒已被 step 0 提前排除，不会误判）
                     if let last = lastActiveMinute, minute - last > maxGapMinutes {
                         states[minute] = .sleep
                         continue
                     }
 
-                    // 6) 默认久坐
+                    // 7) 默认久坐
                     states[minute] = .sit
                 }
 
