@@ -292,7 +292,7 @@ struct DayTimelineView: View, Equatable {
                         // y=height → offset=0 (现在, 底); y=0 → offset=1440 (24h 前, 顶)
                         let raw = Int((1 - y / height) * dayMinutes)
                         let snapped = (raw / snapStep) * snapStep
-                        let clamped = max(0, min(snapped, 1440))
+                        let clamped = max(0, min(snapped, 1439))
                         scrubOffset = clamped == 0 ? nil : clamped
                         if !hasInteracted && scrubOffset != nil {
                             hasInteracted = true
