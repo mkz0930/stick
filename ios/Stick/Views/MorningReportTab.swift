@@ -22,17 +22,7 @@ struct MorningReportTab: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "chart.bar.doc.horizontal")
-                .font(.system(size: 48))
-                .foregroundColor(.secondary)
-            Text("暂无报告")
-                .font(.headline)
-            Text("每天解锁后自动生成")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        EmptyReportStateView()
     }
 
     private var reportList: some View {
@@ -44,6 +34,22 @@ struct MorningReportTab: View {
             }
         }
         .listStyle(.plain)
+    }
+}
+
+private struct EmptyReportStateView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "chart.bar.doc.horizontal")
+                .font(.system(size: 48))
+                .foregroundColor(.secondary)
+            Text("暂无报告")
+                .font(.headline)
+            Text("每天解锁后自动生成")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
