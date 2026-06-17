@@ -3,6 +3,7 @@
 
 | 日期 | 摘要 | 根因 | 修复 |
 |---|---|---|---|
+| 2026-06-18 | `ObserverBox` 标注 `Sendable` 但含可变存储 `_handler`，Swift 6 严格并发检查报错 | Swift 6 要求 `Sendable` 类的所有存储属性必须不可变 | 移除 `ObserverBox` 的 `Sendable` conformance，合入 `77e9437` |
 | 2026-06-18 | `SharedStateStore.ObserverBox`/`chatObserverBox`/`isChatObserverRegistered` 缺 `NSLock`/`nonisolated(unsafe)`，Darwin 通知回调（`CFNotificationCenterAddObserver`）与主线程更新存在数据竞争 | Darwin callback 在独立线程执行，主线程 `handler` 赋值无锁保护 | 添加 `NSLock` 保护 `handler` 读写，`nonisolated(unsafe)` 标记只写一次的静态属性，合入 `b1905c4` |
 | 2026-06-17 | 30s 久坐 timer 的 `prevMinutes` 在 Task 创建前捕获，Task 异步执行期间 `onChange(of: hkService.lastMovementTime)` 可能已修改 `currentSitMinutes`，导致比较时用到 stale 数据，错误更新 `currentSitStartTime` | `prevMinutes = currentSitMinutes` 在 Task 外捕获，但 Task 异步期间 `lastMovementTime` onChange 可修改 `currentSitMinutes` | 把 `prevMinutes` 读取移入 Task 内部，用 `MainActor.run` 保证原子性，合入 main |
 | 2026-06-17 | `todaySleepHours()` 累加所有 sleepAnalysis 样本时长，包括 Awake（value=4）和 InBed（value=0,1）状态 | 只按 sample.endDate - startDate 累加，未过滤 sample.value 类型 | 只统计 Asleep（value=2,3,5,6），排除 Awake 和 InBed，合入 main |
