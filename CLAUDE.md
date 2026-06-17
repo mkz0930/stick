@@ -100,6 +100,19 @@ ios/StickWidget/                     Widget extension
 - **Widget 点击**：使用 `Button(intent: OpenRiskAlertIntent(...))` 触发 AppIntent，不弹 "在 Stick 中打开?" 系统确认框。
 - **Timeline 更新**：每 5 分钟刷新一次。
 
+### 数据双层架构（HealthKit vs HealthStore）
+
+App 里**两套数据并存**，改 export 函数前必须分清：
+
+- **HealthKit**（`HKHealthStore`）：Apple 系统框架，存原始样本（步数/心率/HRV/睡眠/...）。**export 函数查这个**。
+- **HealthStore**（自定义）：`Documents/health-snapshots.json`，app 每分钟抓 HK 后聚合成 `HealthSnapshot` 写进去。**业务查询（步数/久坐/24h 时刻表）走这个**。
+
+**铁律：**
+- `exportTodayData()` / `exportRecentData(days:)` / `exportLast7Days()` → 查 HealthKit 原始样本 → 输出 JSON 是 `{导出时间, 数据类型:[...]}` dict
+- **不能** `encode(HealthStore.shared.today)` 输出 `[...]` 数组（这是聚合快照，新装 app 数据极少）
+
+详细踩坑记录 + mock 注入调试约定见 `~/.claude/projects/-Users-horse-work-stick/memory/healthkit_vs_healthstore.md`。
+
 ---
 
 ## 开发规范（强制）
