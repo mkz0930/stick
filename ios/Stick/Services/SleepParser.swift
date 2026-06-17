@@ -226,12 +226,12 @@ enum SleepParser {
             "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5,
             "六": 6, "七": 7, "八": 8, "九": 9, "十": 10
         ]
-        if s.count == 1, let v = map[s.first!] { return v }
+        if s.count == 1, let first = s.first, let v = map[first] { return v }
         if s.count == 2 {
             // "十一"=11, "十五"=15, "十X"=10+X
-            if s.first == "十", let v = map[s.last!] { return 10 + v }
+            if s.first == "十", let last = s.last, let v = map[last] { return 10 + v }
             // "X十" = X*10
-            if s.last == "十", let v = map[s.first!] { return v * 10 }
+            if s.last == "十", let first = s.first, let v = map[first] { return v * 10 }
         }
         if s.count == 3, s.first == "十" {
             // "X十Y" = 10*X + Y  （实际很少见）
