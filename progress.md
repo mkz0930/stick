@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-17 | StickFigureView `drawScene` ground 坐标不统一（322/318/320 混用） | 已修复，合入 `b6379ec` |
 | 2026-06-17 | ContentView `primaryHeartRate/Duration` 整数解析用 `split(" ").first` 不健壮 | 已修复，合入 `2384c2b` |
 | 2026-06-17 | FeatureRow `autoCollapseTimer` 在折叠态误触发，导致 UI 抖动 | 已修复，合入 `8988d76` |
 | 2026-06-17 | FeatureRow alerts 展开/收起缺显式动画，列表切换跳变 | 已修复，合入 `b3d7594` |
