@@ -173,6 +173,7 @@ struct FeatureRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.easeInOut(duration: 0.35), value: moodLine)
         .animation(.easeInOut(duration: 0.28), value: isExpanded)
+        .animation(.easeInOut(duration: 0.2), value: alertsDetailExpanded)
         .onTapGesture {
             onCardTap()
             resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded)
