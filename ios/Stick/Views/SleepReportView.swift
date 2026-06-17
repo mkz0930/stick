@@ -157,33 +157,8 @@ struct SleepReportView: View {
         .task { await vm.load() }
     }
 
-    // MARK: - Header
-
     private var header: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Image(systemName: "moon.zzz.fill")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(StickState.sleep.accent)
-                    Text("睡眠报告")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(Theme.navy)
-                }
-                Text(headerSubtitle)
-                    .font(.system(size: 12))
-                    .foregroundColor(Theme.slate)
-            }
-            Spacer()
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Theme.slate)
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(Theme.card))
-                    .overlay(Circle().stroke(Theme.borderSoft, lineWidth: 1))
-            }
-        }
+        HeaderView(onClose: onClose, subtitle: headerSubtitle)
     }
 
     /// 副标题 (随数据状态变化)
@@ -287,38 +262,12 @@ struct SleepReportView: View {
         }
     }
 
-    // MARK: - 加载中
-
     private var loadingState: some View {
-        VStack(spacing: 14) {
-            Spacer()
-            ProgressView()
-                .scaleEffect(1.2)
-            Text("分析中…")
-                .font(.system(size: 12))
-                .foregroundColor(Theme.slate)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
+        LoadingStateView()
     }
 
-    // MARK: - 空
-
     private var emptyState: some View {
-        VStack(spacing: 14) {
-            Spacer()
-            Image(systemName: "moon.zzz")
-                .font(.system(size: 44, weight: .light))
-                .foregroundColor(Theme.mist)
-            Text("无睡眠记录")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(Theme.navy)
-            Text("等待 HealthKit 同步")
-                .font(.system(size: 12))
-                .foregroundColor(Theme.slate)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
+        EmptyStateView()
     }
 
     // MARK: - 阶段汇总 (2x2)
@@ -360,9 +309,47 @@ struct SleepReportView: View {
         )
     }
 
-    // MARK: - 建议
-
     private var adviceLine: some View {
+        AdviceLineView()
+    }
+}
+
+private struct LoadingStateView: View {
+    var body: some View {
+        VStack(spacing: 14) {
+            Spacer()
+            ProgressView()
+                .scaleEffect(1.2)
+            Text("分析中…")
+                .font(.system(size: 12))
+                .foregroundColor(Theme.slate)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+private struct EmptyStateView: View {
+    var body: some View {
+        VStack(spacing: 14) {
+            Spacer()
+            Image(systemName: "moon.zzz")
+                .font(.system(size: 44, weight: .light))
+                .foregroundColor(Theme.mist)
+            Text("无睡眠记录")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(Theme.navy)
+            Text("等待 HealthKit 同步")
+                .font(.system(size: 12))
+                .foregroundColor(Theme.slate)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+private struct AdviceLineView: View {
+    var body: some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "lightbulb.fill")
                 .font(.system(size: 11, weight: .semibold))
@@ -375,6 +362,38 @@ struct SleepReportView: View {
             Spacer()
         }
         .padding(.horizontal, 4)
+    }
+}
+
+private struct HeaderView: View {
+    let onClose: () -> Void
+    let subtitle: String
+
+    var body: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Image(systemName: "moon.zzz.fill")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(StickState.sleep.accent)
+                    Text("睡眠报告")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(Theme.navy)
+                }
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundColor(Theme.slate)
+            }
+            Spacer()
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Theme.slate)
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(Theme.card))
+                    .overlay(Circle().stroke(Theme.borderSoft, lineWidth: 1))
+            }
+        }
     }
 }
 
@@ -476,15 +495,7 @@ private struct AISleepSection: View {
     // MARK: - 子组件
 
     private var riskBadge: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(report.risk.color)
-                .frame(width: 6, height: 6)
-            Text("RISK")
-                .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                .tracking(1.2)
-                .foregroundColor(Theme.slate)
-        }
+        RiskBadgeView(riskColor: report.risk.color)
     }
 
     private func vitalCell(_ label: String, _ value: String, _ sub: String) -> some View {
@@ -557,6 +568,22 @@ private struct AISleepSection: View {
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
+        }
+    }
+}
+
+private struct RiskBadgeView: View {
+    let riskColor: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(riskColor)
+                .frame(width: 6, height: 6)
+            Text("RISK")
+                .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                .tracking(1.2)
+                .foregroundColor(Theme.slate)
         }
     }
 }
