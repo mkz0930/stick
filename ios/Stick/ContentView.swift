@@ -1347,7 +1347,7 @@ private struct StageHeroView: View {
         return VStack(spacing: 2) {
             if isOverride {
                 if let seg = seg {
-                    Text("\(StickState.formatMinute(seg.startMinute))–\(StickState.formatMinute(seg.endMinute)) · \(state.rawValue)")
+                    Text("\(StickState.formatMinute(seg.startMinute))–\(StickState.formatMinute(seg.endMinute)) · \(targetState.rawValue)")
                         .font(.system(size: 20, weight: .heavy, design: .monospaced))
                         .foregroundColor(Theme.navy)
                         .monospacedDigit()
@@ -1357,7 +1357,7 @@ private struct StageHeroView: View {
                         .transition(.scale.combined(with: .opacity))
                 } else {
                     // seg 为 nil（时间落在 schedule 间隙）时，仍显示 state 名字，不Crash也不错乱
-                    Text(state.rawValue)
+                    Text(targetState.rawValue)
                         .font(.system(size: 20, weight: .heavy, design: .monospaced))
                         .foregroundColor(Theme.navy)
                         .monospacedDigit()
