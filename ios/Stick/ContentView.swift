@@ -75,6 +75,8 @@ struct ContentView: View {
         return HealthAuthService.shared
     }()
     @StateObject private var chatHistory = ChatHistoryStore.shared
+    /// Live Activity 管理器（iOS 16.1+ 久坐秒表）
+    @StateObject private var liveActivityManager = LiveActivityManager.shared
     @State private var now: Date = Date()
     @State private var scrubOffset: Int? = nil   // 0 = 现在；>0 表示过去多少分钟（窗口起点 = now - 24h）
     /// swipe gesture 强制覆盖的状态（nil = 跟时间走）。StageHeroView 在 onEnded 命中 swipe 时写入，
@@ -679,8 +681,13 @@ struct ContentView: View {
             if newValue == .sit {
                 // 进入坐姿：先同步设 startTime = now，秒表立即从 0:00 起跳，
                 // 避免 Task 异步完成前 displayValue 回落到 todaySitDescription (X.Xh) → 跳变
-                currentSitStartTime = Date()
+                let startTime = Date()
+                currentSitStartTime = startTime
                 currentSitMinutes = 0
+                // 启动 Live Activity（仅在真实状态切换时，非 scrubbing）
+                if !isScrubbing {
+                    liveActivityManager.startSedentaryActivity(from: startTime)
+                }
                 Task {
                     let sitMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
                     currentSitMinutes = sitMins
@@ -695,6 +702,8 @@ struct ContentView: View {
                 // 离开坐姿：立即清空计时（预览模式不改真实计时器）
                 currentSitMinutes = 0
                 currentSitStartTime = nil
+                // 结束 Live Activity
+                liveActivityManager.endSedentaryActivity()
             }
             // Preview 模式跳过 — Widget reload 在 Preview 里会卡死
             guard !Self.isRunningForPreviews else { return }

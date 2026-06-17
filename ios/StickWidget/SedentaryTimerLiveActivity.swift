@@ -2,16 +2,6 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
-/// Live Activity 属性
-struct SedentaryTimerAttributes: ActivityAttributes {
-    public struct ContentState: Codable, Hashable {
-        var elapsedSeconds: Int  // 已持续的秒数
-        var startTime: Date     // 开始久坐的时间
-    }
-
-    var currentState: String  // sit / walk / sleep
-}
-
 /// Live Activity Widget
 struct SedentaryTimerLiveActivity: Widget {
     var body: some WidgetConfiguration {
