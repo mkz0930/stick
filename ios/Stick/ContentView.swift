@@ -4,6 +4,12 @@ import UIKit
 import WidgetKit
 #endif
 
+/// 详情页 sheet 路由
+enum SheetDestination: String, Identifiable {
+    case walk, sit, sleep, figure
+    var id: String { rawValue }
+}
+
 /// 步态质量数据（从 HealthKit 步速等指标综合计算）
 struct WalkingQualityData {
     /// 平均步速 (m/s)
@@ -92,6 +98,7 @@ struct ContentView: View {
     @State private var openWidgetPreview: Bool = false
     @State private var showDevicePicker: Bool = false
     @State private var showSedentaryDetail: Bool = false
+    @State private var activeSheet: SheetDestination? = nil
     @State private var featureRowExpanded: Bool = false
     @State private var showAIReport: Bool = false
     @State private var selectedAlert: UnifiedAlert? = nil
@@ -802,6 +809,9 @@ struct ContentView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(item: $activeSheet) { destination in
+            sheetContent(for: destination)
+        }
         .confirmationDialog(
             "注入过去 7 天的 mock 数据到 HealthKit？\n\n将申请 HealthKit 写权限，并写入步数 / 心率 / 距离 / 能量 / 睡眠。\n\n⚠️ 仅用于调试 — 真机数据会被污染。",
             isPresented: $showInjectConfirm,
@@ -952,7 +962,9 @@ struct ContentView: View {
                         isExpanded: $featureRowExpanded,
                         onAlertTap: handleAlertTap,
                         onLockTap: { showDevicePicker = true },
-                        onSedentaryTap: { showSedentaryDetail = true },
+                        onSedentaryTap: { activeSheet = .sit },
+                        onWalkCardTap: { activeSheet = .walk },
+                        onSleepCardTap: { activeSheet = .sleep },
                         onCardTap: { showChat = true }
                     )
                     .padding(.horizontal, 20)
@@ -979,6 +991,7 @@ struct ContentView: View {
                             manualStateOverride: $manualStateOverride,
                             onPreview: { showFilm = true },
                             onSleepAlert: { showSleepReport = true },
+                            onFigureTap: { activeSheet = .figure },
                             subLine: realSubLine,
                             schedule: hk.realDaySchedule ?? StickState.daySchedule
                         )
@@ -1110,6 +1123,34 @@ struct ContentView: View {
         }
     }
 
+    @ViewBuilder
+    private func sheetContent(for destination: SheetDestination) -> some View {
+        switch destination {
+        case .walk:
+            WalkDetailSheet(
+                steps: todaySteps,
+                walkMinutes: todayWalkMinutes,
+                avgSpeed: walkingQuality?.avgSpeed,
+                gaitScore: walkingQuality?.gaitScore ?? 60
+            )
+        case .sit:
+            SitDetailSheet(
+                sedentaryMinutes: homeSedentaryMinutes,
+                heartRate: realHeartRate,
+                bodyScore: bodyEnergy
+            )
+        case .sleep:
+            SleepDetailSheet(
+                sleepHours: todaySleepHours ?? 0,
+                sleepQualityLabel: walkingQuality?.sleepQualityLabel ?? "--",
+                nightWakeCount: walkingQuality?.nightWakeCount ?? 0,
+                nightWakeTotalMin: walkingQuality?.nightWakeTotalMin ?? 0
+            )
+        case .figure:
+            StickFigureDetailSheet(state: displayState)
+        }
+    }
+
     private func minutesToDate(_ minutes: Int) -> Date {
         let c = Calendar.current
         let nowComps = c.dateComponents([.year, .month, .day], from: Date())
@@ -1137,6 +1178,7 @@ private struct StageHeroView: View {
     @Binding var manualStateOverride: StickState?  // swipe 切状态后的强制状态
     var onPreview: () -> Void
     var onSleepAlert: () -> Void
+    var onFigureTap: () -> Void
     let subLine: String
     let schedule: [StickState.DaySegment]    // 真实时刻表（用于按时间正方向查找下一个 state 的段）
 
@@ -1237,6 +1279,8 @@ private struct StageHeroView: View {
                 .padding(4)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture { onFigureTap() }
             .padding(.top, 6)
             .animation(.easeInOut(duration: 0.45), value: state)
             .animation(.easeInOut(duration: 0.35), value: hasNoData)
