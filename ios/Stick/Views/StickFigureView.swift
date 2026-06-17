@@ -68,7 +68,7 @@ struct StickFigureView: View {
 
 private func drawScene(ctx: inout GraphicsContext, state: StickState, accent: Color, t: Double, show: Bool) {
     guard show else { return }
-    let ground: CGFloat = 322
+    let ground: CGFloat = 320  // 坐标系 240×320，底部边界 = 320
 
     switch state {
     case .walk:
@@ -183,8 +183,8 @@ private func drawScene(ctx: inout GraphicsContext, state: StickState, accent: Co
                    color: accent.opacity(0.6), width: 2)
         strokeLine(ctx: &ctx, from: CGPoint(x: 224, y: 282), to: CGPoint(x: 224, y: 312),
                    color: accent.opacity(0.6), width: 2)
-        // 地面
-        strokeLine(ctx: &ctx, from: CGPoint(x: 0, y: 318), to: CGPoint(x: 240, y: 318),
+        // 地面（统一用 ground=320，与 walk/stand/sit 一致）
+        strokeLine(ctx: &ctx, from: CGPoint(x: 0, y: 320), to: CGPoint(x: 240, y: 320),
                    color: accent.opacity(0.45), width: 1.2)
         // 枕头
         let pillow = Path { p in
