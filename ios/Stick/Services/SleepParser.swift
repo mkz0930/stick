@@ -118,7 +118,7 @@ enum SleepParser {
     /// 简单启发：消息里包含睡眠相关关键词
     private static func looksLikeSleepMessage(_ text: String) -> Bool {
         let lower = text.lowercased()
-        let zh = ["睡", "眠", "起", "醒", "觉", "眠", "起床", "入睡"]
+        let zh = ["睡", "眠", "起", "醒", "觉", "起床", "入睡"]
         for k in zh where text.contains(k) { return true }
         let en = ["sleep", "slept", "bed", "woke", "wake up", "asleep"]
         for k in en where lower.contains(k) { return true }
