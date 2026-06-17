@@ -27,35 +27,33 @@ struct AlertDetailView: View {
     // MARK: - 顶栏
 
     private var header: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("异常详情")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .tracking(2.0)
-                    .foregroundColor(Theme.slate)
-                Text(alert.title)
-                    .font(.system(size: 18, weight: .heavy, design: .rounded))
-                    .foregroundColor(Theme.navy)
-                    .lineLimit(2)
-                    .lineSpacing(2)
-            }
-            Spacer()
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Theme.navy)
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(Theme.card))
-                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 16)
-        .padding(.bottom, 12)
-        .background(Theme.bgTop)
+        AlertDetailHeader(alert: alert, onClose: onClose)
     }
+
+    // MARK: - 组件
+
+    @ViewBuilder
+    private func sectionHeader(_ title: String, icon: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(alert.severity.color)
+            Text(title)
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .tracking(1.6)
+                .foregroundColor(Theme.slate)
+        }
+    }
+
+    private var cardBg: some View {
+        RoundedRectangle(cornerRadius: 6, style: .continuous)
+            .fill(Theme.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(Theme.border, lineWidth: 1)
+            )
+    }
+}
 
     // MARK: - 概览
 
