@@ -293,8 +293,6 @@ private struct VesselCanvas: View {
 
 // MARK: - Preview
 
-// MARK: - Preview
-
 struct StickRiskAlertWidgetView_Previews: PreviewProvider {
     static var previews: some View {
         StickRiskAlertWidgetView(entry: StickRiskAlertEntry(
