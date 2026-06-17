@@ -343,7 +343,6 @@ final class HealthKitService: ObservableObject {
     // MARK: - Today Convenience Methods
 
     func todaySteps() async -> Int? {
-        guard let type = HKObjectType.quantityType(forIdentifier: .stepCount) else { return nil }
         let dayStart = Calendar.current.startOfDay(for: Date())
         guard let val: Double = await recentSum(.stepCount, from: dayStart, unit: .count()) else { return nil }
         return Int(val)
@@ -1361,7 +1360,7 @@ final class HealthKitService: ObservableObject {
                   let sleepEnd = cal.date(byAdding: .day, value: 1, to: cal.date(bySettingHour: 6, minute: 30, second: 0, of: day) ?? day) else { return out }
             let sleepSample = HKCategorySample(
                 type: sleepType,
-                value: HKCategoryValueSleepAnalysis.asleep.rawValue,
+                value: HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
                 start: sleepStart, end: sleepEnd
             )
             out.append(sleepSample)
@@ -1553,8 +1552,8 @@ extension HealthKitService {
         let maxHR = Double(220 - age)
         var zoneCounts = [0, 0, 0, 0, 0]
         var totalHR: Double = 0
-        var maxVal = samples.max() ?? 0
-        var minVal = samples.min() ?? 0
+        let maxVal = samples.max() ?? 0
+        let minVal = samples.min() ?? 0
 
         for hr in samples {
             totalHR += hr

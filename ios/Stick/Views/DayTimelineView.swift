@@ -191,7 +191,7 @@ struct DayTimelineView: View, Equatable {
                 pulse = 1
             }
         }
-        .onChange(of: scrubOffset) { newValue in
+        .onChange(of: scrubOffset) { _, newValue in
             // 外部 (例如 "连接设备" 按钮) 把 scrubOffset 改回 nil/0 时，
             // 取消还没触发的 10s 自动回 now 任务
             if (newValue ?? 0) == 0 {
@@ -371,7 +371,6 @@ struct DayTimelineView: View, Equatable {
     // MARK: - 组件
 
     /// 步行段 = 竖向方框，高度按步行时长比例，描边明显。
-    @ViewBuilder
     private func walkBurst(_ seg: WalkVisualSegment) -> some View {
         let accent = seg.accent
 
@@ -400,8 +399,8 @@ struct DayTimelineView: View, Equatable {
                 .shadow(color: accent.opacity(0.18 * stepRatio), radius: 2.5, x: 0, y: 0)
 
             // 步数标签（方框内部显示步数，少步时透明度更低）
-            if seg.stepCount != nil && seg.stepCount! > 0 {
-                Text("\(seg.stepCount!)")
+            if let stepCount = seg.stepCount, stepCount > 0 {
+                Text("\(stepCount)")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
                     .foregroundColor(accent.opacity(0.65 + 0.3 * stepRatio))
                     .lineLimit(1)
@@ -436,7 +435,6 @@ struct DayTimelineView: View, Equatable {
         let startWin = ((seg.startMinute - stableNowMinute) + totalMin) % totalMin
         let endWin   = ((seg.endMinute   - stableNowMinute) + totalMin) % totalMin
         let thumbWin = totalMin - displayOffset
-        let total = CGFloat(totalMin)
         let accent = seg.state.accent
 
         let isSleep = seg.state == .sleep
@@ -588,7 +586,6 @@ struct DayTimelineView: View, Equatable {
             }
         }
 
-        let total = CGFloat(totalMin)
         var visualSegments = merged
             .filter { $0.duration >= walkMinVisibleDuration }
             .filter { ($0.stepCount ?? 0) >= walkMinSteps }  // <100步不显示
