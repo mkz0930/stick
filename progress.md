@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-17 | ContentView `displayState` 查找最新快照 O(n log n) → O(n) 优化 | 已修复，合入 `e9049ee` |
 | 2026-06-17 | DayTimelineView `onChange` iOS 17 弃用警告 + `@ViewBuilder` 警告 + `seg.stepCount!` 强制解包等多项清理 | 已修复，合入 `4d2aa15` |
 | 2026-06-17 | ContentView `stageScrubBadge` swipe 后显示旧 state 而非 targetState | 已修复，合入 `77fc8d1` |
 | 2026-06-17 | `StateInference.score.max(by:)!` 强制解包风险，改为 guard let 安全解包 | 已修复，合入 `e5aea04` |
