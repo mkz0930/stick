@@ -84,6 +84,9 @@ struct ContentView: View {
     @State private var showSleepReport: Bool = false
     @State private var showPersonal: Bool = false
     @State private var openDataRecord: Bool = false
+    /// 真机调试：注入 7 天 mock 数据到 HealthKit（让"导出最近 7 天"按钮能看到多天数据）
+    @State private var showInjectConfirm: Bool = false
+    @State private var injectStatus: String? = nil
     @State private var openWidgetPreview: Bool = false
     @State private var showDevicePicker: Bool = false
     @State private var showSedentaryDetail: Bool = false
@@ -778,6 +781,22 @@ struct ContentView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        .confirmationDialog(
+            "注入过去 7 天的 mock 数据到 HealthKit？\n\n将申请 HealthKit 写权限，并写入步数 / 心率 / 距离 / 能量 / 睡眠。\n\n⚠️ 仅用于调试 — 真机数据会被污染。",
+            isPresented: $showInjectConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("注入 7 天数据") {
+                Task { @MainActor in
+                    let count = await HealthKitService.shared.injectMockDataIntoHealthKit(days: 7)
+                    injectStatus = count > 0 ? "✅ 注入成功：\(count) 条样本" : "❌ 注入失败（请检查写权限）"
+                    print("[ContentView] \(injectStatus ?? "")")
+                }
+            }
+            Button("取消", role: .cancel) { }
+        } message: {
+            if let s = injectStatus { Text(s) }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .openChatWithPhoto)) { note in
             if let seed = note.object as? String {
                 chatSeed = seed
@@ -874,6 +893,16 @@ struct ContentView: View {
                                 .padding(8)
                         }
                         #endif
+                        // 真机调试按钮：注入过去 7 天的 mock 数据到 HealthKit
+                        // 让"导出最近 7 天"按钮立刻能看到多天数据（无需等 7 天累积）
+                        Button {
+                            showInjectConfirm = true
+                        } label: {
+                            Image(systemName: "syringe")
+                                .font(.system(size: 14))
+                                .foregroundColor(Theme.slate)
+                                .padding(8)
+                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 10)

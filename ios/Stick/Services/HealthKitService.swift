@@ -115,6 +115,17 @@ final class HealthKitService: ObservableObject {
         return s
     }()
 
+    /// 写入类型（仅 mock 注入时使用）。需要额外请求写权限。
+    private let writeTypes: Set<HKSampleType> = {
+        var s: Set<HKSampleType> = []
+        if let t = HKObjectType.quantityType(forIdentifier: .stepCount)                { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)      { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .heartRate)               { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)  { s.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)           { s.insert(t) }
+        return s
+    }()
+
     // MARK: - 授权
 
     func requestAuthorization() async {
@@ -1152,6 +1163,181 @@ final class HealthKitService: ObservableObject {
             print("[HealthKitService] export failed: \(error)")
             return nil
         }
+    }
+
+    // MARK: - Mock 注入（写入 HealthKit）
+
+    /// 申请写入权限（首次注入前调用一次）
+    func requestWriteAuthorization() async -> Bool {
+        guard let store, HKHealthStore.isHealthDataAvailable() else { return false }
+        do {
+            try await store.requestAuthorization(toShare: writeTypes, read: readTypes)
+            return true
+        } catch {
+            print("[HealthKitService] write auth failed: \(error)")
+            return false
+        }
+    }
+
+    /// 注入过去 N 天的 mock 数据到 HealthKit（用于验证 7 天导出按钮）。
+    /// - Parameters:
+    ///   - days: 注入天数（含今天）。days=7 → 注入过去 7 天 + 今天。
+    ///   - stepsPerDay: 每天合成的步数（默认 8000，随机 ±2000）
+    /// - Returns: 写入的样本总数；失败返回 0
+    @discardableResult
+    func injectMockDataIntoHealthKit(days: Int = 7, stepsPerDay: Int = 8000) async -> Int {
+        guard let store, HKHealthStore.isHealthDataAvailable() else { return 0 }
+
+        // 先申请写入权限（如果之前申请过 read 但没申请过 share，这里会再弹一次）
+        _ = await requestWriteAuthorization()
+
+        var samples: [HKSample] = []
+        let cal = Calendar.current
+        let now = Date()
+
+        for dayOffset in (0..<days).reversed() {
+            // 当天 = dayOffset 0；其它 = dayOffset 天前
+            guard let dayStart = cal.date(byAdding: .day, value: -dayOffset, to: cal.startOfDay(for: now)) else { continue }
+            samples.append(contentsOf: makeMockSamplesForDay(day: dayStart, now: now, stepsPerDay: stepsPerDay))
+        }
+
+        guard !samples.isEmpty else { return 0 }
+
+        do {
+            try await store.save(samples)
+            print("[HealthKitService] ✅ 注入 \(samples.count) 条样本到 HealthKit（\(days) 天）")
+            return samples.count
+        } catch {
+            print("[HealthKitService] ❌ 注入失败: \(error)")
+            return 0
+        }
+    }
+
+    /// 一天内的 mock 样本：步数（每小时 1 条）+ 心率（每 10 分钟 1 条）+ 距离 + 活动能量 + 睡眠（当晚一段）
+    private func makeMockSamplesForDay(day: Date, now: Date, stepsPerDay: Int) -> [HKSample] {
+        var out: [HKSample] = []
+        let cal = Calendar.current
+        let isToday = cal.isDateInToday(day)
+
+        // 1. 步数 / 距离 / 活动能量 — 每小时一条（活动时段 8:00-22:00）
+        let dayEnd: Date = {
+            if isToday {
+                return now   // 今天到当前时间，避免注入未来数据
+            } else {
+                return cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: day)) ?? day
+            }
+        }()
+
+        var cumulativeSteps = 0
+        for hour in 0..<24 {
+            guard let hourStart = cal.date(byAdding: .hour, value: hour, to: cal.startOfDay(for: day)),
+                  hourStart < dayEnd else { continue }
+            let hourEnd = min(cal.date(byAdding: .hour, value: 1, to: hourStart) ?? hourStart, dayEnd)
+
+            // 8:00-22:00 是活动时段，均匀分布步数；其它时段少量
+            let isActiveHour = hour >= 8 && hour < 22
+            let weight = isActiveHour ? 1.0 : 0.05
+            let hourSteps = Int(Double(stepsPerDay) * weight / 14.0)  // 14 小时活动 / 1 小时其它
+            cumulativeSteps += hourSteps
+
+            if let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) {
+                let sample = HKQuantitySample(
+                    type: stepType,
+                    quantity: HKQuantity(unit: .count(), doubleValue: Double(hourSteps)),
+                    start: hourStart, end: hourEnd
+                )
+                out.append(sample)
+            }
+            if let distType = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning) {
+                // 平均步幅 0.75m
+                let meters = Double(hourSteps) * 0.75
+                let sample = HKQuantitySample(
+                    type: distType,
+                    quantity: HKQuantity(unit: .meter(), doubleValue: meters),
+                    start: hourStart, end: hourEnd
+                )
+                out.append(sample)
+            }
+            if let energyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) {
+                // 每千步约 40 kcal
+                let kcal = Double(hourSteps) * 0.04
+                let sample = HKQuantitySample(
+                    type: energyType,
+                    quantity: HKQuantity(unit: .kilocalorie(), doubleValue: kcal),
+                    start: hourStart, end: hourEnd
+                )
+                out.append(sample)
+            }
+        }
+
+        // 2. 心率 — 每 10 分钟一条，活动时段稍高
+        guard let hrType = HKObjectType.quantityType(forIdentifier: .heartRate) else { return out }
+        var t = cal.startOfDay(for: day)
+        while t < dayEnd {
+            let hour = cal.component(.hour, from: t)
+            let bpm: Double
+            if hour >= 0 && hour < 7 {
+                bpm = Double.random(in: 52...60)   // 睡眠
+            } else if hour >= 8 && hour < 22 {
+                bpm = Double.random(in: 70...95)   // 白天
+            } else {
+                bpm = Double.random(in: 60...72)   // 晚间
+            }
+            let hrSample = HKQuantitySample(
+                type: hrType,
+                quantity: HKQuantity(unit: HKUnit.count().unitDivided(by: .minute()), doubleValue: bpm),
+                start: t, end: t.addingTimeInterval(10 * 60)
+            )
+            out.append(hrSample)
+            t = t.addingTimeInterval(10 * 60)
+        }
+
+        // 3. 睡眠 — 当晚 23:30 到次日 06:30（HKCategorySample，value=2 表示 Asleep）
+        //   跳过今天（避免注入未来时间）
+        if !isToday, let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+            // "当晚"= day 当天 23:30 → 次日 06:30
+            // 对于 day=N（N>0），就寝发生在 day=N 当晚 23:30，醒来在 day=N+1 早晨 06:30
+            // 所以 sleep start = day 23:30, end = day+1 06:30
+            guard let sleepStart = cal.date(bySettingHour: 23, minute: 30, second: 0, of: day),
+                  let sleepEnd = cal.date(byAdding: .day, value: 1, to: cal.date(bySettingHour: 6, minute: 30, second: 0, of: day) ?? day) else { return out }
+            let sleepSample = HKCategorySample(
+                type: sleepType,
+                value: HKCategoryValueSleepAnalysis.asleep.rawValue,
+                start: sleepStart, end: sleepEnd
+            )
+            out.append(sleepSample)
+        }
+
+        return out
+    }
+
+    /// 删除过去 N 天注入的 mock 数据（清理用 — 仅删 sourceName == "Stick Mock" 的样本）
+    func clearMockDataFromHealthKit(days: Int = 7) async -> Int {
+        guard let store, HKHealthStore.isHealthDataAvailable() else { return 0 }
+        let now = Date()
+        let from = Calendar.current.date(byAdding: .day, value: -days, to: now) ?? now
+        let predicate = HKQuery.predicateForSamples(withStart: from, end: now, options: .strictStartDate)
+
+        var deleted = 0
+        for type in writeTypes {
+            let samples: [HKSample] = await withCheckedContinuation { cont in
+                let q = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, results, _ in
+                    cont.resume(returning: results ?? [])
+                }
+                store.execute(q)
+            }
+            // 仅删 metadata.sourceName == "Stick Mock" 的样本
+            let toDelete = samples.filter { $0.metadata?["source"] as? String == "Stick Mock" || $0.sourceRevision.source.name.contains("Mock") }
+            guard !toDelete.isEmpty else { continue }
+            do {
+                try await store.delete(toDelete)
+                deleted += toDelete.count
+            } catch {
+                print("[HealthKitService] ❌ 删除失败: \(error)")
+            }
+        }
+        // 给样本加上 source metadata 后再标记
+        return deleted
     }
 
     private func fetchSamples(type: HKQuantityType, unit: HKUnit, from: Date, to: Date) async -> [(Date, Double)] {
