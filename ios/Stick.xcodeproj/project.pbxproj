@@ -75,6 +75,9 @@
 		B50000000000000000000007 /* StickRiskAlertWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000011 /* StickRiskAlertWidgetView.swift */; };
 		B50000000000000000000060 /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F40000000000000000000060 /* AppIntents.framework */; };
 		B60000000000000000000001 /* StickWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F40000000000000000000020 /* StickWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B299000000000000000000A23 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F299000000000000000000A23 /* LiveActivityManager.swift */; };
+		B40000000000000000000014 /* SedentaryTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000013 /* SedentaryTimerAttributes.swift */; };
+		B40000000000000000000015 /* SedentaryTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000013 /* SedentaryTimerAttributes.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -171,6 +174,8 @@
 		F40000000000000000000060 /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
 		F50000000000000000000004 /* ChatOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOverlay.swift; sourceTree = "<group>"; };
 		F50000000000000000000005 /* SleepReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepReportView.swift; sourceTree = "<group>"; };
+		F299000000000000000000A23 /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
+		F40000000000000000000013 /* SedentaryTimerAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SedentaryTimerAttributes.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -307,6 +312,7 @@
 				F299000000000000000000A30 /* SleepParser.swift */,
 				F299000000000000000000A31 /* LocationService.swift */,
 				F299000000000000000000A32 /* SleepHabitAnalyzer.swift */,
+				F299000000000000000000A23 /* LiveActivityManager.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -328,6 +334,7 @@
 			isa = PBXGroup;
 			children = (
 				F40000000000000000000010 /* SharedState.swift */,
+				F40000000000000000000013 /* SedentaryTimerAttributes.swift */,
 			);
 			path = SharedKit;
 			sourceTree = "<group>";
@@ -488,6 +495,8 @@
 				B299000000000000000000A30 /* SleepParser.swift in Sources */,
 				B299000000000000000000A31 /* LocationService.swift in Sources */,
 				B299000000000000000000A32 /* SleepHabitAnalyzer.swift in Sources */,
+				B299000000000000000000A23 /* LiveActivityManager.swift in Sources */,
+				B40000000000000000000014 /* SedentaryTimerAttributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -499,6 +508,7 @@
 				B40000000000000000000011 /* SharedState.swift in Sources */,
 				B40000000000000000000012 /* StickRiskAlertWidgetView.swift in Sources */,
 				B40000000000000000000013 /* SedentaryTimerLiveActivity.swift in Sources */,
+				B40000000000000000000015 /* SedentaryTimerAttributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
