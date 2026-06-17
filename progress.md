@@ -54,6 +54,8 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-17 | DayTimelineView `onChange` iOS 17 弃用警告 + `@ViewBuilder` 警告 + `seg.stepCount!` 强制解包等多项清理 | 已修复，合入 `4d2aa15` |
+| 2026-06-17 | ContentView `stageScrubBadge` swipe 后显示旧 state 而非 targetState | 已修复，合入 `77fc8d1` |
 | 2026-06-17 | `StateInference.score.max(by:)!` 强制解包风险，改为 guard let 安全解包 | 已修复，合入 `e5aea04` |
 | 2026-06-17 | ContentView `stageScrubBadge` 在 `seg=nil` 时显示时间徽章而非状态徽章 | 已修复，合入 `c31fb47` |
 | 2026-06-17 | `ContentView.lastSitAnalysisTime` 初始化 `.distantPast` 导致首次 timer 立即触发 30 秒分析 | 已修复，合入 `2917c3a` |
