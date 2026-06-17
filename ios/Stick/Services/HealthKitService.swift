@@ -1139,7 +1139,7 @@ final class HealthKitService: ObservableObject {
 
     /// 导出今日 HealthKit 数据（JSON 格式，北京时间）
     func exportTodayData() async -> URL? {
-        await exportRecentData(days: 1)
+        return await exportRecentData(days: 1)
     }
 
     /// 导出最近 7 天 HealthKit 数据（JSON 格式，北京时间）
