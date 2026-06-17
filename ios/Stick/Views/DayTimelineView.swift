@@ -36,14 +36,14 @@ struct DayTimelineView: View, Equatable {
     private let thumbSize: CGFloat = 14        // 圆环缩小
     private let segmentGap: CGFloat = 0.8
     private let snapStep: Int = 1          // 1 分钟一格（拖动更细腻）
-    private let lineAlpha: Double = 0.65       // 竖线半透明 (稍亮，跟动画同色系)
-    private let thumbAlpha: Double = 0.85      // 圆环半透明
+    private let lineAlpha: Double = 0.88       // 竖线半透明（更饱和，各状态颜色更分明）
+    private let thumbAlpha: Double = 0.92      // 圆环半透明
 
     // 步行段视觉强化（竖向方框 — 时长比例）
-    private let walkBoxMinHeight: CGFloat = 16     // 最短步行固定最小高度（保证可见）
+    private let walkBoxMinHeight: CGFloat = 18     // 最短步行固定最小高度（保证可见）
     private let walkBoxMaxHeight: CGFloat = 80     // >30min 步行 = 80pt 上限
-    private let walkBoxWidth: CGFloat = 32         // 方框宽度
-    private let walkBoxBorderWidth: CGFloat = 2.0  // 方框描边（更明显）
+    private let walkBoxWidth: CGFloat = 34         // 方框宽度（略宽，更醒目）
+    private let walkBoxBorderWidth: CGFloat = 2.5  // 方框描边（更明显）
     private let walkLabelMinDuration: Int = 5       // ≥5min 才显示时刻标签
     private let walkMergeGapMinutes: Int = 3       // 间隔 ≤3min 的碎步行合并
     private let walkMinVisibleDuration: Int = 1      // ≥1min 的步行都显示（短步行用小框）
@@ -418,11 +418,11 @@ struct DayTimelineView: View, Equatable {
             + (walkBoxMaxHeight - walkBoxMinHeight)
             * CGFloat(min(seg.duration, 60)) / 60.0
 
-        // 步数比例：控制填充透明度（少步=淡，多步=深）
+        // 步数比例：控制填充透明度（少步=淡，多步=深），最低 0.18 保证短步行也可见
         let stepCount = seg.stepCount ?? 1000
-        let stepRatio = min(1.0, max(0.08, Double(stepCount) / 2000.0))
-        let fillOpacity = 0.15 * stepRatio
-        let borderOpacity = 0.6 * stepRatio
+        let stepRatio = min(1.0, max(0.18, Double(stepCount) / 2000.0))
+        let fillOpacity = 0.28 * stepRatio
+        let borderOpacity = 0.78 * stepRatio
 
         let showLabel = seg.duration >= walkLabelMinDuration
 
@@ -435,7 +435,7 @@ struct DayTimelineView: View, Equatable {
                     RoundedRectangle(cornerRadius: 3)
                         .stroke(accent.opacity(borderOpacity), lineWidth: walkBoxBorderWidth)
                 )
-                .shadow(color: accent.opacity(0.12 * stepRatio), radius: 2, x: 0, y: 0)
+                .shadow(color: accent.opacity(0.18 * stepRatio), radius: 2.5, x: 0, y: 0)
 
             // 步数标签（方框内部显示步数，少步时透明度更低）
             if seg.stepCount != nil && seg.stepCount! > 0 {
@@ -513,8 +513,8 @@ struct DayTimelineView: View, Equatable {
         ZStack {
             if isSleep {
                 Rectangle()
-                    .stroke(accent.opacity(0.5),
-                            style: StrokeStyle(lineWidth: trackWidth, lineCap: .round, dash: [2.5, 2.5]))
+                    .stroke(accent.opacity(0.72),
+                            style: StrokeStyle(lineWidth: trackWidth, lineCap: .round, dash: [3, 2.5]))
                     .frame(width: trackWidth, height: max(0, segH))
                     .position(x: trackWidth / 2, y: yMid)
             } else {
