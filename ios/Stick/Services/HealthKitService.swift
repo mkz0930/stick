@@ -1559,8 +1559,11 @@ extension HealthKitService {
         guard let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate) else { return nil }
 
         let calendar = Calendar.current
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
-        let endOfYesterday = calendar.date(byAdding: .day, value: 1, to: yesterday)!
+        let startOfToday = calendar.startOfDay(for: Date())
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: startOfToday),
+              let endOfYesterday = calendar.date(byAdding: .day, value: 1, to: yesterday) else {
+            return nil
+        }
 
         let samples = await withCheckedContinuation { (cont: CheckedContinuation<[Double], Never>) in
             let predicate = HKQuery.predicateForSamples(withStart: yesterday, end: endOfYesterday, options: .strictStartDate)
