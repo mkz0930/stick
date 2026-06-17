@@ -192,6 +192,23 @@ struct FeatureRow: View {
 
     /// 左下角按键：chevron + "more / less" 文字，整行可点
     private var expandToggle: some View {
+        FeatureRowExpandToggle(
+            isExpanded: $isExpanded,
+            alertsDetailExpanded: $alertsDetailExpanded,
+            onExpanded: { resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded) },
+            onCollapsed: { cancelAutoCollapseTimer() }
+        )
+    }
+}
+
+/// 左下角按键：chevron + "more / less" 文字，整行可点
+private struct FeatureRowExpandToggle: View {
+    @Binding var isExpanded: Bool
+    @Binding var alertsDetailExpanded: Bool
+    var onExpanded: () -> Void = { }
+    var onCollapsed: () -> Void = { }
+
+    var body: some View {
         Button {
             withAnimation(.easeInOut(duration: 0.28)) {
                 isExpanded.toggle()
@@ -203,9 +220,9 @@ struct FeatureRow: View {
                 }
             }
             if isExpanded {
-                resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded)
+                onExpanded()
             } else {
-                cancelAutoCollapseTimer()
+                onCollapsed()
             }
         } label: {
             HStack(spacing: 4) {
