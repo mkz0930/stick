@@ -122,7 +122,7 @@ struct StickRiskAlertWidgetView: View {
             VesselCanvas(duration: entry.sitDurationMinutes)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 1.0, green: 0.97, blue: 0.91))
+        .background(Theme.darkPanel)
     }
 }
 
