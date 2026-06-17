@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-18 | `ContentView` 冗余单例属性：`@ObservedObject hkService` 与 `@StateObject hk` 同时存在，浪费资源且语义混乱 | 已修复，合入 `112833f` |
 | 2026-06-18 | `HealthKitService.guessWakeUpTime()` 3 处 `calendar.date()!` force unwrap → `guard let` 安全解包 | 已修复，合入 `e989091` |
 | 2026-06-18 | `HealthKitService.exportTodayData()` 缺少 `return`，导致"导出今日数据"永远返回 `nil` | 已修复，合入 `db34cd9` |
 | 2026-06-18 | `StateInference.swift` 19 处 `score[.X]!` force unwrap → `score[.X, default: 0]` 更安全 | 已修复，合入 `ba6e5af` |
