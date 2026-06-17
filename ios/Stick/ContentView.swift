@@ -621,17 +621,22 @@ struct ContentView: View {
             // 每 30 秒基于真实快照重新分析连续久坐时长
             if Date().timeIntervalSince(lastSitAnalysisTime) >= 30 {
                 lastSitAnalysisTime = Date()
-                let prevMinutes = currentSitMinutes
                 Task {
+                    // 在 Task 内读取 currentSitMinutes，避免与 lastMovementTime onChange 竞争导致 stale 数据
+                    let prevMinutes = await MainActor.run { currentSitMinutes }
                     let newMinutes = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
                     // 如果新分析结果比当前记录更长，说明session在延续，更新开始时刻
                     if newMinutes > prevMinutes {
                         // session 延长：从当前时刻往前推 newMinutes 分钟作为开始时刻
-                        currentSitStartTime = Date().addingTimeInterval(-Double(newMinutes) * 60)
+                        await MainActor.run {
+                            currentSitStartTime = Date().addingTimeInterval(-Double(newMinutes) * 60)
+                        }
                     }
-                    currentSitMinutes = newMinutes
-                    if newMinutes == 0 {
-                        currentSitStartTime = nil
+                    await MainActor.run {
+                        currentSitMinutes = newMinutes
+                        if newMinutes == 0 {
+                            currentSitStartTime = nil
+                        }
                     }
                     // 定期写入 SharedState（同步到 Widget）
                     if displayState == .sit && newMinutes > 0 {
