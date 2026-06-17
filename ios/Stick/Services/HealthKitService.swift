@@ -346,13 +346,13 @@ final class HealthKitService: ObservableObject {
             guard let self else { return }
             Task {
                 let snap = await self.captureSnapshot()
-                HealthStore.shared.append(snap)
+                await MainActor.run { HealthStore.shared.append(snap) }
             }
         }
         // 立即抓一次
         Task {
             let snap = await captureSnapshot()
-            HealthStore.shared.append(snap)
+            await MainActor.run { HealthStore.shared.append(snap) }
         }
     }
 

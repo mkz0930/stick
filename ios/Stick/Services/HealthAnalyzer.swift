@@ -121,7 +121,6 @@ final class HealthAnalyzer {
         guard !hrs.isEmpty else { return out }
         let avg = hrs.reduce(0, +) / Double(hrs.count)
         let maxV = hrs.max() ?? 0
-        let minV = hrs.min() ?? 0
 
         if avg > 100 {
             out.append(HealthInsight(

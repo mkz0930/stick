@@ -35,7 +35,6 @@ enum SleepParser {
 
         let calendar = Calendar.current
         let hourNow = calendar.component(.hour, from: now)
-        let minuteNow = calendar.component(.minute, from: now)
 
         var bedTime: Date?
         var wakeTime: Date?

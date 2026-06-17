@@ -34,8 +34,6 @@ final class DataRecordViewModel: ObservableObject {
     func loadHKData() async {
         var data = HKLiveData()
         let service = HealthKitService.shared
-        let now = Date()
-        let startOfDay = Calendar.current.startOfDay(for: now)
 
         if let steps = await service.todaySteps() {
             data.steps = steps
@@ -510,7 +508,7 @@ struct DataRecordView: View {
         let snaps = vm.today
         var sit = 0, walk = 0, sleep = 0, stand = 0
         // 今日步数: 取最后一条 snapshot 的 cumulativeStepCount (已是全天累计)
-        var steps = snaps.last?.cumulativeStepCount ?? 0
+        let steps = snaps.last?.cumulativeStepCount ?? 0
         var hrSum = 0.0, hrCount = 0
         var energy = 0.0
         for s in snaps {
