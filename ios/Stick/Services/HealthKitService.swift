@@ -237,6 +237,7 @@ final class HealthKitService: ObservableObject {
     }
 
     /// 今日睡眠总时长（从 Health App 手动记录的睡眠数据）
+    /// 注意：只统计 Asleep 样本（value=2,3,5,6），排除 Awake（value=4）和 InBed（value=0,1）
     func todaySleepHours() async -> Double? {
         guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else { return nil }
         let startOfDay = Calendar.current.startOfDay(for: Date())
@@ -244,9 +245,14 @@ final class HealthKitService: ObservableObject {
             let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: nil, options: [])
             let q = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
                 let totalSeconds = (samples as? [HKCategorySample])?.reduce(0.0) { sum, sample in
-                    // HKCategorySample.value 对于 sleepAnalysis: 1=InBed, 2=Asleep, 4=Awake
-                    let seconds = sample.endDate.timeIntervalSince(sample.startDate)
-                    return sum + seconds
+                    // HKCategorySample.value 对于 sleepAnalysis: 0,1=InBed, 2,3,5,6=Asleep, 4=Awake
+                    // 只统计 Asleep 状态，排除 Awake 和 InBed
+                    switch sample.value {
+                    case 2, 3, 5, 6:  // Asleep variants
+                        return sum + sample.endDate.timeIntervalSince(sample.startDate)
+                    default:
+                        return sum  // InBed (0,1) 或 Awake (4) 不计入睡眠时长
+                    }
                 } ?? 0
                 cont.resume(returning: totalSeconds / 3600.0)
             }
