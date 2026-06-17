@@ -181,7 +181,7 @@ final class HealthAnalyzer {
         let todayNoon = cal.date(bySettingHour: 12, minute: 0, second: 0, of: now) ?? now
         let yesterdayNoon = cal.date(byAdding: .day, value: -1, to: todayNoon) ?? now
         return HealthStore.shared.all.filter {
-            $0.bodyState == "sleep" && $0.timestamp >= yesterdayNoon && $0.timestamp <= todayNoon.addingTimeInterval(24*3600)
+            $0.bodyState == "sleep" && $0.timestamp >= yesterdayNoon && $0.timestamp < todayNoon
         }
     }
 
