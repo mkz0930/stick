@@ -45,6 +45,9 @@
 		B29900000000000000000A12 /* ChatHistoryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A12 /* ChatHistoryListView.swift */; };
 		B29900000000000000000A13 /* UserProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A13 /* UserProfileStore.swift */; };
 		B29900000000000000000A14 /* HealthTrendAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A14 /* HealthTrendAnalyzer.swift */; };
+		B299000000000000000000A30 /* SleepParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F299000000000000000000A30 /* SleepParser.swift */; };
+		B299000000000000000000A31 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F299000000000000000000A31 /* LocationService.swift */; };
+		B299000000000000000000A32 /* SleepHabitAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F299000000000000000000A32 /* SleepHabitAnalyzer.swift */; };
 		B29900000000000000000A15 /* TopicExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A15 /* TopicExtractor.swift */; };
 		B29900000000000000000A16 /* UserInterestTagStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A16 /* UserInterestTagStore.swift */; };
 		B29900000000000000000A17 /* DailyStepsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29900000000000000000A17 /* DailyStepsStore.swift */; };
@@ -137,6 +140,9 @@
 		F29900000000000000000A12 /* ChatHistoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryListView.swift; sourceTree = "<group>"; };
 		F29900000000000000000A13 /* UserProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfileStore.swift; sourceTree = "<group>"; };
 		F29900000000000000000A14 /* HealthTrendAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthTrendAnalyzer.swift; sourceTree = "<group>"; };
+		F299000000000000000000A30 /* SleepParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepParser.swift; sourceTree = "<group>"; };
+		F299000000000000000000A31 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
+		F299000000000000000000A32 /* SleepHabitAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepHabitAnalyzer.swift; sourceTree = "<group>"; };
 		F29900000000000000000A15 /* TopicExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopicExtractor.swift; sourceTree = "<group>"; };
 		F29900000000000000000A16 /* UserInterestTagStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserInterestTagStore.swift; sourceTree = "<group>"; };
 		F29900000000000000000A17 /* DailyStepsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyStepsStore.swift; sourceTree = "<group>"; };
@@ -298,6 +304,9 @@
 				F299000000000000000000A20 /* MorningReportTrigger.swift */,
 				F299000000000000000000A21 /* NotificationService.swift */,
 				F299000000000000000000A22 /* SleepFeedbackStats.swift */,
+				F299000000000000000000A30 /* SleepParser.swift */,
+				F299000000000000000000A31 /* LocationService.swift */,
+				F299000000000000000000A32 /* SleepHabitAnalyzer.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -476,6 +485,9 @@
 				B10000000000000000000027 /* Views/MorningReportTab.swift in Sources */,
 				B10000000000000000000028 /* Views/MorningReportDetailView.swift in Sources */,
 				B10000000000000000000029 /* Views/TrendDataPage.swift in Sources */,
+				B299000000000000000000A30 /* SleepParser.swift in Sources */,
+				B299000000000000000000A31 /* LocationService.swift in Sources */,
+				B299000000000000000000A32 /* SleepHabitAnalyzer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

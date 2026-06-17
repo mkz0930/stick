@@ -1,16 +1,52 @@
 //
 //  UserProfileStore.swift
-//  用户画像累计 + 周期总结
+//  用户画像累计 + 周期总结 + 睡眠习惯追踪
 //
 //  - 每次用户发送消息 → counter++
-//  - counter % 3 == 0 → 异步调 LLM 总结最近 3 条对话，更新 profile
+//  - counter % 50 == 0 → 异步调 LLM 总结最近 50 条对话，更新 profile
 //  - 下次发消息时把 profile 作为 context 灌给 LLM
 //
-//  持久化: UserDefaults (profile 文本 + counter 整数)
+//  持久化: UserDefaults (profile 文本 + counter 整数 + 睡眠习惯 JSON)
 //
 
 import Foundation
 import SwiftUI
+
+/// 用户睡眠习惯画像（出差/在家分别维护；滑动平均更新）
+struct UserSleepHabit: Codable, Equatable {
+    /// 常驻作息
+    var usualBedtime: Int?            // 分钟 (22:00 → 1320)，>24h 时加 24 (凌晨算昨天)
+    var usualWakeTime: Int?           // 分钟 (7:00 → 420)
+    var usualDurationMinutes: Int?    // 平均睡眠分钟
+    var sampleCount: Int              // 样本数
+    var lastUpdated: Date?            // 最后更新时间
+
+    /// 出差作息
+    var travelBedtime: Int?
+    var travelWakeTime: Int?
+    var travelDurationMinutes: Int?
+    var travelSampleCount: Int
+
+    /// 当前位置状态
+    var homeCity: String?             // 常驻城市
+    var isTravel: Bool                // 是否在出差
+    var isTravelUntil: Date?          // 出差状态保持到什么时候
+
+    static let empty = UserSleepHabit(
+        usualBedtime: nil,
+        usualWakeTime: nil,
+        usualDurationMinutes: nil,
+        sampleCount: 0,
+        lastUpdated: nil,
+        travelBedtime: nil,
+        travelWakeTime: nil,
+        travelDurationMinutes: nil,
+        travelSampleCount: 0,
+        homeCity: nil,
+        isTravel: false,
+        isTravelUntil: nil
+    )
+}
 
 @MainActor
 final class UserProfileStore: ObservableObject {
@@ -22,6 +58,9 @@ final class UserProfileStore: ObservableObject {
     /// 自上次总结以来的 user 消息计数（用于触发下次总结）
     @Published private(set) var userMessageCount: Int = 0
 
+    /// 用户睡眠习惯画像（含常驻 + 出差）
+    @Published private(set) var sleepHabit: UserSleepHabit = .empty
+
     /// 短期标签分数（委托 UserInterestTagStore 管理，这里只作代理访问）
     private var shortTermScores: [String: Double] {
         UserInterestTagStore.shared.shortTermScores
@@ -32,10 +71,12 @@ final class UserProfileStore: ObservableObject {
 
     private let profileKey = "stick.userprofile.v1"
     private let countKey = "stick.userprofile.count.v1"
+    private let sleepHabitKey = "stick.userprofile.sleephabit.v1"
 
     init() {
         profile = UserDefaults.standard.string(forKey: profileKey) ?? ""
         userMessageCount = UserDefaults.standard.integer(forKey: countKey)
+        sleepHabit = loadSleepHabit()
     }
 
     // MARK: - 计数
@@ -108,5 +149,104 @@ final class UserProfileStore: ObservableObject {
     /// 返回短期权重最高的标签
     func topShortTermTags(limit: Int = 5) -> [String] {
         UserInterestTagStore.shared.topShortTermTags(limit: limit)
+    }
+
+    // MARK: - 睡眠习惯
+
+    private func loadSleepHabit() -> UserSleepHabit {
+        guard let data = UserDefaults.standard.data(forKey: sleepHabitKey),
+              let decoded = try? JSONDecoder().decode(UserSleepHabit.self, from: data) else {
+            return .empty
+        }
+        return decoded
+    }
+
+    private func persistSleepHabit() {
+        guard let data = try? JSONEncoder().encode(sleepHabit) else { return }
+        UserDefaults.standard.set(data, forKey: sleepHabitKey)
+    }
+
+    /// 滑动平均更新睡眠习惯（权重 0.3 新样本 / 0.7 旧值）
+    func updateSleepHabit(from info: SleepInfo) {
+        let isTravel = sleepHabit.isTravel || sleepHabit.isTravelUntil.map { $0 > Date() } ?? false
+        var h = sleepHabit
+        h.lastUpdated = Date()
+        h.isTravel = isTravel
+
+        if isTravel {
+            h.travelBedtime = info.bedTime.map { minuteOfDay24h(from: $0) } ?? h.travelBedtime
+            h.travelWakeTime = info.wakeTime.map { minuteOfDay24h(from: $0) } ?? h.travelWakeTime
+            if let dur = info.durationMinutes {
+                h.travelDurationMinutes = blendInt(old: h.travelDurationMinutes, new: dur)
+            }
+            h.travelSampleCount += 1
+        } else {
+            h.usualBedtime = info.bedTime.map { minuteOfDay24h(from: $0) } ?? h.usualBedtime
+            h.usualWakeTime = info.wakeTime.map { minuteOfDay24h(from: $0) } ?? h.usualWakeTime
+            if let dur = info.durationMinutes {
+                h.usualDurationMinutes = blendInt(old: h.usualDurationMinutes, new: dur)
+            }
+            h.sampleCount += 1
+        }
+
+        sleepHabit = h
+        persistSleepHabit()
+    }
+
+    /// 设置出差状态
+    func updateTravelStatus(isTravel: Bool, until: Date?) {
+        var h = sleepHabit
+        h.isTravel = isTravel
+        h.isTravelUntil = until
+        sleepHabit = h
+        persistSleepHabit()
+    }
+
+    /// 给 LLM 的 prompt 拼一段："【睡眠习惯】…" (无数据时返回空串)
+    func sleepHabitContextBlock(isTravel: Bool) -> String {
+        let h = sleepHabit
+        let (bed, wake, dur, count) = isTravel
+            ? (h.travelBedtime, h.travelWakeTime, h.travelDurationMinutes, h.travelSampleCount)
+            : (h.usualBedtime, h.usualWakeTime, h.usualDurationMinutes, h.sampleCount)
+        if bed == nil && wake == nil && dur == nil { return "" }
+        var lines: [String] = []
+        if let bed = bed {
+            lines.append("平均入睡: \(formatMinute24(bed))")
+        }
+        if let wake = wake {
+            lines.append("平均起床: \(formatMinute24(wake))")
+        }
+        if let dur = dur {
+            let hours = Double(dur) / 60.0
+            lines.append(String(format: "平均时长: %.1f 小时", hours))
+        }
+        let tag = isTravel ? "出差作息" : "常驻作息"
+        let countStr = count > 0 ? "（\(count) 个样本）" : ""
+        return "【\(tag)】\(countStr)\n" + lines.map { "- \($0)" }.joined(separator: "\n") + "\n\n"
+    }
+
+    // MARK: - helpers
+
+    /// 把 Date 转换成"分钟内数"（>24h 表示凌晨+24h，便于滑动平均）
+    private func minuteOfDay24h(from date: Date) -> Int {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let m = (c.hour ?? 0) * 60 + (c.minute ?? 0)
+        return m < 12 * 60 ? m + 24 * 60 : m
+    }
+
+    /// 滑动平均：old*0.7 + new*0.3
+    private func blendInt(old: Int?, new: Int) -> Int {
+        if let o = old {
+            return Int(Double(o) * 0.7 + Double(new) * 0.3)
+        }
+        return new
+    }
+
+    /// 把"分钟内数"格式化为 HH:MM（支持 24h+）
+    private func formatMinute24(_ minute: Int) -> String {
+        let normalized = minute % (24 * 60)
+        let h = normalized / 60
+        let m = normalized % 60
+        return String(format: "%02d:%02d", h, m)
     }
 }

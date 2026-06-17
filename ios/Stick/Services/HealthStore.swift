@@ -92,4 +92,54 @@ final class HealthStore: ObservableObject {
         all = snapshots
         refreshToday()
     }
+
+    // MARK: - 对话解析后的睡眠段写入
+
+    /// 把对话解析出的睡眠段写入为 sleep snapshot（覆盖同时段推断错误的数据）
+    /// 行为：把 [bedTime, wakeTime] 之间每分钟写一条 bodyState = "sleep" 的 snapshot，
+    ///       删除同时段已存在的 sleep snapshot（推断错误的修正）
+    func writeSleepSegment(bedTime: Date, wakeTime: Date) {
+        guard bedTime < wakeTime else { return }
+        // 1) 删除同时段 [bedTime - 30min, wakeTime + 30min] 内的 sleep snapshot
+        let lower = bedTime.addingTimeInterval(-30 * 60)
+        let upper = wakeTime.addingTimeInterval(30 * 60)
+        all.removeAll { snap in
+            snap.bodyState == "sleep" && snap.timestamp >= lower && snap.timestamp <= upper
+        }
+        // 2) 每分钟写一条 sleep snapshot
+        let calendar = Calendar.current
+        var t = bedTime
+        var inserted = 0
+        while t <= wakeTime {
+            // 保留同一分钟的其他字段（步数/心率）以避免无谓清空
+            // 如果该分钟已有非 sleep 记录，跳过（不覆盖）
+            if !all.contains(where: { abs($0.timestamp.timeIntervalSince(t)) < 30 && $0.bodyState != "sleep" }) {
+                let snap = HealthSnapshot(
+                    timestamp: t,
+                    heartRate: nil,
+                    cumulativeStepCount: nil,
+                    incrementalStepCount: 0,
+                    activeEnergy: nil,
+                    bodyState: "sleep",
+                    heartRateVariability: nil,
+                    restingHeartRate: nil,
+                    standHours: nil,
+                    exerciseMinutes: nil,
+                    mindfulMinutes: nil,
+                    respiratoryRate: nil,
+                    distance: nil,
+                    flightsClimbed: nil,
+                    sourceName: "user-chat"
+                )
+                all.append(snap)
+                inserted += 1
+            }
+            t = calendar.date(byAdding: .minute, value: 1, to: t) ?? t.addingTimeInterval(60)
+        }
+        // 3) 重新排序 + 刷新 today
+        all.sort { $0.timestamp < $1.timestamp }
+        refreshToday()
+        save()
+        print("[HealthStore] writeSleepSegment: 写入 \(inserted) 条 sleep snapshot, [\(bedTime) → \(wakeTime)]")
+    }
 }
