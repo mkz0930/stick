@@ -410,16 +410,22 @@ struct ContentView: View {
 
     // MARK: - 给 Widget 用的派生值
 
+    /// 从 "92 bpm" / "18 min" 等格式字符串中提取第一个整数
+    private func parseFirstInt(from value: String, fallback: Int) -> Int {
+        for part in value.split(separator: " ") {
+            if let num = Int(part) { return num }
+        }
+        return fallback
+    }
+
     private var primaryHeartRate: Int {
         // HEART RATE 行（walk）值形如 "92 bpm" → 92
-        let v = displayState.primaryMetric.value
-        return Int(v.split(separator: " ").first ?? "72") ?? 72
+        parseFirstInt(from: displayState.primaryMetric.value, fallback: 72)
     }
 
     private var primaryDurationMinutes: Int {
         // DURATION 行（walk）值形如 "18 min" → 18
-        let v = displayState.tertiaryMetric.value
-        return Int(v.split(separator: " ").first ?? "0") ?? 0
+        parseFirstInt(from: displayState.tertiaryMetric.value, fallback: 0)
     }
 
     // MARK: - 实时心率 + AI 风险分析
