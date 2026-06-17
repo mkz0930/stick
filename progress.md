@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-18 | `SleepParser` `looksLikeSleepMessage` 数组删除重复关键词 "眠" | 已修复，合入 `7d18983` |
 | 2026-06-18 | `HealthKitService.captureSnapshot()` 竞态条件：async 函数后台线程赋值 `@Published` 属性 | 已修复，合入 `ad321d4` |
 | 2026-06-18 | `ChatHistoryStore` 删除未使用 `import SwiftUI`（纯数据层 service） | 已修复，合入 `f11f75c` |
 | 2026-06-18 | `RealHealthAnalyzer` `completeness / checkCount` 除零崩溃风险，新装 app 无历史数据时可能触发 | 已修复，合入 `b910989` |
