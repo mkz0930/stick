@@ -119,13 +119,20 @@ enum SharedStateStore {
     }
 
     /// 持有 observer box 避免被释放（observePendingChatSeed 内部使用）
-    private static var observerBoxHolder: ObserverBox?
+    private static let chatObserverBox = ObserverBox({})
+    /// 保证 CF observer 只注册一次，避免 SwiftUI .onAppear 多次触发导致前一个 box 被释放、悬空指针崩溃
+    private static var isChatObserverRegistered = false
 
     /// 主 app 监听 widget 写入事件（即使在前台也能收到）
     static func observePendingChatSeed(_ handler: @escaping () -> Void) {
-        let box = ObserverBox(handler)
-        observerBoxHolder = box  // 强引用持有，防止被释放
-        let observer = Unmanaged.passUnretained(box).toOpaque()
+        // 永远更新 box 里持有的 handler（最新注册者生效）
+        // 但 CF observer 只注册一次，避免重复注册覆盖前一个 box 引发 use-after-free
+        chatObserverBox.updateHandler(handler)
+
+        guard !isChatObserverRegistered else { return }
+        isChatObserverRegistered = true
+
+        let observer = Unmanaged.passUnretained(chatObserverBox).toOpaque()
         let center = CFNotificationCenterGetDarwinNotifyCenter()
         CFNotificationCenterAddObserver(
             center,
@@ -145,8 +152,11 @@ enum SharedStateStore {
 
     /// 用于跨进程回调持有闭包
     private final class ObserverBox {
-        let handler: () -> Void
+        var handler: () -> Void
         init(_ handler: @escaping () -> Void) { self.handler = handler }
+        func updateHandler(_ handler: @escaping () -> Void) {
+            self.handler = handler
+        }
     }
 }
 
