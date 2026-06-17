@@ -50,13 +50,13 @@ struct StateInference {
 
         // === A. 时段基线 (睡眠窗口: 22-08 夜间 + 12-14 午睡) ===
         if h >= 22 || h < 8 {
-            score[.sleep]! += 1.5
+            score[.sleep, default: 0] += 1.5
             reasons.append("睡眠时段 \(h):00 (夜间)")
         } else if h >= 12 && h < 14 {
-            score[.sleep]! += 0.8
+            score[.sleep, default: 0] += 0.8
             reasons.append("午睡时段 \(h):00")
         } else if (11 <= h && h <= 13) || h == 18 {
-            score[.walk]! += 0.3   // 午饭/晚饭散步
+            score[.walk, default: 0] += 0.3   // 午饭/晚饭散步
             reasons.append("用餐时段")
         }
 
@@ -70,10 +70,10 @@ struct StateInference {
                 let zeroCount = longWindow.filter { $0.incrementalStepCount == 0 }.count
                 let zeroRatio = Double(zeroCount) / Double(longWindow.count)
                 if zeroRatio >= 0.9 {
-                    score[.sleep]! += 2.5
+                    score[.sleep, default: 0] += 2.5
                     reasons.append("持续 \(zeroCount)/\(longWindow.count) 分钟 0 步 (睡眠窗口)")
                 } else if zeroRatio >= 0.7 {
-                    score[.sleep]! += 1.0
+                    score[.sleep, default: 0] += 1.0
                     reasons.append("长时间低活动 (\(Int(zeroRatio * 100))% 0 步, 睡眠窗口)")
                 }
             }
@@ -81,19 +81,19 @@ struct StateInference {
 
         // === B. 步数信号 (强信号) ===
         if recentSteps > 30 {
-            score[.walk]! += 3.0
+            score[.walk, default: 0] += 3.0
             reasons.append("5min 步数 \(recentSteps) (强)")
         } else if recentSteps > 10 {
-            score[.walk]! += 1.5
-            score[.sit]! += 0.5  // 有步数但不多，静坐也有可能
+            score[.walk, default: 0] += 1.5
+            score[.sit, default: 0] += 0.5  // 有步数但不多，静坐也有可能
             reasons.append("5min 步数 \(recentSteps) (中)")
         } else if recentSteps > 0 {
             // 步数很少（<10），结合心率判断，不能仅靠步数判定走路
-            score[.sit]! += 0.8
+            score[.sit, default: 0] += 0.8
             reasons.append("5min 步数 \(recentSteps) (弱，静坐)")
         } else {
-            score[.sit]! += 1.0
-            score[.sleep]! += 0.5   // 0 步 + 睡眠时段 = 强 sleep
+            score[.sit, default: 0] += 1.0
+            score[.sleep, default: 0] += 0.5   // 0 步 + 睡眠时段 = 强 sleep
         }
 
         // === C. 心率信号 ===
@@ -102,22 +102,22 @@ struct StateInference {
             let delta = hr - rhr
             if hr < 55 {
                 // 深度休息/睡眠
-                score[.sleep]! += 2.0
+                score[.sleep, default: 0] += 2.0
                 reasons.append("HR \(Int(hr)) < 55")
             } else if delta > 25 && recentSteps > 20 {
                 // 心率明显升高 + 有足够步数 → 活动
-                score[.walk]! += 2.5
+                score[.walk, default: 0] += 2.5
                 reasons.append("HR \(Int(hr)) 升高 +\(Int(delta)) + 步数支撑")
             } else if delta > 15 && recentSteps > 10 {
                 // 心率略高 + 有步数 → 轻度活动
-                score[.walk]! += 1.0
+                score[.walk, default: 0] += 1.0
                 reasons.append("HR 略高 +\(Int(delta))")
             } else if abs(delta) <= 10 && recentSteps < 5 {
                 // 心率稳定 + 几乎没步数 → 久坐（最重要！）
-                score[.sit]! += 2.0
+                score[.sit, default: 0] += 2.0
                 reasons.append("HR 稳定，久坐")
             } else if abs(delta) <= 10 {
-                score[.sit]! += 1.5
+                score[.sit, default: 0] += 1.5
                 reasons.append("HR 接近基线")
             }
         }
@@ -125,18 +125,18 @@ struct StateInference {
         // === D. HRV 信号 ===
         if let h = hrv, h > 0 {
             if h > 60 {
-                score[.sleep]! += 0.5   // 高 HRV = 恢复态
+                score[.sleep, default: 0] += 0.5   // 高 HRV = 恢复态
             } else if h < 20 {
-                score[.sit]! += 0.5   // 低 HRV = 压力
+                score[.sit, default: 0] += 0.5   // 低 HRV = 压力
             }
         }
 
         // === E. 呼吸 ===
         if let r = resp, r > 0 {
             if r < 14 {
-                score[.sleep]! += 0.5
+                score[.sleep, default: 0] += 0.5
             } else if r > 20 {
-                score[.walk]! += 0.3
+                score[.walk, default: 0] += 0.3
             }
         }
 
