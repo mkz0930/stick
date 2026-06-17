@@ -1383,33 +1383,6 @@ private struct StageHeroView: View {
         .animation(.easeInOut(duration: 0.2), value: isOverride)
     }
 
-    private var stateBadge: some View {
-        Button(action: onPreview) {
-            HStack(spacing: 5) {
-                Circle()
-                    .fill(state.accent)
-                    .frame(width: 7, height: 7)
-                Text(state.englishName)
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .tracking(1.8)
-                    .foregroundColor(Theme.navy)
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 12, weight: .black))
-                    .foregroundColor(state.accent)
-            }
-            .padding(.horizontal, 7)
-            .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(state.accentSoft.opacity(0.7))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 2)
-                    .stroke(state.accent, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
 }
 
 // MARK: - Preview (轻量 stub)
