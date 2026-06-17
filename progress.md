@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-18 | `SharedStateStore.ObserverBox`/`chatObserverBox`/`isChatObserverRegistered` 缺 `NSLock`/`nonisolated(unsafe)`，Darwin 回调与主线程存在数据竞争 | 已修复，合入 `b1905c4` |
 | 2026-06-18 | ContentView 久坐 timer `prevMinutes` 在 Task 创建前捕获，异步期间 `onChange` 可修改 `currentSitMinutes` 导致比较用到 stale 数据 | 已修复，合入 `de16078` |
 | 2026-06-18 | `HealthKitService.todaySedentaryMinutes` 闭包中未使用的 `error` 参数 | 已修复，合入 `d7d8f28` |
 | 2026-06-17 | `HealthKitService.captureSnapshot` 正念分钟错误使用 `.appleExerciseTime` 类型 | 已修复，合入 `ee3149c` |
