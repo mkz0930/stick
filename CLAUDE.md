@@ -96,7 +96,7 @@ ios/StickWidget/                     Widget extension
 
 ### Widget 扩展
 
-- **App ↔ Widget 通信**：通过 App Group (`group.com.example.stick`) 的 UserDefaults 共享状态。Widget 写入，App 启动时读取。
+- **App ↔ Widget 通信**：通过 App Group (`group.com.stick.app.h`) 的 UserDefaults 共享状态。Widget 写入，App 启动时读取。
 - **Widget 点击**：使用 `Button(intent: OpenRiskAlertIntent(...))` 触发 AppIntent，不弹 "在 Stick 中打开?" 系统确认框。
 - **Timeline 更新**：每 5 分钟刷新一次。
 

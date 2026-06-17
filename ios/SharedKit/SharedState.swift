@@ -5,7 +5,7 @@ import SwiftUI
 import WidgetKit
 #endif
 
-/// 主 app ↔ Widget 共享状态。App Group: `group.com.example.stick`
+/// 主 app ↔ Widget 共享状态。App Group: `group.com.stick.app.h`
 struct SharedStickState: Codable, Equatable {
     /// 状态名（walk / sit / sleep），也用作 widget 路由
     var stateRaw: String
