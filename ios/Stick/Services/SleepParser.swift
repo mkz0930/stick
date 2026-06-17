@@ -57,7 +57,7 @@ enum SleepParser {
 
         // 5) 跨午夜推断：如果只知道 bedTime 且没 duration，且 hourNow 早（<12 早上），
         //    说明是"今早起"补的昨晚睡眠，bedTime 应该是昨天
-        if bedTime != nil && durationMin != nil && durationMin! < 16 * 60 {
+        if let dur = durationMin, dur < 16 * 60 {
             // 已经有 duration 且合理（<16h），不必调整
         }
 

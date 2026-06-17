@@ -125,7 +125,7 @@ enum AIRiskAnalyzer {
 
         // 计算持续高心率分钟数（今日同类时段）
         let sustainedMinutes = max(5, HealthStore.shared.today.filter { snap in
-            snap.heartRate != nil && snap.heartRate! > Double(lowThreshold)
+            (snap.heartRate ?? 0) > Double(lowThreshold)
         }.count)
 
         let risk: AIAnalysisReport.Risk
