@@ -27,6 +27,8 @@ struct FeatureRow: View {
     var onAlertTap: (UnifiedAlert) -> Void = { _ in }
     var onLockTap: () -> Void = { }   // 点击锁 → 跳添加设备界面
     var onSedentaryTap: () -> Void = { }  // 点击坐姿秒表 → 跳坐姿详情/起身提醒
+    var onWalkCardTap: () -> Void = { }  // 点击行走卡片 → 跳步态详情
+    var onSleepCardTap: () -> Void = { }  // 点击睡眠卡片 → 跳睡眠详情
     var onCardTap: () -> Void = { }   // 点击卡片主体 → 打开对话
 
     @State private var alertsDetailExpanded: Bool = false
@@ -126,10 +128,10 @@ struct FeatureRow: View {
                 }
                 StepsLine(steps: todaySteps, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 if let ss = stateSpecificMetric {
-                    FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                    FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, onWalkCardTap: onWalkCardTap, onSleepCardTap: onSleepCardTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 }
                 ForEach(hiddenMetrics, id: \.label) { m in
-                    FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                    FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, onWalkCardTap: onWalkCardTap, onSleepCardTap: onSleepCardTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 }
                 // 异常摘要 — 折叠默认显示前 2 项，>2 项时显示 chevron 可展开看全部
                 if !unifiedAlerts.isEmpty {
@@ -150,10 +152,10 @@ struct FeatureRow: View {
                     StepsLine(steps: todaySteps, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 }
                 if let ss = stateSpecificMetric, pinnedMetricIds.contains(ss.label) {
-                    FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                    FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, onWalkCardTap: onWalkCardTap, onSleepCardTap: onSleepCardTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 }
                 ForEach(hiddenMetrics.filter { pinnedMetricIds.contains($0.label) }, id: \.label) { m in
-                    FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                    FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, onWalkCardTap: onWalkCardTap, onSleepCardTap: onSleepCardTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                 }
                 if pinnedMetricIds.contains("alerts") && !unifiedAlerts.isEmpty {
                     AlertsSection(
@@ -664,6 +666,8 @@ private struct FeatureLine: View {
     let todaySitDescription: String    // 今日累计久坐描述（用于 SEDENTARY 行非 sit 状态时）
     var onLockTap: () -> Void = { }
     var onSedentaryTap: () -> Void = { }
+    var onWalkCardTap: () -> Void = { }
+    var onSleepCardTap: () -> Void = { }
     var pinnedIds: Binding<Set<String>>
     var onPinToggle: () -> Void = { }
 
@@ -752,6 +756,8 @@ private struct FeatureLine: View {
         .onTapGesture {
             if isLocked { onLockTap() }
             else if metric.label == "SEDENTARY" { onSedentaryTap() }
+            else if metric.label == "DURATION" { onWalkCardTap() }
+            else if metric.label == "SLEEP" { onSleepCardTap() }
         }
         .popover(isPresented: $showLockHint, arrowEdge: .top) {
             LockHintPopover(metric: metric, availability: availability)
