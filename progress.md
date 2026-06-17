@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-18 | `MorningReportTrigger` 删除未使用 `import Combine`（死代码） | 已修复，合入 `8070d85` |
 | 2026-06-18 | `ChatOverlay` 3 处 `try! NSRegularExpression` → `try?` + 优雅降级 | 已修复，合入 `c79eb90` |
 | 2026-06-18 | `LLMService.sendMessageStreamWithSearch` 删除未使用 `fullText`/`collectedData` 死代码 | 已修复，合入 `ce40f52` |
 | 2026-06-18 | `SleepParser` `looksLikeSleepMessage` 数组删除重复关键词 "眠" | 已修复，合入 `7d18983` |
