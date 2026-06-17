@@ -718,7 +718,7 @@ final class HealthKitService: ObservableObject {
                 intervalComponents: interval
             )
 
-            query.initialResultsHandler = { _, results, error in
+            query.initialResultsHandler = { _, results, _ in
                 guard let results = results else {
                     cont.resume(returning: 0)
                     return
