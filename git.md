@@ -7,9 +7,24 @@
 ## 主题索引
 
 ### 2026-06-17 · 闪退修复
+- `719fbda` fix(ui): 修复 DayTimelineView body 内修改 @State 触发的 SwiftUI 警告
+- `6ce26fb` merge: 修复 DayTimelineView 触发 SwiftUI 'Modifying state during view update' 警告
 - `d6442b1` fix(healthkit): 跨午夜 Range 崩溃 + Modifying state during view update 警告
 - `2030e21` fix: prevent use-after-free in SharedStateStore.observePendingChatSeed
 - `7feebe4` merge: 修复 observePendingChatSeed 重复注册导致 use-after-free 闪退
+
+### 2026-06-17 · 数据导出 + 真机 mock 注入
+**问题**：真机 HealthKit 只有 1 天数据（用户刚开始用 app），"导出最近 7 天"按钮在真机上几乎为空。
+**解决链路**：
+- `509c241` feat(debug): 真机注入 7 天 mock 数据到 HealthKit（HKQuantitySample + HKHealthStore.save）
+- `c15693e` debug(export): 加日志打印每个类型的样本数
+- `23ee7bd` chore(debug): 注射器按钮只在模拟器显示（避免污染真机）
+- `74e06fd` fix(export): exportTodayData() 改回导 HealthKit 数据（之前被改成导 HealthStore 聚合快照）
+
+**约束**：`exportTodayData/exportRecentData/exportLast7Days` 必须查 HealthKit 原始样本，输出 `{导出时间, 数据类型:[...]}` dict；不能 `encode(HealthStore.shared.today)` 输出 `[...]` 数组。详见 `~/.claude/projects/-Users-horse-work-stick/memory/healthkit_vs_healthstore.md`。
+
+### 2026-06-17 · 文档/规范
+- `e92960d` docs(CLAUDE): 加「数据双层架构」小节指向 memory 详细记录
 
 ### 2026-06-16 · 晨间健康报告 + 趋势数据
 **完整 feature arc**（从无到上线的多阶段合并）：
@@ -108,6 +123,12 @@ git log --since="2026-06-10" --pretty=format:"%h %ad %s" --date=short --all | so
 ```
 
 ### 2026-06-17
+- `e92960d` docs(CLAUDE): 加「数据双层架构」小节指向 memory 详细记录
+- `74e06fd` fix(export): exportTodayData() 改回导 HealthKit 数据
+- `c15693e` debug(export): 加日志打印每个类型的样本数 + 总数
+- `23ee7bd` chore(debug): 注射器按钮只在模拟器显示（避免真机误点污染数据）
+- `509c241` feat(debug): 真机注入 7 天 mock 数据到 HealthKit
+- `d6442b1` fix(healthkit): 跨午夜 Range 崩溃 + Modifying state during view update 警告
 - `7feebe4` merge: 修复 observePendingChatSeed 重复注册导致 use-after-free 闪退
 - `2030e21` fix: prevent use-after-free in SharedStateStore.observePendingChatSeed
 

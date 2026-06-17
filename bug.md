@@ -4,6 +4,69 @@
 
 ---
 
+## 2026-06-17 · `DayTimelineView` 触发 SwiftUI "Modifying state during view update" 警告
+
+**症状**
+- 真机 iPhone 12 上点开 app，Xcode console 反复刷出 **14 条** `SwiftUI: Modifying state during view update, this will cause undefined behavior.`
+- 启动 280ms 内必刷完
+- 不是 crash，但 undefined behavior，加新 view 时会埋雷
+- 模拟器 100% 复现
+
+**触发链**（subagent 排查得出）
+`ios/Stick/Views/DayTimelineView.swift` 用 `@State` 缓存 walk 胶囊，view body 里直接调 `syncWalkCacheIfNeeded(in:)` 写 `@State`：
+
+```swift
+// ❌ 旧实现
+@State private var cachedWalkSegments: [WalkVisualSegment] = []
+@State private var cachedScheduleSig: String = ""
+
+private func syncWalkCacheIfNeeded(in height: CGFloat) {
+    let sig = schedule.map { "..." }.joined(separator: "|")
+    if sig != cachedScheduleSig {
+        cachedScheduleSig = sig                        // ← 在 body 内写 @State
+        cachedWalkSegments = computeWalkVisualSegments(in: height)
+    }
+}
+
+// body 里：
+private var track: some View {
+    GeometryReader { geo in
+        syncWalkCacheIfNeeded(in: geo.size.height)     // ← SwiftUI 反模式
+        ...
+    }
+}
+```
+
+启动时 `hk.realDaySchedule` 由 nil → 真实数组连续变化 7 次 → 每次 body 重算触发 2 次 `@State` 写入 → 14 条警告。
+
+**修复**（commit `719fbda`）
+直接删缓存，body 里 `let` 算：
+
+```swift
+// ✅ 新实现
+private var track: some View {
+    GeometryReader { geo in
+        let height = geo.size.height
+        let walkSegments = computeWalkVisualSegments(in: height)  // 纯计算
+        ...
+    }
+}
+```
+
+schedule 变化已经由 `View.Equatable` + ContentView 的 `.equatable()` 守门，walk 胶囊重算 < 1ms 可忽略。
+
+**验证**
+- sim 上 `xcrun simctl spawn log stream --predicate 'subsystem == "com.apple.runtime-issues" AND category == "SwiftUI"'` 监控 60s
+- 修复前：启动 280ms 内 14 条
+- 修复后：60s 内 0 条
+
+**关键教训**
+- **永远不要在 view body 里写 `@State`** —— 哪怕是「缓存」目的也不行。`@State` 是 view 自己的 source-of-truth，body 是只读派生计算。要缓存就放到 `let` + computed property，或者用 `Equatable` view 配合 stable input
+- 任何「在 body 内调函数写 @State」的代码都是反模式，必须删
+- SwiftUI runtime warning 用 `subsystem=="com.apple.runtime-issues" AND category=="SwiftUI"` predicate 过滤最干净
+
+---
+
 ## 2026-06-17 · `detectNightWakePeriods` 跨午夜 Range 崩溃（真机 iPhone 12）
 
 **症状**
