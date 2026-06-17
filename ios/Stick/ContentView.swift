@@ -1333,6 +1333,8 @@ private struct StageHeroView: View {
         let m = StickState.minutesOfDay(Date().addingTimeInterval(-Double(offset) * 60))
         let targetState = manualStateOverride ?? state
         // 按当前 thumb 位置定位 segment；override state 时优先找当前位置匹配的段，否则取该 state 之后的最近段
+        // 注意：hk.realDaySchedule 可能比 daySchedule 有更多 gaps（如 HealthKit 数据稀疏），
+        // 此时 seg 可能为 nil，应优雅降级为仅显示 state 名字
         let seg: StickState.DaySegment? = {
             if let cur = schedule.first(where: {
                 $0.startMinute <= m && m < $0.endMinute && $0.state == targetState
@@ -1343,15 +1345,27 @@ private struct StageHeroView: View {
         }()
         let isOverride = manualStateOverride != nil
         return VStack(spacing: 2) {
-            if isOverride, let seg = seg {
-                Text("\(StickState.formatMinute(seg.startMinute))–\(StickState.formatMinute(seg.endMinute)) · \(state.rawValue)")
-                    .font(.system(size: 20, weight: .heavy, design: .monospaced))
-                    .foregroundColor(Theme.navy)
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .fixedSize()
-                    .contentTransition(.numericText())
-                    .transition(.scale.combined(with: .opacity))
+            if isOverride {
+                if let seg = seg {
+                    Text("\(StickState.formatMinute(seg.startMinute))–\(StickState.formatMinute(seg.endMinute)) · \(state.rawValue)")
+                        .font(.system(size: 20, weight: .heavy, design: .monospaced))
+                        .foregroundColor(Theme.navy)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .fixedSize()
+                        .contentTransition(.numericText())
+                        .transition(.scale.combined(with: .opacity))
+                } else {
+                    // seg 为 nil（时间落在 schedule 间隙）时，仍显示 state 名字，不Crash也不错乱
+                    Text(state.rawValue)
+                        .font(.system(size: 20, weight: .heavy, design: .monospaced))
+                        .foregroundColor(Theme.navy)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .fixedSize()
+                        .contentTransition(.numericText())
+                        .transition(.scale.combined(with: .opacity))
+                }
             } else {
                 let hh = (m / 60) % 24
                 let mm = m % 60
