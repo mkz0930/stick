@@ -176,9 +176,22 @@ final class HealthAnalyzer {
 
     // MARK: - 睡眠质量 (vs. 参考 7-9h)
 
+    /// 跨日睡眠窗口：昨天 12:00 ~ 今天 12:00
+    /// 修复：今天 0:00 之前的 sleep（如昨晚 22:00 入睡）会被 today 过滤掉，导致只算半段
+    private var lastNightSleeps: [HealthSnapshot] {
+        let cal = Calendar.current
+        let now = Date()
+        let todayNoon = cal.date(bySettingHour: 12, minute: 0, second: 0, of: now) ?? now
+        let yesterdayNoon = cal.date(byAdding: .day, value: -1, to: todayNoon) ?? now
+        return HealthStore.shared.all.filter {
+            $0.bodyState == "sleep" && $0.timestamp >= yesterdayNoon && $0.timestamp <= todayNoon.addingTimeInterval(24*3600)
+        }
+    }
+
     /// 仅睡眠 < 6h 触发严重不足提醒
     private func detectSleepAbnormality(_ snaps: [HealthSnapshot]) -> [HealthInsight] {
-        let sleeps = snaps.filter { $0.bodyState == "sleep" }
+        // 跨日窗口取睡眠（覆盖昨晚 22:00 入睡 → 今天 07:00 起床的完整段）
+        let sleeps = lastNightSleeps
         guard !sleeps.isEmpty else { return [] }
         let start = sleeps.first!.timestamp
         let end = sleeps.last!.timestamp
