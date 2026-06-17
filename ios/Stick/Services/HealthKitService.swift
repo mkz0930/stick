@@ -1126,10 +1126,16 @@ final class HealthKitService: ObservableObject {
         ]
 
         var results: [[String: Any]] = []
+        var totalSamples = 0
 
         for (name, id, unit) in types {
-            guard let type = HKObjectType.quantityType(forIdentifier: id) else { continue }
+            guard let type = HKObjectType.quantityType(forIdentifier: id) else {
+                print("[Export] ⚠️ \(name) (\(id.rawValue)) → type 为 nil，跳过")
+                continue
+            }
             let samples = await fetchSamples(type: type, unit: unit, from: from, to: to)
+            totalSamples += samples.count
+            print("[Export] \(name): \(samples.count) 样本 (from \(from) to \(to))")
             results.append([
                 "类型": name,
                 "identifier": id.rawValue,
@@ -1141,6 +1147,8 @@ final class HealthKitService: ObservableObject {
         // 睡眠
         if let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
             let sleepSamples = await fetchCategorySamples(type: sleepType, from: from, to: to)
+            totalSamples += sleepSamples.count
+            print("[Export] 睡眠分析: \(sleepSamples.count) 样本")
             results.append([
                 "类型": "睡眠分析",
                 "identifier": HKCategoryTypeIdentifier.sleepAnalysis.rawValue,
@@ -1168,6 +1176,7 @@ final class HealthKitService: ObservableObject {
             let fileName = "health_export_\(timeStr)_\(deviceName)\(suffix).json"
             let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
             try jsonData.write(to: tempURL)
+            print("[Export] ✅ 写文件: \(fileName) — \(totalSamples) 总样本 / \(results.count) 类型")
             return tempURL
         } catch {
             print("[HealthKitService] export failed: \(error)")
