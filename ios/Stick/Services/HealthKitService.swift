@@ -189,11 +189,14 @@ final class HealthKitService: ObservableObject {
             flightsClimbed: (await flights).map { Int($0) },
             sourceName: source
         )
-        self.lastSnapshot = snapshot
-        // 增量步数 > 10 → 打断久坐
-        if incremental > 10 {
-            self.lastMovementTime = now
-        }
+        // 写 @Published 属性必须切回主线程，避免 SwiftUI 视图更新在后台线程触发
+        await Task { @MainActor in
+            self.lastSnapshot = snapshot
+            // 增量步数 > 10 → 打断久坐
+            if incremental > 10 {
+                self.lastMovementTime = now
+            }
+        }.value
         return snapshot
     }
 
