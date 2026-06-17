@@ -191,7 +191,12 @@ struct FeatureRow: View {
         Button {
             withAnimation(.easeInOut(duration: 0.28)) {
                 isExpanded.toggle()
-                if !isExpanded { alertsDetailExpanded = false }
+                if !isExpanded {
+                    alertsDetailExpanded = false
+                } else {
+                    // 展开时同步展开 alerts 列表，避免"header 展开但列表隐藏"的 UX 假象
+                    alertsDetailExpanded = true
+                }
             }
             if isExpanded {
                 resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded)
