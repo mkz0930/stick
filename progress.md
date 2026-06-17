@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-18 | `LocationService` 删除未使用变量 `lastGeocodeCity`（死代码） | 已修复，合入 `5595842` |
 | 2026-06-18 | `DayTimelineView` `scrubOffset` 上限 `1440` 改为 `1439`，消除拖到最顶时与 00:00(now) 位置重叠 | 已修复，合入 `1e0a0fe` |
 | 2026-06-18 | `MockHealthDataLoader` `buckets[key]!` force unwrap → `?? Bucket()`；`HealthExport/HealthTypeBlock/HealthDataPoint.encode(to:)` `fatalError()` 占位 → 正确 Codable 实现 | 已修复，合入 `0ed0429` |
 | 2026-06-18 | `HealthKitService.analyzeYesterdayHeartRateZones` 2 处 `calendar.date(byAdding:)!` → `guard let` | 已修复，合入 `ff9b9a3` |
