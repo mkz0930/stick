@@ -1986,7 +1986,9 @@ private struct AssistantText: View {
         var hits: [Hit] = []
 
         // 行内 **xxx** 加粗段（非贪婪，1-200 字符非星号非换行）
-        let boldRegex = try! NSRegularExpression(pattern: "\\*\\*([^*\\n]{1,200}?)\\*\\*")
+        guard let boldRegex = try? NSRegularExpression(pattern: "\\*\\*([^*\\n]{1,200}?)\\*\\*") else {
+            return Text(raw).font(baseFont).foregroundColor(baseColor)
+        }
         for m in boldRegex.matches(in: raw, range: NSRange(location: 0, length: length)) {
             let inner = nsText.substring(with: m.range(at: 1))
             hits.append(Hit(
@@ -1999,7 +2001,7 @@ private struct AssistantText: View {
 
         // [n] 角标（[1] / (2) 都行），只在有 refs 时识别
         if let refs = refs, !refs.isEmpty {
-            let bracketRegex = try! NSRegularExpression(pattern: "[\\[\\(](\\d+)[\\]\\)]")
+            guard let bracketRegex = try? NSRegularExpression(pattern: "[\\[\\(](\\d+)[\\]\\)]") else { continue }
             for m in bracketRegex.matches(in: raw, range: NSRange(location: 0, length: length)) {
                 let mStart = m.range.location
                 let mEnd = mStart + m.range.length
@@ -2147,7 +2149,7 @@ private struct AssistantText: View {
     }
 
     private func numberedBody(_ line: String) -> (String, String)? {
-        let numberedPattern = try! NSRegularExpression(pattern: "^([0-9]+)[.)、\\s]+(.+)$")
+        guard let numberedPattern = try? NSRegularExpression(pattern: "^([0-9]+)[.)、\\s]+(.+)$") else { return nil }
         guard let match = numberedPattern.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) else { return nil }
         guard let numRange = Range(match.range(at: 1), in: line),
               let bodyRange = Range(match.range(at: 2), in: line) else { return nil }
