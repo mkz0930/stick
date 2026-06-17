@@ -162,7 +162,7 @@
 		F10000000000000000000027 /* MorningReportTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningReportTab.swift; sourceTree = "<group>"; };
 		F10000000000000000000028 /* MorningReportDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningReportDetailView.swift; sourceTree = "<group>"; };
 		F10000000000000000000029 /* TrendDataPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendDataPage.swift; sourceTree = "<group>"; };
-		F1000000000000000000002A /* Views/DetailSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailSheets.swift; sourceTree = "<group>"; };
+		F1000000000000000000002A /* DetailSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailSheets.swift; sourceTree = "<group>"; };
 		F29900000000000000000A1A /* RealHealthAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealHealthAnalyzer.swift; sourceTree = "<group>"; };
 		F29900000000000000000A1B /* MockHealthDataLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockHealthDataLoader.swift; sourceTree = "<group>"; };
 		F40000000000000000000001 /* StickWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickWidget.swift; sourceTree = "<group>"; };
