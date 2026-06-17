@@ -97,7 +97,7 @@ final class MockHealthDataLoader {
         var prevSteps = 0
         var snapshots: [HealthSnapshot] = []
         for key in sortedKeys {
-            let b = buckets[key]!
+            let b = buckets[key] ?? Bucket()
             cumulativeSteps = max(cumulativeSteps, Int(b.steps.rounded()))
             let incremental = max(0, cumulativeSteps - prevSteps)
             prevSteps = cumulativeSteps
@@ -373,7 +373,12 @@ struct HealthExport: Codable {
         数据类型 = (try? c.decode([HealthTypeBlock].self, forKey: DynamicKey(stringValue: "数据类型")!)) ?? []
     }
 
-    func encode(to encoder: Encoder) throws { fatalError() }
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: DynamicKey.self)
+        try container.encode(导出时间, forKey: DynamicKey(stringValue: "导出时间")!)
+        try container.encode(数据开始, forKey: DynamicKey(stringValue: "数据开始")!)
+        try container.encode(数据类型, forKey: DynamicKey(stringValue: "数据类型")!)
+    }
 }
 
 struct HealthTypeBlock: Codable {
@@ -390,7 +395,13 @@ struct HealthTypeBlock: Codable {
         类型 = try? c.decode(String.self, forKey: DynamicKey(stringValue: "类型")!)
     }
 
-    func encode(to encoder: Encoder) throws { fatalError() }
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: DynamicKey.self)
+        try container.encode(identifier, forKey: DynamicKey(stringValue: "identifier")!)
+        try container.encode(数据, forKey: DynamicKey(stringValue: "数据")!)
+        try container.encodeIfPresent(样本数, forKey: DynamicKey(stringValue: "样本数")!)
+        try container.encodeIfPresent(类型, forKey: DynamicKey(stringValue: "类型")!)
+    }
 }
 
 struct HealthDataPoint: Codable {
@@ -403,7 +414,11 @@ struct HealthDataPoint: Codable {
         时间 = (try? c.decode(String.self, forKey: DynamicKey(stringValue: "时间")!)) ?? ""
     }
 
-    func encode(to encoder: Encoder) throws { fatalError() }
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: DynamicKey.self)
+        try container.encode(值, forKey: DynamicKey(stringValue: "值")!)
+        try container.encode(时间, forKey: DynamicKey(stringValue: "时间")!)
+    }
 }
 
 /// 动态 key（支持中文 key）
