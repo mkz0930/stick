@@ -173,7 +173,10 @@ struct FeatureRow: View {
         .animation(.easeInOut(duration: 0.28), value: isExpanded)
         .onTapGesture {
             onCardTap()
-            resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded)
+            // 只在展开态才重置自动收起计时器；折叠态无需管理 timer
+            if isExpanded {
+                resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded)
+            }
         }
         .onAppear {
             loadPinned()
