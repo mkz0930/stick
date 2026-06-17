@@ -49,8 +49,8 @@ struct RiskAlertProvider: TimelineProvider {
 // 走 App Intents 路径不弹 "在 'Stick' 中打开?" 系统确认框
 
 struct OpenRiskAlertIntent: AppIntent {
-    static var title: LocalizedStringResource = "打开久坐风险告警"
-    static var description = IntentDescription("直接弹出久坐风险告警 sheet")
+    nonisolated(unsafe) static var title: LocalizedStringResource = "打开久坐风险告警"
+    nonisolated(unsafe) static var description = IntentDescription("直接弹出久坐风险告警 sheet")
 
     @Parameter(title: "久坐分钟")
     var sitDurationMinutes: Int
@@ -68,7 +68,7 @@ struct OpenRiskAlertIntent: AppIntent {
         self.heartRate = heartRate
     }
 
-    static var openAppWhenRun: Bool = true
+    nonisolated(unsafe) static var openAppWhenRun: Bool = true
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -83,8 +83,8 @@ struct OpenRiskAlertIntent: AppIntent {
 // 写 seed 到 SharedState，主 app 读取后打开 ChatOverlay，走专属风险科普 prompt
 
 struct OpenChatIntent: AppIntent {
-    static var title: LocalizedStringResource = "打开健康助手"
-    static var description = IntentDescription("打开聊天，触发健康风险科普流程")
+    nonisolated(unsafe) static var title: LocalizedStringResource = "打开健康助手"
+    nonisolated(unsafe) static var description = IntentDescription("打开聊天，触发健康风险科普流程")
 
     @Parameter(title: "Seed")
     var seed: String
@@ -97,7 +97,7 @@ struct OpenChatIntent: AppIntent {
         self.seed = seed
     }
 
-    static var openAppWhenRun: Bool = true
+    nonisolated(unsafe) static var openAppWhenRun: Bool = true
 
     @MainActor
     func perform() async throws -> some IntentResult {

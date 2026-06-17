@@ -1,6 +1,8 @@
 import Foundation
 import SwiftUI
 
+@preconcurrency import Darwin
+
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
@@ -121,7 +123,8 @@ enum SharedStateStore {
     /// 持有 observer box 避免被释放（observePendingChatSeed 内部使用）
     private static let chatObserverBox = ObserverBox({})
     /// 保证 CF observer 只注册一次，避免 SwiftUI .onAppear 多次触发导致前一个 box 被释放、悬空指针崩溃
-    private static var isChatObserverRegistered = false
+    /// nonisolated(unsafe): CF callback + guard 共同保证只写一次，Swift 6 前置检查会误报
+    private static nonisolated(unsafe) var isChatObserverRegistered = false
 
     /// 主 app 监听 widget 写入事件（即使在前台也能收到）
     static func observePendingChatSeed(_ handler: @escaping () -> Void) {
@@ -151,11 +154,21 @@ enum SharedStateStore {
     }
 
     /// 用于跨进程回调持有闭包
-    private final class ObserverBox {
-        var handler: () -> Void
-        init(_ handler: @escaping () -> Void) { self.handler = handler }
+    /// 用 NSLock 保护 handler 的读写，确保从 Darwin callback（任意线程）读取时数据安全
+    /// NSLock is Sendable in Swift 6; lock protects all mutable state so the class is thread-safe
+    private final class ObserverBox: Sendable {
+        private let lock = NSLock()
+        private var _handler: () -> Void
+        var handler: () -> Void {
+            lock.lock()
+            defer { lock.unlock() }
+            return _handler
+        }
+        init(_ handler: @escaping () -> Void) { self._handler = handler }
         func updateHandler(_ handler: @escaping () -> Void) {
-            self.handler = handler
+            lock.lock()
+            defer { lock.unlock() }
+            self._handler = handler
         }
     }
 }
