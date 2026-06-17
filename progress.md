@@ -54,6 +54,9 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-18 | `SharedStateStore.isChatObserverRegistered` 竞态条件：Darwin 回调与主线程并发访问 | 已修复，合入 `36445b0` |
+| 2026-06-18 | `HealthStore` / `HealthKitService` 删除未使用 `import Combine`（死代码） | 已修复，合入 `1e9c033` |
+| 2026-06-18 | `WidgetGalleryView` 删除未使用 `import WidgetKit`（死代码） | 已修复，合入 `1da3c7c` |
 | 2026-06-18 | `SleepParser.parseChineseNumber` 3 处 `s.first!`/`s.last!` force unwrap → `let` 安全解包 | 已修复，合入 `25c70f2` |
 | 2026-06-18 | `TopicExtractor` "消化系统"关键词数组删除重复 "午饭" | 已修复，合入 `3632a53` |
 | 2026-06-18 | `MorningReportTrigger` 删除未使用 `import Combine`（死代码） | 已修复，合入 `8070d85` |

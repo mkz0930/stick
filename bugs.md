@@ -3,6 +3,9 @@
 
 | 日期 | 摘要 | 根因 | 修复 |
 |---|---|---|---|
+| 2026-06-18 | `SharedStateStore.isChatObserverRegistered` 静态布尔值并发竞态：Darwin notify callback 在任意线程读取，主线程写入 | `nonisolated(unsafe)` 静态变量无锁保护 | 添加 `NSLock`（`observerRegisteredLock`）保护 check-and-set 合入 `36445b0` |
+| 2026-06-18 | `HealthStore` / `HealthKitService` 导入了 `Combine` 但未使用任何 Combine 类型 | 死 import 增加编译时间 | 删除未使用 import，合入 `1da3c7c` |
+| 2026-06-18 | `WidgetGalleryView` 导入了 `WidgetKit` 但未使用任何 WidgetKit 类型 | 死 import 增加编译时间 | 删除未使用 import，合入 `1e9c033` |
 | 2026-06-18 | `ChatOverlay` 3 处 `try! NSRegularExpression` 强制 try，正则初始化失败会直接 crash | `try!` 无降级处理 | 改为 `try?` + nil 检查，失败时跳过该处理步骤，合入 `c79eb90` |
 | 2026-06-18 | `LLMService.sendMessageStreamWithSearch` 中 `fullText`/`collectedData` 累积但从未读取 | 流式处理代码冗余累加 | 删除未使用变量，合并嵌套结构，合入 `ce40f52` |
 | 2026-06-18 | `HealthKitService.captureSnapshot()` async 函数在后台线程执行 `self.lastSnapshot` 和 `self.lastMovementTime` 赋值，可能导致 SwiftUI 视图更新在错误线程触发 | async 函数可能在后台线程执行，`@Published` 属性赋值非线程安全 | 用 `Task { @MainActor in }` 包装赋值操作，合入 `ad321d4` |
