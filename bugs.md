@@ -3,6 +3,7 @@
 
 | 日期 | 摘要 | 根因 | 修复 |
 |---|---|---|---|
+| 2026-06-18 | `analyzeYesterdayHeartRateZones` 2 处 `calendar.date(byAdding:)!` force unwrap | `calendar.date` 可能返回 nil | 改为 `guard let` + `return nil`，合入 `ff9b9a3` |
 | 2026-06-18 | `HealthKitService`/`HealthTrendAnalyzer`/`MorningReportStore` 9 处 `calendar.date(byAdding:...)!` force unwrap | `calendar.date` 在极端情况可能返回 nil | 改为 `guard let` + 优雅降级（return nil/0/[]），合入 `646e147` |
 | 2026-06-18 | `ContentView` 同时有 `@StateObject var hk` 和 `@ObservedObject var hkService = .shared`，两套观察同一单例，浪费资源且语义混乱 | 同一单例被两个属性观察 | 删除冗余的 `hkService` 属性，统一使用 `hk`，合入 `112833f` |
 | 2026-06-18 | `HealthKitService.guessWakeUpTime()` 3 处 `calendar.date()!` force unwrap，若日期计算失败会直接 crash | `calendar.date()` 在极端边界情况可能返回 nil | 改为 `guard let` + `return nil`，失败时优雅降级，合入 `e989091` |
