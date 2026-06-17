@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-17 | FeatureRow alerts 展开/收起缺显式动画，列表切换跳变 | 已修复，合入 `b3d7594` |
 | 2026-06-17 | `StickRiskAlertWidgetView.swift` 重复 `// MARK: - Preview` 注释 | 已修复，合入 `0f24fea` |
 | 2026-06-17 | App Group ID 文档错误（CLAUDE.md 写 `group.com.example.stick`，代码用 `group.com.stick.app.h`） | 已修复，合入 `f7ab5b8` |
 | 2026-06-17 | Widget 背景色硬编码暖白色 | 已修复，合入 `2b40acf` |
