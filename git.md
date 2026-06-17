@@ -7,6 +7,7 @@
 ## 主题索引
 
 ### 2026-06-17 · 闪退修复
+- `d6442b1` fix(healthkit): 跨午夜 Range 崩溃 + Modifying state during view update 警告
 - `2030e21` fix: prevent use-after-free in SharedStateStore.observePendingChatSeed
 - `7feebe4` merge: 修复 observePendingChatSeed 重复注册导致 use-after-free 闪退
 
