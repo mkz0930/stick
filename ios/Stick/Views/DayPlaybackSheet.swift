@@ -18,9 +18,9 @@ struct DayPlaybackSheet: View {
 
     private var progress: Double { min(elapsed / duration, 1) }
 
-    /// 模拟当天分钟数 (0..1440)
+    /// 模拟当天分钟数 (0..1439)。1440 clamp 到 1439 保证最后一段（22:00–24:00, endMinute=1440）能正确匹配。
     private var simulatedMinute: Int {
-        Int(progress * 1440)
+        min(Int(progress * 1440), 1439)
     }
 
     private var displayState: StickState {
