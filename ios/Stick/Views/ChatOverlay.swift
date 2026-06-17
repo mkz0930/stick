@@ -453,8 +453,8 @@ struct ChatOverlay: View {
                                 }
                             }
                         }
-                        .onChange(of: messages.last?.content) { _ in
-                            // 流式输出过程中，每个 chunk 到来时都实时滚到底部
+                        .onChange(of: messages.last?.id) { _, _ in
+                            // 新消息追加时（流式首 chunk + 非流式新消息）→ 滚到底部
                             guard self.isStreaming, let last = messages.last else { return }
                             let anchor: UnitPoint = .bottom
                             DispatchQueue.main.async {
@@ -463,7 +463,7 @@ struct ChatOverlay: View {
                                 }
                             }
                         }
-                        .onChange(of: pendingScrollId) { newId in
+                        .onChange(of: pendingScrollId) { _, newId in
                             guard let id = newId else { return }
                             let anchor: UnitPoint = self.scrollToBottom ? .bottom : .top
                             DispatchQueue.main.async {
@@ -473,7 +473,7 @@ struct ChatOverlay: View {
                             }
                             self.pendingScrollId = nil
                         }
-                        .onChange(of: scrollToStreamingTrigger) { _ in
+                        .onChange(of: scrollToStreamingTrigger) {
                             // 始终滚到「正在加载」指示器，让动效可见
                             DispatchQueue.main.async {
                                 withAnimation(.easeOut(duration: 0.25)) {
@@ -1086,7 +1086,7 @@ struct ChatOverlay: View {
         var lastFlush = Date()
         var fullText = ""
 
-        let flushBuffer: @Sendable () async -> Void = {
+        let flushBuffer: () async -> Void = {
             guard !buffer.isEmpty else { return }
             let toFlush = buffer
             buffer = ""
@@ -1131,7 +1131,7 @@ struct ChatOverlay: View {
         var lastFlush = Date()
         var collected: [SearchResult] = []
 
-        let flushBuffer: @Sendable () async -> Void = {
+        let flushBuffer: () async -> Void = {
             guard !buffer.isEmpty else { return }
             let toFlush = buffer
             buffer = ""
@@ -1219,7 +1219,7 @@ struct ChatOverlay: View {
                 var buffer = ""
                 var lastFlush = Date()
 
-                let flushBuffer: @Sendable () async -> Void = {
+                let flushBuffer: () async -> Void = {
                     guard !buffer.isEmpty else { return }
                     let toFlush = buffer
                     buffer = ""
