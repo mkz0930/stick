@@ -40,10 +40,10 @@ struct DayTimelineView: View, Equatable {
     private let thumbAlpha: Double = 0.92      // 圆环半透明
 
     // 步行段视觉强化（竖向方框 — 时长比例）
-    private let walkBoxMinHeight: CGFloat = 18     // 最短步行固定最小高度（保证可见）
+    private let walkBoxMinHeight: CGFloat = 20     // 最短步行固定最小高度（保证可见）
     private let walkBoxMaxHeight: CGFloat = 80     // >30min 步行 = 80pt 上限
-    private let walkBoxWidth: CGFloat = 34         // 方框宽度（略宽，更醒目）
-    private let walkBoxBorderWidth: CGFloat = 2.5  // 方框描边（更明显）
+    private let walkBoxWidth: CGFloat = 38         // 方框宽度（略宽，更醒目）
+    private let walkBoxBorderWidth: CGFloat = 3.0  // 方框描边（更明显）
     private let walkLabelMinDuration: Int = 5       // ≥5min 才显示时刻标签
     private let walkMergeGapMinutes: Int = 3       // 间隔 ≤3min 的碎步行合并
     private let walkMinVisibleDuration: Int = 1      // ≥1min 的步行都显示（短步行用小框）
@@ -112,8 +112,10 @@ struct DayTimelineView: View, Equatable {
         now.addingTimeInterval(-Double(displayOffset) * 60)
     }
 
+    /// 稳定显示分钟（只在 stableNowMinute 变化时更新，拖动期间冻结）
+    /// 这样时间线轴的视觉位置完全稳定，不会因 now 每秒跳动而跳变
     private var displayMinute: Int {
-        StickState.minutesOfDay(displayDate)
+        (stableNowMinute - displayOffset + Int(dayMinutes)) % Int(dayMinutes)
     }
 
     /// 时间线高亮的目标 segment。优先级：
@@ -169,8 +171,8 @@ struct DayTimelineView: View, Equatable {
                     .contentTransition(.numericText())
                     .animation(.easeInOut(duration: 0.2), value: seg.startMinute)
             }
-            // 竖线下方：短时间灰色显示
-            Text(formatClockOnly(displayDate))
+            // 竖线下方：短时间灰色显示（使用 displayMinute 而非 displayDate，保证拖动期间稳定不跳）
+            Text(StickState.formatMinute(displayMinute))
                 .font(.system(size: 15, weight: .semibold, design: .monospaced))
                 .tracking(0.4)
                 .foregroundColor(Theme.slate.opacity(0.55))
@@ -178,7 +180,7 @@ struct DayTimelineView: View, Equatable {
                 .lineLimit(1)
                 .fixedSize()
                 .contentTransition(.numericText())
-                .animation(.easeInOut(duration: 0.2), value: displayDate)
+                .animation(.easeInOut(duration: 0.2), value: displayMinute)
         }
         .animation(.easeInOut(duration: 0.25), value: isScrubbing)
         .animation(.easeInOut(duration: 0.4), value: hasInteracted)
@@ -418,11 +420,11 @@ struct DayTimelineView: View, Equatable {
             + (walkBoxMaxHeight - walkBoxMinHeight)
             * CGFloat(min(seg.duration, 60)) / 60.0
 
-        // 步数比例：控制填充透明度（少步=淡，多步=深），最低 0.18 保证短步行也可见
+        // 步数比例：控制填充透明度（少步=淡，多步=深），最低 0.35 保证短步行也可见
         let stepCount = seg.stepCount ?? 1000
-        let stepRatio = min(1.0, max(0.18, Double(stepCount) / 2000.0))
-        let fillOpacity = 0.28 * stepRatio
-        let borderOpacity = 0.78 * stepRatio
+        let stepRatio = min(1.0, max(0.35, Double(stepCount) / 2000.0))
+        let fillOpacity = 0.45 * stepRatio
+        let borderOpacity = 0.90 * stepRatio
 
         let showLabel = seg.duration >= walkLabelMinDuration
 
@@ -441,7 +443,7 @@ struct DayTimelineView: View, Equatable {
             if seg.stepCount != nil && seg.stepCount! > 0 {
                 Text("\(seg.stepCount!)")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundColor(accent.opacity(0.5 + 0.4 * stepRatio))
+                    .foregroundColor(accent.opacity(0.65 + 0.3 * stepRatio))
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
             }
