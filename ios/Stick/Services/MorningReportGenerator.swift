@@ -16,7 +16,8 @@ func parseLLMResponse(_ text: String) -> LLMReportResponse? {
           let end = text.lastIndex(of: "}"),
           start < end else { return nil }
     let jsonStr = String(text[start...end])
-    return try? JSONDecoder().decode(LLMReportResponse.self, from: jsonStr.data(using: .utf8)!)
+    guard let data = jsonStr.data(using: .utf8) else { return nil }
+    return try? JSONDecoder().decode(LLMReportResponse.self, from: data)
 }
 
 // MARK: - 生成器
