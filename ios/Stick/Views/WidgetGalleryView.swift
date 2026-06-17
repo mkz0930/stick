@@ -1,5 +1,4 @@
 import SwiftUI
-import WidgetKit
 
 // MARK: - Widget Gallery
 // 调试用：在主 app 内直接渲染 widget 视图的 mock，验证视觉设计。
