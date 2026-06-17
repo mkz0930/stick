@@ -89,7 +89,7 @@ enum SleepParser {
                         // 晚上语境：bed = 昨天
                         bedTime = bed.addingTimeInterval(-24 * 3600)
                     }
-                    durationMin = Int(wake.timeIntervalSince(bedTime!) / 60)
+                    durationMin = Int(wake.timeIntervalSince(bed) / 60)
                 }
             }
         }
