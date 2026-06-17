@@ -159,15 +159,13 @@ final class HealthAnalyzer {
 
     private func detectSleep(_ snaps: [HealthSnapshot]) -> [HealthInsight] {
         let sleeps = snaps.filter { $0.bodyState == "sleep" }
-        guard !sleeps.isEmpty else { return [] }
-        let start = sleeps.first!.timestamp
-        let end = sleeps.last!.timestamp
-        let mins = Int(end.timeIntervalSince(start) / 60)
+        guard let first = sleeps.first, let last = sleeps.last else { return [] }
+        let mins = Int(last.timestamp.timeIntervalSince(first.timestamp) / 60)
         if mins > 60 {
             return [HealthInsight(
                 kind: .sleepWindow, severity: .info,
                 title: "睡眠窗口", detail: "记录到的睡眠时长",
-                timestampRange: "\(hhmm(start))–\(hhmm(end))",
+                timestampRange: "\(hhmm(first.timestamp))–\(hhmm(last.timestamp))",
                 numericValue: "\(mins / 60)h \(mins % 60)m"
             )]
         }
@@ -192,10 +190,8 @@ final class HealthAnalyzer {
     private func detectSleepAbnormality(_ snaps: [HealthSnapshot]) -> [HealthInsight] {
         // 跨日窗口取睡眠（覆盖昨晚 22:00 入睡 → 今天 07:00 起床的完整段）
         let sleeps = lastNightSleeps
-        guard !sleeps.isEmpty else { return [] }
-        let start = sleeps.first!.timestamp
-        let end = sleeps.last!.timestamp
-        let mins = max(1, Int(end.timeIntervalSince(start) / 60))
+        guard let first = sleeps.first, let last = sleeps.last else { return [] }
+        let mins = max(1, Int(last.timestamp.timeIntervalSince(first.timestamp) / 60))
         let hours = Double(mins) / 60.0
 
         if hours < 6.0 {
@@ -203,7 +199,7 @@ final class HealthAnalyzer {
                 kind: .sleepWindow, severity: .alert,
                 title: "睡眠严重不足",
                 detail: String(format: "参考 7-9h，仅睡 %.1fh，建议立即补觉", hours),
-                timestampRange: "\(hhmm(start))–\(hhmm(end))",
+                timestampRange: "\(hhmm(first.timestamp))–\(hhmm(last.timestamp))",
                 numericValue: String(format: "%.1fh", hours)
             )]
         }
