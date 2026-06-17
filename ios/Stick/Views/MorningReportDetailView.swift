@@ -10,6 +10,9 @@ struct MorningReportDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var adviceTab: Int = 0
     @State private var detailExpanded: Bool = false
+    /// 反馈时需要写回字段（let report 不可改），用 @State 镜像
+    @State private var feedback: Int?
+    @State private var feedbackDate: Date?
 
     var body: some View {
         ScrollView {
@@ -30,7 +33,10 @@ struct MorningReportDetailView: View {
 
                     // 睡眠分析
                     analysisCard(title: "睡眠分析", icon: "moon.fill", color: .purple) {
-                        analysisItems
+                        VStack(alignment: .leading, spacing: 0) {
+                            analysisItems
+                            sleepFeedbackSection
+                        }
                     }
 
                     // 久坐分析
@@ -135,10 +141,134 @@ struct MorningReportDetailView: View {
         VStack(spacing: 0) {
             analysisRow("睡眠时长", "\(report.sleepMinutes / 60)h\(report.sleepMinutes % 60)m")
             analysisRow("睡眠质量", report.sleepQuality, color: .orange)
-            analysisRow("入睡时间", "00:00")
-            analysisRow("起床时间", minuteToTimeString(report.wakeUpMinute))
+            analysisRow("入睡时间", bedtimeDisplay)
+            analysisRow("起床时间", wakeUpDisplay)
             analysisRow("步态评分", "\(report.gaitScore)/100")
         }
+    }
+
+    /// 入睡时间展示：有 HealthKit 数据优先用，否则用推测的 wakeUpMinute 反推
+    private var bedtimeDisplay: String {
+        if let bed = report.healthkitBedtime {
+            return minuteToTimeString(bed)
+        }
+        return "未记录"
+    }
+
+    /// 起床时间展示：有 HealthKit 数据优先用，否则用推测值
+    private var wakeUpDisplay: String {
+        if let wake = report.healthkitWakeUpMinute {
+            return minuteToTimeString(wake)
+        }
+        return minuteToTimeString(report.wakeUpMinute)
+    }
+
+    /// 睡眠时长准确度反馈区块
+    private var sleepFeedbackSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("💡 睡眠时间根据活动推测，可能与 HealthKit 实际睡眠有差异")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+                .padding(.top, 4)
+
+            if let fb = feedback {
+                feedbackRecordedView(accurate: fb == 1)
+            } else {
+                feedbackButtonsRow
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    private var feedbackButtonsRow: some View {
+        HStack(spacing: 8) {
+            sleepFeedbackButton(title: "准确", isAccurate: true)
+            sleepFeedbackButton(title: "不准确", isAccurate: false)
+        }
+    }
+
+    private func sleepFeedbackButton(title: String, isAccurate: Bool) -> some View {
+        Button {
+            submitFeedback(accurate: isAccurate)
+        } label: {
+            Text(title)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(isAccurate ? .white : .primary)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(isAccurate ? Color.green : Color(uiColor: .tertiarySystemBackground))
+                .cornerRadius(8)
+        }
+        .buttonStyle(FeedbackButtonStyle())
+    }
+
+    private func feedbackRecordedView(accurate: Bool) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 14))
+                .foregroundColor(.green)
+            Text(feedbackRecordText(accurate: accurate))
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private func feedbackRecordText(accurate: Bool) -> String {
+        let label = accurate ? "准确" : "不准确"
+        let dateStr = feedbackDate.map { feedbackDateTimeFormatter.string(from: $0) } ?? ""
+        return "已记录：\(label) · \(dateStr)"
+    }
+
+    private func submitFeedback(accurate: Bool) {
+        let now = Date()
+        feedback = accurate ? 1 : 0
+        feedbackDate = now
+        // 持久化：写回 report 的反馈字段并保存
+        let updated = MorningReport(
+            id: report.id,
+            date: report.date,
+            generatedAt: report.generatedAt,
+            sleepMinutes: report.sleepMinutes,
+            sleepQuality: report.sleepQuality,
+            sleepMidnightWake: report.sleepMidnightWake,
+            walkMinutes: report.walkMinutes,
+            steps: report.steps,
+            avgSpeed: report.avgSpeed,
+            doubleSupport: report.doubleSupport,
+            sedentaryMinutes: report.sedentaryMinutes,
+            longestSedentaryMin: report.longestSedentaryMin,
+            longestSedentaryRange: report.longestSedentaryRange,
+            wakeUpMinute: report.wakeUpMinute,
+            gaitScore: report.gaitScore,
+            fatigueIndex: report.fatigueIndex,
+            doubleSupportZScore: report.doubleSupportZScore,
+            isDoubleSupportAnomaly: report.isDoubleSupportAnomaly,
+            avgHeartRate: report.avgHeartRate,
+            maxHeartRate: report.maxHeartRate,
+            heartRateZoneAnalysis: report.heartRateZoneAnalysis,
+            recoveryScore: report.recoveryScore,
+            healthkitBedtime: report.healthkitBedtime,
+            healthkitWakeUpMinute: report.healthkitWakeUpMinute,
+            lastWalkBeforeBed: report.lastWalkBeforeBed,
+            breakfastCalories: report.breakfastCalories,
+            lunchCalories: report.lunchCalories,
+            dinnerCalories: report.dinnerCalories,
+            totalCalories: report.totalCalories,
+            mealCount: report.mealCount,
+            llmSummary: report.llmSummary,
+            llmScore: report.llmScore,
+            llmShortAdvice: report.llmShortAdvice,
+            llmLongAdvice: report.llmLongAdvice,
+            llmDetail: report.llmDetail,
+            notified: report.notified,
+            sleepAccuracyFeedback: feedback,
+            sleepFeedbackDate: feedbackDate
+        )
+        MorningReportStore.shared.save(updated)
+        UserProfileStore.shared.recordSleepAccuracy(accurate: accurate, date: now)
+    }
+
+    private var feedbackDateTimeFormatter: DateFormatter {
+        FeedbackDateTimeFormatter.shared
     }
 
     private var sedentaryItems: some View {
@@ -449,6 +579,24 @@ private func analysisCard<Content: View>(title: String, icon: String, color: Col
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(Color(uiColor: .secondarySystemBackground))
     .cornerRadius(12)
+}
+
+/// DateFormatter 单例：避免每帧重建
+private enum FeedbackDateTimeFormatter {
+    static let shared: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        return f
+    }()
+}
+
+/// 反馈按钮按下时的 scaleEffect 反馈
+private struct FeedbackButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: configuration.isPressed)
+    }
 }
 
 /// 简化24h时间条（用于报告页展示）

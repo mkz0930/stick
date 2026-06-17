@@ -144,6 +144,20 @@ final class MorningReportGenerator {
         let response = try await LLMService.sendMessage(userPrompt, context: systemPrompt)
         let llmData = parseLLMResponse(response)
 
+        // 9.5 优化 v1: 检查近期睡眠准确度反馈。同一日期最多触发一次，避免污染 profile。
+        let feedbackSummary = SleepFeedbackStats.recentSummary(days: 7)
+        let todayKey = Self.dateFormatter.string(from: date)
+        let lastHintKey = "stick.sleep.calibrationHint.lastDate.v1"
+        let lastHintDate = UserDefaults.standard.string(forKey: lastHintKey) ?? ""
+        if feedbackSummary.totalCount >= 4
+            && feedbackSummary.inaccuracyRate > 0.5
+            && lastHintDate != todayKey {
+            UserProfileStore.shared.recordCalibrationHint(
+                "睡眠检测近期准确度低（近 7 天 \(feedbackSummary.inaccurateCount)/\(feedbackSummary.totalCount) 天不准确），需要校准"
+            )
+            UserDefaults.standard.set(todayKey, forKey: lastHintKey)
+        }
+
         // 10. 构建报告（心率数据暂无可用来源，传 nil/0）
         return MorningReport(
             id: UUID(),

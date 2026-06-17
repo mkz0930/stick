@@ -56,6 +56,7 @@
 		B299000000000000000000A1F /* Services/MorningReportGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F299000000000000000000A1F /* MorningReportGenerator.swift */; };
 		B299000000000000000000A20 /* Services/MorningReportTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F299000000000000000000A20 /* MorningReportTrigger.swift */; };
 		B299000000000000000000A21 /* Services/NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F299000000000000000000A21 /* NotificationService.swift */; };
+		B299000000000000000000A22 /* Services/SleepFeedbackStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = F299000000000000000000A22 /* SleepFeedbackStats.swift */; };
 		B10000000000000000000027 /* Views/MorningReportTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000027 /* MorningReportTab.swift */; };
 		B10000000000000000000028 /* Views/MorningReportDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000028 /* MorningReportDetailView.swift */; };
 		B10000000000000000000029 /* Views/TrendDataPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000029 /* TrendDataPage.swift */; };
@@ -147,6 +148,7 @@
 		F299000000000000000000A1F /* MorningReportGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningReportGenerator.swift; sourceTree = "<group>"; };
 		F299000000000000000000A20 /* MorningReportTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningReportTrigger.swift; sourceTree = "<group>"; };
 		F299000000000000000000A21 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		F299000000000000000000A22 /* SleepFeedbackStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepFeedbackStats.swift; sourceTree = "<group>"; };
 		F10000000000000000000027 /* MorningReportTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningReportTab.swift; sourceTree = "<group>"; };
 		F10000000000000000000028 /* MorningReportDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningReportDetailView.swift; sourceTree = "<group>"; };
 		F10000000000000000000029 /* TrendDataPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendDataPage.swift; sourceTree = "<group>"; };
@@ -295,6 +297,7 @@
 				F299000000000000000000A1F /* MorningReportGenerator.swift */,
 				F299000000000000000000A20 /* MorningReportTrigger.swift */,
 				F299000000000000000000A21 /* NotificationService.swift */,
+				F299000000000000000000A22 /* SleepFeedbackStats.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -469,6 +472,7 @@
 				B299000000000000000000A1F /* Services/MorningReportGenerator.swift in Sources */,
 				B299000000000000000000A20 /* Services/MorningReportTrigger.swift in Sources */,
 				B299000000000000000000A21 /* Services/NotificationService.swift in Sources */,
+				B299000000000000000000A22 /* Services/SleepFeedbackStats.swift in Sources */,
 				B10000000000000000000027 /* Views/MorningReportTab.swift in Sources */,
 				B10000000000000000000028 /* Views/MorningReportDetailView.swift in Sources */,
 				B10000000000000000000029 /* Views/TrendDataPage.swift in Sources */,
