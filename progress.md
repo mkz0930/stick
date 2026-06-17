@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-18 | `HealthKitService.exportTodayData()` 缺少 `return`，导致"导出今日数据"永远返回 `nil` | 已修复，合入 `db34cd9` |
 | 2026-06-18 | `StateInference.swift` 19 处 `score[.X]!` force unwrap → `score[.X, default: 0]` 更安全 | 已修复，合入 `ba6e5af` |
 | 2026-06-18 | `MorningReportGenerator.parseLLMResponse` `jsonStr.data(using: .utf8)!` 强制解包，若 LLM 返回无效 UTF-8 会崩溃 | 已修复，合入 `2ec115a` |
 | 2026-06-18 | `HealthAnalyzer.lastNightSleeps` 窗口上限误用明天 noon，午睡被归入昨夜睡眠，影响睡眠时长 < 6h 判断 | 已修复，合入 `7aa0467` |

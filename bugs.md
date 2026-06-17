@@ -3,6 +3,7 @@
 
 | 日期 | 摘要 | 根因 | 修复 |
 |---|---|---|---|
+| 2026-06-18 | `HealthKitService.exportTodayData()` 函数声明 `URL?`，但内部 `await exportRecentData(days: 1)` 缺少 `return`，导致"导出今日数据"永远返回 `nil` | 缺少 `return` 语句 | 添加 `return`，合入 `db34cd9` |
 | 2026-06-18 | `StateInference.swift` 19 处 `score[.X]!` force unwrap，enum 新增状态时若忘记更新字典初始化会 crash | `score` 字典初始化虽含全部 key，但 force unwrap 模式脆弱 | 改为 `score[.X, default: 0]` 下标语法，合入 `ba6e5af` |
 | 2026-06-18 | `MorningReportGenerator.parseLLMResponse` 中 `jsonStr.data(using: .utf8)!` 强制解包，若 LLM 返回无效 UTF-8 字符会直接 crash | `data(using: .utf8)` 在字符串含非法字符时返回 nil | 改为 `guard let` 安全解包，失败优雅降级返回 nil，合入 `2ec115a` |
 | 2026-06-18 | `HealthAnalyzer.lastNightSleeps` 窗口上限用 `todayNoon.addingTimeInterval(24*3600)`（明天 noon），导致下午的午睡被归入昨夜睡眠，干扰睡眠时长 < 6h 判断 | 窗口应为 [昨天 noon, 今天 noon) 而非 [昨天 noon, 明天 noon) | 改为 `< todayNoon`，正确覆盖跨日窗口，合入 `7aa0467` |
