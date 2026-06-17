@@ -215,25 +215,20 @@ struct LLMService {
                         throw LLMError.httpError(statusCode: code)
                     }
 
-                    // 整段响应收集起来，末尾用完整 LLMResponse 解析 search_info
-                    var fullText = ""
+                    // 流式吐出 chunks
                     var gotAnyChunk = false
-                    var collectedData = Data()
                     for try await line in bytes.lines {
                         if Task.isCancelled { break }
                         guard line.hasPrefix("data: ") else { continue }
                         let jsonStr = String(line.dropFirst(6))
                         if jsonStr == "[DONE]" { break }
 
-                        if let data = jsonStr.data(using: .utf8) {
-                            collectedData.append(data)
-                            if let chunk = try? JSONDecoder().decode(StreamResponse.self, from: data),
-                               let content = chunk.choices.first?.delta.content,
-                               !content.isEmpty {
-                                gotAnyChunk = true
-                                fullText += content
-                                continuation.yield(content)
-                            }
+                        if let data = jsonStr.data(using: .utf8),
+                           let chunk = try? JSONDecoder().decode(StreamResponse.self, from: data),
+                           let content = chunk.choices.first?.delta.content,
+                           !content.isEmpty {
+                            gotAnyChunk = true
+                            continuation.yield(content)
                         }
                     }
 
@@ -270,7 +265,6 @@ struct LLMService {
                             }
                         }
                     }
-                    _ = fullText
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
