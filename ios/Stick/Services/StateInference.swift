@@ -57,6 +57,22 @@ struct StateInference {
             reasons.append("用餐时段")
         }
 
+        // === A2. 持续静止信号 (跨时段检测睡眠/休息) ===
+        // 取最近 30 条 ≈ 30 分钟，如果 90% 以上 0 步 → 强 sleep 信号
+        // 修复：白天小憩、午睡、白天长时间不活动也能被识别为 sleep
+        let longWindow = Array(snapshots.suffix(30))
+        if longWindow.count >= 20 {
+            let zeroCount = longWindow.filter { $0.incrementalStepCount == 0 }.count
+            let zeroRatio = Double(zeroCount) / Double(longWindow.count)
+            if zeroRatio >= 0.9 {
+                score[.sleep]! += 2.5
+                reasons.append("持续 \(zeroCount)/\(longWindow.count) 分钟 0 步")
+            } else if zeroRatio >= 0.7 {
+                score[.sleep]! += 1.0
+                reasons.append("长时间低活动 (\(Int(zeroRatio * 100))% 0 步)")
+            }
+        }
+
         // === B. 步数信号 (强信号) ===
         if recentSteps > 30 {
             score[.walk]! += 3.0
