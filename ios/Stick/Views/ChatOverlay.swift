@@ -175,6 +175,21 @@ struct ChatOverlay: View {
             inputBar
         }
         .background(Theme.card)
+        .sheet(isPresented: $showHistoryPopover) {
+            HistoryPopoverContentView(
+                historyMessages: history.loadedMessages,
+                accent: state.accent,
+                onMessageSelected: { msgId in
+                    scrollToBottom = false
+                    pendingScrollId = msgId
+                },
+                onDismiss: {
+                    showHistoryPopover = false
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
         // 点 cardContent 任意空白处 → 收键盘（TextField / Button / 内层 ScrollView 的手势优先，会先吃掉它们的 tap）
         .onTapGesture {
             inputFocused = false
@@ -332,375 +347,37 @@ struct ChatOverlay: View {
     // MARK: - Header（紧凑版）
 
     private var header: some View {
-        HStack(spacing: 8) {
-            // brand mark
-            ZStack {
-                Circle()
-                    .stroke(Theme.navy, lineWidth: 1.6)
-                    .frame(width: 20, height: 20)
-                Rectangle().fill(Theme.navy).frame(width: 8, height: 1.4)
-                Rectangle().fill(Theme.navy).frame(width: 1.4, height: 8)
-            }
-
-            Text("ATLAS · 健康助手")
-                .font(.system(size: 15, weight: .black))
-                .tracking(0.08)
-                .foregroundColor(Theme.navy)
-
-            Spacer()
-
-            // 关闭
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Theme.navy)
-                    .frame(width: 44, height: 44)
-                    .background(
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Theme.bgTop)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 2)
-                            .stroke(Theme.border, lineWidth: 1)
-                    )
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        ChatHeaderView(onClose: onClose)
     }
 
     // MARK: - 消息区（空状态 + 流式列表）
 
-    @ViewBuilder
     private var messageArea: some View {
-        ScrollViewReader { proxy in
-            VStack(alignment: .leading, spacing: 14) {
-                // 1) 对话记录 (从 ChatHistoryStore 拉最近 3 条 user 问题) — 一直显示在顶部
-                if !history.loadedMessages.isEmpty {
-                    historySection
-                }
-
-                // 2) 推荐问题 (空状态时) 或 当前对话 (有消息时)
-                if messages.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("SUGGESTED")
-                            .font(.system(size: 12, weight: .heavy, design: .monospaced))
-                            .tracking(2)
-                            .foregroundColor(Theme.slate)
-
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(suggestedQuestions, id: \.self) { q in
-                                    Button {
-                                        input = q
-                                        send()
-                                    } label: {
-                                        Text(q)
-                                            .font(.system(size: 15, weight: .medium))
-                                            .foregroundColor(Theme.navy)
-                                            .lineLimit(2)
-                                            .padding(.horizontal, 14)
-                                            .padding(.vertical, 9)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 14)
-                                                    .fill(Theme.bgTop)
-                                            )
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 14)
-                                                    .stroke(Theme.border, lineWidth: 0.5)
-                                            )
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    ScrollViewReader { msgProxy in
-                        ScrollView {
-                            LazyVStack(alignment: .leading, spacing: 10) {
-                                ForEach(messages) { msg in
-                                    MessageRow(message: msg, state: state, isStreaming: isStreaming) { suggestion in
-                                        sendDirect(suggestion)
-                                    }
-                                        .id(msg.id)
-                                }
-                                if isStreaming {
-                                    HStack(spacing: 5) {
-                                        ProgressView()
-                                            .controlSize(.small)
-                                            .tint(state.accent)
-                                        Text(searchStatus ?? "正在生成建议…")
-                                            .font(.system(size: 14, weight: .regular))
-                                            .foregroundColor(Theme.slate)
-                                    }
-                                    .padding(.leading, 4)
-                                    .id("streaming")
-                                }
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                        }
-                        .scrollDismissesKeyboard(.interactively)
-                        .onChange(of: isStreaming) { oldStreaming, streaming in
-                            // 流式输出结束后（streaming 从 true→false），自动滚到底部显示最新回复
-                            if !streaming, let last = messages.last {
-                                self.scrollToBottom = true
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                                    self.pendingScrollId = last.id
-                                }
-                            }
-                        }
-                        .onChange(of: messages.last?.id) { oldId, newId in
-                            // 新消息追加时（流式首 chunk + 非流式新消息）→ 滚到底部
-                            guard self.isStreaming, let last = messages.last else { return }
-                            let anchor: UnitPoint = .bottom
-                            DispatchQueue.main.async {
-                                withAnimation(.easeOut(duration: 0.15)) {
-                                    msgProxy.scrollTo(last.id, anchor: anchor)
-                                }
-                            }
-                        }
-                        .onChange(of: pendingScrollId) { oldId, newId in
-                            guard let id = newId else { return }
-                            let anchor: UnitPoint = self.scrollToBottom ? .bottom : .top
-                            DispatchQueue.main.async {
-                                withAnimation(.easeOut(duration: 0.35)) {
-                                    msgProxy.scrollTo(id, anchor: anchor)
-                                }
-                            }
-                            self.pendingScrollId = nil
-                        }
-                        .onChange(of: scrollToStreamingTrigger) { _, _ in
-                            // 始终滚到「正在加载」指示器，让动效可见
-                            DispatchQueue.main.async {
-                                withAnimation(.easeOut(duration: 0.25)) {
-                                    msgProxy.scrollTo("streaming", anchor: .bottom)
-                                }
-                            }
-                        }
-                        .onTapGesture {
-                            // 点击消息区 → 滚到底部 + 收键盘
-                            if let last = messages.last {
-                                self.scrollToBottom = true
-                                self.pendingScrollId = last.id
-                            }
-                            inputFocused = false
-                            // UIKit 兜底
-                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                        }
-                    }
-                }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .onTapGesture { inputFocused = false }
-    }
-
-    // MARK: - 对话记录区 (在 messageArea 空状态下, 置于 SUGGESTED 之上)
-
-    /// 最近 3 条 user 问题 (按时间倒序)
-    private var recentUserPrompts: [PersistedChatMessage] {
-        Array(
-            history.loadedMessages
-                .filter { $0.role == "user" }
-                .sorted { $0.timestamp > $1.timestamp }
-                .prefix(3)
-        )
-    }
-
-    /// 对话计数: 只算 user 消息 (每条 user = 1 个对话, 不算 assistant 回复)
-    private var userPromptCount: Int {
-        history.loadedMessages.filter { $0.role == "user" }.count
-    }
-
-    private var historySection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            // Header (可点 → 弹 popover 显示完整历史)
-            HStack(alignment: .firstTextBaseline) {
-                HStack(spacing: 5) {
-                    Image(systemName: "bubble.left.and.bubble.right.fill")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(Theme.navy)
-                    Text("对话记录")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Theme.navy)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(Theme.slate)
-                }
-                Spacer()
-                Text("共 \(userPromptCount) 条")
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    .foregroundColor(Theme.slate.opacity(0.7))
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
+        MessageAreaView(
+            historyMessages: history.loadedMessages,
+            messages: messages,
+            isStreaming: isStreaming,
+            suggestedQuestions: suggestedQuestions,
+            state: state,
+            scrollToBottom: $scrollToBottom,
+            pendingScrollId: $pendingScrollId,
+            scrollToStreamingTrigger: scrollToStreamingTrigger,
+            searchStatus: searchStatus,
+            onSend: { q in
+                input = q
+                send()
+            },
+            onSendDirect: { suggestion in
+                sendDirect(suggestion)
+            },
+            onHistorySectionTap: {
                 showHistoryPopover = true
+            },
+            onMessageSelected: { msgId in
+                scrollToBottom = false
+                pendingScrollId = msgId
             }
-            .sheet(isPresented: $showHistoryPopover) {
-                historyPopoverContent
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-            }
-
-            // 横向 chip (快速定位最近 3 条 user 问题到对话位置)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    ForEach(recentUserPrompts) { msg in
-                        Button {
-                            // 滚动定位到该消息 (不重新发送)
-                            self.scrollToBottom = false
-                            self.pendingScrollId = msg.id
-                        } label: {
-                            HStack(spacing: 5) {
-                                Circle()
-                                    .fill(historyAgeColor(msg.timestamp))
-                                    .frame(width: 5, height: 5)
-                                Text(historyPreview(msg.content))
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(Theme.navy)
-                                    .lineLimit(1)
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 8, weight: .semibold))
-                                    .foregroundColor(Theme.mist)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Theme.bgTop)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Theme.border.opacity(0.5), lineWidth: 0.5)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
-    /// 完整历史 popover (按时间倒序, 最多 50 条 — ChatHistoryStore 限制)
-    @ViewBuilder
-    private var historyPopoverContent: some View {
-        let allPrompts = history.loadedMessages
-            .filter { $0.role == "user" }
-            .sorted { $0.timestamp > $1.timestamp }
-        VStack(alignment: .leading, spacing: 0) {
-            // popover 标题
-            HStack {
-                Image(systemName: "clock.arrow.circlepath")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Theme.navy)
-                Text("历史对话 (\(allPrompts.count) 条)")
-                    .font(.system(size: 12, weight: .heavy, design: .monospaced))
-                    .tracking(0.6)
-                    .foregroundColor(Theme.navy)
-                Spacer()
-            }
-            .padding(.horizontal, 10)
-            .padding(.top, 10)
-            .padding(.bottom, 6)
-
-            Divider().background(Theme.border.opacity(0.5))
-
-            if allPrompts.isEmpty {
-                Text("暂无历史对话")
-                    .font(.system(size: 12))
-                    .foregroundColor(Theme.slate)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 16)
-            } else {
-                ScrollView {
-                    VStack(spacing: 4) {
-                        ForEach(allPrompts) { msg in
-                            historyRow(msg)
-                        }
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 6)
-                }
-                .frame(maxHeight: 280)
-            }
-        }
-        .frame(width: 280)
-        .background(Theme.bgTop)
-    }
-
-    /// popover 内单行: 完整内容 + 时间 + 恢复按钮
-    private func historyRow(_ msg: PersistedChatMessage) -> some View {
-        Button {
-            // 滚动定位到该消息 (不重新发送)
-            self.scrollToBottom = false
-            self.pendingScrollId = msg.id
-            showHistoryPopover = false
-        } label: {
-            HStack(alignment: .top, spacing: 8) {
-                Circle()
-                    .fill(historyAgeColor(msg.timestamp))
-                    .frame(width: 6, height: 6)
-                    .padding(.top, 5)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(msg.content)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Theme.navy)
-                        .lineLimit(3)
-                        .multilineTextAlignment(.leading)
-                    Text(historyTimeAgo(msg.timestamp))
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
-                        .foregroundColor(Theme.slate)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "scope")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(state.accent)
-                    .padding(.top, 1)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Theme.card)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(Theme.border.opacity(0.4), lineWidth: 0.5)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    /// "1小时前" / "3天前" 风格的时间文本
-    private func historyTimeAgo(_ t: Date) -> String {
-        let delta = -t.timeIntervalSinceNow
-        if delta < 60        { return "刚刚" }
-        if delta < 3600      { return "\(Int(delta/60)) 分钟前" }
-        if delta < 86400     { return "\(Int(delta/3600)) 小时前" }
-        if delta < 86400*7   { return "\(Int(delta/86400)) 天前" }
-        let f = DateFormatter()
-        f.dateFormat = "M月d日"
-        return f.string(from: t)
-    }
-
-    private func historyPreview(_ s: String) -> String {
-        let trimmed = s.replacingOccurrences(of: "\n", with: " ")
-        if trimmed.count <= 14 { return trimmed }
-        return String(trimmed.prefix(14)) + "..."
-    }
-
-    /// 时间年龄颜色 (跟主页版 4 档一致: 今天 蓝 / 昨天 灰 / 本周 浅 / 更早 极浅)
-    private func historyAgeColor(_ t: Date) -> Color {
-        let days = -Int(t.timeIntervalSinceNow / 86400)
-        if days <= 0 { return Color(red: 0.40, green: 0.65, blue: 0.95) }
-        if days <= 1 { return Color(red: 0.50, green: 0.50, blue: 0.55) }
-        if days <= 6 { return Color(red: 0.75, green: 0.75, blue: 0.78) }
-        return Color(red: 0.85, green: 0.85, blue: 0.88)
+        )
     }
 
     // MARK: - 输入栏
@@ -821,9 +498,22 @@ struct ChatOverlay: View {
     }
 
     private var cameraButton: some View {
+        CameraButtonView(
+            input: input,
+            onCameraTap: { currentInput in
+                textBeforeCamera = currentInput
+                showCamera = true
+            }
+        )
+    }
+
+private struct CameraButtonView: View {
+    let input: String
+    let onCameraTap: (String) -> Void
+
+    var body: some View {
         Button {
-            textBeforeCamera = input
-            showCamera = true
+            onCameraTap(input)
         } label: {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: "camera.fill")
@@ -852,8 +542,9 @@ struct ChatOverlay: View {
         }
         .buttonStyle(.plain)
     }
+}
 
-    // MARK: - 发送 / 取消
+// MARK: - 发送 / 取消
 
     private func send(imageData: Data? = nil) {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1739,6 +1430,453 @@ struct ChatOverlay: View {
         - 食物要具体（如"香蕉/牛油果/三文鱼"而不是"水果"）
         - 总字数 ≤ 350字
         """
+    }
+}
+
+// MARK: - Extracted Views
+
+private struct ChatHeaderView: View {
+    let onClose: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .stroke(Theme.navy, lineWidth: 1.6)
+                    .frame(width: 20, height: 20)
+                Rectangle().fill(Theme.navy).frame(width: 8, height: 1.4)
+                Rectangle().fill(Theme.navy).frame(width: 1.4, height: 8)
+            }
+
+            Text("ATLAS · 健康助手")
+                .font(.system(size: 15, weight: .black))
+                .tracking(0.08)
+                .foregroundColor(Theme.navy)
+
+            Spacer()
+
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(Theme.navy)
+                    .frame(width: 44, height: 44)
+                    .background(
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Theme.bgTop)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 2)
+                            .stroke(Theme.border, lineWidth: 1)
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+}
+
+private struct MessageAreaView: View {
+    let historyMessages: [PersistedChatMessage]
+    let messages: [ChatMessage]
+    let isStreaming: Bool
+    let suggestedQuestions: [String]
+    let state: StickState
+    @Binding var scrollToBottom: Bool
+    @Binding var pendingScrollId: UUID?
+    let scrollToStreamingTrigger: Int
+    let searchStatus: String?
+    let onSend: (String) -> Void
+    let onSendDirect: (String) -> Void
+    let onHistorySectionTap: () -> Void
+    let onMessageSelected: (UUID) -> Void
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            VStack(alignment: .leading, spacing: 14) {
+                // 1) 对话记录 (从 ChatHistoryStore 拉最近 3 条 user 问题) — 一直显示在顶部
+                if !historyMessages.isEmpty {
+                    HistorySectionView(
+                        historyMessages: historyMessages,
+                        accent: state.accent,
+                        onHeaderTap: onHistorySectionTap,
+                        onMessageSelected: onMessageSelected
+                    )
+                }
+
+                // 2) 推荐问题 (空状态时) 或 当前对话 (有消息时)
+                if messages.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("SUGGESTED")
+                            .font(.system(size: 12, weight: .heavy, design: .monospaced))
+                            .tracking(2)
+                            .foregroundColor(Theme.slate)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(suggestedQuestions, id: \.self) { q in
+                                    Button {
+                                        onSend(q)
+                                    } label: {
+                                        Text(q)
+                                            .font(.system(size: 15, weight: .medium))
+                                            .foregroundColor(Theme.navy)
+                                            .lineLimit(2)
+                                            .padding(.horizontal, 14)
+                                            .padding(.vertical, 9)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 14)
+                                                    .fill(Theme.bgTop)
+                                            )
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 14)
+                                                    .stroke(Theme.border, lineWidth: 0.5)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    ScrollViewReader { msgProxy in
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 10) {
+                                ForEach(messages) { msg in
+                                    MessageRow(message: msg, state: state, isStreaming: isStreaming) { suggestion in
+                                        onSendDirect(suggestion)
+                                    }
+                                        .id(msg.id)
+                                }
+                                if isStreaming {
+                                    HStack(spacing: 5) {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                            .tint(state.accent)
+                                        Text(searchStatus ?? "正在生成建议…")
+                                            .font(.system(size: 14, weight: .regular))
+                                            .foregroundColor(Theme.slate)
+                                    }
+                                    .padding(.leading, 4)
+                                    .id("streaming")
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                        }
+                        .scrollDismissesKeyboard(.interactively)
+                        .onChange(of: isStreaming) { oldStreaming, streaming in
+                            // 流式输出结束后（streaming 从 true→false），自动滚到底部显示最新回复
+                            if !streaming, let last = messages.last {
+                                self.scrollToBottom = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                    self.pendingScrollId = last.id
+                                }
+                            }
+                        }
+                        .onChange(of: messages.last?.id) { oldId, newId in
+                            // 新消息追加时（流式首 chunk + 非流式新消息）→ 滚到底部
+                            guard self.isStreaming, let last = messages.last else { return }
+                            let anchor: UnitPoint = .bottom
+                            DispatchQueue.main.async {
+                                withAnimation(.easeOut(duration: 0.15)) {
+                                    msgProxy.scrollTo(last.id, anchor: anchor)
+                                }
+                            }
+                        }
+                        .onChange(of: pendingScrollId) { oldId, newId in
+                            guard let id = newId else { return }
+                            let anchor: UnitPoint = self.scrollToBottom ? .bottom : .top
+                            DispatchQueue.main.async {
+                                withAnimation(.easeOut(duration: 0.35)) {
+                                    msgProxy.scrollTo(id, anchor: anchor)
+                                }
+                            }
+                            self.pendingScrollId = nil
+                        }
+                        .onChange(of: scrollToStreamingTrigger) { _, _ in
+                            // 始终滚到「正在加载」指示器，让动效可见
+                            DispatchQueue.main.async {
+                                withAnimation(.easeOut(duration: 0.25)) {
+                                    msgProxy.scrollTo("streaming", anchor: .bottom)
+                                }
+                            }
+                        }
+                        .onTapGesture {
+                            // 点击消息区 → 滚到底部 + 收键盘
+                            if let last = messages.last {
+                                self.scrollToBottom = true
+                                self.pendingScrollId = last.id
+                            }
+                            // UIKit 兜底
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+    }
+}
+
+private struct HistorySectionView: View {
+    let historyMessages: [PersistedChatMessage]
+    let accent: Color
+    let onHeaderTap: () -> Void
+    let onMessageSelected: (UUID) -> Void
+
+    /// 最近 3 条 user 问题 (按时间倒序)
+    private var recentUserPrompts: [PersistedChatMessage] {
+        Array(
+            historyMessages
+                .filter { $0.role == "user" }
+                .sorted { $0.timestamp > $1.timestamp }
+                .prefix(3)
+        )
+    }
+
+    /// 对话计数: 只算 user 消息 (每条 user = 1 个对话, 不算 assistant 回复)
+    private var userPromptCount: Int {
+        historyMessages.filter { $0.role == "user" }.count
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Header (可点 → 弹 popover 显示完整历史)
+            HStack(alignment: .firstTextBaseline) {
+                HStack(spacing: 5) {
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Theme.navy)
+                    Text("对话记录")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Theme.navy)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(Theme.slate)
+                }
+                Spacer()
+                Text("共 \(userPromptCount) 条")
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundColor(Theme.slate.opacity(0.7))
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onHeaderTap()
+            }
+
+            // 横向 chip (快速定位最近 3 条 user 问题到对话位置)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(recentUserPrompts) { msg in
+                        Button {
+                            onMessageSelected(msg.id)
+                        } label: {
+                            HStack(spacing: 5) {
+                                Circle()
+                                    .fill(historyAgeColor(msg.timestamp))
+                                    .frame(width: 5, height: 5)
+                                Text(historyPreview(msg.content))
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(Theme.navy)
+                                    .lineLimit(1)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 8, weight: .semibold))
+                                    .foregroundColor(Theme.mist)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Theme.bgTop)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Theme.border.opacity(0.5), lineWidth: 0.5)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    /// "1小时前" / "3天前" 风格的时间文本
+    private func historyTimeAgo(_ t: Date) -> String {
+        let delta = -t.timeIntervalSinceNow
+        if delta < 60        { return "刚刚" }
+        if delta < 3600      { return "\(Int(delta/60)) 分钟前" }
+        if delta < 86400     { return "\(Int(delta/3600)) 小时前" }
+        if delta < 86400*7   { return "\(Int(delta/86400)) 天前" }
+        let f = DateFormatter()
+        f.dateFormat = "M月d日"
+        return f.string(from: t)
+    }
+
+    private func historyPreview(_ s: String) -> String {
+        let trimmed = s.replacingOccurrences(of: "\n", with: " ")
+        if trimmed.count <= 14 { return trimmed }
+        return String(trimmed.prefix(14)) + "..."
+    }
+
+    /// 时间年龄颜色 (跟主页版 4 档一致: 今天 蓝 / 昨天 灰 / 本周 浅 / 更早 极浅)
+    private func historyAgeColor(_ t: Date) -> Color {
+        let days = -Int(t.timeIntervalSinceNow / 86400)
+        if days <= 0 { return Color(red: 0.40, green: 0.65, blue: 0.95) }
+        if days <= 1 { return Color(red: 0.50, green: 0.50, blue: 0.55) }
+        if days <= 6 { return Color(red: 0.75, green: 0.75, blue: 0.78) }
+        return Color(red: 0.85, green: 0.85, blue: 0.88)
+    }
+}
+
+private struct HistoryPopoverContentView: View {
+    let historyMessages: [PersistedChatMessage]
+    let accent: Color
+    let onMessageSelected: (UUID) -> Void
+    let onDismiss: () -> Void
+
+    /// 完整历史 (按时间倒序)
+    private var allPrompts: [PersistedChatMessage] {
+        historyMessages
+            .filter { $0.role == "user" }
+            .sorted { $0.timestamp > $1.timestamp }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // popover 标题
+            HStack {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Theme.navy)
+                Text("历史对话 (\(allPrompts.count) 条)")
+                    .font(.system(size: 12, weight: .heavy, design: .monospaced))
+                    .tracking(0.6)
+                    .foregroundColor(Theme.navy)
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, 10)
+            .padding(.bottom, 6)
+
+            Divider().background(Theme.border.opacity(0.5))
+
+            if allPrompts.isEmpty {
+                Text("暂无历史对话")
+                    .font(.system(size: 12))
+                    .foregroundColor(Theme.slate)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 16)
+            } else {
+                ScrollView {
+                    VStack(spacing: 4) {
+                        ForEach(allPrompts) { msg in
+                            HistoryRowView(
+                                msg: msg,
+                                accent: accent,
+                                onTap: {
+                                    onMessageSelected(msg.id)
+                                    onDismiss()
+                                }
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 6)
+                }
+                .frame(maxHeight: 280)
+            }
+        }
+        .frame(width: 280)
+        .background(Theme.bgTop)
+    }
+
+    /// "1小时前" / "3天前" 风格的时间文本
+    private func historyTimeAgo(_ t: Date) -> String {
+        let delta = -t.timeIntervalSinceNow
+        if delta < 60        { return "刚刚" }
+        if delta < 3600      { return "\(Int(delta/60)) 分钟前" }
+        if delta < 86400     { return "\(Int(delta/3600)) 小时前" }
+        if delta < 86400*7   { return "\(Int(delta/86400)) 天前" }
+        let f = DateFormatter()
+        f.dateFormat = "M月d日"
+        return f.string(from: t)
+    }
+
+    /// 时间年龄颜色
+    private func historyAgeColor(_ t: Date) -> Color {
+        let days = -Int(t.timeIntervalSinceNow / 86400)
+        if days <= 0 { return Color(red: 0.40, green: 0.65, blue: 0.95) }
+        if days <= 1 { return Color(red: 0.50, green: 0.50, blue: 0.55) }
+        if days <= 6 { return Color(red: 0.75, green: 0.75, blue: 0.78) }
+        return Color(red: 0.85, green: 0.85, blue: 0.88)
+    }
+}
+
+private struct HistoryRowView: View {
+    let msg: PersistedChatMessage
+    let accent: Color
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(alignment: .top, spacing: 8) {
+                Circle()
+                    .fill(historyAgeColor(msg.timestamp))
+                    .frame(width: 6, height: 6)
+                    .padding(.top, 5)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(msg.content)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Theme.navy)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                    Text(historyTimeAgo(msg.timestamp))
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .foregroundColor(Theme.slate)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "scope")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(accent)
+                    .padding(.top, 1)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Theme.card)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Theme.border.opacity(0.4), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// "1小时前" / "3天前" 风格的时间文本
+    private func historyTimeAgo(_ t: Date) -> String {
+        let delta = -t.timeIntervalSinceNow
+        if delta < 60        { return "刚刚" }
+        if delta < 3600      { return "\(Int(delta/60)) 分钟前" }
+        if delta < 86400     { return "\(Int(delta/3600)) 小时前" }
+        if delta < 86400*7   { return "\(Int(delta/86400)) 天前" }
+        let f = DateFormatter()
+        f.dateFormat = "M月d日"
+        return f.string(from: t)
+    }
+
+    /// 时间年龄颜色
+    private func historyAgeColor(_ t: Date) -> Color {
+        let days = -Int(t.timeIntervalSinceNow / 86400)
+        if days <= 0 { return Color(red: 0.40, green: 0.65, blue: 0.95) }
+        if days <= 1 { return Color(red: 0.50, green: 0.50, blue: 0.55) }
+        if days <= 6 { return Color(red: 0.75, green: 0.75, blue: 0.78) }
+        return Color(red: 0.85, green: 0.85, blue: 0.88)
     }
 }
 
