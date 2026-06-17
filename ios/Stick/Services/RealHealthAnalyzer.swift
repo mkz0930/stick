@@ -225,7 +225,8 @@ final class RealHealthAnalyzer {
 
         // MARK: 计算综合风险
         let risk = computeOverallRisk(findings: findings)
-        let dataComp = Double(completeness) / Double(checkCount)
+        // checkCount > 0 时必有 completeness >= 0；checkCount == 0 表示所有检查被跳过（如刚装 app 无数据），则 completeness 也为 0，除零保护
+        let dataComp = checkCount > 0 ? Double(completeness) / Double(checkCount) : 0
 
         // MARK: 生成分析文本
         let analysis = generateAnalysis(risk: risk, findings: findings, dataComp: dataComp)
