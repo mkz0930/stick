@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-18 | `HealthAnalyzer.lastNightSleeps` 窗口上限误用明天 noon，午睡被归入昨夜睡眠，影响睡眠时长 < 6h 判断 | 已修复，合入 `7aa0467` |
 | 2026-06-18 | `SleepParser.swift:92` `bedTime!` 强制解包 → 改用已解包的 `bed` 变量 | 已修复，合入 `fcd4e2a` |
 | 2026-06-18 | `ObserverBox` 遵循 `Sendable` 但含可变存储（`_handler`），Swift 6 报错 | 已修复，合入 `77e9437` |
 | 2026-06-18 | `SharedStateStore.ObserverBox`/`chatObserverBox`/`isChatObserverRegistered` 缺 `NSLock`/`nonisolated(unsafe)`，Darwin 回调与主线程存在数据竞争 | 已修复，合入 `b1905c4` |
