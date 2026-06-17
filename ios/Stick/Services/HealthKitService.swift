@@ -156,7 +156,7 @@ final class HealthKitService: ObservableObject {
         // 累计型: 站立小时 / 锻炼分钟 / 正念分钟 — 取今日累计
         async let stand = recentSum(.appleStandTime, from: dayStart, unit: .hour())
         async let exercise = recentSum(.appleExerciseTime, from: dayStart, unit: .minute())
-        async let mindful = recentSum(.appleExerciseTime, from: dayStart, unit: .minute())  // fallback: exerciseTime
+        async let mindful = recentMindfulMinutes(from: dayStart)
         async let resp = recentAverage(.respiratoryRate, from: from, unit: HKUnit.count().unitDivided(by: .minute()))
         // 距离和爬楼也应是全天累计
         async let dist = recentSum(.distanceWalkingRunning, from: dayStart, unit: .meter())
@@ -231,6 +231,21 @@ final class HealthKitService: ObservableObject {
             let q = HKStatisticsQuery(quantityType: type, quantitySamplePredicate: predicate, options: .cumulativeSum) { _, stat, _ in
                 let val = stat?.sumQuantity()?.doubleValue(for: unit)
                 cont.resume(returning: val)
+            }
+            store?.execute(q)
+        }
+    }
+
+    /// 正念分钟数（HKCategoryType 需要单独处理，不能用 recentSum）
+    private func recentMindfulMinutes(from: Date) async -> Double? {
+        guard let type = HKObjectType.categoryType(forIdentifier: .mindfulSession) else { return nil }
+        return await withCheckedContinuation { (cont: CheckedContinuation<Double?, Never>) in
+            let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: [])
+            let q = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
+                let totalMinutes = (samples as? [HKCategorySample])?.reduce(0.0) { sum, sample in
+                    sum + sample.endDate.timeIntervalSince(sample.startDate) / 60.0
+                } ?? 0
+                cont.resume(returning: totalMinutes)
             }
             store?.execute(q)
         }
