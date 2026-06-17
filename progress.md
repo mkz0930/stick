@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-17 | `ContentView.lastSitAnalysisTime` 初始化 `.distantPast` 导致首次 timer 立即触发 30 秒分析 | 已修复，合入 `2917c3a` |
 | 2026-06-17 | StickFigureView `drawSleep` / `drawWalk` 脚部坐标超出 240x320 坐标系（sleep foot x=256 超 16px，walk 左脚 y=322 超 2px） | 已修复，合入 main |
 | 2026-06-17 | `HealthKitService.computeDaySchedule` 凌晨 00:00-07:00 被误判为 `.sit` 而非 `.sleep` | 已修复，合入 `1f5b0d2` |
 | 2026-06-17 | ContentView `StageHeroView` 中 `stateBadge` 未使用（27行死代码） | 已修复，合入 `2ec3961` |
