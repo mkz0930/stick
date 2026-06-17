@@ -258,6 +258,20 @@ Resource  —— 图片、颜色、字体、多语言、静态配置
 
 ---
 
+## 项目文档索引
+
+调试 / 查改动前先扫一遍这几份：
+
+| 文件 | 内容 | 用法 |
+|---|---|---|
+| `bug.md`（项目根目录） | 历史上所有 bug 的症状 / 根因 / 修复 / 教训，**时间倒序**，新 bug 加在上方 | 遇到类似症状先来这里查 |
+| `git.md`（项目根目录） | 按主题分组的近期 commit 历史 + 完整时间线，新 commit 追加顶部 | 想知道「这个项目最近在改啥」来这里 |
+| `~/.claude/projects/-Users-horse-work-stick/memory/healthkit_vs_healthstore.md` | HealthKit vs HealthStore 双层架构边界 + export 函数铁律 + mock 注入调试约定 | 改 export / 调试久坐 / 注入数据时读 |
+
+**约定**：每个调试 session 结束时，把新 bug / 新 commit 追加到 `bug.md` / `git.md` 顶部（保持时间倒序），跨项目的架构知识写到 `memory/`。
+
+---
+
 ## 后续方向
 
 - 替换 `Date()` 为真实时间 + 后端 sensor
