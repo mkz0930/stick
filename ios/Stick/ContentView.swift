@@ -892,9 +892,8 @@ struct ContentView: View {
                                 .foregroundColor(Theme.slate)
                                 .padding(8)
                         }
-                        #endif
-                        // 真机调试按钮：注入过去 7 天的 mock 数据到 HealthKit
-                        // 让"导出最近 7 天"按钮立刻能看到多天数据（无需等 7 天累积）
+                        // 模拟器调试按钮：注入过去 7 天的 mock 数据到 HealthKit
+                        // 让"导出最近 7 天"按钮能看到多天数据（无需等 7 天累积）
                         Button {
                             showInjectConfirm = true
                         } label: {
@@ -903,6 +902,7 @@ struct ContentView: View {
                                 .foregroundColor(Theme.slate)
                                 .padding(8)
                         }
+                        #endif
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
