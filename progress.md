@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-17 | ContentView `minutesToDate` 函数未使用（死代码） | 已修复，合入 `ce6e02d` |
 | 2026-06-17 | StickFigureView `drawScene` ground 坐标不统一（322/318/320 混用） | 已修复，合入 `b6379ec` |
 | 2026-06-17 | ContentView `primaryHeartRate/Duration` 整数解析用 `split(" ").first` 不健壮 | 已修复，合入 `2384c2b` |
 | 2026-06-17 | FeatureRow `autoCollapseTimer` 在折叠态误触发，导致 UI 抖动 | 已修复，合入 `8988d76` |
