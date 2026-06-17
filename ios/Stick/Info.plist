@@ -39,6 +39,8 @@
 	<string>读取健康数据用于展示你的身体状态，包括步数、心率、睡眠等</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>写入健康数据用于记录你的活动</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>用于识别您是否在出差，自动调整睡眠习惯统计（仅本地，不上传）</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

@@ -489,6 +489,8 @@ struct ContentView: View {
             }
             .ignoresSafeArea(edges: .bottom)
             .onAppear {
+                // 启动定位服务（GPS 出差检测）— 当用户没授权时内部静默 noop
+                LocationService.shared.start()
                 // 调试用：env STICK_TEST_OPEN_CHAT=1 → 启动时自动开 chat
                 if ProcessInfo.processInfo.environment["STICK_TEST_OPEN_CHAT"] != nil {
                     openChat("")

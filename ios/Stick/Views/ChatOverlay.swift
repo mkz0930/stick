@@ -876,6 +876,15 @@ struct ChatOverlay: View {
 
         BodyMetricsStore.shared.extract(from: text)
 
+        // 对话解析睡眠（鲁棒性）：从 user msg 提取 bedTime / wakeTime / duration
+        // 写 HealthStore + 更新 UserProfile 睡眠习惯
+        if let sleepInfo = SleepParser.parse(text, now: Date()) {
+            if let bed = sleepInfo.bedTime, let wake = sleepInfo.wakeTime {
+                HealthStore.shared.writeSleepSegment(bedTime: bed, wakeTime: wake)
+            }
+            UserProfileStore.shared.updateSleepHabit(from: sleepInfo)
+        }
+
         isStreaming = true
 
         // 3 段式流式：本地分析 → 联网搜索 → 综合总结
@@ -1188,6 +1197,15 @@ struct ChatOverlay: View {
 
         // 从用户输入中提取身体数据
         BodyMetricsStore.shared.extract(from: text)
+
+        // 对话解析睡眠（鲁棒性）
+        if let sleepInfo = SleepParser.parse(text, now: Date()) {
+            if let bed = sleepInfo.bedTime, let wake = sleepInfo.wakeTime {
+                HealthStore.shared.writeSleepSegment(bedTime: bed, wakeTime: wake)
+            }
+            UserProfileStore.shared.updateSleepHabit(from: sleepInfo)
+        }
+
         isStreaming = true
 
         let assistantId = UUID()
@@ -1499,6 +1517,13 @@ struct ChatOverlay: View {
 
         """
 
+        // 4.5 睡眠习惯画像（出差状态切换时显示对应作息）
+        let isTravelNow = LocationService.shared.isTravel(
+            now: .now,
+            homeCity: UserProfileStore.shared.sleepHabit.homeCity
+        )
+        let sleepBlock = UserProfileStore.shared.sleepHabitContextBlock(isTravel: isTravelNow)
+
         // 5. 用户最近问题
         let recentUserMsgs = messages
             .filter { $0.role == .user }
@@ -1513,7 +1538,7 @@ struct ChatOverlay: View {
         - 备注: 给出符合该时段 + 该姿态的即时可行建议
         """
 
-        return profileBlock + tagsBlock + trendBlock + healthBlock + """
+        return profileBlock + tagsBlock + trendBlock + healthBlock + sleepBlock + """
         【用户最近问题】
         \(recentUserMsgs)
 
