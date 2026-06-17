@@ -349,16 +349,17 @@ private func drawWalk(ctx: inout GraphicsContext, stroke: Color, fill: Color, jo
         .rotated(by: -legSwing)
         .translatedBy(x: -lHipPivot.x, y: -lHipPivot.y)
     let lKnee   = CGPoint(x: 78, y: 285)
-    let lAnkle  = CGPoint(x: 80, y: 320)
+    let lAnkle  = CGPoint(x: 80, y: 318)
     strokeLine(ctx: &ctx, from: lHipPivot, to: lKnee, color: stroke, width: w + 0.4, alpha: lineAlpha)
     drawDot(ctx: &ctx, at: lKnee, r: 4, color: joint, filled: true, alpha: jointAlpha)
     strokeLine(ctx: &ctx, from: lKnee, to: lAnkle, color: stroke, width: w + 0.4, alpha: lineAlpha)
     drawDot(ctx: &ctx, at: lAnkle, r: 3.5, color: joint, filled: true, alpha: jointAlpha)
+    // 脚（y=318 起，避免超出 240x320 坐标系边界 y=320）
     let lFoot = Path { p in
-        p.move(to: CGPoint(x: 80, y: 322))
-        p.addLine(to: CGPoint(x: 110, y: 322))
-        p.addQuadCurve(to: CGPoint(x: 112, y: 318), control: CGPoint(x: 110, y: 322))
-        p.addLine(to: CGPoint(x: 82, y: 318))
+        p.move(to: CGPoint(x: 80, y: 318))
+        p.addLine(to: CGPoint(x: 110, y: 318))
+        p.addQuadCurve(to: CGPoint(x: 112, y: 314), control: CGPoint(x: 110, y: 316))
+        p.addLine(to: CGPoint(x: 82, y: 314))
         p.closeSubpath()
     }
     ctx.stroke(lFoot, with: .color(stroke.opacity(lineAlpha)), style: StrokeStyle(lineWidth: 1.8, lineJoin: .round))
@@ -637,20 +638,20 @@ private func drawSleep(ctx: inout GraphicsContext, stroke: Color, fill: Color, j
     strokeLine(ctx: &ctx, from: bElbow, to: bHand, color: stroke, width: w * 0.85, alpha: lineAlpha * 0.7)
     drawDot(ctx: &ctx, at: bElbow, r: 2.5, color: joint, filled: true, alpha: jointAlpha * 0.7)
 
-    // 大腿
-    let knee = CGPoint(x: 240, y: 226)
+    // 大腿（knee.x=232 避免 foot 水平超出 240x320 坐标系）
+    let knee = CGPoint(x: 232, y: 226)
     strokeLine(ctx: &ctx, from: CGPoint(x: 215, y: 222), to: knee, color: stroke, width: w + 0.4, alpha: lineAlpha)
     drawDot(ctx: &ctx, at: knee, r: 4, color: joint, filled: true, alpha: jointAlpha)
     // 小腿（略屈）
-    let ankle = CGPoint(x: 240, y: 248)
+    let ankle = CGPoint(x: 232, y: 248)
     strokeLine(ctx: &ctx, from: knee, to: ankle, color: stroke, width: w + 0.4, alpha: lineAlpha)
     drawDot(ctx: &ctx, at: ankle, r: 3.5, color: joint, filled: true, alpha: jointAlpha)
-    // 脚
+    // 脚（统一在 240x320 坐标系内，右侧最远 x=240）
     let foot = Path { p in
-        p.move(to: CGPoint(x: 232, y: 240))
-        p.addLine(to: CGPoint(x: 252, y: 240))
-        p.addQuadCurve(to: CGPoint(x: 256, y: 250), control: CGPoint(x: 254, y: 240))
-        p.addLine(to: CGPoint(x: 234, y: 250))
+        p.move(to: CGPoint(x: 220, y: 240))
+        p.addLine(to: CGPoint(x: 240, y: 240))
+        p.addQuadCurve(to: CGPoint(x: 240, y: 250), control: CGPoint(x: 238, y: 240))
+        p.addLine(to: CGPoint(x: 222, y: 250))
         p.closeSubpath()
     }
     ctx.stroke(foot, with: .color(stroke.opacity(lineAlpha)), style: StrokeStyle(lineWidth: 1.8, lineJoin: .round))
