@@ -1082,6 +1082,11 @@ final class HealthKitService: ObservableObject {
         return await exportHealthRange(from: fromDate, to: now, fileSuffix: days == 1 ? nil : "\(days)d")
     }
 
+    /// 导出今日 HealthKit 数据（JSON 格式，北京时间）
+    func exportTodayData() async -> URL? {
+        await exportRecentData(days: 1)
+    }
+
     /// 导出最近 7 天 HealthKit 数据（JSON 格式，北京时间）
     /// - Returns: 临时目录里的 JSON 文件 URL；失败返回 nil
     func exportLast7Days() async -> URL? {
@@ -1759,21 +1764,5 @@ extension HealthKitService {
         let todayAwake = records.filter { $0.stage == .awake && $0.startDate >= todayStart }
         guard let firstAwake = todayAwake.min(by: { $0.startDate < $1.startDate }) else { return nil }
         return StickState.minutesOfDay(firstAwake.startDate)
-    }
-
-    /// 导出今日健康数据为 JSON 文件，返回文件 URL
-    func exportTodayData() async -> URL? {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = .prettyPrinted
-        encoder.dateEncodingStrategy = .iso8601
-        let data = (try? encoder.encode(HealthStore.shared.today)) ?? Data()
-        let fileName = "Stick_Export_\(ISO8601DateFormatter().string(from: Date())).json"
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-        do {
-            try data.write(to: tempURL)
-            return tempURL
-        } catch {
-            return nil
-        }
     }
 }
