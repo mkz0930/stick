@@ -118,8 +118,8 @@ struct ContentView: View {
     @State private var currentSitStartTime: Date? = nil
     /// 上次分析时间（控制30秒刷新一次）
     @State private var lastSitAnalysisTime: Date = .distantPast
-    /// Timer 触发器，每秒 +1 驱动 live 秒表刷新
-    @State private var tick: Int = 0
+    /// Timer 触发器，每秒更新驱动 live 秒表刷新（Date 值保证 SwiftUI 检测到变化）
+    @State private var timerTick: Date = Date()
 
     // Chat
     @State private var showChat: Bool = false
@@ -343,7 +343,7 @@ struct ContentView: View {
 
     /// 当前久坐 session live 时长（M:SS），基于 currentSitStartTime 每秒跳动
     var sitDurationText: String? {
-        _ = tick  // 每秒触发重算
+        _ = timerTick  // 每秒触发重算
         guard let startTime = currentSitStartTime, displayState == .sit else { return nil }
         let elapsed = Date().timeIntervalSince(startTime)
         let totalSeconds = Int(elapsed)
@@ -502,7 +502,12 @@ struct ContentView: View {
                     print("[ContentView] 🧪 Mock 健康数据载入: \(n) 条")
                     // 触发一次今天的久坐重算
                     Task { @MainActor in
-                        homeSedentaryMinutes = await HealthKitService.shared.todaySedentaryMinutes()
+                        var sed = await HealthKitService.shared.todaySedentaryMinutes()
+                        if let sleepHours = await HealthKitService.shared.todaySleepHours(), sleepHours > 0 {
+                            sed = max(0, sed - Int(sleepHours * 60))
+                            hasValidSleepData = true
+                        }
+                        homeSedentaryMinutes = sed
                         currentSitMinutes = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
                     }
                 }
@@ -587,6 +592,8 @@ struct ContentView: View {
             )
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { nowVal in
+            // 驱动秒表重算：每秒写一次 Date，保证 SwiftUI 视为"变化"
+            timerTick = nowVal
             // Preview 模式跳过 — 不让 Timer 反复触发重渲染
             guard !Self.isRunningForPreviews else { return }
             // 更新 now（每秒都在变，但 DayTimelineView 用 Equatable 只在分钟边界触发重绘）
@@ -670,7 +677,10 @@ struct ContentView: View {
         .onChange(of: displayState) { oldValue, newValue in
             // 久坐被打断或恢复时，立即分析一次
             if newValue == .sit {
-                // 进入坐姿：立即触发一次快照分析，获取最新连续久坐时长
+                // 进入坐姿：先同步设 startTime = now，秒表立即从 0:00 起跳，
+                // 避免 Task 异步完成前 displayValue 回落到 todaySitDescription (X.Xh) → 跳变
+                currentSitStartTime = Date()
+                currentSitMinutes = 0
                 Task {
                     let sitMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
                     currentSitMinutes = sitMins
@@ -885,7 +895,12 @@ struct ContentView: View {
                             Task { @MainActor in
                                 let n = MockHealthDataLoader.shared.loadBundledIfExists()
                                 print("[ContentView] 🧪 载入 mock 数据: \(n) 条")
-                                homeSedentaryMinutes = await HealthKitService.shared.todaySedentaryMinutes()
+                                var sed = await HealthKitService.shared.todaySedentaryMinutes()
+                                if let sleepHours = await HealthKitService.shared.todaySleepHours(), sleepHours > 0 {
+                                    sed = max(0, sed - Int(sleepHours * 60))
+                                    hasValidSleepData = true
+                                }
+                                homeSedentaryMinutes = sed
                                 currentSitMinutes = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
                             }
                         } label: {
