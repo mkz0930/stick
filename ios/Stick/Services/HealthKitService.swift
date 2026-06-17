@@ -5,7 +5,6 @@
 
 import Foundation
 import HealthKit
-import Combine
 import UIKit
 
 /// HealthKit 数据快照 (1 分钟一条)
