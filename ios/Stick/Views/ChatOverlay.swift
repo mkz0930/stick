@@ -280,7 +280,7 @@ struct ChatOverlay: View {
             }
         }
         // 历史导航时滚动（overlay 已显示，targetScrollId 变了，但 overlay 没有重建）
-        .onChange(of: scrollTrigger) { _, newTrigger in
+        .onChange(of: scrollTrigger) { oldTrigger, newTrigger in
             // 防止重复触发：只有 scrollTrigger 比上次处理过的值更大时才处理
             guard newTrigger > self.lastHandledTrigger else { return }
             self.lastHandledTrigger = newTrigger
@@ -313,7 +313,7 @@ struct ChatOverlay: View {
             ImagePicker(image: $capturedImage, sourceType: .photoLibrary)
                 .ignoresSafeArea()
         }
-        .onChange(of: capturedImage) { _, newImage in
+        .onChange(of: capturedImage) { oldImage, newImage in
             if let image = newImage, let data = image.jpegData(compressionQuality: 0.7) {
                 // 优先用 chip 预填或用户已输入的文本，没有则用默认消息
                 let currentText = input.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -444,7 +444,7 @@ struct ChatOverlay: View {
                             .padding(.vertical, 8)
                         }
                         .scrollDismissesKeyboard(.interactively)
-                        .onChange(of: isStreaming) { _, streaming in
+                        .onChange(of: isStreaming) { oldStreaming, streaming in
                             // 流式输出结束后（streaming 从 true→false），自动滚到底部显示最新回复
                             if !streaming, let last = messages.last {
                                 self.scrollToBottom = true
@@ -453,7 +453,7 @@ struct ChatOverlay: View {
                                 }
                             }
                         }
-                        .onChange(of: messages.last?.id) { _, _ in
+                        .onChange(of: messages.last?.id) { oldId, newId in
                             // 新消息追加时（流式首 chunk + 非流式新消息）→ 滚到底部
                             guard self.isStreaming, let last = messages.last else { return }
                             let anchor: UnitPoint = .bottom
@@ -463,7 +463,7 @@ struct ChatOverlay: View {
                                 }
                             }
                         }
-                        .onChange(of: pendingScrollId) { _, newId in
+                        .onChange(of: pendingScrollId) { oldId, newId in
                             guard let id = newId else { return }
                             let anchor: UnitPoint = self.scrollToBottom ? .bottom : .top
                             DispatchQueue.main.async {
@@ -473,7 +473,7 @@ struct ChatOverlay: View {
                             }
                             self.pendingScrollId = nil
                         }
-                        .onChange(of: scrollToStreamingTrigger) {
+                        .onChange(of: scrollToStreamingTrigger) { _, _ in
                             // 始终滚到「正在加载」指示器，让动效可见
                             DispatchQueue.main.async {
                                 withAnimation(.easeOut(duration: 0.25)) {
@@ -2193,7 +2193,7 @@ private struct AssistantText: View {
         .onAppear {
             analysisExpanded = !isStreaming
         }
-        .onChange(of: isStreaming) { _, nowStreaming in
+        .onChange(of: isStreaming) { oldStreaming, nowStreaming in
             analysisExpanded = !nowStreaming
         }
     }
