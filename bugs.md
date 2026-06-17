@@ -3,6 +3,7 @@
 
 | 日期 | 摘要 | 根因 | 修复 |
 |---|---|---|---|
+| 2026-06-17 | 30s 久坐 timer 的 `prevMinutes` 在 Task 创建前捕获，Task 异步执行期间 `onChange(of: hkService.lastMovementTime)` 可能已修改 `currentSitMinutes`，导致比较时用到 stale 数据，错误更新 `currentSitStartTime` | `prevMinutes = currentSitMinutes` 在 Task 外捕获，但 Task 异步期间 `lastMovementTime` onChange 可修改 `currentSitMinutes` | 把 `prevMinutes` 读取移入 Task 内部，用 `MainActor.run` 保证原子性，合入 main |
 | 2026-06-17 | `todaySleepHours()` 累加所有 sleepAnalysis 样本时长，包括 Awake（value=4）和 InBed（value=0,1）状态 | 只按 sample.endDate - startDate 累加，未过滤 sample.value 类型 | 只统计 Asleep（value=2,3,5,6），排除 Awake 和 InBed，合入 main |
 | 2026-06-17 | `lastSitAnalysisTime` 初始化为 `.distantPast` 导致首次 timer 触发时分析立即执行（0 秒等待） | `.distantPast` 使 `Date().timeIntervalSince(.distantPast) >= 30` 首次即真 | 改为 `Date()` 使首次 timer 触发时距初始化仅 ~0 秒，分析等待 30 秒后再执行，合入 `2917c3a` |
 | 2026-06-17 | StickFigureView `drawSleep` / `drawWalk` 脚部坐标超出 240×320 | drawSleep: knee.x=240 导致 foot 右侧最远 x=256 超 16px；drawWalk 左脚 y=322 超 2px | knee.x→232，foot 右侧收窄到 x=240；左脚 ankle.y→318，foot 起点 y→318，合入 main |
