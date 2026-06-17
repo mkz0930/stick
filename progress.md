@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-18 | `ChatOverlay` 3 处 `try! NSRegularExpression` → `try?` + 优雅降级 | 已修复，合入 `c79eb90` |
 | 2026-06-18 | `LLMService.sendMessageStreamWithSearch` 删除未使用 `fullText`/`collectedData` 死代码 | 已修复，合入 `ce40f52` |
 | 2026-06-18 | `SleepParser` `looksLikeSleepMessage` 数组删除重复关键词 "眠" | 已修复，合入 `7d18983` |
 | 2026-06-18 | `HealthKitService.captureSnapshot()` 竞态条件：async 函数后台线程赋值 `@Published` 属性 | 已修复，合入 `ad321d4` |
