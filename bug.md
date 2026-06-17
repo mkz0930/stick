@@ -4,6 +4,49 @@
 
 ---
 
+## 2026-06-17 · FeatureRow SEDENTARY 行时间数字对不齐（3 根因）
+
+**症状**
+- 真机 iPhone 12 上首页 FeatureRow 展开后的 SEDENTARY 行：
+  - 累计值（X.Xh）会突然掉一大截
+  - 秒表（M:SS）看起来只按分钟跳，秒数不动
+  - 从 walk 切到 sit 时数字瞬间从 X.Xh 跳到 0:00 → N:00
+
+**3 个根因**
+
+### 根因 1 · `tick` 从未被赋值，秒表只按分钟跳
+
+`ios/Stick/ContentView.swift:122` 定义了 `@State private var tick: Int = 0`，但全文件 `grep "tick =\|tick +="` **零结果**。`sitDurationText` 里 `_ = tick` 引用但值不变 → SwiftUI 不触发重渲。
+
+实际驱动 body 重渲的是 `now`，但 `now` 只在分钟边界（line 594 `oldMin != newMin`）或启动后 60s 内才更新 → 秒表分钟数字跳、秒数字不动。
+
+**修复**：把 `tick: Int` 改成 `timerTick: Date`，1s timer 每秒写一次（line 594 新增 `timerTick = nowVal`），秒表真正按秒跳。
+
+### 根因 2 · `homeSedentaryMinutes` 写入路径不一致，sleep 校正缺失
+
+`ios/Stick/ContentView.swift` 三处写入 `homeSedentaryMinutes`：
+- line 503（onAppear / 模拟器 mock）— 直接 `await ...todaySedentaryMinutes()`，**不扣 sleep**
+- line 738（scenePhase 回前台 async let）— **扣 sleep**（736-741 段）
+- line 898（模拟器 flask 按钮）— 直接赋值，**不扣 sleep**
+
+→ 启动后 `homeSedentaryMinutes` 包含睡眠时间（7h+），scenePhase 回前台后突然扣掉 → 累计值从 `5.2h` 跳到 `-1.8h → 0h`。
+
+**修复**：在 line 505 和 898 显式减 sleep，跟 line 738/824 模式一致。
+
+**约束**：sleep 校正**不要**移到 `HealthKitService.todaySedentaryMinutes()` 内部 —— `DataRecordView.swift:59-61` 已经手工扣 sleep，挪进去会双重扣减（每天少 7h+）。修正方案是「在每个 ContentView 写入点显式扣」，不是「在函数内部扣」。
+
+### 根因 3 · 切到 sit 时是异步 Task，`displayValue` 100-500ms 跳变
+
+`ios/Stick/ContentView.swift:668-707` `onChange(of: displayState)`：切到 .sit 时是 `Task { ... }`，等异步 `currentSedentarySessionMinutes(hours: 4)` 完成才设 `currentSitStartTime`。
+
+100-500ms 期间 `currentSitStartTime = nil` → `sitDurationText = nil` → `displayValue = nil ?? todaySitDescription = "X.Xh"` → Task 完成后切到秒表 M:SS。
+
+→ 用户看到 `X.Xh → M:SS` 跳变。
+
+**修复**：onChange 切 .sit 时同步设 `currentSitStartTime = Date()`、`currentSitMinutes = 0`（秒表立即从 0:00 起跳），Task 完成后用 `sitMins` 修正。
+
+---
+
 ## 2026-06-17 · `DayTimelineView` 触发 SwiftUI "Modifying state during view update" 警告
 
 **症状**

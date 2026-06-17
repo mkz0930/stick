@@ -6,6 +6,20 @@
 
 ## 主题索引
 
+### 2026-06-17 · sit 卡片时间同步
+**问题**：FeatureRow 上 SEDENTARY 行"今日累计久坐"数字跟实际久坐时长对不齐（X.Xh 跟 M:SS 之间乱跳 + 秒表只按分钟跳）。
+**3 个根因**（commit `561831c`）：
+- `tick: Int` 变量从未被赋值，`_ = tick` 引用不变值 → SwiftUI 不触发重渲 → 秒表实际只按分钟跳
+- `homeSedentaryMinutes` 写入路径不一致：line 503/898 不扣 sleep，line 738/824 扣 sleep → 累计值会突然掉一大截
+- onChange(of: displayState) 切到 .sit 时是异步 Task，100-500ms 期间 `currentSitStartTime` 仍是 nil → `displayValue` 走 `todaySitDescription` 兜底 → X.Xh 跳到 N:00
+
+**修复**：
+- `tick` → `timerTick: Date`，1s timer 每秒写，秒表按秒跳
+- ContentView 三处写入 `homeSedentaryMinutes` 统一显式减 sleep（不挪进 `todaySedentaryMinutes()` —— `DataRecordView:59-61` 已经在手工扣，挪进去会双重扣减）
+- onChange 切 sit 时同步设 `currentSitStartTime = Date()`（秒表从 0:00 起跳），Task 完成后用 `sitMins` 修正
+
+**约束**：sleep 校正只在 ContentView 三处显式做，不要移到 `todaySedentaryMinutes()` 内部（DataRecordView 会双重扣减）。
+
 ### 2026-06-17 · 闪退修复
 - `719fbda` fix(ui): 修复 DayTimelineView body 内修改 @State 触发的 SwiftUI 警告
 - `6ce26fb` merge: 修复 DayTimelineView 触发 SwiftUI 'Modifying state during view update' 警告
