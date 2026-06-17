@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-18 | `HealthKitService.captureSnapshot()` 竞态条件：async 函数后台线程赋值 `@Published` 属性 | 已修复，合入 `ad321d4` |
 | 2026-06-18 | `ChatHistoryStore` 删除未使用 `import SwiftUI`（纯数据层 service） | 已修复，合入 `f11f75c` |
 | 2026-06-18 | `RealHealthAnalyzer` `completeness / checkCount` 除零崩溃风险，新装 app 无历史数据时可能触发 | 已修复，合入 `b910989` |
 | 2026-06-18 | `DayPlaybackSheet` `simulatedMinute` 在 `progress=1.0` 时计算出 1440，导致最后睡眠段永远无法匹配，fallback 到 `.walk` | 已修复，合入 `4e2ae58` |
