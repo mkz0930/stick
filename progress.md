@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-17 | `StateInference.score.max(by:)!` 强制解包风险，改为 guard let 安全解包 | 已修复，合入 `e5aea04` |
 | 2026-06-17 | ContentView `stageScrubBadge` 在 `seg=nil` 时显示时间徽章而非状态徽章 | 已修复，合入 `c31fb47` |
 | 2026-06-17 | `ContentView.lastSitAnalysisTime` 初始化 `.distantPast` 导致首次 timer 立即触发 30 秒分析 | 已修复，合入 `2917c3a` |
 | 2026-06-17 | StickFigureView `drawSleep` / `drawWalk` 脚部坐标超出 240x320 坐标系（sleep foot x=256 超 16px，walk 左脚 y=322 超 2px） | 已修复，合入 main |
