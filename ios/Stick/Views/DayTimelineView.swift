@@ -29,20 +29,6 @@ struct DayTimelineView: View, Equatable {
     @State private var autoResetWorkItem: DispatchWorkItem? = nil  // 10s 无操作自动回 now
     @State private var showPlayback: Bool = false    // 24h 回放 sheet
     @State private var frozenNowMinute: Int? = nil   // 拖动时冻结 now，避免坐标跳变
-    /// 缓存计算后的步行胶囊（只在 schedule 真变化时更新），避免 body 被调用时每 1.6s 重算
-    @State private var cachedWalkSegments: [WalkVisualSegment] = []
-    @State private var cachedScheduleSig: String = ""
-
-    // MARK: - 缓存刷新
-
-    /// 比较当前 schedule 是否与缓存一致，不一致时重新计算步行胶囊
-    private func syncWalkCacheIfNeeded(in height: CGFloat) {
-        let sig = schedule.map { "\($0.startMinute)-\($0.endMinute)-\($0.state)" }.joined(separator: "|")
-        if sig != cachedScheduleSig {
-            cachedScheduleSig = sig
-            cachedWalkSegments = computeWalkVisualSegments(in: height)
-        }
-    }
 
     private let dayMinutes: CGFloat = 1440
     private let trackWidth: CGFloat = 4        // 极细线（竖线宽度）
@@ -274,16 +260,18 @@ struct DayTimelineView: View, Equatable {
     private var track: some View {
         GeometryReader { geo in
             let height = geo.size.height
-            // body 被调用时检查 schedule 是否真变了，不变则继续用缓存，杜绝重算跳变
-            syncWalkCacheIfNeeded(in: height)
+            // 步行胶囊直接重算 — schedule 已通过 View.Equatable 稳定，
+            // pulse 触发的重渲只影响 isActive 段视觉，walk 段坐标不需要缓存。
+            // 旧版用 @State 缓存会触发 SwiftUI "Modifying state during view update" 警告。
+            let walkSegments = computeWalkVisualSegments(in: height)
             return ZStack(alignment: .topLeading) {
                 // 坐/睡 track（细线 + 睡虚线）
                 ForEach(schedule.filter { $0.state != .walk }) { seg in
                     rotatedSegment(seg, in: height)
                 }
 
-                // 步行光点层：缓存结果，只在 schedule 真变化时重新计算
-                ForEach(cachedWalkSegments) { seg in
+                // 步行光点层（每次 body 重新计算，开销 <1ms，可忽略）
+                ForEach(walkSegments) { seg in
                     walkBurst(seg)
                 }
 
