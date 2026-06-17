@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-17 | `HealthKitService.computeDaySchedule` 凌晨 00:00-07:00 被误判为 `.sit` 而非 `.sleep` | 已修复，合入 `1f5b0d2` |
 | 2026-06-17 | ContentView `StageHeroView` 中 `stateBadge` 未使用（27行死代码） | 已修复，合入 `2ec3961` |
 | 2026-06-17 | ContentView `StageHeroView` 中 `noDataStage`/`noDataBadge` 未使用（75行死代码） | 已修复，合入 `b1c3143` |
 | 2026-06-17 | ContentView `minutesToDate` 函数未使用（死代码） | 已修复，合入 `ce6e02d` |
