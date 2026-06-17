@@ -1416,10 +1416,25 @@ final class HealthKitService: ObservableObject {
 // MARK: - 昨日数据查询（用于 Morning Report）
 
 extension HealthKitService {
-    /// 当日是否有步数数据（用于判断是否启用晨间报告）
-    var hasStepData: Bool {
+    /// 24h 窗口内是否有步数数据（用于判断是否启用晨间报告）
+    /// 改查 HealthKit 真实样本：之前用 HealthStore.shared.today（app 自
+    /// 己 60s 抓一次的本地聚合快照），App 刚启动时本地为空会误判为
+    /// 「无步数」导致晨报不生成。改用 HKSampleQuery 直接查 24h 窗口。
+    func hasStepData() async -> Bool {
+        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return false }
         let startOfDay = Calendar.current.startOfDay(for: Date())
-        return HealthStore.shared.today.contains { $0.cumulativeStepCount ?? 0 > 0 }
+        let windowStart = startOfDay.addingTimeInterval(-86400) // 包含昨日 + 今日
+        return await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            let predicate = HKQuery.predicateForSamples(
+                withStart: windowStart, end: nil, options: .strictStartDate
+            )
+            let q = HKSampleQuery(
+                sampleType: stepType, predicate: predicate, limit: 1, sortDescriptors: nil
+            ) { _, samples, _ in
+                cont.resume(returning: (samples?.isEmpty == false))
+            }
+            store?.execute(q)
+        }
     }
 
     /// 查询昨日（00:00 ~ 23:59）的快照数据
