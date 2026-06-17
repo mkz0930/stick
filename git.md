@@ -20,6 +20,10 @@
 
 **约束**：sleep 校正只在 ContentView 三处显式做，不要移到 `todaySedentaryMinutes()` 内部（DataRecordView 会双重扣减）。
 
+### 2026-06-17 · todaySleepHours 数据准确性
+**问题**：`todaySleepHours()` 把所有 sleepAnalysis 样本时长都累加，包括 Awake（value=4）和 InBed（value=0,1）状态，导致睡眠时长被显著高估。
+**修复**：只统计 Asleep 状态（value=2,3,5,6），排除 Awake 和 InBed。合入 main。
+
 ### 2026-06-17 · 闪退修复
 - `719fbda` fix(ui): 修复 DayTimelineView body 内修改 @State 触发的 SwiftUI 警告
 - `6ce26fb` merge: 修复 DayTimelineView 触发 SwiftUI 'Modifying state during view update' 警告
