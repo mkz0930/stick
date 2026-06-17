@@ -110,8 +110,6 @@ struct ContentView: View {
     /// 订阅 HealthStore：30s 一次 captureSnapshot() 会把 HealthSnapshot 写到 .today，
     /// 触发本视图重渲 → todaySteps computed property 重新求和，FeatureRow StepsLine 实时刷新。
     @ObservedObject private var healthStore: HealthStore = HealthStore.shared
-    /// 观察 HealthKitService：步数打断久坐时立即响应
-    @ObservedObject private var hkService: HealthKitService = .shared
 
     // HealthKit 状态推断（30s 重算一次）
     @State private var inference: StateInference.Result? = nil
@@ -794,7 +792,7 @@ struct ContentView: View {
                 }
             }
         }
-        .onChange(of: hkService.lastMovementTime) { oldValue, newValue in
+        .onChange(of: hk.lastMovementTime) { oldValue, newValue in
             // HealthKit 检测到明显步数增加 → 立即打断久坐，重新计时
             guard newValue != nil, oldValue != newValue else { return }
             guard !Self.isRunningForPreviews else { return }
