@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-17 | App Group ID 文档错误（CLAUDE.md 写 `group.com.example.stick`，代码用 `group.com.stick.app.h`） | 已修复，合入 `f7ab5b8` |
 | 2026-06-17 | Widget 背景色硬编码暖白色 | 已修复，合入 `2b40acf` |
 | 2026-06-17 | FeatureRow 展开 alerts 时需点两次 chevron 才能显示列表 | 已修复，合入 `f170861` |
 | 2026-06-17 | DayTimelineView 残留死代码（`shareMessage`/`backToNowButton` 未使用） | 已修复，合入 `9090be7` |
