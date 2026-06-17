@@ -5,7 +5,6 @@
 
 import Foundation
 import HealthKit
-import Combine
 
 // MARK: - 数据模型
 

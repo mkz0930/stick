@@ -12,7 +12,6 @@
 
 import Foundation
 import HealthKit
-import Combine
 
 @MainActor
 final class HealthAuthService: ObservableObject {
