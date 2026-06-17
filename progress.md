@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-18 | `HealthKitService.todaySedentaryMinutes` 闭包中未使用的 `error` 参数 | 已修复，合入 `d7d8f28` |
 | 2026-06-17 | `HealthKitService.captureSnapshot` 正念分钟错误使用 `.appleExerciseTime` 类型 | 已修复，合入 `ee3149c` |
 | 2026-06-17 | `HealthKitService.todaySleepHours()` 把 Awake/InBed 也算成睡眠，导致睡眠时长高估 | 已修复，合入 `624f865` |
 | 2026-06-17 | ChatOverlay `onChange` iOS 17 弃用警告 + Swift 6 并发捕获警告 | 已修复，合入 `117c1ff` |
