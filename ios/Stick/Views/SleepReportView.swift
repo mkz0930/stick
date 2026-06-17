@@ -154,7 +154,7 @@ struct SleepReportView: View {
                 content
             }
         }
-        .onAppear { Task { await vm.load() } }
+        .task { await vm.load() }
     }
 
     // MARK: - Header
