@@ -1076,12 +1076,16 @@ final class HealthKitService: ObservableObject {
 
         // 昨天 22:00
         var yesterday = calendar.startOfDay(for: now)
-        yesterday = calendar.date(byAdding: .day, value: -1, to: yesterday)!
-        let nightStart = calendar.date(bySettingHour: 22, minute: 0, second: 0, of: yesterday)!
+        guard let yesterdayPrev = calendar.date(byAdding: .day, value: -1, to: yesterday),
+              let nightStart = calendar.date(bySettingHour: 22, minute: 0, second: 0, of: yesterdayPrev) else {
+            return nil
+        }
 
         // 今天 10:00
         let today = calendar.startOfDay(for: now)
-        let morningEnd = calendar.date(bySettingHour: 10, minute: 0, second: 0, of: today)!
+        guard let morningEnd = calendar.date(bySettingHour: 10, minute: 0, second: 0, of: today) else {
+            return nil
+        }
 
         let snapshots = HealthStore.shared.today.filter {
             $0.timestamp >= nightStart && $0.timestamp <= morningEnd
