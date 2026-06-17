@@ -3,6 +3,7 @@
 
 | 日期 | 摘要 | 根因 | 修复 |
 |---|---|---|---|
+| 2026-06-18 | `MockHealthDataLoader` `buckets[key]!` force unwrap；`HealthExport/HealthTypeBlock/HealthDataPoint.encode(to:)` 用 `fatalError()` 占位，若触发直接 crash | `buckets[key]` 可能为 nil；Codable encode 用占位实现 | `buckets[key] ?? Bucket()`；实现正确的 Codable encode，合入 `0ed0429` |
 | 2026-06-18 | `analyzeYesterdayHeartRateZones` 2 处 `calendar.date(byAdding:)!` force unwrap | `calendar.date` 可能返回 nil | 改为 `guard let` + `return nil`，合入 `ff9b9a3` |
 | 2026-06-18 | `HealthKitService`/`HealthTrendAnalyzer`/`MorningReportStore` 9 处 `calendar.date(byAdding:...)!` force unwrap | `calendar.date` 在极端情况可能返回 nil | 改为 `guard let` + 优雅降级（return nil/0/[]），合入 `646e147` |
 | 2026-06-18 | `ContentView` 同时有 `@StateObject var hk` 和 `@ObservedObject var hkService = .shared`，两套观察同一单例，浪费资源且语义混乱 | 同一单例被两个属性观察 | 删除冗余的 `hkService` 属性，统一使用 `hk`，合入 `112833f` |

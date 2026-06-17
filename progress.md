@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-18 | `MockHealthDataLoader` `buckets[key]!` force unwrap → `?? Bucket()`；`HealthExport/HealthTypeBlock/HealthDataPoint.encode(to:)` `fatalError()` 占位 → 正确 Codable 实现 | 已修复，合入 `0ed0429` |
 | 2026-06-18 | `HealthKitService.analyzeYesterdayHeartRateZones` 2 处 `calendar.date(byAdding:)!` → `guard let` | 已修复，合入 `ff9b9a3` |
 | 2026-06-18 | `HealthKitService`/`HealthTrendAnalyzer`/`MorningReportStore` 9 处 `calendar.date(byAdding:...)!` → `guard let` | 已修复，合入 `646e147` |
 | 2026-06-18 | `ContentView` 冗余单例属性：`@ObservedObject hkService` 与 `@StateObject hk` 同时存在，浪费资源且语义混乱 | 已修复，合入 `112833f` |
