@@ -3,6 +3,7 @@
 
 | 日期 | 摘要 | 根因 | 修复 |
 |---|---|---|---|
+| 2026-06-18 | `MorningReportGenerator.parseLLMResponse` 中 `jsonStr.data(using: .utf8)!` 强制解包，若 LLM 返回无效 UTF-8 字符会直接 crash | `data(using: .utf8)` 在字符串含非法字符时返回 nil | 改为 `guard let` 安全解包，失败优雅降级返回 nil，合入 `2ec115a` |
 | 2026-06-18 | `HealthAnalyzer.lastNightSleeps` 窗口上限用 `todayNoon.addingTimeInterval(24*3600)`（明天 noon），导致下午的午睡被归入昨夜睡眠，干扰睡眠时长 < 6h 判断 | 窗口应为 [昨天 noon, 今天 noon) 而非 [昨天 noon, 明天 noon) | 改为 `< todayNoon`，正确覆盖跨日窗口，合入 `7aa0467` |
 | 2026-06-18 | `SleepParser.swift:92` `bedTime!` 强制解包，`bedTime` 是 `Date?` 类型但 `bed` 已在 if let 中解包 | 有已解包的 `bed` 变量却仍用 forced unwrap | 改用 `bed` 变量，合入 `fcd4e2a` |
 | 2026-06-18 | `ObserverBox` 标注 `Sendable` 但含可变存储 `_handler`，Swift 6 严格并发检查报错 | Swift 6 要求 `Sendable` 类的所有存储属性必须不可变 | 移除 `ObserverBox` 的 `Sendable` conformance，合入 `77e9437` |
