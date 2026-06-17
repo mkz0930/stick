@@ -3,6 +3,7 @@
 
 | 日期 | 摘要 | 根因 | 修复 |
 |---|---|---|---|
+| 2026-06-18 | `RealHealthAnalyzer` `completeness / checkCount` 除零崩溃，新装 app 无历史数据时 `checkCount>0` 但 `completeness==0` | `checkCount>0` 但 `completeness==0` 时触发除零 | 增加 `checkCount>0` 守卫，合入 `b910989` |
 | 2026-06-18 | `DayPlaybackSheet` `simulatedMinute` 在 `progress=1.0` 时为 1440，但 `.sleep` 最后段条件 `simulatedMinute < endMinute`（即 `1440 < 1440`）永不成，导致 fallback 到 `.walk` | `min/max` 边界处理错误：最后段覆盖到 1440 但 1440 无法严格小于 1440 | 改为 `min(Int(progress * 1440), 1439)`，合入 `4e2ae58` |
 | 2026-06-18 | `DayTimelineView` `scrubOffset` 上限 `1440`，拖到 y=0 时 thumb 与 `00:00(now)` 位置重叠 | `abs = (1440 + stableNowMinute) % 1440 = stableNowMinute`，1440 和 0 都映射到当前分钟 | 改为上限 `1439`，正确显示 23:59，合入 `1e0a0fe` |
 | 2026-06-18 | `MockHealthDataLoader` `buckets[key]!` force unwrap；`HealthExport/HealthTypeBlock/HealthDataPoint.encode(to:)` 用 `fatalError()` 占位，若触发直接 crash | `buckets[key]` 可能为 nil；Codable encode 用占位实现 | `buckets[key] ?? Bucket()`；实现正确的 Codable encode，合入 `0ed0429` |

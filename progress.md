@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-18 | `RealHealthAnalyzer` `completeness / checkCount` 除零崩溃风险，新装 app 无历史数据时可能触发 | 已修复，合入 `b910989` |
 | 2026-06-18 | `DayPlaybackSheet` `simulatedMinute` 在 `progress=1.0` 时计算出 1440，导致最后睡眠段永远无法匹配，fallback 到 `.walk` | 已修复，合入 `4e2ae58` |
 | 2026-06-18 | `LocationService` 删除未使用变量 `lastGeocodeCity`（死代码） | 已修复，合入 `5595842` |
 | 2026-06-18 | `DayTimelineView` `scrubOffset` 上限 `1440` 改为 `1439`，消除拖到最顶时与 00:00(now) 位置重叠 | 已修复，合入 `1e0a0fe` |
