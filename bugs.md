@@ -3,6 +3,7 @@
 
 | 日期 | 摘要 | 根因 | 修复 |
 |---|---|---|---|
+| 2026-06-18 | `SleepParser.swift:92` `bedTime!` 强制解包，`bedTime` 是 `Date?` 类型但 `bed` 已在 if let 中解包 | 有已解包的 `bed` 变量却仍用 forced unwrap | 改用 `bed` 变量，合入 `fcd4e2a` |
 | 2026-06-18 | `ObserverBox` 标注 `Sendable` 但含可变存储 `_handler`，Swift 6 严格并发检查报错 | Swift 6 要求 `Sendable` 类的所有存储属性必须不可变 | 移除 `ObserverBox` 的 `Sendable` conformance，合入 `77e9437` |
 | 2026-06-18 | `SharedStateStore.ObserverBox`/`chatObserverBox`/`isChatObserverRegistered` 缺 `NSLock`/`nonisolated(unsafe)`，Darwin 通知回调（`CFNotificationCenterAddObserver`）与主线程更新存在数据竞争 | Darwin callback 在独立线程执行，主线程 `handler` 赋值无锁保护 | 添加 `NSLock` 保护 `handler` 读写，`nonisolated(unsafe)` 标记只写一次的静态属性，合入 `b1905c4` |
 | 2026-06-17 | 30s 久坐 timer 的 `prevMinutes` 在 Task 创建前捕获，Task 异步执行期间 `onChange(of: hkService.lastMovementTime)` 可能已修改 `currentSitMinutes`，导致比较时用到 stale 数据，错误更新 `currentSitStartTime` | `prevMinutes = currentSitMinutes` 在 Task 外捕获，但 Task 异步期间 `lastMovementTime` onChange 可修改 `currentSitMinutes` | 把 `prevMinutes` 读取移入 Task 内部，用 `MainActor.run` 保证原子性，合入 main |

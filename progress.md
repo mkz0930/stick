@@ -54,6 +54,7 @@
 
 | 日期 | 摘要 | 状态 |
 |---|---|---|
+| 2026-06-18 | `SleepParser.swift:92` `bedTime!` 强制解包 → 改用已解包的 `bed` 变量 | 已修复，合入 `fcd4e2a` |
 | 2026-06-18 | `ObserverBox` 遵循 `Sendable` 但含可变存储（`_handler`），Swift 6 报错 | 已修复，合入 `77e9437` |
 | 2026-06-18 | `SharedStateStore.ObserverBox`/`chatObserverBox`/`isChatObserverRegistered` 缺 `NSLock`/`nonisolated(unsafe)`，Darwin 回调与主线程存在数据竞争 | 已修复，合入 `b1905c4` |
 | 2026-06-18 | ContentView 久坐 timer `prevMinutes` 在 Task 创建前捕获，异步期间 `onChange` 可修改 `currentSitMinutes` 导致比较用到 stale 数据 | 已修复，合入 `de16078` |
