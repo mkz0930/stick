@@ -103,9 +103,11 @@ enum HealthTrendAnalyzer {
 
         // 找昨日
         let calendar = Calendar.current
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: Date())!
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: Date()),
+              let yesterdayEnd = calendar.date(byAdding: .day, value: 1, to: yesterday) else {
+            return 0
+        }
         let yesterdayStart = calendar.startOfDay(for: yesterday)
-        let yesterdayEnd = calendar.date(byAdding: .day, value: 1, to: yesterdayStart)!
 
         let yesterdaySnapshots = all.filter { snapshot in
             let ts = snapshot.timestamp
@@ -124,7 +126,7 @@ enum HealthTrendAnalyzer {
         let todaySteps = today.last?.cumulativeStepCount ?? 0
 
         let calendar = Calendar.current
-        let sevenDaysAgo = calendar.date(byAdding: .day, value: -7, to: Date())!
+        guard let sevenDaysAgo = calendar.date(byAdding: .day, value: -7, to: Date()) else { return 0 }
 
         let recentSnapshots = all.filter { snapshot in
             snapshot.timestamp >= sevenDaysAgo && snapshot.timestamp < calendar.startOfDay(for: Date())

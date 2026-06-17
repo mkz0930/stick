@@ -49,7 +49,7 @@ final class MorningReportStore: ObservableObject {
 
     func cleanupOld() {
         let calendar = Calendar.current
-        let cutoff = calendar.date(byAdding: .day, value: -30, to: Date())!
+        guard let cutoff = calendar.date(byAdding: .day, value: -30, to: Date()) else { return }
         let cutoffStr = Self.dateFormatter.string(from: cutoff)
         reports.filter { $0.date < cutoffStr }.forEach { delete(date: $0.date) }
     }

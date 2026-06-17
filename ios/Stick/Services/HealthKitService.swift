@@ -1486,8 +1486,10 @@ extension HealthKitService {
     /// 查询昨日（00:00 ~ 23:59）的快照数据
     func queryYesterdaySnapshots() async -> [HealthSnapshot] {
         let calendar = Calendar.current
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
-        let endOfYesterday = calendar.date(byAdding: .day, value: 1, to: yesterday)!
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date())),
+              let endOfYesterday = calendar.date(byAdding: .day, value: 1, to: yesterday) else {
+            return []
+        }
         return HealthStore.shared.all.filter { $0.timestamp >= yesterday && $0.timestamp < endOfYesterday }
     }
 
@@ -1627,7 +1629,9 @@ extension HealthKitService {
     /// 获取昨日平均心率
     func yesterdayAverageHeartRate() async -> Double? {
         let calendar = Calendar.current
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date())) else {
+            return nil
+        }
         return await recentAverage(.heartRate, from: yesterday, unit: HKUnit.count().unitDivided(by: .minute()))
     }
 
@@ -1635,8 +1639,10 @@ extension HealthKitService {
     func yesterdayMaxHeartRate() async -> Double? {
         guard let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate) else { return nil }
         let calendar = Calendar.current
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
-        let endOfYesterday = calendar.date(byAdding: .day, value: 1, to: yesterday)!
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date())),
+              let endOfYesterday = calendar.date(byAdding: .day, value: 1, to: yesterday) else {
+            return nil
+        }
 
         return await withCheckedContinuation { cont in
             let predicate = HKQuery.predicateForSamples(withStart: yesterday, end: endOfYesterday, options: .strictStartDate)
@@ -1653,14 +1659,18 @@ extension HealthKitService {
     /// 昨日 HRV 平均值 (SDNN in ms)
     func yesterdayHRV() async -> Double? {
         let calendar = Calendar.current
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date())) else {
+            return nil
+        }
         return await recentAverage(.heartRateVariabilitySDNN, from: yesterday, unit: HKUnit.secondUnit(with: .milli))
     }
 
     /// 昨日静息心率
     func yesterdayRestingHeartRate() async -> Double? {
         let calendar = Calendar.current
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date())) else {
+            return nil
+        }
         return await recentAverage(.restingHeartRate, from: yesterday, unit: HKUnit.count().unitDivided(by: .minute()))
     }
 }
