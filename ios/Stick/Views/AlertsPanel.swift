@@ -15,7 +15,7 @@ struct AlertsPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            header
+            AlertsPanelHeader(count: alerts.count)
             ForEach(visible) { a in
                 AlertRow(alert: a) { onTap(a) }
             }
@@ -27,10 +27,16 @@ struct AlertsPanel: View {
             }
         }
         .padding(12)
-        .background(cardBackground)
+        .background(AlertsPanelCardBackground())
     }
+}
 
-    private var header: some View {
+// MARK: - Subviews
+
+private struct AlertsPanelHeader: View {
+    let count: Int
+
+    var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 11, weight: .bold))
@@ -40,7 +46,7 @@ struct AlertsPanel: View {
                 .tracking(1.6)
                 .foregroundColor(Theme.slate)
             Spacer()
-            Text("\(alerts.count) 项")
+            Text("\(count) 项")
                 .font(.system(size: 10, weight: .heavy, design: .monospaced))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
@@ -51,8 +57,10 @@ struct AlertsPanel: View {
                 .foregroundColor(.white)
         }
     }
+}
 
-    private var cardBackground: some View {
+private struct AlertsPanelCardBackground: View {
+    var body: some View {
         RoundedRectangle(cornerRadius: 6, style: .continuous)
             .fill(Theme.card)
             .overlay(

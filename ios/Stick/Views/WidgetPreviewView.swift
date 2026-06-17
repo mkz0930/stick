@@ -10,7 +10,7 @@ struct WidgetPreviewView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     // 说明
-                    header
+                    WidgetPreviewHeader()
                     // 2x2 小部件
                     sectionHeader("SMALL · 2×2", subtitle: "主屏小方块")
                     widgetFrame {
@@ -22,7 +22,7 @@ struct WidgetPreviewView: View {
                         WidgetPreviewMedium()
                     }
                     // 添加引导
-                    addInstruction
+                    WidgetPreviewAddInstruction()
                 }
                 .padding(20)
             }
@@ -34,18 +34,6 @@ struct WidgetPreviewView: View {
                     Button("关闭") { dismiss() }
                 }
             }
-        }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("WIDGET 预览")
-                .font(.system(size: 11, weight: .heavy, design: .monospaced))
-                .tracking(1.6)
-                .foregroundColor(Theme.slate)
-            Text("在主屏长按空白处 → "+" → 搜 Stick → 选尺寸")
-                .font(.system(size: 14, weight: .regular, design: .serif))
-                .foregroundColor(Theme.navy)
         }
     }
 
@@ -78,7 +66,37 @@ struct WidgetPreviewView: View {
             )
     }
 
-    private var addInstruction: some View {
+    private func instructionRow(num: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(num)
+                .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                .foregroundColor(Theme.slate)
+                .frame(width: 16, alignment: .trailing)
+            Text(text)
+                .font(.system(size: 12, weight: .regular, design: .serif))
+                .foregroundColor(Theme.navy)
+        }
+    }
+}
+
+// MARK: - Subviews
+
+private struct WidgetPreviewHeader: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("WIDGET 预览")
+                .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                .tracking(1.6)
+                .foregroundColor(Theme.slate)
+            Text("在主屏长按空白处 → "+" → 搜 Stick → 选尺寸")
+                .font(.system(size: 14, weight: .regular, design: .serif))
+                .foregroundColor(Theme.navy)
+        }
+    }
+}
+
+private struct WidgetPreviewAddInstruction: View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("添加步骤")
                 .font(.system(size: 11, weight: .heavy, design: .monospaced))
@@ -137,13 +155,27 @@ private struct WidgetPreviewShape: View {
 
     var body: some View {
         switch size {
-        case .small:  smallBody
-        case .medium: mediumBody
+        case .small:  WidgetPreviewSmallBody(state: state)
+        case .medium: WidgetPreviewMediumBody(state: state)
+        }
+    }
+}
+
+// MARK: - Widget Preview Shape Bodies
+
+/// 2×2 小部件：状态色点 + 英文名 + 动作短语
+private struct WidgetPreviewSmallBody: View {
+    let state: SharedStickState
+
+    private var stateAccent: Color {
+        switch state.stateRaw {
+        case "sit":   return Color(red: 0.92, green: 0.34, blue: 0.05)
+        case "sleep": return Color(red: 0.39, green: 0.40, blue: 0.95)
+        default:      return Color(red: 0.02, green: 0.59, blue: 0.41)
         }
     }
 
-    // 2×2 小部件：状态色点 + 英文名 + 动作短语
-    private var smallBody: some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 3) {
                 Circle()
@@ -166,9 +198,21 @@ private struct WidgetPreviewShape: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Theme.bgTop)
     }
+}
 
-    // 4×2 中型部件：左半（状态 + 动作 + 心率），右半（mood）
-    private var mediumBody: some View {
+/// 4×2 中型部件：左半（状态 + 动作 + 心率），右半（mood）
+private struct WidgetPreviewMediumBody: View {
+    let state: SharedStickState
+
+    private var stateAccent: Color {
+        switch state.stateRaw {
+        case "sit":   return Color(red: 0.92, green: 0.34, blue: 0.05)
+        case "sleep": return Color(red: 0.39, green: 0.40, blue: 0.95)
+        default:      return Color(red: 0.02, green: 0.59, blue: 0.41)
+        }
+    }
+
+    var body: some View {
         HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 3) {
@@ -207,13 +251,5 @@ private struct WidgetPreviewShape: View {
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Theme.bgTop)
-    }
-
-    private var stateAccent: Color {
-        switch state.stateRaw {
-        case "sit":   return Color(red: 0.92, green: 0.34, blue: 0.05)
-        case "sleep": return Color(red: 0.39, green: 0.40, blue: 0.95)
-        default:      return Color(red: 0.02, green: 0.59, blue: 0.41)
-        }
     }
 }

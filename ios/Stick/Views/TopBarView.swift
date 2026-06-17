@@ -6,14 +6,20 @@ struct TopBarView: View {
 
     var body: some View {
         HStack {
-            menuButton
+            MenuButton(action: onMenuTap)
             Spacer()
         }
         .frame(height: 44)
     }
+}
 
-    private var menuButton: some View {
-        Button(action: onMenuTap) {
+// MARK: - Subviews
+
+private struct MenuButton: View {
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
             VStack(spacing: 5) {
                 Capsule().fill(Theme.navy).frame(width: 20, height: 1.8)
                 Capsule().fill(Theme.navy).frame(width: 20, height: 1.8)
