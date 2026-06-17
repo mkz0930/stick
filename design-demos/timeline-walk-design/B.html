@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Walk Design B - Surrounding Box</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            background: #0d0d0f;
+            color: #e6ebf2;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 440px;
+            margin: 0 auto;
+        }
+        .header {
+            margin-bottom: 32px;
+        }
+        .title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #8e8e93;
+        }
+        .timeline-wrapper {
+            position: relative;
+            padding-left: 80px;
+            padding-right: 60px;
+        }
+        .time-markers {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 70px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #636366;
+        }
+        .timeline-track {
+            position: relative;
+            width: 8px;
+            background: #2c2c2e;
+            border-radius: 4px;
+            margin-left: 20px;
+            height: 600px;
+        }
+        .segment {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 600;
+            color: #fff;
+        }
+        .segment.sit {
+            background: #ff9500;
+        }
+        .segment.stand {
+            background: #007aff;
+        }
+        .segment.sleep {
+            background: #af52de;
+        }
+        /* Walk box that surrounds the timeline */
+        .walk-box {
+            position: absolute;
+            left: -16px;
+            right: -46px;
+            border: 2px solid #34c759;
+            border-radius: 8px;
+            background: rgba(52, 199, 89, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            padding: 4px 8px;
+            box-shadow: 0 0 16px rgba(52, 199, 89, 0.2);
+        }
+        .walk-box-label {
+            font-size: 10px;
+            color: #34c759;
+            font-weight: 600;
+        }
+        .walk-box-steps {
+            font-size: 9px;
+            color: #30d158;
+        }
+        .walk-line {
+            position: absolute;
+            width: 2px;
+            background: #34c759;
+            left: -14px;
+        }
+        .walk-line-top {
+            top: 0;
+            height: 8px;
+        }
+        .walk-line-bottom {
+            bottom: 0;
+            height: 8px;
+        }
+        .legend {
+            display: flex;
+            gap: 16px;
+            margin-top: 32px;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+        }
+        .description {
+            margin-top: 24px;
+            padding: 16px;
+            background: #1c1c1e;
+            border-radius: 12px;
+            font-size: 13px;
+            color: #8e8e93;
+            line-height: 1.6;
+        }
+        .description strong {
+            color: #34c759;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">Direction B: Surrounding Box</div>
+            <div class="subtitle">步行段用方框包围时间线，上下有延伸框线，步数越多框越高</div>
+        </div>
+
+        <div class="timeline-wrapper">
+            <div class="time-markers">
+                <span>24h前</span>
+                <span>18:00</span>
+                <span>12:00</span>
+                <span>06:00</span>
+                <span>现在</span>
+            </div>
+
+            <div class="timeline-track">
+                <!-- Sleep: 00:00-07:00 -->
+                <div class="segment sleep" style="top: 0; height: 29.17%;">睡</div>
+
+                <!-- Walk box: 07:00-07:25 (25min, 1200 steps) -->
+                <div class="walk-box" style="top: 29.17%; height: 4.5%;">
+                    <div class="walk-line walk-line-top"></div>
+                    <span class="walk-box-label">走 25分</span>
+                    <span class="walk-box-steps">1,200 步</span>
+                    <div class="walk-line walk-line-bottom"></div>
+                </div>
+
+                <!-- Sit: 07:25-08:30 -->
+                <div class="segment sit" style="top: 33.67%; height: 4.34%;">坐</div>
+
+                <!-- Walk box: 08:30-08:45 (15min, 800 steps) -->
+                <div class="walk-box" style="top: 37.01%; height: 1.74%;">
+                    <div class="walk-line walk-line-top"></div>
+                    <span class="walk-box-label">走 15分</span>
+                    <span class="walk-box-steps">800 步</span>
+                    <div class="walk-line walk-line-bottom"></div>
+                </div>
+
+                <!-- Sit: 08:45-12:00 -->
+                <div class="segment sit" style="top: 38.75%; height: 16.67%;">坐</div>
+
+                <!-- Walk box: 12:00-12:20 (20min, 1000 steps) -->
+                <div class="walk-box" style="top: 55.42%; height: 2.31%;">
+                    <div class="walk-line walk-line-top"></div>
+                    <span class="walk-box-label">走 20分</span>
+                    <span class="walk-box-steps">1,000 步</span>
+                    <div class="walk-line walk-line-bottom"></div>
+                </div>
+
+                <!-- Sit: 12:20-13:30 -->
+                <div class="segment sit" style="top: 57.73%; height: 5.56%;">坐</div>
+
+                <!-- Walk box: 13:30-13:45 (15min, 750 steps) -->
+                <div class="walk-box" style="top: 63.29%; height: 1.74%;">
+                    <div class="walk-line walk-line-top"></div>
+                    <span class="walk-box-label">走 15分</span>
+                    <span class="walk-box-steps">750 步</span>
+                    <div class="walk-line walk-line-bottom"></div>
+                </div>
+
+                <!-- Sit: 13:45-18:00 -->
+                <div class="segment sit" style="top: 65.03%; height: 18.06%;">坐</div>
+
+                <!-- Walk box: 18:00-18:15 (15min, 700 steps) -->
+                <div class="walk-box" style="top: 83.09%; height: 1.74%;">
+                    <div class="walk-line walk-line-top"></div>
+                    <span class="walk-box-label">走 15分</span>
+                    <span class="walk-box-steps">700 步</span>
+                    <div class="walk-line walk-line-bottom"></div>
+                </div>
+
+                <!-- Stand: 18:15-19:00 -->
+                <div class="segment stand" style="top: 84.83%; height: 3.12%;">站</div>
+
+                <!-- Walk box: 19:00-19:20 (20min, 950 steps) -->
+                <div class="walk-box" style="top: 87.95%; height: 2.31%;">
+                    <div class="walk-line walk-line-top"></div>
+                    <span class="walk-box-label">走 20分</span>
+                    <span class="walk-box-steps">950 步</span>
+                    <div class="walk-line walk-line-bottom"></div>
+                </div>
+
+                <!-- Stand: 19:20-22:00 -->
+                <div class="segment stand" style="top: 90.26%; height: 11.67%;">站</div>
+            </div>
+        </div>
+
+        <div class="description">
+            <strong>设计说明：</strong>步行段用绿色方框「包围」时间线，方框右侧延伸出步数信息。方框的边框与时间线等宽对齐，上下有竖线延伸到上一个/下一个时间段，让步行段成为一个独立的「岛屿」。步数越多，方框越高，信息越丰富。
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-dot" style="background: #34c759;"></div>
+                <span>走</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot" style="background: #ff9500;"></div>
+                <span>坐</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot" style="background: #007aff;"></div>
+                <span>站</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot" style="background: #af52de;"></div>
+                <span>睡</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
