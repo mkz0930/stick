@@ -229,10 +229,6 @@ struct DayTimelineView: View, Equatable {
         .buttonStyle(.plain)
     }
 
-    private var shareMessage: String {
-        "我在 Stick 上的当前状态 · \(displayState.englishName) · \(formatClockOnly(displayDate))"
-    }
-
     private var header: some View {
         HStack(alignment: .center) {
             Spacer()
@@ -352,42 +348,6 @@ struct DayTimelineView: View, Equatable {
                     .fill(Theme.card)
                     .shadow(color: Theme.navy.opacity(0.12), radius: 2, y: 1)
             )
-        }
-    }
-
-    private var backToNowButton: some View {
-        HStack {
-            if let seg = displaySegment {
-                Text("位于 \(seg.state.rawValue) 时段 · \(StickState.formatMinute(seg.startMinute))–\(StickState.formatMinute(seg.endMinute))")
-                    .font(.system(size: 11, weight: .regular, design: .monospaced))
-                    .tracking(0.3)
-                    .foregroundColor(Theme.slate)
-            }
-            Spacer()
-            Button {
-                // 回到现在的同时弹设备连接
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.72)) {
-                    scrubOffset = nil
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                    showDevicePicker = true
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 11, weight: .bold))
-                    Text("连接设备")
-                        .font(.system(size: 12, weight: .semibold))
-                }
-                .foregroundColor(Theme.darkText)
-                .padding(.horizontal, 11)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Theme.navy)
-                )
-            }
-            .buttonStyle(.plain)
         }
     }
 
