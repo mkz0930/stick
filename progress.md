@@ -46,10 +46,6 @@
 - **真机 HealthKit 数据量**：DEBUG 模拟器启动时自动注入 7 天 mock 数据（`injectMockDataIntoHealthKit`）；真机仍依赖真实 HealthKit 数据
 - **Widget Live Activity**：iOS 16.1+ 真机验证（模拟器不展示 Live Activity UI）；代码链路已完整
 
-## 待优化（低优先级）
-
-- Widget 背景色硬编码为 `Color(red:1.0, green:0.97, blue:0.91)` 暖白色，未使用 Theme 变量，与 app 深色主题不一致
-
 ---
 
 ## bugs（最新）
