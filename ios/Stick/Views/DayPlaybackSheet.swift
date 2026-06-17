@@ -80,43 +80,13 @@ struct DayPlaybackSheet: View {
     // MARK: - 播放视图 (10s 回放)
 
     private var playbackView: some View {
-        VStack(spacing: 0) {
-            topBar
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-
-            Spacer(minLength: 12)
-
-            // 状态名 (eyebrow)
-            Text(displayState.eyebrow)
-                .font(.system(size: 11, weight: .heavy, design: .monospaced))
-                .tracking(2)
-                .foregroundColor(displayState.accent.opacity(0.85))
-                .lineLimit(1)
-
-            // 火柴人
-            StickFigureView(
-                state: displayState,
-                lineColor: Color(red: 0.10, green: 0.14, blue: 0.20),
-                fillColor: Color(red: 0.98, green: 0.98, blue: 0.97)
-            )
-            .frame(maxWidth: 240, maxHeight: 320)
-            .padding(.vertical, 8)
-            .animation(.easeInOut(duration: 0.3), value: displayState)
-
-            // 副标
-            Text(displayState.subLine)
-                .font(.system(size: 13, weight: .medium, design: .monospaced))
-                .foregroundColor(Color(red: 0.30, green: 0.35, blue: 0.40))
-                .lineLimit(1)
-                .padding(.horizontal, 32)
-
-            Spacer(minLength: 12)
-
-            bottomControls
-                .padding(.horizontal, 20)
-                .padding(.bottom, 24)
-        }
+        PlaybackContentView(
+            displayState: displayState,
+            displayTime: displayTime,
+            progress: progress,
+            displaySegment: displaySegment,
+            isFinished: isFinished
+        )
     }
 
     // MARK: - 总结封面 (最后一页)
@@ -139,12 +109,136 @@ struct DayPlaybackSheet: View {
     private var totalMinutes: Int { distribution.reduce(0) { $0 + $1.minutes } }
 
     private var summaryView: some View {
+        SummaryContentView(
+            distribution: distribution,
+            totalMinutes: totalMinutes,
+            dismiss: { dismiss() }
+        )
+    }
+
+    private var summaryTopBar: some View {
+        SummaryTopBarView(todayText: todayText, onDismiss: { dismiss() })
+    }
+
+    private var summaryShareButton: some View {
+        SummaryShareButtonView(shareMessage: shareMessage)
+    }
+
+    private var todayText: String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M月d日 EEE"
+        return f.string(from: Date())
+    }
+
+    private func formatHM(_ m: Int) -> String {
+        let h = m / 60
+        let mm = m % 60
+        return "\(h)h\(String(format: "%02d", mm))m"
+    }
+
+    // MARK: - 顶栏
+
+    private var topBar: some View {
+        PlaybackTopBarView(displayState: displayState, displayTime: displayTime, onDismiss: { dismiss() })
+    }
+
+    // MARK: - 底部控件 (进度条 + 状态文字 + 分享按钮)
+
+    private var bottomControls: some View {
+        BottomControlsView(
+            displayState: displayState,
+            displaySegment: displaySegment,
+            progress: progress,
+            isFinished: isFinished,
+            shareMessage: shareMessage
+        )
+    }
+
+    private var shareMessage: String {
+        let parts = distribution.map { "\($0.state.rawValue) \(formatHM($0.minutes))" }
+        let snaps = HealthStore.shared.today
+        let steps = snaps.last?.cumulativeStepCount ?? 0
+        let hr = snaps.last?.heartRate.map { Int($0) }
+        var extras: [String] = []
+        if steps > 0 { extras.append("\(steps) 步") }
+        if let h = hr { extras.append("\(h) bpm") }
+        let extra = extras.isEmpty ? "" : " · \(extras.joined(separator: " · "))"
+        return "今日 24h · " + parts.joined(separator: " · ") + extra
+    }
+}
+
+// MARK: - Extracted Views
+
+private struct PlaybackContentView: View {
+    let displayState: StickState
+    let displayTime: String
+    let progress: Double
+    let displaySegment: StickState.DaySegment?
+    let isFinished: Bool
+
+    var body: some View {
         VStack(spacing: 0) {
-            summaryTopBar
+            PlaybackTopBarView(displayState: displayState, displayTime: displayTime, onDismiss: {})
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
 
-            // 标题
+            Spacer(minLength: 12)
+
+            Text(displayState.eyebrow)
+                .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                .tracking(2)
+                .foregroundColor(displayState.accent.opacity(0.85))
+                .lineLimit(1)
+
+            StickFigureView(
+                state: displayState,
+                lineColor: Color(red: 0.10, green: 0.14, blue: 0.20),
+                fillColor: Color(red: 0.98, green: 0.98, blue: 0.97)
+            )
+            .frame(maxWidth: 240, maxHeight: 320)
+            .padding(.vertical, 8)
+            .animation(.easeInOut(duration: 0.3), value: displayState)
+
+            Text(displayState.subLine)
+                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .foregroundColor(Color(red: 0.30, green: 0.35, blue: 0.40))
+                .lineLimit(1)
+                .padding(.horizontal, 32)
+
+            Spacer(minLength: 12)
+
+            BottomControlsView(
+                displayState: displayState,
+                displaySegment: displaySegment,
+                progress: progress,
+                isFinished: isFinished,
+                shareMessage: ""
+            )
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
+        }
+    }
+}
+
+private struct SummaryContentView: View {
+    let distribution: [(state: StickState, minutes: Int)]
+    let totalMinutes: Int
+    let dismiss: () -> Void
+
+    private var todayText: String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M月d日 EEE"
+        return f.string(from: Date())
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SummaryTopBarView(todayText: todayText, onDismiss: dismiss)
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+
             VStack(spacing: 2) {
                 Text("TODAY · 24H")
                     .font(.system(size: 11, weight: .heavy, design: .monospaced))
@@ -158,7 +252,6 @@ struct DayPlaybackSheet: View {
 
             Spacer(minLength: 4)
 
-            // 火柴人（主体）
             StickFigureView(
                 state: .walk,
                 lineColor: Color(red: 0.10, green: 0.14, blue: 0.20),
@@ -167,13 +260,11 @@ struct DayPlaybackSheet: View {
             .frame(maxWidth: 280, maxHeight: 280)
             .padding(.vertical, 4)
 
-            // 时间分布堆叠条
             VStack(spacing: 8) {
                 DistributionStackedBar(distribution: distribution, total: totalMinutes)
                     .frame(height: 14)
                     .clipShape(Capsule())
 
-                // 图例
                 HStack(spacing: 14) {
                     ForEach(distribution.indices, id: \.self) { i in
                         let item = distribution[i]
@@ -189,7 +280,6 @@ struct DayPlaybackSheet: View {
                     }
                 }
 
-                // 真实数据指标
                 let snaps = HealthStore.shared.today
                 let steps = snaps.last?.cumulativeStepCount ?? 0
                 let hr = snaps.last?.heartRate.map { Int($0) }
@@ -235,13 +325,36 @@ struct DayPlaybackSheet: View {
 
             Spacer(minLength: 8)
 
-            summaryShareButton
+            SummaryShareButtonView(shareMessage: summaryShareMessage)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 24)
         }
     }
 
-    private var summaryTopBar: some View {
+    private var summaryShareMessage: String {
+        let parts = distribution.map { "\($0.state.rawValue) \(formatHM($0.minutes))" }
+        let snaps = HealthStore.shared.today
+        let steps = snaps.last?.cumulativeStepCount ?? 0
+        let hr = snaps.last?.heartRate.map { Int($0) }
+        var extras: [String] = []
+        if steps > 0 { extras.append("\(steps) 步") }
+        if let h = hr { extras.append("\(h) bpm") }
+        let extra = extras.isEmpty ? "" : " · \(extras.joined(separator: " · "))"
+        return "今日 24h · " + parts.joined(separator: " · ") + extra
+    }
+
+    private func formatHM(_ m: Int) -> String {
+        let h = m / 60
+        let mm = m % 60
+        return "\(h)h\(String(format: "%02d", mm))m"
+    }
+}
+
+private struct SummaryTopBarView: View {
+    let todayText: String
+    let onDismiss: () -> Void
+
+    var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("回放结束")
@@ -253,7 +366,7 @@ struct DayPlaybackSheet: View {
                     .foregroundColor(Color(red: 0.10, green: 0.14, blue: 0.20))
             }
             Spacer()
-            Button { dismiss() } label: {
+            Button { onDismiss() } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(Color(red: 0.30, green: 0.35, blue: 0.40))
@@ -263,8 +376,12 @@ struct DayPlaybackSheet: View {
             .buttonStyle(.plain)
         }
     }
+}
 
-    private var summaryShareButton: some View {
+private struct SummaryShareButtonView: View {
+    let shareMessage: String
+
+    var body: some View {
         ShareLink(item: shareMessage) {
             HStack(spacing: 8) {
                 Image(systemName: "square.and.arrow.up")
@@ -281,23 +398,14 @@ struct DayPlaybackSheet: View {
         }
         .buttonStyle(.plain)
     }
+}
 
-    private var todayText: String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "zh_CN")
-        f.dateFormat = "M月d日 EEE"
-        return f.string(from: Date())
-    }
+private struct PlaybackTopBarView: View {
+    let displayState: StickState
+    let displayTime: String
+    let onDismiss: () -> Void
 
-    private func formatHM(_ m: Int) -> String {
-        let h = m / 60
-        let mm = m % 60
-        return "\(h)h\(String(format: "%02d", mm))m"
-    }
-
-    // MARK: - 顶栏
-
-    private var topBar: some View {
+    var body: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("今日回放")
@@ -312,9 +420,7 @@ struct DayPlaybackSheet: View {
                     .animation(.easeInOut(duration: 0.18), value: displayTime)
             }
             Spacer()
-            Button {
-                dismiss()
-            } label: {
+            Button { onDismiss() } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(Color(red: 0.30, green: 0.35, blue: 0.40))
@@ -326,12 +432,17 @@ struct DayPlaybackSheet: View {
             .buttonStyle(.plain)
         }
     }
+}
 
-    // MARK: - 底部控件 (进度条 + 状态文字 + 分享按钮)
+private struct BottomControlsView: View {
+    let displayState: StickState
+    let displaySegment: StickState.DaySegment?
+    let progress: Double
+    let isFinished: Bool
+    let shareMessage: String
 
-    private var bottomControls: some View {
+    var body: some View {
         VStack(spacing: 14) {
-            // 进度条
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 2)
@@ -341,7 +452,6 @@ struct DayPlaybackSheet: View {
                         .fill(displayState.accent)
                         .frame(width: geo.size.width * progress, height: 4)
                         .animation(.linear(duration: 0.05), value: progress)
-                    // thumb
                     Circle()
                         .fill(Color.black)
                         .frame(width: 10, height: 10)
@@ -350,7 +460,6 @@ struct DayPlaybackSheet: View {
             }
             .frame(height: 10)
 
-            // 状态文字 + 分享按钮
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     if let seg = displaySegment {
@@ -383,18 +492,6 @@ struct DayPlaybackSheet: View {
                 }
             }
         }
-    }
-
-    private var shareMessage: String {
-        let parts = distribution.map { "\($0.state.rawValue) \(formatHM($0.minutes))" }
-        let snaps = HealthStore.shared.today
-        let steps = snaps.last?.cumulativeStepCount ?? 0
-        let hr = snaps.last?.heartRate.map { Int($0) }
-        var extras: [String] = []
-        if steps > 0 { extras.append("\(steps) 步") }
-        if let h = hr { extras.append("\(h) bpm") }
-        let extra = extras.isEmpty ? "" : " · \(extras.joined(separator: " · "))"
-        return "今日 24h · " + parts.joined(separator: " · ") + extra
     }
 }
 
