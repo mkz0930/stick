@@ -62,6 +62,35 @@ final class UserProfileStore: ObservableObject {
         UserDefaults.standard.set(profile, forKey: profileKey)
     }
 
+    /// 记录用户对睡眠时长的准确度反馈。追加到 profile 末尾，不覆盖原内容。
+    func recordSleepAccuracy(accurate: Bool, date: Date) {
+        let dateStr = Self.feedbackDateFormatter.string(from: date)
+        let label = accurate ? "准确" : "不准确"
+        appendProfileLine("睡眠时长反馈 \(dateStr): \(label)")
+    }
+
+    /// 记录算法校准提示（来自历史反馈统计）。追加到 profile 末尾。
+    func recordCalibrationHint(_ hint: String) {
+        let dateStr = Self.feedbackDateFormatter.string(from: Date())
+        appendProfileLine("校准提示 \(dateStr): \(hint)")
+    }
+
+    /// 追加一行到 profile，自动加换行
+    private func appendProfileLine(_ line: String) {
+        if profile.isEmpty {
+            profile = line
+        } else {
+            profile += "\n" + line
+        }
+        UserDefaults.standard.set(profile, forKey: profileKey)
+    }
+
+    private static let feedbackDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
     /// 调试用：清空画像
     func clear() {
         profile = ""
