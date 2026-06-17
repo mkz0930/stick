@@ -31,24 +31,60 @@ struct InputBar: View {
     ]
 
     /// 相机 chip — 点击后跳转到 ChatOverlay 并自动激活对应 chip + 开相机
-    private static let cameraChipTitles: Set<String> = ["拍食物", "报告解读"]
+    static let cameraChipTitles: Set<String> = ["拍食物", "报告解读"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // 1. 顶部 feature chips (横向滚动)
-            chipsRow
+            InputBarChipsRow(
+                features: features,
+                onOpenChat: onOpenChat,
+                onOpenCamera: onOpenCamera,
+                autoTopics: autoTopics,
+                onAutoTopic: onAutoTopic
+            )
 
             // 2. 底部 input pill + 相机按钮
             HStack(spacing: 8) {
-                inputPill
-                cameraButton
+                InputBarPill(
+                    placeholderText: placeholderText,
+                    onOpenChat: onOpenChat,
+                    onPlusTap: onPlusTap,
+                    onPlaceholderTap: { onOpenChat(text) }
+                )
+                InputBarCameraButton(
+                    onTap: {
+                        if let cb = onOpenCamera {
+                            cb()
+                        } else {
+                            onOpenChat("拍照识别")
+                        }
+                    }
+                )
             }
         }
     }
 
-    // MARK: - 顶部 chips 行
+    private var placeholderText: String {
+        if !text.isEmpty { return text }
+        // 有聊天历史时, 显示"上次问了: xxx" → 提示用户有记录
+        if let last = lastHistoryPrompt, !last.isEmpty {
+            return "上次问了: \(last.prefix(20))...   点开查看对话"
+        }
+        return "对话内容已开启隐私保护..."
+    }
+}
 
-    private var chipsRow: some View {
+// MARK: - 顶部 chips 行
+
+private struct InputBarChipsRow: View {
+    let features: [InputFeature]
+    let onOpenChat: (_ seed: String) -> Void
+    let onOpenCamera: (() -> Void)?
+    let autoTopics: Set<String>
+    let onAutoTopic: ((_ title: String, _ seed: String) -> Void)?
+
+    var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(features) { f in
@@ -86,10 +122,17 @@ struct InputBar: View {
             .padding(.horizontal, 2)   // 让首尾 chip 不贴边
         }
     }
+}
 
-    // MARK: - Pill 输入条
+// MARK: - Pill 输入条
 
-    private var inputPill: some View {
+private struct InputBarPill: View {
+    let placeholderText: String
+    let onOpenChat: (_ seed: String) -> Void
+    let onPlusTap: (() -> Void)?
+    let onPlaceholderTap: () -> Void
+
+    var body: some View {
         HStack(spacing: 0) {
             // 左侧: 语音按钮 (圆形描边)
             Button {
@@ -113,7 +156,7 @@ struct InputBar: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    onOpenChat(text)
+                    onPlaceholderTap()
                 }
 
             // 右侧: + 按钮 (圆形描边) — 打开相册/相机选图，发给 LLM 视觉分析
@@ -138,17 +181,15 @@ struct InputBar: View {
             Capsule().stroke(Theme.border, lineWidth: 0.5)
         )
     }
+}
 
-    // MARK: - 相机按钮 (独立圆形 + 右上角小星)
+// MARK: - 相机按钮 (独立圆形 + 右上角小星)
 
-    private var cameraButton: some View {
-        Button {
-            if let cb = onOpenCamera {
-                cb()
-            } else {
-                onOpenChat("拍照识别")
-            }
-        } label: {
+private struct InputBarCameraButton: View {
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
             ZStack(alignment: .topTrailing) {
                 // 相机主体
                 Image(systemName: "camera.fill")
@@ -177,15 +218,6 @@ struct InputBar: View {
             }
         }
         .buttonStyle(.plain)
-    }
-
-    private var placeholderText: String {
-        if !text.isEmpty { return text }
-        // 有聊天历史时, 显示"上次问了: xxx" → 提示用户有记录
-        if let last = lastHistoryPrompt, !last.isEmpty {
-            return "上次问了: \(last.prefix(20))...   点开查看对话"
-        }
-        return "对话内容已开启隐私保护..."
     }
 }
 
