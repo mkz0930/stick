@@ -273,6 +273,9 @@ final class HealthKitService: ObservableObject {
 
     // MARK: - 定时抓取 (1 分钟一次)
 
+    /// DEBUG 模式：追踪是否已自动注入过 mock 数据（避免每次启动重复注入）
+    private static var hasInjectedMockDataInThisCycle = false
+
     func startAutoCapture(interval: TimeInterval = 60) {
         stopAutoCapture()
 
@@ -304,6 +307,18 @@ final class HealthKitService: ObservableObject {
             HealthStore.shared.append(mockSnapshot)
             lastSnapshot = mockSnapshot
         }
+
+        // DEBUG 模拟器：首次启动时自动注入 7 天历史数据到 HealthKit（让"导出最近7天"能看到多天数据）。
+        // 通过静态标记避免每次启动重复注入；重启 app 或重装后标记重置，会重新注入。
+        #if DEBUG
+        if !Self.hasInjectedMockDataInThisCycle {
+            Self.hasInjectedMockDataInThisCycle = true
+            Task {
+                let count = await injectMockDataIntoHealthKit(days: 7)
+                print("[HealthKitService] 🧪 DEBUG 模拟器自动注入 7 天 mock 数据: \(count) 条")
+            }
+        }
+        #endif
         #endif
 
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
