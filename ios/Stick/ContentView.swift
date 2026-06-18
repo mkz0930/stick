@@ -546,6 +546,543 @@ struct ContentView: View {
 
     /// 主页（被外层 ZStack 包了一层）— GeometryReader + 个人面板
     private var mainContent: some View {
+        MainContentView(
+            hk: hk,
+            healthAuth: healthAuth,
+            chatHistory: chatHistory,
+            liveActivityManager: liveActivityManager,
+            now: $now,
+            timerTick: $timerTick,
+            scrubOffset: $scrubOffset,
+            manualStateOverride: $manualStateOverride,
+            showPersonal: $showPersonal,
+            showFilm: $showFilm,
+            showSleepReport: $showSleepReport,
+            activeSheet: $activeSheet,
+            openDataRecord: $openDataRecord,
+            openWidgetPreview: $openWidgetPreview,
+            deviceSet: $deviceSet,
+            showInjectConfirm: $showInjectConfirm,
+            injectStatus: $injectStatus,
+            chatSeed: $chatSeed,
+            chatKey: $chatKey,
+            chatPendingPhoto: $chatPendingPhoto,
+            showChat: $showChat,
+            targetScrollId: $targetScrollId,
+            scrollTrigger: $scrollTrigger,
+            currentSitMinutes: $currentSitMinutes,
+            currentSitStartTime: $currentSitStartTime,
+            lastSitAnalysisTime: $lastSitAnalysisTime,
+            backgroundedAt: $backgroundedAt,
+            homeSedentaryMinutes: $homeSedentaryMinutes,
+            hasValidSleepData: $hasValidSleepData,
+            walkingQuality: $walkingQuality,
+            realHeartRate: $realHeartRate,
+            inference: $inference,
+            todaySleepHours: $todaySleepHours,
+            homeBody: AnyView(homeBody),
+            displayState: displayState,
+            realSubLine: realSubLine,
+            isScrubbing: isScrubbing,
+            primaryHeartRate: primaryHeartRate,
+            primaryDurationMinutes: primaryDurationMinutes,
+            sitDurationText: sitDurationText,
+            openChat: openChat,
+            sheetContent: { destination in
+                sheetContent(for: destination)
+            }
+        )
+    }
+
+    // MARK: - 首页内容 (抽出来便于在 ZStack 中复用)
+
+    private var homeBody: some View {
+        HomeBodyView(
+            hk: hk,
+            healthAuth: healthAuth,
+            chatHistory: chatHistory,
+            deviceSet: $deviceSet,
+            showPersonal: $showPersonal,
+            showInjectConfirm: $showInjectConfirm,
+            showDevicePicker: $showDevicePicker,
+            showFilm: $showFilm,
+            showSleepReport: $showSleepReport,
+            showChat: $showChat,
+            activeSheet: $activeSheet,
+            manualStateOverride: $manualStateOverride,
+            scrubOffset: $scrubOffset,
+            featureRowExpanded: $featureRowExpanded,
+            inputDraft: $inputDraft,
+            hasValidSleepData: $hasValidSleepData,
+            homeSedentaryMinutes: $homeSedentaryMinutes,
+            currentSitMinutes: $currentSitMinutes,
+            now: now,
+            displayState: displayState,
+            figureMood: figureMood,
+            bodyEnergy: bodyEnergy,
+            energyColor: energyColor,
+            moodScore: moodScore,
+            displayMoodLine: displayMoodLine,
+            unifiedAlerts: unifiedAlerts,
+            sitDurationText: sitDurationText,
+            todaySitDescription: todaySitDescription,
+            todaySteps: todaySteps,
+            todayWalkMinutes: todayWalkMinutes,
+            todaySleepHours: todaySleepHours,
+            realSubLine: realSubLine,
+            isScrubbing: isScrubbing,
+            inference: inference,
+            handleAlertTap: handleAlertTap,
+            openChat: openChat,
+            openCamera: openCamera,
+            openChatWithPhoto: openChatWithPhoto,
+            openChatWithTopic: openChatWithTopic,
+            loadMockData: { sed, sitMins, sleep in
+                hasValidSleepData = sleep
+                homeSedentaryMinutes = sed
+                currentSitMinutes = sitMins
+            }
+        )
+    }
+
+    private func openChat(_ seed: String) {
+        chatSeed = seed
+        chatKey += 1
+        showChat = true
+    }
+
+    /// InputBar + 按钮触发：开 chat + 让 ChatOverlay 自动打开相册/相机选图给 LLM 视觉分析
+    private func openChatWithPhoto() {
+        chatSeed = ""
+        chatKey += 1
+        chatPendingPhoto = true
+        showChat = true
+    }
+
+    private func openCamera() {
+        // 打开 ChatOverlay + 让 ChatOverlay 内部自动激活相机 chip + 开相机
+        // 与首页"拍食物"chip 走同一条路径
+        chatSeed = ""
+        chatKey += 1
+        chatPendingCamera = true
+        showChat = true
+    }
+
+    /// autoTopic chip（饮食建议）触发：开 chat + 让 ChatOverlay 自动调 LLM 给出个性化建议
+    private func openChatWithTopic(_ title: String, _ seed: String) {
+        chatSeed = seed
+        chatKey += 1
+        chatPendingTopic = title
+        showChat = true
+    }
+
+    /// 强制收起系统键盘
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
+    // MARK: - 背景（v6 米色渐变 + 弱网格 + 状态柔光）
+
+    private var background: some View {
+        HomeBackground(state: displayState)
+    }
+
+    @ViewBuilder
+    private func sheetContent(for destination: SheetDestination) -> some View {
+        switch destination {
+        case .walk:
+            WalkDetailSheet(
+                steps: todaySteps,
+                walkMinutes: todayWalkMinutes,
+                avgSpeed: walkingQuality?.avgSpeed,
+                gaitScore: walkingQuality?.gaitScore ?? 60
+            )
+        case .sit:
+            SitDetailSheet(
+                sedentaryMinutes: homeSedentaryMinutes,
+                heartRate: realHeartRate,
+                bodyScore: bodyEnergy
+            )
+        case .sleep:
+            SleepDetailSheet(
+                sleepHours: todaySleepHours ?? 0,
+                sleepQualityLabel: walkingQuality?.sleepQualityLabel ?? "--",
+                nightWakeCount: walkingQuality?.nightWakeCount ?? 0,
+                nightWakeTotalMin: walkingQuality?.nightWakeTotalMin ?? 0
+            )
+        case .figure:
+            StickFigureDetailSheet(state: displayState)
+        }
+    }
+
+}
+
+// MARK: - 主舞台（v6 风格）
+
+private struct StageHeroView: View {
+    let state: StickState
+    let mood: StickFigureMood
+    let bodyEnergy: Double
+    let energyColor: Color
+    let isScrubbing: Bool
+    let inference: StateInference.Result?
+    @Binding var showDevicePicker: Bool
+    @Binding var scrubOffset: Int?            // 接收时间线 binding，stage 也可拖
+    @Binding var manualStateOverride: StickState?  // swipe 切状态后的强制状态
+    var onPreview: () -> Void
+    var onSleepAlert: () -> Void
+    var onFigureTap: () -> Void
+    let subLine: String
+    let schedule: [StickState.DaySegment]    // 真实时刻表（用于按时间正方向查找下一个 state 的段）
+
+    /// 拖动起点 + 起始 offset (用于把横向 delta 换算成分钟)
+    @State private var dragStartOffset: Int? = nil
+    @State private var dragWidth: CGFloat = 0
+    @State private var isStageScrubbing: Bool = false
+    /// swipe 命中阈值：|translation.width| > 30pt 视为切状态手势
+    private let swipeThreshold: CGFloat = 30
+
+    /// 主舞台水平滑动 → 切时间。手势灵敏度：1 pt = 4 min（24h / iPhone 17 Pro 屏幕宽 ≈ 393 pt）
+    /// - 左滑（delta.x > 0）→ 回到过去（offset 增加）
+    /// - 右滑（delta.x < 0）→ 回到现在（offset 减少）
+    private func handleStageDrag(translation: CGFloat, width: CGFloat) {
+        dragWidth = width
+        let baseOffset = dragStartOffset ?? scrubOffset ?? 0
+        // 24h=1440min，按舞台宽度线性换算
+        let deltaMinutes = Int((translation / width) * 1440)
+        let newOffset = max(0, min(1440, baseOffset + deltaMinutes))
+        // snap 到 5 min
+        scrubOffset = (newOffset / 5) * 5
+    }
+
+    /// 快速 swipe → 切到 `allCases` 里相邻 state，并跳 thumb 到该 state 在当前时间之后最近的 segment 中点。
+    /// 找不到则 wrap 到 schedule 里该 state 的第一个 segment。
+    /// direction: +1 = 右滑 (下一个 state), -1 = 左滑 (上一个 state)
+    private func cycleState(direction: Int) {
+        let allCases = StickState.allCases
+        guard !allCases.isEmpty else { return }
+        let current = manualStateOverride ?? state
+        let currentIndex = allCases.firstIndex(of: current) ?? 0
+        let nextIndex = ((currentIndex + direction) + allCases.count) % allCases.count
+        let nextState = allCases[nextIndex]
+
+        // 计算当前 thumb 所在分钟（处理跨午夜 + 边界 clamp）
+        let nowMin = StickState.minutesOfDay(Date())
+        let rawDisplayMin = (nowMin - (scrubOffset ?? 0) + 1440) % 1440
+        let currentDisplayMin = max(0, min(rawDisplayMin, 1439))
+
+        // 在 schedule 里按时间正方向找 nextState 之后最近的段；找不到则 wrap 到第一个
+        let targetSeg = Self.nextSegment(for: nextState, after: currentDisplayMin, in: schedule)
+        let jumpMinute = targetSeg.map { (($0.startMinute + $0.endMinute) / 2) } ?? nowMin
+        // 让 scrubOffset 落点刚好让 displayMinute = jumpMinute（处理跨午夜）
+        let rawOffset = (nowMin - jumpMinute + 1440) % 1440
+        let snappedOffset = (rawOffset / 5) * 5
+
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+            manualStateOverride = nextState
+            scrubOffset = snappedOffset == 0 ? nil : snappedOffset
+        }
+    }
+
+    /// 在 `schedule` 里按 startMinute 升序找 `state` 第一个 `startMinute > after` 的段；
+    /// 找不到则 wrap 到 schedule 里该 state 的第一个段。
+    /// 用于 swipe 切状态时按时间正方向跳 thumb。
+    fileprivate static func nextSegment(
+        for state: StickState,
+        after minute: Int,
+        in schedule: [StickState.DaySegment]
+    ) -> StickState.DaySegment? {
+        schedule.first(where: { $0.state == state && $0.startMinute > minute })
+            ?? schedule.first { $0.state == state }
+    }
+
+    /// 把 inference 副标拼成单行 mono 文本：CONF xx% · <first reason>
+    private var inferenceSubline: String {
+        guard let inf = inference else { return "INFERRING…" }
+        let pct = Int((inf.confidence * 100).rounded())
+        let reason = inf.reasons.first ?? "无数据"
+        return "CONF \(pct)% · \(reason)"
+    }
+
+    /// 缺数据：inference 没跑出来，或跑出来但 reason 是 "无数据"
+    private var hasNoData: Bool {
+        guard let inf = inference else { return true }
+        return inf.reasons.first == "无数据"
+    }
+
+    var body: some View {
+        VStack(alignment: .center, spacing: 20) {
+            // 舞台区（火柴人 + 透明背景，跟整页一个底色）
+            ZStack {
+                // 永远画小人（让用户看到 30° 低头 + 低落表情等所有视觉）
+                StickFigureView(state: state, mood: mood)
+                    .padding(.horizontal, 4)
+                    .padding(.top, 70)
+                    .padding(.bottom, 0)
+                    .id(state)
+                    .transition(.opacity)
+
+                // 右上角：状态名 + 副标（睡眠异常 chip 已移除 — 暂无真实数据源）
+                HStack {
+                    Spacer(minLength: 0)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        // 睡眠 chip 已删除，避免误提示
+                    }
+                }
+                .padding(4)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture { onFigureTap() }
+            .padding(.top, 6)
+            .animation(.easeInOut(duration: 0.45), value: state)
+            .animation(.easeInOut(duration: 0.35), value: hasNoData)
+            // 主舞台水平滑动 → 切换时间
+            .contentShape(Rectangle())
+            .background(
+                Group {
+                    if ContentView.isRunningForPreviews {
+                        // Preview 跳过嵌套 GeometryReader；用 360 作为 iPhone 17 宽度估计
+                        Color.clear.onAppear { dragWidth = 360 }
+                    } else {
+                        GeometryReader { proxy in
+                            Color.clear
+                                .onAppear { dragWidth = proxy.size.width }
+                                .onChange(of: proxy.size.width) { _, new in dragWidth = new }
+                        }
+                    }
+                }
+            )
+            .gesture(
+                DragGesture(minimumDistance: 12, coordinateSpace: .local)
+                    .onChanged { value in
+                        if dragStartOffset == nil {
+                            dragStartOffset = scrubOffset ?? 0
+                        }
+                        isStageScrubbing = true
+                        // 优先用 GeometryReader 拿到的真实宽度，回落到 320 防 nil
+                        let width = dragWidth > 0 ? dragWidth : 320
+                        handleStageDrag(translation: value.translation.width, width: width)
+                    }
+                    .onEnded { value in
+                        let dx = value.translation.width
+                        // |dx| > threshold → swipe 切状态；否则保留 onChanged 已写入的 scrub 结果
+                        if abs(dx) > swipeThreshold {
+                            // 右滑 dx > 0 → 下一个 state (cycleState 内部方向约定 +1 = 右滑 = 下一个)
+                            cycleState(direction: dx > 0 ? 1 : -1)
+                        }
+                        isStageScrubbing = false
+                        dragStartOffset = nil
+                    }
+            )
+
+            // 拖动时显示当前时间 / swipe 后显示状态 + 时段范围
+            if isStageScrubbing || manualStateOverride != nil {
+                StageScrubBadge(
+                    state: state,
+                    scrubOffset: $scrubOffset,
+                    manualStateOverride: $manualStateOverride,
+                    schedule: schedule
+                )
+            }
+        }
+    }
+
+}
+
+// MARK: - HomeBackground（rule 1 提取）
+
+/// 首页背景层：v6 米色渐变 + 弱网格 + 顶部状态柔光
+private struct HomeBackground: View {
+    let state: StickState
+
+    private static var isRunningForPreviews: Bool {
+        ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil
+    }
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Theme.bgTop, Theme.bgBottom],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            // Preview 跳过网格 Canvas + RadialGradient（这两个是最重的渲染源）
+            if !Self.isRunningForPreviews {
+                // 弱网格（v6 style）
+                Canvas { ctx, size in
+                    let step: CGFloat = 36
+                    var x: CGFloat = 0
+                    while x < size.width {
+                        var p = Path()
+                        p.move(to: CGPoint(x: x, y: 0))
+                        p.addLine(to: CGPoint(x: x, y: size.height))
+                        ctx.stroke(p, with: .color(Theme.grid), lineWidth: 0.5)
+                        x += step
+                    }
+                    var y: CGFloat = 0
+                    while y < size.height {
+                        var p = Path()
+                        p.move(to: CGPoint(x: 0, y: y))
+                        p.addLine(to: CGPoint(x: size.width, y: y))
+                        ctx.stroke(p, with: .color(Theme.grid), lineWidth: 0.5)
+                        y += step
+                    }
+                }
+                .allowsHitTesting(false)
+
+                // 顶部状态柔光
+                RadialGradient(
+                    colors: [state.accentSoft.opacity(0.55), .clear],
+                    center: .init(x: 0.5, y: 0.0),
+                    startRadius: 30,
+                    endRadius: 360
+                )
+                .animation(.easeInOut(duration: 0.45), value: state)
+            }
+        }
+    }
+}
+
+// MARK: - StageScrubBadge（rule 1 提取）
+
+/// 主舞台中央徽章：
+/// - swipe 切状态后 → `状态 · HH:MM–HH:MM`（按当前 thumb 位置定位到该 state 的最近段）
+/// - 仅拖动时间 → `HH:MM`
+private struct StageScrubBadge: View {
+    let state: StickState
+    @Binding var scrubOffset: Int?
+    @Binding var manualStateOverride: StickState?
+    let schedule: [StickState.DaySegment]
+
+    var body: some View {
+        let offset = scrubOffset ?? 0
+        let m = StickState.minutesOfDay(Date().addingTimeInterval(-Double(offset) * 60))
+        let targetState = manualStateOverride ?? state
+        // 按当前 thumb 位置定位 segment；override state 时优先找当前位置匹配的段，否则取该 state 之后的最近段
+        // 注意：hk.realDaySchedule 可能比 daySchedule 有更多 gaps（如 HealthKit 数据稀疏），
+        // 此时 seg 可能为 nil，应优雅降级为仅显示 state 名字
+        let seg: StickState.DaySegment? = {
+            if let cur = schedule.first(where: {
+                $0.startMinute <= m && m < $0.endMinute && $0.state == targetState
+            }) {
+                return cur
+            }
+            return StageHeroView.nextSegment(for: targetState, after: m, in: schedule)
+        }()
+        let isOverride = manualStateOverride != nil
+        VStack(spacing: 2) {
+            if isOverride {
+                if let seg = seg {
+                    Text("\(StickState.formatMinute(seg.startMinute))–\(StickState.formatMinute(seg.endMinute)) · \(targetState.rawValue)")
+                        .font(.system(size: 20, weight: .heavy, design: .monospaced))
+                        .foregroundColor(Theme.navy)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .fixedSize()
+                        .contentTransition(.numericText())
+                        .transition(.scale.combined(with: .opacity))
+                } else {
+                    // seg 为 nil（时间落在 schedule 间隙）时，仍显示 state 名字，不Crash也不错乱
+                    Text(targetState.rawValue)
+                        .font(.system(size: 20, weight: .heavy, design: .monospaced))
+                        .foregroundColor(Theme.navy)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .fixedSize()
+                        .contentTransition(.numericText())
+                        .transition(.scale.combined(with: .opacity))
+                }
+            } else {
+                let hh = (m / 60) % 24
+                let mm = m % 60
+                Text(String(format: "%02d:%02d", hh, mm))
+                    .font(.system(size: 26, weight: .black, design: .monospaced))
+                    .foregroundColor(Theme.navy)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize()
+                    .contentTransition(.numericText())
+                    .transition(.scale.combined(with: .opacity))
+            }
+            Text("← 左右滑动切换状态 →")
+                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .tracking(0.6)
+                .foregroundColor(Theme.slate)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Theme.card.opacity(0.92))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Theme.border, lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
+        .animation(.easeInOut(duration: 0.2), value: isOverride)
+    }
+}
+
+// MARK: - MainContentView（rule 1 提取）
+
+/// 主页（被外层 ZStack 包了一层）— GeometryReader + 个人面板
+/// 含 1s/30s 定时器、scenePhase 恢复、5 个 onChange、3 sheets、confirmation dialog
+private struct MainContentView<SheetContent: View>: View {
+    @ObservedObject var hk: HealthKitService
+    @ObservedObject var healthAuth: HealthAuthService
+    @ObservedObject var chatHistory: ChatHistoryStore
+    @ObservedObject var liveActivityManager: LiveActivityManager
+
+    @Binding var now: Date
+    @Binding var timerTick: Date
+    @Binding var scrubOffset: Int?
+    @Binding var manualStateOverride: StickState?
+    @Binding var showPersonal: Bool
+    @Binding var showFilm: Bool
+    @Binding var showSleepReport: Bool
+    @Binding var activeSheet: SheetDestination?
+    @Binding var openDataRecord: Bool
+    @Binding var openWidgetPreview: Bool
+    @Binding var deviceSet: Set<DeviceID>
+    @Binding var showInjectConfirm: Bool
+    @Binding var injectStatus: String?
+    @Binding var chatSeed: String
+    @Binding var chatKey: Int
+    @Binding var chatPendingPhoto: Bool
+    @Binding var showChat: Bool
+    @Binding var targetScrollId: UUID?
+    @Binding var scrollTrigger: Int
+    @Binding var currentSitMinutes: Int
+    @Binding var currentSitStartTime: Date?
+    @Binding var lastSitAnalysisTime: Date
+    @Binding var backgroundedAt: Date?
+    @Binding var homeSedentaryMinutes: Int
+    @Binding var hasValidSleepData: Bool
+    @Binding var walkingQuality: WalkingQualityData?
+    @Binding var realHeartRate: Int?
+    @Binding var inference: StateInference.Result?
+    @Binding var todaySleepHours: Double?
+
+    let homeBody: AnyView
+    let displayState: StickState
+    let realSubLine: String
+    let isScrubbing: Bool
+    let primaryHeartRate: Int
+    let primaryDurationMinutes: Int
+    let sitDurationText: String?
+    let openChat: (String) -> Void
+    @ViewBuilder let sheetContent: (SheetDestination) -> SheetContent
+
+    @Environment(\.scenePhase) private var scenePhase: ScenePhase
+
+    fileprivate static var isRunningForPreviews: Bool {
+        ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil
+    }
+
+    var body: some View {
         GeometryReader { geo in
             let panelWidth = geo.size.width * 0.78
 
@@ -819,7 +1356,7 @@ struct ContentView: View {
                 .presentationDragIndicator(.visible)
         }
         .sheet(item: $activeSheet) { destination in
-            sheetContent(for: destination)
+            sheetContent(destination)
         }
         .confirmationDialog(
             "注入过去 7 天的 mock 数据到 HealthKit？\n\n将申请 HealthKit 写权限，并写入步数 / 心率 / 距离 / 能量 / 睡眠。\n\n⚠️ 仅用于调试 — 真机数据会被污染。",
@@ -904,13 +1441,65 @@ struct ContentView: View {
             todaySleepHours = await HealthKitService.shared.todaySleepHours()
         }
     }
+}
 
-    // MARK: - 首页内容 (抽出来便于在 ZStack 中复用)
+// MARK: - HomeBodyView（rule 1 提取）
 
-    private var homeBody: some View {
+/// 首页内容（被外层 ZStack 包了一层）— GeometryReader + 顶栏 + FeatureRow + 主舞台 + 时间线 + InputBar
+private struct HomeBodyView: View {
+    @ObservedObject var hk: HealthKitService
+    @ObservedObject var healthAuth: HealthAuthService
+    @ObservedObject var chatHistory: ChatHistoryStore
+
+    @Binding var deviceSet: Set<DeviceID>
+    @Binding var showPersonal: Bool
+    @Binding var showInjectConfirm: Bool
+    @Binding var showDevicePicker: Bool
+    @Binding var showFilm: Bool
+    @Binding var showSleepReport: Bool
+    @Binding var showChat: Bool
+    @Binding var activeSheet: SheetDestination?
+    @Binding var manualStateOverride: StickState?
+    @Binding var scrubOffset: Int?
+    @Binding var featureRowExpanded: Bool
+    @Binding var inputDraft: String
+    @Binding var hasValidSleepData: Bool
+    @Binding var homeSedentaryMinutes: Int
+    @Binding var currentSitMinutes: Int
+
+    let now: Date
+    let displayState: StickState
+    let figureMood: StickFigureMood
+    let bodyEnergy: Double
+    let energyColor: Color
+    let moodScore: Double
+    let displayMoodLine: MoodLineInfo?
+    let unifiedAlerts: [UnifiedAlert]
+    let sitDurationText: String?
+    let todaySitDescription: String
+    let todaySteps: Int
+    let todayWalkMinutes: Int
+    let todaySleepHours: Double?
+    let realSubLine: String
+    let isScrubbing: Bool
+    let inference: StateInference.Result?
+
+    let handleAlertTap: (UnifiedAlert) -> Void
+    let openChat: (String) -> Void
+    let openCamera: () -> Void
+    let openChatWithPhoto: () -> Void
+    let openChatWithTopic: (String, String) -> Void
+    /// 模拟器 mock 数据加载回调：(sedentary, sitMinutes, hasValidSleep) -> ()
+    let loadMockData: (Int, Int, Bool) -> Void
+
+    private static var isRunningForPreviews: Bool {
+        ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil
+    }
+
+    var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .top) {
-                background
+                HomeBackground(state: displayState)
 
                 // ① 顶部固定层：TopBar + FeatureRow（叠加在小人上方，展开时覆盖不下推）
                 VStack(spacing: 0) {
@@ -924,12 +1513,13 @@ struct ContentView: View {
                                 let n = MockHealthDataLoader.shared.loadBundledIfExists()
                                 print("[ContentView] 🧪 载入 mock 数据: \(n) 条")
                                 var sed = await HealthKitService.shared.todaySedentaryMinutes()
+                                var sleep = false
                                 if let sleepHours = await HealthKitService.shared.todaySleepHours(), sleepHours > 0 {
                                     sed = max(0, sed - Int(sleepHours * 60))
-                                    hasValidSleepData = true
+                                    sleep = true
                                 }
-                                homeSedentaryMinutes = sed
-                                currentSitMinutes = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
+                                let sitMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
+                                loadMockData(sed, sitMins, sleep)
                             }
                         } label: {
                             Image(systemName: "flask")
@@ -1049,357 +1639,6 @@ struct ContentView: View {
             }
         }
     }
-
-    private func openChat(_ seed: String) {
-        chatSeed = seed
-        chatKey += 1
-        showChat = true
-    }
-
-    /// InputBar + 按钮触发：开 chat + 让 ChatOverlay 自动打开相册/相机选图给 LLM 视觉分析
-    private func openChatWithPhoto() {
-        chatSeed = ""
-        chatKey += 1
-        chatPendingPhoto = true
-        showChat = true
-    }
-
-    private func openCamera() {
-        // 打开 ChatOverlay + 让 ChatOverlay 内部自动激活相机 chip + 开相机
-        // 与首页"拍食物"chip 走同一条路径
-        chatSeed = ""
-        chatKey += 1
-        chatPendingCamera = true
-        showChat = true
-    }
-
-    /// autoTopic chip（饮食建议）触发：开 chat + 让 ChatOverlay 自动调 LLM 给出个性化建议
-    private func openChatWithTopic(_ title: String, _ seed: String) {
-        chatSeed = seed
-        chatKey += 1
-        chatPendingTopic = title
-        showChat = true
-    }
-
-    /// 强制收起系统键盘
-    private func dismissKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-    }
-
-    // MARK: - 背景（v6 米色渐变 + 弱网格 + 状态柔光）
-
-    private var background: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Theme.bgTop, Theme.bgBottom],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-
-            // Preview 跳过网格 Canvas + RadialGradient（这两个是最重的渲染源）
-            if !Self.isRunningForPreviews {
-                // 弱网格（v6 style）
-                Canvas { ctx, size in
-                    let step: CGFloat = 36
-                    var x: CGFloat = 0
-                    while x < size.width {
-                        var p = Path()
-                        p.move(to: CGPoint(x: x, y: 0))
-                        p.addLine(to: CGPoint(x: x, y: size.height))
-                        ctx.stroke(p, with: .color(Theme.grid), lineWidth: 0.5)
-                        x += step
-                    }
-                    var y: CGFloat = 0
-                    while y < size.height {
-                        var p = Path()
-                        p.move(to: CGPoint(x: 0, y: y))
-                        p.addLine(to: CGPoint(x: size.width, y: y))
-                        ctx.stroke(p, with: .color(Theme.grid), lineWidth: 0.5)
-                        y += step
-                    }
-                }
-                .allowsHitTesting(false)
-
-                // 顶部状态柔光
-                RadialGradient(
-                    colors: [displayState.accentSoft.opacity(0.55), .clear],
-                    center: .init(x: 0.5, y: 0.0),
-                    startRadius: 30,
-                    endRadius: 360
-                )
-                .animation(.easeInOut(duration: 0.45), value: displayState)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func sheetContent(for destination: SheetDestination) -> some View {
-        switch destination {
-        case .walk:
-            WalkDetailSheet(
-                steps: todaySteps,
-                walkMinutes: todayWalkMinutes,
-                avgSpeed: walkingQuality?.avgSpeed,
-                gaitScore: walkingQuality?.gaitScore ?? 60
-            )
-        case .sit:
-            SitDetailSheet(
-                sedentaryMinutes: homeSedentaryMinutes,
-                heartRate: realHeartRate,
-                bodyScore: bodyEnergy
-            )
-        case .sleep:
-            SleepDetailSheet(
-                sleepHours: todaySleepHours ?? 0,
-                sleepQualityLabel: walkingQuality?.sleepQualityLabel ?? "--",
-                nightWakeCount: walkingQuality?.nightWakeCount ?? 0,
-                nightWakeTotalMin: walkingQuality?.nightWakeTotalMin ?? 0
-            )
-        case .figure:
-            StickFigureDetailSheet(state: displayState)
-        }
-    }
-
-}
-
-// MARK: - 主舞台（v6 风格）
-
-private struct StageHeroView: View {
-    let state: StickState
-    let mood: StickFigureMood
-    let bodyEnergy: Double
-    let energyColor: Color
-    let isScrubbing: Bool
-    let inference: StateInference.Result?
-    @Binding var showDevicePicker: Bool
-    @Binding var scrubOffset: Int?            // 接收时间线 binding，stage 也可拖
-    @Binding var manualStateOverride: StickState?  // swipe 切状态后的强制状态
-    var onPreview: () -> Void
-    var onSleepAlert: () -> Void
-    var onFigureTap: () -> Void
-    let subLine: String
-    let schedule: [StickState.DaySegment]    // 真实时刻表（用于按时间正方向查找下一个 state 的段）
-
-    /// 拖动起点 + 起始 offset (用于把横向 delta 换算成分钟)
-    @State private var dragStartOffset: Int? = nil
-    @State private var dragWidth: CGFloat = 0
-    @State private var isStageScrubbing: Bool = false
-    /// swipe 命中阈值：|translation.width| > 30pt 视为切状态手势
-    private let swipeThreshold: CGFloat = 30
-
-    /// 主舞台水平滑动 → 切时间。手势灵敏度：1 pt = 4 min（24h / iPhone 17 Pro 屏幕宽 ≈ 393 pt）
-    /// - 左滑（delta.x > 0）→ 回到过去（offset 增加）
-    /// - 右滑（delta.x < 0）→ 回到现在（offset 减少）
-    private func handleStageDrag(translation: CGFloat, width: CGFloat) {
-        dragWidth = width
-        let baseOffset = dragStartOffset ?? scrubOffset ?? 0
-        // 24h=1440min，按舞台宽度线性换算
-        let deltaMinutes = Int((translation / width) * 1440)
-        let newOffset = max(0, min(1440, baseOffset + deltaMinutes))
-        // snap 到 5 min
-        scrubOffset = (newOffset / 5) * 5
-    }
-
-    /// 快速 swipe → 切到 `allCases` 里相邻 state，并跳 thumb 到该 state 在当前时间之后最近的 segment 中点。
-    /// 找不到则 wrap 到 schedule 里该 state 的第一个 segment。
-    /// direction: +1 = 右滑 (下一个 state), -1 = 左滑 (上一个 state)
-    private func cycleState(direction: Int) {
-        let allCases = StickState.allCases
-        guard !allCases.isEmpty else { return }
-        let current = manualStateOverride ?? state
-        let currentIndex = allCases.firstIndex(of: current) ?? 0
-        let nextIndex = ((currentIndex + direction) + allCases.count) % allCases.count
-        let nextState = allCases[nextIndex]
-
-        // 计算当前 thumb 所在分钟（处理跨午夜 + 边界 clamp）
-        let nowMin = StickState.minutesOfDay(Date())
-        let rawDisplayMin = (nowMin - (scrubOffset ?? 0) + 1440) % 1440
-        let currentDisplayMin = max(0, min(rawDisplayMin, 1439))
-
-        // 在 schedule 里按时间正方向找 nextState 之后最近的段；找不到则 wrap 到第一个
-        let targetSeg = nextSegment(for: nextState, after: currentDisplayMin, in: schedule)
-        let jumpMinute = targetSeg.map { (($0.startMinute + $0.endMinute) / 2) } ?? nowMin
-        // 让 scrubOffset 落点刚好让 displayMinute = jumpMinute（处理跨午夜）
-        let rawOffset = (nowMin - jumpMinute + 1440) % 1440
-        let snappedOffset = (rawOffset / 5) * 5
-
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
-            manualStateOverride = nextState
-            scrubOffset = snappedOffset == 0 ? nil : snappedOffset
-        }
-    }
-
-    /// 在 `schedule` 里按 startMinute 升序找 `state` 第一个 `startMinute > after` 的段；
-    /// 找不到则 wrap 到 schedule 里该 state 的第一个段。
-    /// 用于 swipe 切状态时按时间正方向跳 thumb。
-    private func nextSegment(
-        for state: StickState,
-        after minute: Int,
-        in schedule: [StickState.DaySegment]
-    ) -> StickState.DaySegment? {
-        schedule.first(where: { $0.state == state && $0.startMinute > minute })
-            ?? schedule.first { $0.state == state }
-    }
-
-    /// 把 inference 副标拼成单行 mono 文本：CONF xx% · <first reason>
-    private var inferenceSubline: String {
-        guard let inf = inference else { return "INFERRING…" }
-        let pct = Int((inf.confidence * 100).rounded())
-        let reason = inf.reasons.first ?? "无数据"
-        return "CONF \(pct)% · \(reason)"
-    }
-
-    /// 缺数据：inference 没跑出来，或跑出来但 reason 是 "无数据"
-    private var hasNoData: Bool {
-        guard let inf = inference else { return true }
-        return inf.reasons.first == "无数据"
-    }
-
-    var body: some View {
-        VStack(alignment: .center, spacing: 20) {
-            // 舞台区（火柴人 + 透明背景，跟整页一个底色）
-            ZStack {
-                // 永远画小人（让用户看到 30° 低头 + 低落表情等所有视觉）
-                StickFigureView(state: state, mood: mood)
-                    .padding(.horizontal, 4)
-                    .padding(.top, 70)
-                    .padding(.bottom, 0)
-                    .id(state)
-                    .transition(.opacity)
-
-                // 右上角：状态名 + 副标（睡眠异常 chip 已移除 — 暂无真实数据源）
-                HStack {
-                    Spacer(minLength: 0)
-                    VStack(alignment: .trailing, spacing: 2) {
-                        // 睡眠 chip 已删除，避免误提示
-                    }
-                }
-                .padding(4)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .onTapGesture { onFigureTap() }
-            .padding(.top, 6)
-            .animation(.easeInOut(duration: 0.45), value: state)
-            .animation(.easeInOut(duration: 0.35), value: hasNoData)
-            // 主舞台水平滑动 → 切换时间
-            .contentShape(Rectangle())
-            .background(
-                Group {
-                    if ContentView.isRunningForPreviews {
-                        // Preview 跳过嵌套 GeometryReader；用 360 作为 iPhone 17 宽度估计
-                        Color.clear.onAppear { dragWidth = 360 }
-                    } else {
-                        GeometryReader { proxy in
-                            Color.clear
-                                .onAppear { dragWidth = proxy.size.width }
-                                .onChange(of: proxy.size.width) { _, new in dragWidth = new }
-                        }
-                    }
-                }
-            )
-            .gesture(
-                DragGesture(minimumDistance: 12, coordinateSpace: .local)
-                    .onChanged { value in
-                        if dragStartOffset == nil {
-                            dragStartOffset = scrubOffset ?? 0
-                        }
-                        isStageScrubbing = true
-                        // 优先用 GeometryReader 拿到的真实宽度，回落到 320 防 nil
-                        let width = dragWidth > 0 ? dragWidth : 320
-                        handleStageDrag(translation: value.translation.width, width: width)
-                    }
-                    .onEnded { value in
-                        let dx = value.translation.width
-                        // |dx| > threshold → swipe 切状态；否则保留 onChanged 已写入的 scrub 结果
-                        if abs(dx) > swipeThreshold {
-                            // 右滑 dx > 0 → 下一个 state (cycleState 内部方向约定 +1 = 右滑 = 下一个)
-                            cycleState(direction: dx > 0 ? 1 : -1)
-                        }
-                        isStageScrubbing = false
-                        dragStartOffset = nil
-                    }
-            )
-
-            // 拖动时显示当前时间 / swipe 后显示状态 + 时段范围
-            if isStageScrubbing || manualStateOverride != nil {
-                stageScrubBadge
-            }
-        }
-    }
-
-    /// 主舞台中央徽章：
-    /// - swipe 切状态后 → `状态 · HH:MM–HH:MM`（按当前 thumb 位置定位到该 state 的最近段）
-    /// - 仅拖动时间 → `HH:MM`
-    private var stageScrubBadge: some View {
-        let offset = scrubOffset ?? 0
-        let m = StickState.minutesOfDay(Date().addingTimeInterval(-Double(offset) * 60))
-        let targetState = manualStateOverride ?? state
-        // 按当前 thumb 位置定位 segment；override state 时优先找当前位置匹配的段，否则取该 state 之后的最近段
-        // 注意：hk.realDaySchedule 可能比 daySchedule 有更多 gaps（如 HealthKit 数据稀疏），
-        // 此时 seg 可能为 nil，应优雅降级为仅显示 state 名字
-        let seg: StickState.DaySegment? = {
-            if let cur = schedule.first(where: {
-                $0.startMinute <= m && m < $0.endMinute && $0.state == targetState
-            }) {
-                return cur
-            }
-            return nextSegment(for: targetState, after: m, in: schedule)
-        }()
-        let isOverride = manualStateOverride != nil
-        return VStack(spacing: 2) {
-            if isOverride {
-                if let seg = seg {
-                    Text("\(StickState.formatMinute(seg.startMinute))–\(StickState.formatMinute(seg.endMinute)) · \(targetState.rawValue)")
-                        .font(.system(size: 20, weight: .heavy, design: .monospaced))
-                        .foregroundColor(Theme.navy)
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .fixedSize()
-                        .contentTransition(.numericText())
-                        .transition(.scale.combined(with: .opacity))
-                } else {
-                    // seg 为 nil（时间落在 schedule 间隙）时，仍显示 state 名字，不Crash也不错乱
-                    Text(targetState.rawValue)
-                        .font(.system(size: 20, weight: .heavy, design: .monospaced))
-                        .foregroundColor(Theme.navy)
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .fixedSize()
-                        .contentTransition(.numericText())
-                        .transition(.scale.combined(with: .opacity))
-                }
-            } else {
-                let hh = (m / 60) % 24
-                let mm = m % 60
-                Text(String(format: "%02d:%02d", hh, mm))
-                    .font(.system(size: 26, weight: .black, design: .monospaced))
-                    .foregroundColor(Theme.navy)
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .fixedSize()
-                    .contentTransition(.numericText())
-                    .transition(.scale.combined(with: .opacity))
-            }
-            Text("← 左右滑动切换状态 →")
-                .font(.system(size: 9, weight: .medium, design: .monospaced))
-                .tracking(0.6)
-                .foregroundColor(Theme.slate)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 4)
-                .fill(Theme.card.opacity(0.92))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(Theme.border, lineWidth: 0.5)
-        )
-        .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
-        .animation(.easeInOut(duration: 0.2), value: isOverride)
-    }
-
 }
 
 // MARK: - Preview (轻量 stub)
