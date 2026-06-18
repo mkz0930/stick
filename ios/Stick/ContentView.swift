@@ -1089,47 +1089,7 @@ struct ContentView: View {
     // MARK: - 背景（v6 米色渐变 + 弱网格 + 状态柔光）
 
     private var background: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Theme.bgTop, Theme.bgBottom],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-
-            // Preview 跳过网格 Canvas + RadialGradient（这两个是最重的渲染源）
-            if !Self.isRunningForPreviews {
-                // 弱网格（v6 style）
-                Canvas { ctx, size in
-                    let step: CGFloat = 36
-                    var x: CGFloat = 0
-                    while x < size.width {
-                        var p = Path()
-                        p.move(to: CGPoint(x: x, y: 0))
-                        p.addLine(to: CGPoint(x: x, y: size.height))
-                        ctx.stroke(p, with: .color(Theme.grid), lineWidth: 0.5)
-                        x += step
-                    }
-                    var y: CGFloat = 0
-                    while y < size.height {
-                        var p = Path()
-                        p.move(to: CGPoint(x: 0, y: y))
-                        p.addLine(to: CGPoint(x: size.width, y: y))
-                        ctx.stroke(p, with: .color(Theme.grid), lineWidth: 0.5)
-                        y += step
-                    }
-                }
-                .allowsHitTesting(false)
-
-                // 顶部状态柔光
-                RadialGradient(
-                    colors: [displayState.accentSoft.opacity(0.55), .clear],
-                    center: .init(x: 0.5, y: 0.0),
-                    startRadius: 30,
-                    endRadius: 360
-                )
-                .animation(.easeInOut(duration: 0.45), value: displayState)
-            }
-        }
+        HomeBackground(state: displayState)
     }
 
     @ViewBuilder
@@ -1400,6 +1360,61 @@ private struct StageHeroView: View {
         .animation(.easeInOut(duration: 0.2), value: isOverride)
     }
 
+}
+
+// MARK: - HomeBackground（rule 1 提取）
+
+/// 首页背景层：v6 米色渐变 + 弱网格 + 顶部状态柔光
+private struct HomeBackground: View {
+    let state: StickState
+
+    private static var isRunningForPreviews: Bool {
+        ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil
+    }
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Theme.bgTop, Theme.bgBottom],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            // Preview 跳过网格 Canvas + RadialGradient（这两个是最重的渲染源）
+            if !Self.isRunningForPreviews {
+                // 弱网格（v6 style）
+                Canvas { ctx, size in
+                    let step: CGFloat = 36
+                    var x: CGFloat = 0
+                    while x < size.width {
+                        var p = Path()
+                        p.move(to: CGPoint(x: x, y: 0))
+                        p.addLine(to: CGPoint(x: x, y: size.height))
+                        ctx.stroke(p, with: .color(Theme.grid), lineWidth: 0.5)
+                        x += step
+                    }
+                    var y: CGFloat = 0
+                    while y < size.height {
+                        var p = Path()
+                        p.move(to: CGPoint(x: 0, y: y))
+                        p.addLine(to: CGPoint(x: size.width, y: y))
+                        ctx.stroke(p, with: .color(Theme.grid), lineWidth: 0.5)
+                        y += step
+                    }
+                }
+                .allowsHitTesting(false)
+
+                // 顶部状态柔光
+                RadialGradient(
+                    colors: [state.accentSoft.opacity(0.55), .clear],
+                    center: .init(x: 0.5, y: 0.0),
+                    startRadius: 30,
+                    endRadius: 360
+                )
+                .animation(.easeInOut(duration: 0.45), value: state)
+            }
+        }
+    }
 }
 
 // MARK: - Preview (轻量 stub)
