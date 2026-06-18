@@ -36,8 +36,13 @@ struct MiniFilmView: View {
                 isPlaying = true
             }
 
-            progressBar
-                .padding(.horizontal, 6)
+            FilmProgressBar(
+                time: $time,
+                isPlaying: $isPlaying,
+                trackWidth: $trackWidth,
+                durationSec: durationSec
+            )
+            .padding(.horizontal, 6)
         }
         .onReceive(Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()) { _ in
             guard isPlaying else { return }
@@ -52,45 +57,6 @@ struct MiniFilmView: View {
 
     // MARK: - 进度条
 
-    private var progressBar: some View {
-        GeometryReader { g in
-            ZStack(alignment: .leading) {
-                // 底
-                Capsule()
-                    .fill(Color.black.opacity(0.08))
-                // 已播
-                Capsule()
-                    .fill(Color.black)
-                    .frame(width: trackWidth * CGFloat(time / durationSec))
-                // 阶段刻度
-                ForEach(Array(FilmTimeline.breakpoints.dropFirst().dropLast().enumerated()), id: \.offset) { _, bp in
-                    Rectangle()
-                        .fill(Color.black.opacity(0.18))
-                        .frame(width: 1, height: 10)
-                        .offset(x: trackWidth * CGFloat(bp / durationSec) - 0.5)
-                }
-                // thumb
-                Circle()
-                    .fill(Color.black)
-                    .frame(width: 14, height: 14)
-                    .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
-                    .offset(x: max(0, trackWidth * CGFloat(time / durationSec) - 7))
-            }
-            .frame(height: 14)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        isPlaying = false
-                        let pct = min(1, max(0, value.location.x / trackWidth))
-                        time = Double(pct) * durationSec
-                    }
-            )
-            .onAppear { trackWidth = g.size.width }
-            .onChange(of: g.size.width) { _, new in trackWidth = new }
-        }
-        .frame(height: 22)
-    }
 }
 
 // MARK: - 阶段定义
@@ -1054,16 +1020,16 @@ struct MiniFilmShareSheet: View {
 
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
-                    statusPill
+                    StatusPill(currentTime: currentTime)
                     Spacer()
-                    shareButton
-                    closeButton
+                    ShareButton(action: shareFilm)
+                    CloseButton(action: { isPresented = false })
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 10)
 
                 // 心率 + 心情曲线
-                vitalsRow
+                VitalsRow(currentTime: currentTime)
                     .padding(.horizontal, 18)
                     .padding(.top, 6)
 
@@ -1080,16 +1046,70 @@ struct MiniFilmShareSheet: View {
         }
     }
 
-    // MARK: - 心率 + 心情曲线
+    // MARK: - 派生计算属性
 
-    private var vitalsRow: some View {
-        HStack(spacing: 12) {
-            heartRateView
-            moodCurveView
+    private var currentHeartRate: Int {
+        let m = FilmTimeline.mood(at: currentTime)
+        let base: Double
+        switch m {
+        case .excited: base = 92
+        case .focused: base = 78
+        case .tired:   base = 64
         }
+        // 起床 / 起身段心率额外 +6
+        let isTransition = currentTime < 1.0 || (currentTime > 7.5 && currentTime < 8.5)
+        return Int(base + (isTransition ? 6 : 0))
     }
 
-    private var heartRateView: some View {
+    private func shareFilm() {
+        let mood = FilmTimeline.mood(at: currentTime)
+        let text = """
+        我的一天 · 10 秒
+        \(mood.period) · \(mood.bodyState) · \(mood.moodWord)
+        起床 → 走到办公桌 → 午休 → 下午工作 → 下班回家
+        今日：工作 8.0h · 休息 9.0h · 活动 7.0h
+        — 用 Stick 记录
+        """
+        let act = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let root = scene.keyWindow?.rootViewController {
+            var top: UIViewController = root
+            while let presented = top.presentedViewController { top = presented }
+            top.present(act, animated: true)
+        }
+    }
+}
+
+// MARK: - 分享 Sheet 子视图
+
+private struct VitalsRow: View {
+    let currentTime: Double
+
+    var body: some View {
+        HStack(spacing: 12) {
+            HeartRateView(currentTime: currentTime)
+            MoodCurveBox(currentTime: currentTime)
+        }
+    }
+}
+
+private struct HeartRateView: View {
+    let currentTime: Double
+
+    /// 与原 `currentHeartRate` 派生逻辑一致
+    private var currentHeartRate: Int {
+        let m = FilmTimeline.mood(at: currentTime)
+        let base: Double
+        switch m {
+        case .excited: base = 92
+        case .focused: base = 78
+        case .tired:   base = 64
+        }
+        let isTransition = currentTime < 1.0 || (currentTime > 7.5 && currentTime < 8.5)
+        return Int(base + (isTransition ? 6 : 0))
+    }
+
+    var body: some View {
         HStack(spacing: 5) {
             HeartPulseIcon()
             VStack(alignment: .leading, spacing: 0) {
@@ -1113,21 +1133,12 @@ struct MiniFilmShareSheet: View {
         )
         .animation(.easeInOut(duration: 0.3), value: currentHeartRate)
     }
+}
 
-    private var currentHeartRate: Int {
-        let m = FilmTimeline.mood(at: currentTime)
-        let base: Double
-        switch m {
-        case .excited: base = 92
-        case .focused: base = 78
-        case .tired:   base = 64
-        }
-        // 起床 / 起身段心率额外 +6
-        let isTransition = currentTime < 1.0 || (currentTime > 7.5 && currentTime < 8.5)
-        return Int(base + (isTransition ? 6 : 0))
-    }
+private struct MoodCurveBox: View {
+    let currentTime: Double
 
-    private var moodCurveView: some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("今日心情")
                 .font(.system(size: 9, weight: .medium, design: .monospaced))
@@ -1147,9 +1158,13 @@ struct MiniFilmShareSheet: View {
                 .stroke(Color.black.opacity(0.08), lineWidth: 0.5)
         )
     }
+}
 
-    /// 左上状态条：时段 + 身体状态 + 心情（随 currentTime 变）
-    private var statusPill: some View {
+/// 左上状态条：时段 + 身体状态 + 心情（随 currentTime 变）
+private struct StatusPill: View {
+    let currentTime: Double
+
+    var body: some View {
         let mood = FilmTimeline.mood(at: currentTime)
         let periodText = "\(mood.period)"
         let stateText = mood.bodyState
@@ -1161,7 +1176,7 @@ struct MiniFilmShareSheet: View {
             case .tired:   return Color(red: 0.42, green: 0.50, blue: 0.78)
             }
         }()
-        return HStack(spacing: 6) {
+        HStack(spacing: 6) {
             Circle()
                 .fill(dotColor)
                 .frame(width: 6, height: 6)
@@ -1196,10 +1211,14 @@ struct MiniFilmShareSheet: View {
         )
         .animation(.easeInOut(duration: 0.3), value: mood)
     }
+}
 
-    private var closeButton: some View {
+private struct CloseButton: View {
+    let action: () -> Void
+
+    var body: some View {
         Button {
-            isPresented = false
+            action()
         } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 12, weight: .bold))
@@ -1209,10 +1228,14 @@ struct MiniFilmShareSheet: View {
         }
         .buttonStyle(.plain)
     }
+}
 
-    private var shareButton: some View {
+private struct ShareButton: View {
+    let action: () -> Void
+
+    var body: some View {
         Button {
-            shareFilm()
+            action()
         } label: {
             Image(systemName: "square.and.arrow.up")
                 .font(.system(size: 12, weight: .bold))
@@ -1222,22 +1245,51 @@ struct MiniFilmShareSheet: View {
         }
         .buttonStyle(.plain)
     }
+}
 
-    private func shareFilm() {
-        let mood = FilmTimeline.mood(at: currentTime)
-        let text = """
-        我的一天 · 10 秒
-        \(mood.period) · \(mood.bodyState) · \(mood.moodWord)
-        起床 → 走到办公桌 → 午休 → 下午工作 → 下班回家
-        今日：工作 8.0h · 休息 9.0h · 活动 7.0h
-        — 用 Stick 记录
-        """
-        let act = UIActivityViewController(activityItems: [text], applicationActivities: nil)
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let root = scene.keyWindow?.rootViewController {
-            var top: UIViewController = root
-            while let presented = top.presentedViewController { top = presented }
-            top.present(act, animated: true)
+private struct FilmProgressBar: View {
+    @Binding var time: Double
+    @Binding var isPlaying: Bool
+    @Binding var trackWidth: CGFloat
+    let durationSec: Double
+
+    var body: some View {
+        GeometryReader { g in
+            ZStack(alignment: .leading) {
+                // 底
+                Capsule()
+                    .fill(Color.black.opacity(0.08))
+                // 已播
+                Capsule()
+                    .fill(Color.black)
+                    .frame(width: trackWidth * CGFloat(time / durationSec))
+                // 阶段刻度
+                ForEach(Array(FilmTimeline.breakpoints.dropFirst().dropLast().enumerated()), id: \.offset) { _, bp in
+                    Rectangle()
+                        .fill(Color.black.opacity(0.18))
+                        .frame(width: 1, height: 10)
+                        .offset(x: trackWidth * CGFloat(bp / durationSec) - 0.5)
+                }
+                // thumb
+                Circle()
+                    .fill(Color.black)
+                    .frame(width: 14, height: 14)
+                    .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
+                    .offset(x: max(0, trackWidth * CGFloat(time / durationSec) - 7))
+            }
+            .frame(height: 14)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        isPlaying = false
+                        let pct = min(1, max(0, value.location.x / trackWidth))
+                        time = Double(pct) * durationSec
+                    }
+            )
+            .onAppear { trackWidth = g.size.width }
+            .onChange(of: g.size.width) { _, new in trackWidth = new }
         }
+        .frame(height: 22)
     }
 }
