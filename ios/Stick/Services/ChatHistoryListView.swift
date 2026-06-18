@@ -49,18 +49,30 @@ struct ChatHistoryListView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header (可点击)
-            header
-                .padding(.bottom, isExpanded ? 6 : 8)
+            ChatHistoryHeader(
+                messageCount: messages.count,
+                isExpanded: $isExpanded,
+                onSave: onSave
+            )
+            .padding(.bottom, isExpanded ? 6 : 8)
 
             if isExpanded {
-                expandedList
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .top)),
-                        removal: .opacity
-                    ))
+                ChatHistoryExpandedList(
+                    messages: allMessagesReversed,
+                    onSelect: onSelect
+                )
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .top)),
+                    removal: .opacity
+                ))
             } else {
-                collapsedChips
-                    .transition(.opacity)
+                ChatHistoryCollapsedChips(
+                    recentUserPrompts: recentUserPrompts,
+                    previewText: previewText,
+                    ageColor: ageColor,
+                    onSelect: onSelect
+                )
+                .transition(.opacity)
             }
         }
         .padding(.vertical, 10)
@@ -74,99 +86,6 @@ struct ChatHistoryListView: View {
                 .stroke(Theme.border.opacity(0.4), lineWidth: 0.5)
         )
         .animation(.easeInOut(duration: 0.28), value: isExpanded)
-    }
-
-    // MARK: - Header
-
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            // 左侧 (可点击展开)
-            Button {
-                if !messages.isEmpty { isExpanded.toggle() }
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "bubble.left.and.bubble.right.fill")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(Theme.navy)
-                    Text("对话记录")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Theme.navy)
-                    if !messages.isEmpty {
-                        Text("(\(messages.count))")
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                            .foregroundColor(Theme.slate.opacity(0.7))
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-
-            if !messages.isEmpty {
-                // 保存按钮
-                if let onSave = onSave {
-                    Button(action: onSave) {
-                        HStack(spacing: 3) {
-                            Image(systemName: "square.and.arrow.down")
-                                .font(.system(size: 9, weight: .heavy))
-                            Text("保存")
-                                .font(.system(size: 11, weight: .bold))
-                        }
-                        .foregroundColor(StickState.walk.accent)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.trailing, 8)
-                }
-
-                // 展开/收起
-                Button {
-                    isExpanded.toggle()
-                } label: {
-                    HStack(spacing: 3) {
-                        Text(isExpanded ? "收起" : "全部 \(messages.count) 条")
-                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                            .foregroundColor(StickState.walk.accent)
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 8, weight: .heavy))
-                            .foregroundColor(StickState.walk.accent)
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    // MARK: - 折叠态：3 条横向 chip
-
-    private var collapsedChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(recentUserPrompts) { msg in
-                    Button {
-                        onSelect(msg.content)
-                    } label: {
-                        chipContent(msg: msg, isExpanded: false)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    // MARK: - 展开态：全部消息垂直列表
-
-    private var expandedList: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 6) {
-                ForEach(allMessagesReversed) { msg in
-                    ExpandBubble(msg: msg) {
-                        onSelect(msg.content)
-                    }
-                }
-            }
-            .padding(.vertical, 2)
-        }
-        .frame(maxHeight: 340)   // 限制高度避免把主页撑太长
     }
 
     // MARK: - 折叠 chip 内容（共用）
@@ -218,6 +137,143 @@ struct ChatHistoryListView: View {
         f.locale = Locale(identifier: "zh_CN")
         f.dateFormat = "MM/dd HH:mm"
         return f.string(from: t)
+    }
+}
+
+// MARK: - 头部
+
+private struct ChatHistoryHeader: View {
+    let messageCount: Int
+    @Binding var isExpanded: Bool
+    var onSave: (() -> Void)?
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            // 左侧 (可点击展开)
+            Button {
+                if messageCount > 0 { isExpanded.toggle() }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Theme.navy)
+                    Text("对话记录")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Theme.navy)
+                    if messageCount > 0 {
+                        Text("(\(messageCount))")
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .foregroundColor(Theme.slate.opacity(0.7))
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            if messageCount > 0 {
+                // 保存按钮
+                if let onSave = onSave {
+                    Button(action: onSave) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "square.and.arrow.down")
+                                .font(.system(size: 9, weight: .heavy))
+                            Text("保存")
+                                .font(.system(size: 11, weight: .bold))
+                        }
+                        .foregroundColor(StickState.walk.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 8)
+                }
+
+                // 展开/收起
+                Button {
+                    isExpanded.toggle()
+                } label: {
+                    HStack(spacing: 3) {
+                        Text(isExpanded ? "收起" : "全部 \(messageCount) 条")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundColor(StickState.walk.accent)
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 8, weight: .heavy))
+                            .foregroundColor(StickState.walk.accent)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+// MARK: - 折叠态：3 条横向 chip
+
+private struct ChatHistoryCollapsedChips: View {
+    let recentUserPrompts: [PersistedChatMessage]
+    var previewText: (String) -> String
+    var ageColor: (Date) -> Color
+    var onSelect: (String) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(recentUserPrompts) { msg in
+                    Button {
+                        onSelect(msg.content)
+                    } label: {
+                        chipContent(msg: msg)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func chipContent(msg: PersistedChatMessage) -> some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(ageColor(msg.timestamp))
+                .frame(width: 5, height: 5)
+            Text(previewText(msg.content))
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundColor(Theme.navy)
+                .lineLimit(1)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundColor(Theme.mist)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Theme.card)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Theme.border.opacity(0.5), lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - 展开态：全部消息垂直列表
+
+private struct ChatHistoryExpandedList: View {
+    let messages: [PersistedChatMessage]
+    var onSelect: (String) -> Void
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 6) {
+                ForEach(messages) { msg in
+                    ExpandBubble(msg: msg) {
+                        onSelect(msg.content)
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .frame(maxHeight: 340)   // 限制高度避免把主页撑太长
     }
 }
 
