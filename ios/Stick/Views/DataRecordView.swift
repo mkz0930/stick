@@ -247,7 +247,268 @@ struct DataRecordView: View {
 
     // MARK: - HealthKit Section
 
-    private var healthKitSection: some View {
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Color.white.ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 0) {
+                DataRecordHeader(
+                    isExporting: $isExporting,
+                    isExporting7d: $isExporting7d,
+                    showExportSheet: $showExportSheet,
+                    exportURL: $exportURL,
+                    onClose: onClose
+                )
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+
+                ScrollView {
+                    VStack(spacing: 12) {
+                        TodayInsightView(
+                            insight: insight,
+                            isLoadingInsight: isLoadingInsight,
+                            todayDate: todayDateString()
+                        )
+                        DashboardSection(
+                            hkSteps: hkSteps,
+                            hkEnergy: hkEnergy,
+                            hkFlights: hkFlights,
+                            hkDistance: hkDistance,
+                            hkWalkingSpeed: hkWalkingSpeed,
+                            hkDoubleSupport: hkDoubleSupport,
+                            hkSleepValue: hkSleepValue,
+                            hkSedentaryValue: hkSedentaryValue,
+                            hkCurrentSitValue: hkCurrentSitValue,
+                            sleepSub: sleepSub,
+                            sleepValue: sleepValue,
+                            exerciseValue: exerciseValue,
+                            dietEntries: dietEntries,
+                            bpValue: bpValue,
+                            sugarValue: sugarValue,
+                            bloodOxygenValue: bloodOxygenValue,
+                            mealLabel: mealLabel
+                        )
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+        .preferredColorScheme(.light)
+        .onAppear {
+            vm.refresh()
+        }
+        .task {
+            // vm.hkData 为 @Published：赋值后自动触发 view 重渲染，UI 通过 hk 计算属性读取
+            await vm.loadHKData()
+            // 每次打开都调 LLM 生成一句洞察
+            await generateInsight()
+        }
+        .sheet(isPresented: $showExportSheet) {
+            if let url = exportURL {
+                ShareSheet(items: [url])
+                    .presentationDetents([.medium])
+            }
+        }
+    }
+
+    // MARK: - Header
+
+    // MARK: - 今日洞察
+
+    /// 每次打开 DataRecordView 时调 LLM，基于今日健康数据+用户画像生成一句 20 字以内的洞察
+    private func generateInsight() async {
+        isLoadingInsight = true
+        defer { isLoadingInsight = false }
+        let context = buildInsightContext()
+        let message = "你是用户的健康小助手。基于今日健康数据，输出一句话中文总结，不超过 20 个字。专注最值得提醒的一点，直接给句子，不要标题、不要 emoji、不要说教。"
+        do {
+            let raw = try await LLMService.sendMessage(message, context: context)
+            let cleaned = raw
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "\n", with: " ")
+                .replacingOccurrences(of: "\"", with: "")
+            // 简单截断: 60 字符 ≈ 30 中文字 + 标点
+            insight = cleaned.count > 40 ? String(cleaned.prefix(40)) : cleaned
+        } catch {
+            insight = ""
+            print("[DataRecordView] generateInsight failed: \(error)")
+        }
+    }
+
+    /// 把 vm.today 折算成 7 行摘要给 LLM
+    private func buildInsightContext() -> String {
+        let snaps = vm.today
+        var sit = 0, walk = 0, sleep = 0, stand = 0
+        // 今日步数: 取最后一条 snapshot 的 cumulativeStepCount (已是全天累计)
+        let steps = snaps.last?.cumulativeStepCount ?? 0
+        var hrSum = 0.0, hrCount = 0
+        var energy = 0.0
+        for s in snaps {
+            switch s.bodyState {
+            case "sit":   sit += 1
+            case "walk":  walk += 1
+            case "sleep": sleep += 1
+            case "stand": stand += 1
+            default:      break
+            }
+            if let hr = s.heartRate   { hrSum += hr; hrCount += 1 }
+            if let e  = s.activeEnergy { energy += e }
+        }
+        let avgHR = hrCount > 0 ? Int(hrSum / Double(hrCount)) : 0
+        let profile = UserProfileStore.shared.profile
+        var ctx = """
+        今日健康数据：
+        - 步数: \(steps) 步
+        - 久坐: \(sit) 分钟
+        - 行走: \(walk) 分钟
+        - 睡眠: \(sleep) 分钟
+        - 站立: \(stand) 分钟
+        - 平均心率: \(avgHR) bpm
+        - 活动能量: \(Int(energy)) 千卡
+        """
+        if !profile.isEmpty {
+            ctx += "\n\n用户画像：\(profile)"
+        }
+        return ctx
+    }
+
+    private func todayDateString() -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "EEE MM/dd"
+        return f.string(from: Date())
+    }
+}
+
+// MARK: - Header
+
+private struct DataRecordHeader: View {
+    @Binding var isExporting: Bool
+    @Binding var isExporting7d: Bool
+    @Binding var showExportSheet: Bool
+    @Binding var exportURL: URL?
+    var onClose: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center) {
+            Text("数据记录")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(Theme.navy)
+            Spacer()
+            // 导出今日按钮
+            Button(action: {
+                isExporting = true
+                Task {
+                    exportURL = await HealthKitService.shared.exportTodayData()
+                    isExporting = false
+                    if exportURL != nil {
+                        showExportSheet = true
+                    }
+                }
+            }) {
+                if isExporting {
+                    ProgressView().controlSize(.small).frame(width: 32, height: 32)
+                } else {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Theme.navy)
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(Theme.card).overlay(Circle().stroke(Theme.border, lineWidth: 1)))
+                }
+            }
+            // 导出最近 7 天按钮
+            Button(action: {
+                isExporting7d = true
+                Task {
+                    exportURL = await HealthKitService.shared.exportLast7Days()
+                    isExporting7d = false
+                    if exportURL != nil {
+                        showExportSheet = true
+                    }
+                }
+            }) {
+                if isExporting7d {
+                    ProgressView().controlSize(.small).frame(width: 44, height: 32)
+                } else {
+                    Text("7天")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Theme.navy)
+                        .frame(width: 44, height: 32)
+                        .background(Capsule().fill(Theme.card).overlay(Capsule().stroke(Theme.border, lineWidth: 1)))
+                }
+            }
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Theme.navy)
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(Theme.card).overlay(Circle().stroke(Theme.border, lineWidth: 1)))
+            }
+        }
+        .padding(.bottom, 16)
+    }
+}
+
+// MARK: - 今日洞察
+
+private struct TodayInsightView: View {
+    let insight: String
+    let isLoadingInsight: Bool
+    let todayDate: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("今日洞察")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Theme.navy)
+                Spacer()
+                Text(todayDate)
+                    .font(.system(size: 13))
+                    .foregroundColor(Theme.slate)
+            }
+            // LLM 生成的洞察: loading / 文本
+            if isLoadingInsight {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text("正在生成洞察…")
+                        .font(.system(size: 13))
+                        .foregroundColor(Theme.slate)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else if !insight.isEmpty {
+                Text(insight)
+                    .font(.system(size: 13))
+                    .foregroundColor(Theme.slate)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text("今日数据不足，洞察稍后生成")
+                    .font(.system(size: 13))
+                    .foregroundColor(Theme.mist)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Theme.card).overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.border, lineWidth: 1)))
+    }
+}
+
+// MARK: - HealthKit Section
+
+private struct HealthKitSectionView: View {
+    let hkSteps: String
+    let hkEnergy: String
+    let hkFlights: String
+    let hkDistance: String
+    let hkWalkingSpeed: String
+    let hkDoubleSupport: String
+    let hkSleepValue: String
+    let hkCurrentSitValue: String
+    let hkSedentaryValue: String
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("健康数据")
@@ -347,211 +608,30 @@ struct DataRecordView: View {
             }
         }
     }
+}
+
+// MARK: - Dashboard
+
+private struct DashboardSection: View {
+    let hkSteps: String
+    let hkEnergy: String
+    let hkFlights: String
+    let hkDistance: String
+    let hkWalkingSpeed: String
+    let hkDoubleSupport: String
+    let hkSleepValue: String
+    let hkSedentaryValue: String
+    let hkCurrentSitValue: String
+    let sleepSub: String
+    let sleepValue: String
+    let exerciseValue: String
+    let dietEntries: [FoodEntry]
+    let bpValue: String
+    let sugarValue: String
+    let bloodOxygenValue: String
+    var mealLabel: (MealType) -> String
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            Color.white.ignoresSafeArea()
-
-            VStack(alignment: .leading, spacing: 0) {
-                header
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-
-                ScrollView {
-                    VStack(spacing: 12) {
-                        todayInsight
-                        dashboardSection
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 40)
-                }
-            }
-        }
-        .preferredColorScheme(.light)
-        .onAppear {
-            vm.refresh()
-        }
-        .task {
-            // vm.hkData 为 @Published：赋值后自动触发 view 重渲染，UI 通过 hk 计算属性读取
-            await vm.loadHKData()
-            // 每次打开都调 LLM 生成一句洞察
-            await generateInsight()
-        }
-        .sheet(isPresented: $showExportSheet) {
-            if let url = exportURL {
-                ShareSheet(items: [url])
-                    .presentationDetents([.medium])
-            }
-        }
-    }
-
-    // MARK: - Header
-
-    private var header: some View {
-        HStack(alignment: .center) {
-            Text("数据记录")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(Theme.navy)
-            Spacer()
-            // 导出今日按钮
-            Button(action: {
-                isExporting = true
-                Task {
-                    exportURL = await HealthKitService.shared.exportTodayData()
-                    isExporting = false
-                    if exportURL != nil {
-                        showExportSheet = true
-                    }
-                }
-            }) {
-                if isExporting {
-                    ProgressView().controlSize(.small).frame(width: 32, height: 32)
-                } else {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(Theme.navy)
-                        .frame(width: 32, height: 32)
-                        .background(Circle().fill(Theme.card).overlay(Circle().stroke(Theme.border, lineWidth: 1)))
-                }
-            }
-            // 导出最近 7 天按钮
-            Button(action: {
-                isExporting7d = true
-                Task {
-                    exportURL = await HealthKitService.shared.exportLast7Days()
-                    isExporting7d = false
-                    if exportURL != nil {
-                        showExportSheet = true
-                    }
-                }
-            }) {
-                if isExporting7d {
-                    ProgressView().controlSize(.small).frame(width: 44, height: 32)
-                } else {
-                    Text("7天")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Theme.navy)
-                        .frame(width: 44, height: 32)
-                        .background(Capsule().fill(Theme.card).overlay(Capsule().stroke(Theme.border, lineWidth: 1)))
-                }
-            }
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(Theme.navy)
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(Theme.card).overlay(Circle().stroke(Theme.border, lineWidth: 1)))
-            }
-        }
-        .padding(.bottom, 16)
-    }
-
-    // MARK: - 今日洞察
-
-    private var todayInsight: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("今日洞察")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(Theme.navy)
-                Spacer()
-                Text(todayDateString())
-                    .font(.system(size: 13))
-                    .foregroundColor(Theme.slate)
-            }
-            // LLM 生成的洞察: loading / 文本
-            if isLoadingInsight {
-                HStack(spacing: 6) {
-                    ProgressView().controlSize(.small)
-                    Text("正在生成洞察…")
-                        .font(.system(size: 13))
-                        .foregroundColor(Theme.slate)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            } else if !insight.isEmpty {
-                Text(insight)
-                    .font(.system(size: 13))
-                    .foregroundColor(Theme.slate)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                Text("今日数据不足，洞察稍后生成")
-                    .font(.system(size: 13))
-                    .foregroundColor(Theme.mist)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Theme.card).overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.border, lineWidth: 1)))
-    }
-
-    /// 每次打开 DataRecordView 时调 LLM，基于今日健康数据+用户画像生成一句 20 字以内的洞察
-    private func generateInsight() async {
-        isLoadingInsight = true
-        defer { isLoadingInsight = false }
-        let context = buildInsightContext()
-        let message = "你是用户的健康小助手。基于今日健康数据，输出一句话中文总结，不超过 20 个字。专注最值得提醒的一点，直接给句子，不要标题、不要 emoji、不要说教。"
-        do {
-            let raw = try await LLMService.sendMessage(message, context: context)
-            let cleaned = raw
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .replacingOccurrences(of: "\n", with: " ")
-                .replacingOccurrences(of: "\"", with: "")
-            // 简单截断: 60 字符 ≈ 30 中文字 + 标点
-            insight = cleaned.count > 40 ? String(cleaned.prefix(40)) : cleaned
-        } catch {
-            insight = ""
-            print("[DataRecordView] generateInsight failed: \(error)")
-        }
-    }
-
-    /// 把 vm.today 折算成 7 行摘要给 LLM
-    private func buildInsightContext() -> String {
-        let snaps = vm.today
-        var sit = 0, walk = 0, sleep = 0, stand = 0
-        // 今日步数: 取最后一条 snapshot 的 cumulativeStepCount (已是全天累计)
-        let steps = snaps.last?.cumulativeStepCount ?? 0
-        var hrSum = 0.0, hrCount = 0
-        var energy = 0.0
-        for s in snaps {
-            switch s.bodyState {
-            case "sit":   sit += 1
-            case "walk":  walk += 1
-            case "sleep": sleep += 1
-            case "stand": stand += 1
-            default:      break
-            }
-            if let hr = s.heartRate   { hrSum += hr; hrCount += 1 }
-            if let e  = s.activeEnergy { energy += e }
-        }
-        let avgHR = hrCount > 0 ? Int(hrSum / Double(hrCount)) : 0
-        let profile = UserProfileStore.shared.profile
-        var ctx = """
-        今日健康数据：
-        - 步数: \(steps) 步
-        - 久坐: \(sit) 分钟
-        - 行走: \(walk) 分钟
-        - 睡眠: \(sleep) 分钟
-        - 站立: \(stand) 分钟
-        - 平均心率: \(avgHR) bpm
-        - 活动能量: \(Int(energy)) 千卡
-        """
-        if !profile.isEmpty {
-            ctx += "\n\n用户画像：\(profile)"
-        }
-        return ctx
-    }
-
-    private func todayDateString() -> String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "zh_CN")
-        f.dateFormat = "EEE MM/dd"
-        return f.string(from: Date())
-    }
-
-    // MARK: - 健康仪表盘
-
-    private var dashboardSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("健康仪表盘")
@@ -710,7 +790,17 @@ struct DataRecordView: View {
 
             // MARK: - HealthKit Section
 
-            healthKitSection
+            HealthKitSectionView(
+                hkSteps: hkSteps,
+                hkEnergy: hkEnergy,
+                hkFlights: hkFlights,
+                hkDistance: hkDistance,
+                hkWalkingSpeed: hkWalkingSpeed,
+                hkDoubleSupport: hkDoubleSupport,
+                hkSleepValue: hkSleepValue,
+                hkCurrentSitValue: hkCurrentSitValue,
+                hkSedentaryValue: hkSedentaryValue
+            )
         }
     }
 }
