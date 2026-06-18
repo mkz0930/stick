@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import Combine
 
 /// HealthKit 实时数据
 struct HKLiveData: Equatable {
@@ -23,13 +22,14 @@ struct HKLiveData: Equatable {
 }
 
 @MainActor
-final class DataRecordViewModel: ObservableObject {
-    @Published var today: [HealthSnapshot] = []
-    @Published var insights: [HealthInsight] = []
-    @Published private(set) var userProfile: String = ""
-    @Published var hkData: HKLiveData?
+@Observable
+final class DataRecordViewModel {
+    var today: [HealthSnapshot] = []
+    var insights: [HealthInsight] = []
+    private(set) var userProfile: String = ""
+    var hkData: HKLiveData?
 
-    private var cancellables = Set<AnyCancellable>()
+    private var observationTask: Task<Void, Never>?
 
     func loadHKData() async {
         var data = HKLiveData()
@@ -63,14 +63,36 @@ final class DataRecordViewModel: ObservableObject {
     init() {
         userProfile = UserProfileStore.shared.profile
         refresh()
-        HealthStore.shared.$today
-            .receive(on: RunLoop.main)
-            .sink { [weak self] snaps in
+        // @Observable 迁移：用 withObservationTracking 监听 HealthStore.shared.today 变化
+        startObservingHealthStore()
+    }
+
+    private func startObservingHealthStore() {
+        observationTask?.cancel()
+        observationTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
                 guard let self else { return }
+                let snaps = HealthStore.shared.today
                 self.today = snaps
                 self.insights = HealthAnalyzer.shared.analyze(snapshots: snaps)
+                await self.waitForHealthStoreChange()
             }
-            .store(in: &cancellables)
+        }
+    }
+
+    private func waitForHealthStoreChange() async {
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            withObservationTracking {
+                _ = HealthStore.shared.today
+            } onChange: {
+                cont.resume()
+            }
+        }
+    }
+
+    deinit {
+        // observationTask 是 main actor isolated,deinit 不在 main actor,
+        // 不能直接 cancel。Task 会在 self 释放后由 GC 回收 (Task 持有 weak self)。
     }
 
     func refresh() {
@@ -113,7 +135,7 @@ struct DataRecordView: View {
     /// 当前身体状态
     var currentBodyState: String = "sit"
 
-    @StateObject private var vm = DataRecordViewModel()
+    @State private var vm = DataRecordViewModel()
     /// LLM 生成的今日洞察（一句）
     @State private var insight: String = ""
     @State private var isLoadingInsight: Bool = false

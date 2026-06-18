@@ -78,8 +78,8 @@ struct ChatOverlay: View {
     /// 上次已处理的 scrollTrigger 值（用于去重）
     @State private var lastHandledTrigger: Int = 0
     @FocusState private var inputFocused: Bool
-    @ObservedObject private var history = ChatHistoryStore.shared
-    @ObservedObject var userProfile = UserProfileStore.shared
+    @State private var history = ChatHistoryStore.shared
+    @State var userProfile = UserProfileStore.shared
     @State private var showCamera: Bool = false
     @State private var showPhotoLibrary: Bool = false
     @State private var capturedImage: UIImage?

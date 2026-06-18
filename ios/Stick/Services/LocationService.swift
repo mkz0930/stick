@@ -12,12 +12,13 @@ import Foundation
 import CoreLocation
 
 @MainActor
-final class LocationService: NSObject, ObservableObject {
+@Observable
+final class LocationService: NSObject {
     static let shared = LocationService()
 
-    @Published private(set) var currentCoordinate: CLLocationCoordinate2D?
-    @Published private(set) var currentCity: String?
-    @Published private(set) var authorizationStatus: CLAuthorizationStatus
+    private(set) var currentCoordinate: CLLocationCoordinate2D?
+    private(set) var currentCity: String?
+    private(set) var authorizationStatus: CLAuthorizationStatus
 
     private let manager: CLLocationManager
     private let geocoder = CLGeocoder()

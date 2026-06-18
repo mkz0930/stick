@@ -6,14 +6,15 @@
 import Foundation
 
 @MainActor
-final class HealthStore: ObservableObject {
+@Observable
+final class HealthStore {
     static let shared = HealthStore()
 
-    @Published private(set) var all: [HealthSnapshot] = []
-    @Published private(set) var today: [HealthSnapshot] = []
+    private(set) var all: [HealthSnapshot] = []
+    private(set) var today: [HealthSnapshot] = []
     /// 是否已完成 JSON 文件加载（异步）。未完成期间 `all` / `today` 为空，
     /// 调用方（DailyStepsStore / ContentView）应等待 loaded == true 再做统计。
-    @Published private(set) var loaded: Bool = false
+    private(set) var loaded: Bool = false
 
     private let fileURL: URL
 

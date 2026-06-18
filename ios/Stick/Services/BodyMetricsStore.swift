@@ -8,24 +8,25 @@
 import Foundation
 
 @MainActor
-final class BodyMetricsStore: ObservableObject {
+@Observable
+final class BodyMetricsStore {
     static let shared = BodyMetricsStore()
 
     // MARK: - 身体数据
 
-    @Published var heightCm: Double?       // 身高 cm
-    @Published var weightKg: Double?       // 体重 kg
-    @Published var bodyFatPct: Double?    // 体脂率 %
-    @Published var systolicBP: Int?         // 收缩压 mmHg
-    @Published var diastolicBP: Int?       // 舒张压 mmHg
-    @Published var fastingBloodSugar: Double? // 空腹血糖 mmol/L
-    @Published var sleepHours: Double?      // 睡眠时长 小时
-    @Published var mood: String?            // 心情关键词
-    @Published var waterCups: Int?         // 饮水量 杯
-    @Published var exerciseMinutes: Int?    // 运动时长 分钟
-    @Published var stressLevel: String?     // 压力等级 高/中/低
-    @Published var symptom: String?        // 身体症状关键词
-    @Published var bloodOxygen: Int?       // 血氧百分比 90-100
+    var heightCm: Double?       // 身高 cm
+    var weightKg: Double?       // 体重 kg
+    var bodyFatPct: Double?    // 体脂率 %
+    var systolicBP: Int?         // 收缩压 mmHg
+    var diastolicBP: Int?       // 舒张压 mmHg
+    var fastingBloodSugar: Double? // 空腹血糖 mmol/L
+    var sleepHours: Double?      // 睡眠时长 小时
+    var mood: String?            // 心情关键词
+    var waterCups: Int?         // 饮水量 杯
+    var exerciseMinutes: Int?    // 运动时长 分钟
+    var stressLevel: String?     // 压力等级 高/中/低
+    var symptom: String?        // 身体症状关键词
+    var bloodOxygen: Int?       // 血氧百分比 90-100
 
     // MARK: - 计算属性
 

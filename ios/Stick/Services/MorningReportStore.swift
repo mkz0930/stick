@@ -1,10 +1,11 @@
 import Foundation
 
 @MainActor
-final class MorningReportStore: ObservableObject {
+@Observable
+final class MorningReportStore {
     static let shared = MorningReportStore()
 
-    @Published private(set) var reports: [MorningReport] = []
+    private(set) var reports: [MorningReport] = []
 
     private let reportsDir: URL
 

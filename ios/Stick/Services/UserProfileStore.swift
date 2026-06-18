@@ -49,17 +49,18 @@ struct UserSleepHabit: Codable, Equatable {
 }
 
 @MainActor
-final class UserProfileStore: ObservableObject {
+@Observable
+final class UserProfileStore {
     static let shared = UserProfileStore()
 
     /// 当前用户画像（LLM 总结的简短文字）
-    @Published private(set) var profile: String = ""
+    private(set) var profile: String = ""
 
     /// 自上次总结以来的 user 消息计数（用于触发下次总结）
-    @Published private(set) var userMessageCount: Int = 0
+    private(set) var userMessageCount: Int = 0
 
     /// 用户睡眠习惯画像（含常驻 + 出差）
-    @Published private(set) var sleepHabit: UserSleepHabit = .empty
+    private(set) var sleepHabit: UserSleepHabit = .empty
 
     /// 短期标签分数（委托 UserInterestTagStore 管理，这里只作代理访问）
     private var shortTermScores: [String: Double] {

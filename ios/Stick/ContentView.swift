@@ -1129,6 +1129,43 @@ private struct MainContentView<SheetContent: View>: View {
         currentSitStartTime = nil
     }
 
+    @ViewBuilder
+    private func overlayDimView(panelWidth: CGFloat) -> some View {
+        HStack(spacing: 0) {
+            Spacer().frame(width: panelWidth)
+            Color.black.opacity(0.35)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.32)) { showPersonal = false }
+                }
+        }
+        .transition(.opacity)
+    }
+
+    @ViewBuilder
+    private func personalPanelView(panelWidth: CGFloat, showPersonal: Bool) -> some View {
+        PersonalView(
+            onClose: { withAnimation(.easeInOut(duration: 0.32)) { self.showPersonal = false } },
+            openDataRecord: $openDataRecord,
+            openWidgetPreview: $openWidgetPreview,
+            deviceSet: $deviceSet,
+            healthAuth: healthAuth,
+            chatHistory: chatHistory,
+            hkService: hk,
+            onHistoryTap: { id in
+                targetScrollId = id
+                scrollTrigger += 1
+                withAnimation(.easeInOut(duration: 0.28)) { showChat = true }
+            },
+            onOpenChat: { seed in
+                withAnimation(.easeInOut(duration: 0.32)) { self.showPersonal = false }
+                openChat(seed)
+            },
+            currentSitDuration: sitDurationText,
+            currentBodyState: displayState.rawValue
+        )
+    }
+
     var body: some View {
         GeometryReader { geo in
             let panelWidth = geo.size.width * 0.78
@@ -1140,37 +1177,13 @@ private struct MainContentView<SheetContent: View>: View {
 
                 // 2. 黑色蒙层 (仅显示在右侧 22% 的 home 上)
                 if showPersonal {
-                    HStack(spacing: 0) {
-                        Spacer().frame(width: panelWidth)
-                        Color.black.opacity(0.35)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                withAnimation(.easeInOut(duration: 0.32)) { showPersonal = false }
-                            }
-                    }
-                    .transition(.opacity)
+                    overlayDimView(panelWidth: panelWidth)
                 }
 
                 // 3. 左侧滑出的个人面板 (78% 宽)
-                PersonalView(
-                    onClose: { withAnimation(.easeInOut(duration: 0.32)) { showPersonal = false } },
-                    openDataRecord: $openDataRecord,
-                    openWidgetPreview: $openWidgetPreview,
-                    deviceSet: $deviceSet,
-                    healthAuth: healthAuth,
-                    chatHistory: chatHistory,
-                    onHistoryTap: { id in
-                        targetScrollId = id
-                        scrollTrigger += 1
-                        withAnimation(.easeInOut(duration: 0.28)) { showChat = true }
-                    },
-                    onOpenChat: { seed in
-                        // 关掉个人面板，打开聊天
-                        withAnimation(.easeInOut(duration: 0.32)) { showPersonal = false }
-                        openChat(seed)
-                    },
-                    currentSitDuration: sitDurationText,
-                    currentBodyState: displayState.rawValue
+                personalPanelView(
+                    panelWidth: panelWidth,
+                    showPersonal: showPersonal
                 )
                 .frame(width: panelWidth)
                 .offset(x: showPersonal ? 0 : -panelWidth)
