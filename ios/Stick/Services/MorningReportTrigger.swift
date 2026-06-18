@@ -8,28 +8,31 @@ final class MorningReportTrigger: ObservableObject {
 
     private var monitorTask: Task<Void, Never>?
     private var lastActiveDate: Date?
+    /// 持有 NotificationCenter observer token，避免闭包被释放后悬空
+    private var didBecomeActiveObserver: NSObjectProtocol?
 
     private init() {}
 
     func startMonitoring() {
         guard monitorTask == nil else { return }
+        // 注册一次 scenePhase 监听，token 必须持有
+        if didBecomeActiveObserver == nil {
+            didBecomeActiveObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    await self?.checkAndGenerate()
+                }
+            }
+        }
         monitorTask = Task { [weak self] in
             await self?.runMonitor()
         }
     }
 
     private func runMonitor() async {
-        // 监听 scenePhase 变化，每次从后台回到前台都检查
-        NotificationCenter.default.addObserver(
-            forName: UIApplication.didBecomeActiveNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                await self?.checkAndGenerate()
-            }
-        }
-
         // 保持运行
         while !Task.isCancelled {
             try? await Task.sleep(nanoseconds: 60_000_000_000) // 1 分钟检查一次
