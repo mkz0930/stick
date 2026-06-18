@@ -167,12 +167,56 @@ struct ChatOverlay: View {
     @ViewBuilder
     private func cardContent() -> some View {
         VStack(spacing: 0) {
-            header
+            ChatHeaderView(onClose: onClose)
             DashedDivider()
-            messageArea
+            MessageAreaView(
+                historyMessages: history.loadedMessages,
+                messages: messages,
+                isStreaming: isStreaming,
+                suggestedQuestions: suggestedQuestions,
+                state: state,
+                scrollToBottom: $scrollToBottom,
+                pendingScrollId: $pendingScrollId,
+                scrollToStreamingTrigger: scrollToStreamingTrigger,
+                searchStatus: searchStatus,
+                onSend: { q in
+                    input = q
+                    send()
+                },
+                onSendDirect: { suggestion in
+                    sendDirect(suggestion)
+                },
+                onHistorySectionTap: {
+                    showHistoryPopover = true
+                },
+                onMessageSelected: { msgId in
+                    scrollToBottom = false
+                    pendingScrollId = msgId
+                }
+            )
             Spacer(minLength: 0)
             DashedDivider()
-            inputBar
+            ChatInputBar(
+                input: $input,
+                isStreaming: isStreaming,
+                inputFocused: $inputFocused,
+                features: features,
+                cameraChips: cameraChips,
+                onSend: { send() },
+                onCameraChipTap: { chipInput in
+                    textBeforeCamera = input
+                    input = chipInput
+                    showCamera = true
+                },
+                onPhotoLibraryTap: {
+                    textBeforeCamera = input
+                    showPhotoLibrary = true
+                },
+                onCameraTap: { currentInput in
+                    textBeforeCamera = currentInput
+                    showCamera = true
+                }
+            )
         }
         .background(Theme.card)
         .sheet(isPresented: $showHistoryPopover) {
@@ -344,50 +388,7 @@ struct ChatOverlay: View {
         }
     }
 
-    // MARK: - Header（紧凑版）
-
-    private var header: some View {
-        ChatHeaderView(onClose: onClose)
-    }
-
-    // MARK: - 消息区（空状态 + 流式列表）
-
-    private var messageArea: some View {
-        MessageAreaView(
-            historyMessages: history.loadedMessages,
-            messages: messages,
-            isStreaming: isStreaming,
-            suggestedQuestions: suggestedQuestions,
-            state: state,
-            scrollToBottom: $scrollToBottom,
-            pendingScrollId: $pendingScrollId,
-            scrollToStreamingTrigger: scrollToStreamingTrigger,
-            searchStatus: searchStatus,
-            onSend: { q in
-                input = q
-                send()
-            },
-            onSendDirect: { suggestion in
-                sendDirect(suggestion)
-            },
-            onHistorySectionTap: {
-                showHistoryPopover = true
-            },
-            onMessageSelected: { msgId in
-                scrollToBottom = false
-                pendingScrollId = msgId
-            }
-        )
-    }
-
-    // MARK: - 输入栏
-
-    private struct InputFeature: Identifiable {
-        let id = UUID()
-        let icon: String
-        let title: String
-        let seed: String
-    }
+    // MARK: - 输入栏数据
 
     private let features: [InputFeature] = [
         InputFeature(icon: "fork.knife",         title: "饮食建议",  seed: "推荐健康饮食方案"),
@@ -400,151 +401,7 @@ struct ChatOverlay: View {
     /// 需要"打开相机后文字+图片一起发送"的 chip（只这两个走相机，其他都是视觉提示）
     private let cameraChips: Set<String> = ["报告解读", "拍食物"]
 
-    private var inputBar: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // 1. 顶部 feature chips (横向滚动)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(features) { f in
-                        Button {
-                            if cameraChips.contains(f.title) {
-                                // 拍食物 / 报告解读：保留当前输入 + 预填 chip 文案 + 打开相机
-                                textBeforeCamera = input
-                                input = f.seed
-                                showCamera = true
-                            }
-                            // 其他 chip：不发不填，纯视觉提示（点击不响应）
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: f.icon)
-                                    .font(.system(size: 14, weight: .medium))
-                                Text(f.title)
-                                    .font(.system(size: 14, weight: .medium))
-                                    .lineLimit(1)
-                            }
-                            .foregroundColor(Theme.navy)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(
-                                Capsule().fill(Color.white)
-                            )
-                            .overlay(
-                                Capsule().stroke(Theme.border, lineWidth: 0.5)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 2)
-            }
-
-            // 2. 底部 input pill + 相机按钮
-            HStack(spacing: 8) {
-                inputPill
-                cameraButton
-            }
-        }
-        .padding(.bottom, 8)
-    }
-
-    private var inputPill: some View {
-        HStack(spacing: 0) {
-            Button {
-                // TODO: 语音功能（暂时 noop）
-            } label: {
-                Image(systemName: "wave.3.right")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(Theme.navy)
-                    .frame(width: 36, height: 36)
-                    .overlay(
-                        Circle().stroke(Theme.navy.opacity(0.85), lineWidth: 1.4)
-                    )
-            }
-            .buttonStyle(.plain)
-
-            TextField("继续问点健康相关…", text: $input)
-                .lineLimit(1)
-                .tint(Theme.navy)
-                .foregroundColor(Theme.navy)
-                .font(.system(size: 15, weight: .regular))
-                .disabled(isStreaming)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .focused($inputFocused)
-                .submitLabel(.send)
-                .onSubmit { send() }
-
-            Button {
-                textBeforeCamera = input
-                showPhotoLibrary = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(Theme.navy)
-                    .frame(width: 36, height: 36)
-                    .overlay(
-                        Circle().stroke(Theme.navy.opacity(0.85), lineWidth: 1.4)
-                    )
-            }
-            .buttonStyle(.plain)
-        }
-        .frame(height: 56)
-        .background(
-            Capsule().fill(Color.white)
-        )
-        .overlay(
-            Capsule().stroke(Theme.border, lineWidth: 0.5)
-        )
-    }
-
-    private var cameraButton: some View {
-        CameraButtonView(
-            input: input,
-            onCameraTap: { currentInput in
-                textBeforeCamera = currentInput
-                showCamera = true
-            }
-        )
-    }
-
-private struct CameraButtonView: View {
-    let input: String
-    let onCameraTap: (String) -> Void
-
-    var body: some View {
-        Button {
-            onCameraTap(input)
-        } label: {
-            ZStack(alignment: .topTrailing) {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundColor(Theme.navy)
-                    .frame(width: 56, height: 56)
-                    .background(
-                        Circle().fill(Color.white)
-                    )
-                    .overlay(
-                        Circle().stroke(Theme.border, lineWidth: 0.5)
-                    )
-
-                Image(systemName: "sparkle")
-                    .font(.system(size: 9, weight: .heavy))
-                    .foregroundColor(Color(red: 0.45, green: 0.30, blue: 0.95))
-                    .padding(3)
-                    .background(
-                        Circle().fill(Color.white)
-                    )
-                    .overlay(
-                        Circle().stroke(Theme.border, lineWidth: 0.3)
-                    )
-                    .offset(x: 4, y: -2)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - 发送 / 取消
+    // MARK: - 发送 / 取消
 
     private func send(imageData: Data? = nil) {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1474,6 +1331,163 @@ private struct ChatHeaderView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+}
+
+// MARK: - 输入栏
+
+private struct InputFeature: Identifiable {
+    let id = UUID()
+    let icon: String
+    let title: String
+    let seed: String
+}
+
+private struct ChatInputBar: View {
+    @Binding var input: String
+    let isStreaming: Bool
+    @FocusState.Binding var inputFocused: Bool
+    let features: [InputFeature]
+    let cameraChips: Set<String>
+    let onSend: () -> Void
+    let onCameraChipTap: (String) -> Void
+    let onPhotoLibraryTap: () -> Void
+    let onCameraTap: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // 1. 顶部 feature chips (横向滚动)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(features) { f in
+                        Button {
+                            if cameraChips.contains(f.title) {
+                                // 拍食物 / 报告解读：保留当前输入 + 预填 chip 文案 + 打开相机
+                                onCameraChipTap(f.seed)
+                            }
+                            // 其他 chip：不发不填，纯视觉提示（点击不响应）
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: f.icon)
+                                    .font(.system(size: 14, weight: .medium))
+                                Text(f.title)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .lineLimit(1)
+                            }
+                            .foregroundColor(Theme.navy)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                Capsule().fill(Color.white)
+                            )
+                            .overlay(
+                                Capsule().stroke(Theme.border, lineWidth: 0.5)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 2)
+            }
+
+            // 2. 底部 input pill + 相机按钮
+            HStack(spacing: 8) {
+                inputPill()
+                CameraButtonView(
+                    input: input,
+                    onCameraTap: { currentInput in
+                        onCameraTap(currentInput)
+                    }
+                )
+            }
+        }
+        .padding(.bottom, 8)
+    }
+
+    private func inputPill() -> some View {
+        HStack(spacing: 0) {
+            Button {
+                // TODO: 语音功能（暂时 noop）
+            } label: {
+                Image(systemName: "wave.3.right")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(Theme.navy)
+                    .frame(width: 36, height: 36)
+                    .overlay(
+                        Circle().stroke(Theme.navy.opacity(0.85), lineWidth: 1.4)
+                    )
+            }
+            .buttonStyle(.plain)
+
+            TextField("继续问点健康相关…", text: $input)
+                .lineLimit(1)
+                .tint(Theme.navy)
+                .foregroundColor(Theme.navy)
+                .font(.system(size: 15, weight: .regular))
+                .disabled(isStreaming)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .focused($inputFocused)
+                .submitLabel(.send)
+                .onSubmit { onSend() }
+
+            Button {
+                onPhotoLibraryTap()
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(Theme.navy)
+                    .frame(width: 36, height: 36)
+                    .overlay(
+                        Circle().stroke(Theme.navy.opacity(0.85), lineWidth: 1.4)
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(height: 56)
+        .background(
+            Capsule().fill(Color.white)
+        )
+        .overlay(
+            Capsule().stroke(Theme.border, lineWidth: 0.5)
+        )
+    }
+}
+
+private struct CameraButtonView: View {
+    let input: String
+    let onCameraTap: (String) -> Void
+
+    var body: some View {
+        Button {
+            onCameraTap(input)
+        } label: {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: "camera.fill")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundColor(Theme.navy)
+                    .frame(width: 56, height: 56)
+                    .background(
+                        Circle().fill(Color.white)
+                    )
+                    .overlay(
+                        Circle().stroke(Theme.border, lineWidth: 0.5)
+                    )
+
+                Image(systemName: "sparkle")
+                    .font(.system(size: 9, weight: .heavy))
+                    .foregroundColor(Color(red: 0.45, green: 0.30, blue: 0.95))
+                    .padding(3)
+                    .background(
+                        Circle().fill(Color.white)
+                    )
+                    .overlay(
+                        Circle().stroke(Theme.border, lineWidth: 0.3)
+                    )
+                    .offset(x: 4, y: -2)
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
 
