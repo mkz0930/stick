@@ -141,7 +141,7 @@ struct SleepReportView: View {
             Theme.bgTop.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                header
+                HeaderView(onClose: onClose, subtitle: headerSubtitle)
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
                     .padding(.bottom, 12)
@@ -151,14 +151,10 @@ struct SleepReportView: View {
                     .frame(height: 0.5)
                     .padding(.horizontal, 20)
 
-                content
+                SleepReportContent(vm: vm)
             }
         }
         .task { await vm.load() }
-    }
-
-    private var header: some View {
-        HeaderView(onClose: onClose, subtitle: headerSubtitle)
     }
 
     /// 副标题 (随数据状态变化)
@@ -181,18 +177,19 @@ struct SleepReportView: View {
         f.dateFormat = "HH:mm"
         return f.string(from: d)
     }
+}
 
-    // MARK: - 内容
+private struct SleepReportContent: View {
+    @ObservedObject var vm: SleepReportViewModel
 
-    @ViewBuilder
-    private var content: some View {
+    var body: some View {
         switch vm.state {
         case .loading:
-            loadingState
+            LoadingStateView()
         case .loaded(let session):
             loadedContent(session: session)
         case .empty:
-            emptyState
+            EmptyStateView()
         }
     }
 
@@ -216,7 +213,7 @@ struct SleepReportView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 4)
 
-                adviceLine
+                AdviceLineView()
                     .padding(.horizontal, 20)
 
                 // AI 健康分析
@@ -262,14 +259,6 @@ struct SleepReportView: View {
         }
     }
 
-    private var loadingState: some View {
-        LoadingStateView()
-    }
-
-    private var emptyState: some View {
-        EmptyStateView()
-    }
-
     // MARK: - 阶段汇总 (2x2)
 
     private func stageGrid(breakdown: StageBreakdown) -> some View {
@@ -307,10 +296,6 @@ struct SleepReportView: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(StickState.sleep.accentSoft.opacity(0.6))
         )
-    }
-
-    private var adviceLine: some View {
-        AdviceLineView()
     }
 }
 
@@ -424,7 +409,7 @@ private struct AISleepSection: View {
                     .tracking(1.6)
                     .foregroundColor(Theme.slate)
                 Spacer()
-                riskBadge
+                RiskBadgeView(riskColor: report.risk.color)
             }
 
             // 风险徽章
@@ -493,10 +478,6 @@ private struct AISleepSection: View {
     }
 
     // MARK: - 子组件
-
-    private var riskBadge: some View {
-        RiskBadgeView(riskColor: report.risk.color)
-    }
 
     private func vitalCell(_ label: String, _ value: String, _ sub: String) -> some View {
         VStack(alignment: .leading, spacing: 3) {
