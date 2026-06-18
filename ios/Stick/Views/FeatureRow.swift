@@ -168,7 +168,12 @@ struct FeatureRow: View {
                 }
             }
             // 展开/折叠按键
-            expandToggle
+            ExpandToggle(
+                isExpanded: $isExpanded,
+                alertsDetailExpanded: $alertsDetailExpanded,
+                onExpand: { resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded) },
+                onCollapse: { cancelAutoCollapseTimer() }
+            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.easeInOut(duration: 0.35), value: moodLine)
@@ -190,38 +195,6 @@ struct FeatureRow: View {
         }
     }
 
-    /// 左下角按键：chevron + "more / less" 文字，整行可点
-    private var expandToggle: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.28)) {
-                isExpanded.toggle()
-                if !isExpanded {
-                    alertsDetailExpanded = false
-                } else {
-                    // 展开时同步展开 alerts 列表，避免"header 展开但列表隐藏"的 UX 假象
-                    alertsDetailExpanded = true
-                }
-            }
-            if isExpanded {
-                resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded)
-            } else {
-                cancelAutoCollapseTimer()
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
-                    .font(.system(size: 14, weight: .medium))
-                Text(isExpanded ? "收起" : "更多")
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-            }
-            .foregroundColor(Theme.slate)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())  // 整行可点（不限于 chevron+文字小区域）
-        }
-        .buttonStyle(.plain)
-    }
 }
 
 // MARK: - 异常提示 section（可折叠：默认前 2 项，>2 项可展开全部）
@@ -868,5 +841,45 @@ private struct HeartRateSparkline: View {
                 }
             }
         }
+    }
+}
+
+/// 左下角按键：chevron + "more / less" 文字，整行可点
+private struct ExpandToggle: View {
+    @Binding var isExpanded: Bool
+    @Binding var alertsDetailExpanded: Bool
+    var onExpand: () -> Void = { }
+    var onCollapse: () -> Void = { }
+
+    var body: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.28)) {
+                isExpanded.toggle()
+                if !isExpanded {
+                    alertsDetailExpanded = false
+                } else {
+                    // 展开时同步展开 alerts 列表，避免"header 展开但列表隐藏"的 UX 假象
+                    alertsDetailExpanded = true
+                }
+            }
+            if isExpanded {
+                onExpand()
+            } else {
+                onCollapse()
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
+                    .font(.system(size: 14, weight: .medium))
+                Text(isExpanded ? "收起" : "更多")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+            }
+            .foregroundColor(Theme.slate)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())  // 整行可点（不限于 chevron+文字小区域）
+        }
+        .buttonStyle(.plain)
     }
 }
