@@ -19,15 +19,15 @@ struct AIAnalysisView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // 顶栏
-            AIAnalysisHeader(timeText: timeText, onClose: onClose)
+            header
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    AIAnalysisHeadlineCard(report: report)
-                    AIAnalysisVitalCard(report: report, timeShort: timeShort)
-                    AIAnalysisReasonSection(report: report)
-                    AIAnalysisRecSection(report: report)
-                    AIAnalysisFooter()
+                    headlineCard
+                    vitalCard
+                    reasonSection
+                    recSection
+                    footer
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
@@ -36,15 +36,10 @@ struct AIAnalysisView: View {
         }
         .background(Theme.bgTop.ignoresSafeArea())
     }
-}
 
-// MARK: - 顶栏
+    // MARK: - 顶栏
 
-private struct AIAnalysisHeader: View {
-    let timeText: String
-    var onClose: () -> Void
-
-    var body: some View {
+    private var header: some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("AI 健康分析")
@@ -71,14 +66,10 @@ private struct AIAnalysisHeader: View {
         .padding(.bottom, 12)
         .background(Theme.bgTop)
     }
-}
 
-// MARK: - 结论卡
+    // MARK: - 结论卡
 
-private struct AIAnalysisHeadlineCard: View {
-    let report: AIAnalysisReport
-
-    var body: some View {
+    private var headlineCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "waveform.path.ecg.rectangle")
@@ -89,7 +80,7 @@ private struct AIAnalysisHeadlineCard: View {
                     .tracking(1.6)
                     .foregroundColor(report.risk.color)
                 Spacer()
-                AIAnalysisRiskBadge(report: report)
+                riskBadge
             }
             Text(report.headline)
                 .font(.system(size: 16, weight: .semibold, design: .serif))
@@ -107,12 +98,8 @@ private struct AIAnalysisHeadlineCard: View {
                 .stroke(report.risk.color.opacity(0.35), lineWidth: 1)
         )
     }
-}
 
-private struct AIAnalysisRiskBadge: View {
-    let report: AIAnalysisReport
-
-    var body: some View {
+    private var riskBadge: some View {
         HStack(spacing: 5) {
             Circle()
                 .fill(report.risk.color)
@@ -129,15 +116,10 @@ private struct AIAnalysisRiskBadge: View {
                 .fill(report.risk.color.opacity(0.12))
         )
     }
-}
 
-// MARK: - 关键指标
+    // MARK: - 关键指标
 
-private struct AIAnalysisVitalCard: View {
-    let report: AIAnalysisReport
-    let timeShort: String
-
-    var body: some View {
+    private var vitalCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("关键指标 · KEY VITALS")
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
@@ -145,14 +127,14 @@ private struct AIAnalysisVitalCard: View {
                 .foregroundColor(Theme.slate)
 
             HStack(alignment: .top, spacing: 10) {
-                AIAnalysisVitalItem(title: "心率", value: "\(report.heartRate)", unit: "bpm",
-                                    tone: report.risk.color)
-                AIAnalysisVitalItem(title: "基线", value: "\(report.restingHR)", unit: "bpm",
-                                    tone: Theme.slate)
-                AIAnalysisVitalItem(title: "HRV", value: "\(report.hrv)", unit: "ms",
-                                    tone: report.hrv < 30 ? report.risk.color : Theme.slate)
-                AIAnalysisVitalItem(title: "持续", value: "\(report.sustainedMinutes)", unit: "min",
-                                    tone: report.risk.color)
+                vitalItem(title: "心率", value: "\(report.heartRate)", unit: "bpm",
+                          tone: report.risk.color)
+                vitalItem(title: "基线", value: "\(report.restingHR)", unit: "bpm",
+                          tone: Theme.slate)
+                vitalItem(title: "HRV", value: "\(report.hrv)", unit: "ms",
+                          tone: report.hrv < 30 ? report.risk.color : Theme.slate)
+                vitalItem(title: "持续", value: "\(report.sustainedMinutes)", unit: "min",
+                          tone: report.risk.color)
             }
 
             HStack {
@@ -178,15 +160,8 @@ private struct AIAnalysisVitalCard: View {
                 .stroke(Theme.border, lineWidth: 1)
         )
     }
-}
 
-private struct AIAnalysisVitalItem: View {
-    let title: String
-    let value: String
-    let unit: String
-    let tone: Color
-
-    var body: some View {
+    private func vitalItem(title: String, value: String, unit: String, tone: Color) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title)
                 .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -204,15 +179,11 @@ private struct AIAnalysisVitalItem: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 4)
     }
-}
 
-// MARK: - 分析
+    // MARK: - 分析
 
-private struct AIAnalysisReasonSection: View {
-    let report: AIAnalysisReport
-
-    var body: some View {
-        AIAnalysisSectionCard(
+    private var reasonSection: some View {
+        sectionCard(
             title: "AI 分析 · ANALYSIS",
             icon: "magnifyingglass",
             accent: Theme.navy
@@ -234,15 +205,11 @@ private struct AIAnalysisReasonSection: View {
             }
         }
     }
-}
 
-// MARK: - 建议
+    // MARK: - 建议
 
-private struct AIAnalysisRecSection: View {
-    let report: AIAnalysisReport
-
-    var body: some View {
-        AIAnalysisSectionCard(
+    private var recSection: some View {
+        sectionCard(
             title: "建议 · RECOMMENDATIONS",
             icon: "lightbulb",
             accent: report.risk.color
@@ -264,17 +231,13 @@ private struct AIAnalysisRecSection: View {
             }
         }
     }
-}
 
-// MARK: - 区块容器
+    // MARK: - 区块容器
 
-private struct AIAnalysisSectionCard<Content: View>: View {
-    let title: String
-    let icon: String
-    let accent: Color
-    @ViewBuilder let content: () -> Content
-
-    var body: some View {
+    @ViewBuilder
+    private func sectionCard<Content: View>(
+        title: String, icon: String, accent: Color, @ViewBuilder content: () -> Content
+    ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
@@ -298,12 +261,10 @@ private struct AIAnalysisSectionCard<Content: View>: View {
                 .stroke(Theme.border, lineWidth: 1)
         )
     }
-}
 
-// MARK: - 页脚
+    // MARK: - 页脚
 
-private struct AIAnalysisFooter: View {
-    var body: some View {
+    private var footer: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: "sparkles")
