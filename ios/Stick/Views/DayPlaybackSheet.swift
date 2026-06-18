@@ -44,11 +44,21 @@ struct DayPlaybackSheet: View {
             Color(red: 0.98, green: 0.98, blue: 0.97).ignoresSafeArea()
 
             if showSummary {
-                summaryView
-                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                SummaryContentView(
+                    distribution: distribution,
+                    totalMinutes: totalMinutes,
+                    dismiss: { dismiss() }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
             } else {
-                playbackView
-                    .transition(.opacity)
+                PlaybackContentView(
+                    displayState: displayState,
+                    displayTime: displayTime,
+                    progress: progress,
+                    displaySegment: displaySegment,
+                    isFinished: isFinished
+                )
+                .transition(.opacity)
             }
         }
         .onAppear {
@@ -77,18 +87,6 @@ struct DayPlaybackSheet: View {
         }
     }
 
-    // MARK: - 播放视图 (10s 回放)
-
-    private var playbackView: some View {
-        PlaybackContentView(
-            displayState: displayState,
-            displayTime: displayTime,
-            progress: progress,
-            displaySegment: displaySegment,
-            isFinished: isFinished
-        )
-    }
-
     // MARK: - 总结封面 (最后一页)
 
     /// 各状态累计分钟（从真实 HealthKit 快照统计，不依赖 schedule 估算）
@@ -108,22 +106,6 @@ struct DayPlaybackSheet: View {
 
     private var totalMinutes: Int { distribution.reduce(0) { $0 + $1.minutes } }
 
-    private var summaryView: some View {
-        SummaryContentView(
-            distribution: distribution,
-            totalMinutes: totalMinutes,
-            dismiss: { dismiss() }
-        )
-    }
-
-    private var summaryTopBar: some View {
-        SummaryTopBarView(todayText: todayText, onDismiss: { dismiss() })
-    }
-
-    private var summaryShareButton: some View {
-        SummaryShareButtonView(shareMessage: shareMessage)
-    }
-
     private var todayText: String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "zh_CN")
@@ -135,24 +117,6 @@ struct DayPlaybackSheet: View {
         let h = m / 60
         let mm = m % 60
         return "\(h)h\(String(format: "%02d", mm))m"
-    }
-
-    // MARK: - 顶栏
-
-    private var topBar: some View {
-        PlaybackTopBarView(displayState: displayState, displayTime: displayTime, onDismiss: { dismiss() })
-    }
-
-    // MARK: - 底部控件 (进度条 + 状态文字 + 分享按钮)
-
-    private var bottomControls: some View {
-        BottomControlsView(
-            displayState: displayState,
-            displaySegment: displaySegment,
-            progress: progress,
-            isFinished: isFinished,
-            shareMessage: shareMessage
-        )
     }
 
     private var shareMessage: String {
