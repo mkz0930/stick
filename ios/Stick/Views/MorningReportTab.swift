@@ -9,9 +9,16 @@ struct MorningReportTab: View {
         NavigationStack {
             Group {
                 if store.reports.isEmpty {
-                    emptyState
+                    EmptyReportStateView()
                 } else {
-                    reportList
+                    List {
+                        ForEach(store.reports) { report in
+                            ReportRow(report: report)
+                                .contentShape(Rectangle())
+                                .onTapGesture { selectedReport = report }
+                        }
+                    }
+                    .listStyle(.plain)
                 }
             }
             .navigationTitle("报告")
@@ -19,21 +26,6 @@ struct MorningReportTab: View {
                 MorningReportDetailView(report: report)
             }
         }
-    }
-
-    private var emptyState: some View {
-        EmptyReportStateView()
-    }
-
-    private var reportList: some View {
-        List {
-            ForEach(store.reports) { report in
-                ReportRow(report: report)
-                    .contentShape(Rectangle())
-                    .onTapGesture { selectedReport = report }
-            }
-        }
-        .listStyle(.plain)
     }
 }
 
@@ -63,27 +55,19 @@ struct ReportRow: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
-                scoreBadge
+                Text("\(report.llmScore)分")
+                    .font(.headline)
+                    .foregroundColor(scoreColor)
             }
-            metricsRow
+            HStack(spacing: 16) {
+                Label("\(report.sleepMinutes / 60)h\(report.sleepMinutes % 60)m", systemImage: "moon.fill")
+                Label("\(report.walkMinutes)m", systemImage: "figure.walk")
+                Label("\(report.sedentaryMinutes / 60)h\(report.sedentaryMinutes % 60)m", systemImage: "chair.fill")
+            }
+            .font(.caption)
+            .foregroundColor(.secondary)
         }
         .padding(.vertical, 6)
-    }
-
-    private var scoreBadge: some View {
-        Text("\(report.llmScore)分")
-            .font(.headline)
-            .foregroundColor(scoreColor)
-    }
-
-    private var metricsRow: some View {
-        HStack(spacing: 16) {
-            Label("\(report.sleepMinutes / 60)h\(report.sleepMinutes % 60)m", systemImage: "moon.fill")
-            Label("\(report.walkMinutes)m", systemImage: "figure.walk")
-            Label("\(report.sedentaryMinutes / 60)h\(report.sedentaryMinutes % 60)m", systemImage: "chair.fill")
-        }
-        .font(.caption)
-        .foregroundColor(.secondary)
     }
 
     private var scoreColor: Color {
