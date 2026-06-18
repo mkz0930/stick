@@ -23,13 +23,12 @@ struct HKLiveData: Equatable {
 }
 
 @MainActor
-final class DataRecordViewModel: ObservableObject {
-    @Published var today: [HealthSnapshot] = []
-    @Published var insights: [HealthInsight] = []
-    @Published private(set) var userProfile: String = ""
-    @Published var hkData: HKLiveData?
-
-    private var cancellables = Set<AnyCancellable>()
+@Observable
+final class DataRecordViewModel {
+    var today: [HealthSnapshot] = []
+    var insights: [HealthInsight] = []
+    private(set) var userProfile: String = ""
+    var hkData: HKLiveData?
 
     func loadHKData() async {
         var data = HKLiveData()
@@ -61,16 +60,7 @@ final class DataRecordViewModel: ObservableObject {
     }
 
     init() {
-        userProfile = UserProfileStore.shared.profile
         refresh()
-        HealthStore.shared.$today
-            .receive(on: RunLoop.main)
-            .sink { [weak self] snaps in
-                guard let self else { return }
-                self.today = snaps
-                self.insights = HealthAnalyzer.shared.analyze(snapshots: snaps)
-            }
-            .store(in: &cancellables)
     }
 
     func refresh() {
@@ -113,7 +103,7 @@ struct DataRecordView: View {
     /// 当前身体状态
     var currentBodyState: String = "sit"
 
-    @StateObject private var vm = DataRecordViewModel()
+    @State private var vm = DataRecordViewModel()
     /// LLM 生成的今日洞察（一句）
     @State private var insight: String = ""
     @State private var isLoadingInsight: Bool = false

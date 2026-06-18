@@ -110,14 +110,15 @@ struct StageBreakdown: Equatable {
 // MARK: - ViewModel
 
 @MainActor
-final class SleepReportViewModel: ObservableObject {
+@Observable
+final class SleepReportViewModel {
     enum State {
         case loading
         case loaded(SleepSession)
         case empty
     }
 
-    @Published var state: State = .loading
+    var state: State = .loading
 
     func load() async {
         state = .loading
@@ -134,7 +135,7 @@ final class SleepReportViewModel: ObservableObject {
 
 struct SleepReportView: View {
     var onClose: () -> Void
-    @StateObject private var vm = SleepReportViewModel()
+    @State private var vm = SleepReportViewModel()
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -180,7 +181,7 @@ struct SleepReportView: View {
 }
 
 private struct SleepReportContent: View {
-    @ObservedObject var vm: SleepReportViewModel
+    @Bindable var vm: SleepReportViewModel
 
     var body: some View {
         switch vm.state {

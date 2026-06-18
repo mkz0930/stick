@@ -51,10 +51,10 @@ extension ChatOverlay {
         }
 
         // 1. 长期用户画像
-        let profileBlock = userProfile.profileContextBlock()
+        let profileBlock = UserProfileStore.shared.profileContextBlock()
 
         // 2. 用户关注标签（短期 top5 + 长期 top3）
-        let shortTags = userProfile.topShortTermTags(limit: 5)
+        let shortTags = UserProfileStore.shared.topShortTermTags(limit: 5)
         let longTags = UserInterestTagStore.shared.topLongTermTags(limit: 3)
         var tagsBlock = ""
         if !shortTags.isEmpty || !longTags.isEmpty {

@@ -13,10 +13,11 @@ enum MealType: String, Codable, CaseIterable {
 }
 
 @MainActor
-final class FoodLogStore: ObservableObject {
+@Observable
+final class FoodLogStore {
     static let shared = FoodLogStore()
 
-    @Published private(set) var todayEntries: [FoodEntry] = []
+    private(set) var todayEntries: [FoodEntry] = []
 
     private let key = "food.log.v1"
     private let maxDays = 30

@@ -2,7 +2,7 @@
 import SwiftUI
 
 struct MorningReportTab: View {
-    @StateObject private var store = MorningReportStore.shared
+    @State private var store = MorningReportStore.shared
     @State private var selectedReport: MorningReport?
 
     var body: some View {

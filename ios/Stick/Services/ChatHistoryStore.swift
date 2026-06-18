@@ -27,7 +27,8 @@ struct PersistedChatMessage: Codable, Identifiable, Equatable {
 }
 
 @MainActor
-final class ChatHistoryStore: ObservableObject {
+@Observable
+final class ChatHistoryStore {
     static let shared = ChatHistoryStore()
 
     private let key = "stick.chat.history.v1"
@@ -35,10 +36,10 @@ final class ChatHistoryStore: ObservableObject {
     private let pageSize = 10
 
     /// 全量历史（持久化，懒加载）
-    @Published private(set) var allMessages: [PersistedChatMessage] = []
+    private(set) var allMessages: [PersistedChatMessage] = []
 
     /// 当前展示的消息（分页加载）
-    @Published private(set) var loadedMessages: [PersistedChatMessage] = []
+    private(set) var loadedMessages: [PersistedChatMessage] = []
 
     /// 是否还有更早的消息可加载
     var hasMore: Bool { loadedCount < allMessages.count }
