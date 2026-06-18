@@ -109,10 +109,11 @@ struct SleepSession: Identifiable, Codable {
 // MARK: - Analyzer
 
 @MainActor
-final class SleepAnalyzer: ObservableObject {
+@Observable
+final class SleepAnalyzer {
     static let shared = SleepAnalyzer()
 
-    @Published var lastSession: SleepSession?
+    var lastSession: SleepSession?
 
     /// HKHealthStore 是 thread-safe reference type，标 nonisolated 让 query helper 脱离 main actor
     private nonisolated let store = HKHealthStore()
