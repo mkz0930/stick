@@ -8,13 +8,13 @@ struct AlertDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header
+            AlertDetailHeader(alert: alert, onClose: onClose)
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    summaryCard
-                    refCard
-                    actionsCard
-                    footer
+                    SummaryCard(alert: alert)
+                    RefCard(alert: alert, sectionHeader: sectionHeader, refRow: refRow)
+                    ActionsCard(alert: alert, sectionHeader: sectionHeader, actions: actionsForAlert)
+                    AlertDetailFooter()
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
@@ -24,9 +24,75 @@ struct AlertDetailView: View {
         .background(Theme.bgTop.ignoresSafeArea())
     }
 
-    // MARK: - 顶栏
+    // MARK: - 组件函数（向下传递给子视图）
 
-    private var header: some View {
+    @ViewBuilder
+    private func sectionHeader(_ title: String, _ icon: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(alert.severity.color)
+            Text(title)
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .tracking(1.6)
+                .foregroundColor(Theme.slate)
+        }
+    }
+
+    private func refRow(_ k: String, _ v: String, _ src: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(k)
+                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .foregroundColor(Theme.slate)
+                .frame(width: 70, alignment: .leading)
+            Text(v)
+                .font(.system(size: 12, weight: .heavy, design: .rounded))
+                .foregroundColor(Theme.navy)
+            Spacer()
+            Text(src)
+                .font(.system(size: 9, weight: .regular, design: .monospaced))
+                .foregroundColor(Theme.mist)
+        }
+    }
+
+    // MARK: - 派生计算属性
+
+    private var actionsForAlert: [String] {
+        switch alert.source {
+        case .sleep:
+            return [
+                "今晚 22:30 前进入卧室，关掉强光屏幕",
+                "卧室温度 18-22°C，避免咖啡因与酒精",
+                "次日 07:00 后自然光照射 15 分钟以重置节律",
+            ]
+        case .activity:
+            return [
+                "每坐 50 分钟起身活动 5-10 分钟",
+                "饭后 10-15 分钟轻度散步",
+                "累计每日 6000 步；至少 30 分钟中等强度",
+            ]
+        case .heartRate:
+            return [
+                "立即降低活动强度至散步级别",
+                "4-7-8 呼吸法 4 个循环（约 90 秒）",
+                "持续 > 30 分钟未恢复建议联系医师",
+            ]
+        case .posture, .mood, .respiratory, .generic:
+            return [
+                "保持观察，下一时间窗口复核",
+                "如持续出现请咨询专业医师",
+            ]
+        }
+    }
+}
+
+// MARK: - 顶栏
+
+private struct AlertDetailHeader: View {
+    let alert: UnifiedAlert
+    let onClose: () -> Void
+
+    var body: some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("异常详情")
@@ -56,10 +122,14 @@ struct AlertDetailView: View {
         .padding(.bottom, 12)
         .background(Theme.bgTop)
     }
+}
 
-    // MARK: - 概览
+// MARK: - 概览
 
-    private var summaryCard: some View {
+private struct SummaryCard: View {
+    let alert: UnifiedAlert
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: alert.icon)
@@ -70,7 +140,7 @@ struct AlertDetailView: View {
                     .tracking(1.6)
                     .foregroundColor(alert.severity.color)
                 Spacer()
-                severityBadge
+                SeverityBadge(severity: alert.severity)
             }
             Text(alert.detail)
                 .font(.system(size: 15, weight: .medium, design: .serif))
@@ -99,39 +169,49 @@ struct AlertDetailView: View {
                 .stroke(alert.severity.color.opacity(0.32), lineWidth: 1)
         )
     }
+}
 
-    private var severityBadge: some View {
+private struct SeverityBadge: View {
+    let severity: UnifiedAlert.Severity
+
+    var body: some View {
         HStack(spacing: 5) {
             Circle()
-                .fill(alert.severity.color)
+                .fill(severity.color)
                 .frame(width: 7, height: 7)
-            Text(alert.severity.label)
+            Text(severity.label)
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                 .tracking(0.8)
-                .foregroundColor(alert.severity.color)
+                .foregroundColor(severity.color)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 2)
-                .fill(alert.severity.color.opacity(0.12))
+                .fill(severity.color.opacity(0.12))
         )
     }
+}
 
-    // MARK: - 参考
+// MARK: - 参考
 
-    private var refCard: some View {
+private struct RefCard<Header: View, Row: View>: View {
+    let alert: UnifiedAlert
+    let sectionHeader: (_ title: String, _ icon: String) -> Header
+    let refRow: (_ k: String, _ v: String, _ src: String) -> Row
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionHeader("参考 · REFERENCE", icon: "scope")
-            refContent
+            sectionHeader("参考 · REFERENCE", "scope")
+            refContent()
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(cardBg)
+        .background(cardBg())
     }
 
     @ViewBuilder
-    private var refContent: some View {
+    private func refContent() -> some View {
         switch alert.source {
         case .sleep:
             VStack(alignment: .leading, spacing: 8) {
@@ -168,29 +248,28 @@ struct AlertDetailView: View {
         }
     }
 
-    private func refRow(_ k: String, _ v: String, _ src: String) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(k)
-                .font(.system(size: 10, weight: .medium, design: .monospaced))
-                .foregroundColor(Theme.slate)
-                .frame(width: 70, alignment: .leading)
-            Text(v)
-                .font(.system(size: 12, weight: .heavy, design: .rounded))
-                .foregroundColor(Theme.navy)
-            Spacer()
-            Text(src)
-                .font(.system(size: 9, weight: .regular, design: .monospaced))
-                .foregroundColor(Theme.mist)
-        }
+    private func cardBg() -> some View {
+        RoundedRectangle(cornerRadius: 6, style: .continuous)
+            .fill(Theme.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(Theme.border, lineWidth: 1)
+            )
     }
+}
 
-    // MARK: - 建议
+// MARK: - 建议
 
-    private var actionsCard: some View {
+private struct ActionsCard<Header: View>: View {
+    let alert: UnifiedAlert
+    let sectionHeader: (_ title: String, _ icon: String) -> Header
+    let actions: [String]
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionHeader("建议 · ACTIONS", icon: "lightbulb")
+            sectionHeader("建议 · ACTIONS", "lightbulb")
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(actionsForAlert.enumerated()), id: \.offset) { idx, txt in
+                ForEach(Array(actions.enumerated()), id: \.offset) { idx, txt in
                     HStack(alignment: .top, spacing: 10) {
                         Text(String(format: "%02d", idx + 1))
                             .font(.system(size: 10, weight: .heavy, design: .monospaced))
@@ -207,40 +286,23 @@ struct AlertDetailView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(cardBg)
+        .background(cardBg())
     }
 
-    private var actionsForAlert: [String] {
-        switch alert.source {
-        case .sleep:
-            return [
-                "今晚 22:30 前进入卧室，关掉强光屏幕",
-                "卧室温度 18-22°C，避免咖啡因与酒精",
-                "次日 07:00 后自然光照射 15 分钟以重置节律",
-            ]
-        case .activity:
-            return [
-                "每坐 50 分钟起身活动 5-10 分钟",
-                "饭后 10-15 分钟轻度散步",
-                "累计每日 6000 步；至少 30 分钟中等强度",
-            ]
-        case .heartRate:
-            return [
-                "立即降低活动强度至散步级别",
-                "4-7-8 呼吸法 4 个循环（约 90 秒）",
-                "持续 > 30 分钟未恢复建议联系医师",
-            ]
-        case .posture, .mood, .respiratory, .generic:
-            return [
-                "保持观察，下一时间窗口复核",
-                "如持续出现请咨询专业医师",
-            ]
-        }
+    private func cardBg() -> some View {
+        RoundedRectangle(cornerRadius: 6, style: .continuous)
+            .fill(Theme.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(Theme.border, lineWidth: 1)
+            )
     }
+}
 
-    // MARK: - 页脚
+// MARK: - 页脚
 
-    private var footer: some View {
+private struct AlertDetailFooter: View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Image(systemName: "info.circle")
@@ -255,29 +317,5 @@ struct AlertDetailView: View {
                 .lineSpacing(2)
         }
         .padding(.top, 4)
-    }
-
-    // MARK: - 组件
-
-    @ViewBuilder
-    private func sectionHeader(_ title: String, icon: String) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(alert.severity.color)
-            Text(title)
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .tracking(1.6)
-                .foregroundColor(Theme.slate)
-        }
-    }
-
-    private var cardBg: some View {
-        RoundedRectangle(cornerRadius: 6, style: .continuous)
-            .fill(Theme.card)
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .stroke(Theme.border, lineWidth: 1)
-            )
     }
 }
