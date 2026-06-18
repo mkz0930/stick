@@ -368,16 +368,16 @@ struct HealthExport: Codable {
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: DynamicKey.self)
-        导出时间 = (try? c.decode(String.self, forKey: DynamicKey(stringValue: "导出时间")!)) ?? ""
-        数据开始 = (try? c.decode(String.self, forKey: DynamicKey(stringValue: "数据开始")!)) ?? ""
-        数据类型 = (try? c.decode([HealthTypeBlock].self, forKey: DynamicKey(stringValue: "数据类型")!)) ?? []
+        导出时间 = (try? c.decode(String.self, forKey: DynamicKey("导出时间"))) ?? ""
+        数据开始 = (try? c.decode(String.self, forKey: DynamicKey("数据开始"))) ?? ""
+        数据类型 = (try? c.decode([HealthTypeBlock].self, forKey: DynamicKey("数据类型"))) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: DynamicKey.self)
-        try container.encode(导出时间, forKey: DynamicKey(stringValue: "导出时间")!)
-        try container.encode(数据开始, forKey: DynamicKey(stringValue: "数据开始")!)
-        try container.encode(数据类型, forKey: DynamicKey(stringValue: "数据类型")!)
+        try container.encode(导出时间, forKey: DynamicKey("导出时间"))
+        try container.encode(数据开始, forKey: DynamicKey("数据开始"))
+        try container.encode(数据类型, forKey: DynamicKey("数据类型"))
     }
 }
 
@@ -389,18 +389,18 @@ struct HealthTypeBlock: Codable {
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: DynamicKey.self)
-        identifier = (try? c.decode(String.self, forKey: DynamicKey(stringValue: "identifier")!)) ?? ""
-        数据 = (try? c.decode([HealthDataPoint].self, forKey: DynamicKey(stringValue: "数据")!)) ?? []
-        样本数 = try? c.decode(Int.self, forKey: DynamicKey(stringValue: "样本数")!)
-        类型 = try? c.decode(String.self, forKey: DynamicKey(stringValue: "类型")!)
+        identifier = (try? c.decode(String.self, forKey: DynamicKey("identifier"))) ?? ""
+        数据 = (try? c.decode([HealthDataPoint].self, forKey: DynamicKey("数据"))) ?? []
+        样本数 = try? c.decode(Int.self, forKey: DynamicKey("样本数"))
+        类型 = try? c.decode(String.self, forKey: DynamicKey("类型"))
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: DynamicKey.self)
-        try container.encode(identifier, forKey: DynamicKey(stringValue: "identifier")!)
-        try container.encode(数据, forKey: DynamicKey(stringValue: "数据")!)
-        try container.encodeIfPresent(样本数, forKey: DynamicKey(stringValue: "样本数")!)
-        try container.encodeIfPresent(类型, forKey: DynamicKey(stringValue: "类型")!)
+        try container.encode(identifier, forKey: DynamicKey("identifier"))
+        try container.encode(数据, forKey: DynamicKey("数据"))
+        try container.encodeIfPresent(样本数, forKey: DynamicKey("样本数"))
+        try container.encodeIfPresent(类型, forKey: DynamicKey("类型"))
     }
 }
 
@@ -410,14 +410,14 @@ struct HealthDataPoint: Codable {
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: DynamicKey.self)
-        值 = (try? c.decode(Double.self, forKey: DynamicKey(stringValue: "值")!)) ?? 0
-        时间 = (try? c.decode(String.self, forKey: DynamicKey(stringValue: "时间")!)) ?? ""
+        值 = (try? c.decode(Double.self, forKey: DynamicKey("值"))) ?? 0
+        时间 = (try? c.decode(String.self, forKey: DynamicKey("时间"))) ?? ""
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: DynamicKey.self)
-        try container.encode(值, forKey: DynamicKey(stringValue: "值")!)
-        try container.encode(时间, forKey: DynamicKey(stringValue: "时间")!)
+        try container.encode(值, forKey: DynamicKey("值"))
+        try container.encode(时间, forKey: DynamicKey("时间"))
     }
 }
 
@@ -427,4 +427,9 @@ struct DynamicKey: CodingKey {
     var intValue: Int? { nil }
     init?(stringValue: String) { self.stringValue = stringValue }
     init?(intValue: Int) { return nil }
+
+    /// 非可失败的便利构造（消除调用处的 `!` 强解包）
+    init(_ stringValue: String) {
+        self.stringValue = stringValue
+    }
 }
