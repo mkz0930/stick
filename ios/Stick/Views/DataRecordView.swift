@@ -590,7 +590,7 @@ private struct HealthKitSectionView: View {
                 HStack(spacing: 10) {
                     DashboardCard(
                         icon: "figure.seated.side",
-                        iconColor: Color(red: 0.92, green: 0.55, blue: 0.20),
+                        iconColor: Theme.dashSedentary,
                         title: "当前久坐",
                         sub: "正在持续",
                         value: hkCurrentSitValue,
@@ -598,7 +598,7 @@ private struct HealthKitSectionView: View {
                     )
                     DashboardCard(
                         icon: "figure.seated.side",
-                        iconColor: Color(red: 0.92, green: 0.55, blue: 0.20),
+                        iconColor: Theme.dashSedentary,
                         title: "久坐累计",
                         sub: "含打断后累计",
                         value: hkSedentaryValue,

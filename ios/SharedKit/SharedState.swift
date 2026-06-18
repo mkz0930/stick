@@ -219,4 +219,5 @@ enum Theme {
     static let dashDiet     = Color(red: 0.55, green: 0.50, blue: 0.90)   // 饮食 紫
     static let dashBody     = Color(red: 0.20, green: 0.75, blue: 0.50)   // 身材 绿
     static let dashBlood    = Color(red: 0.55, green: 0.50, blue: 0.90)   // 血压/血糖 紫
+    static let dashSedentary = Color(red: 0.92, green: 0.55, blue: 0.20)   // 久坐 橙
 }
