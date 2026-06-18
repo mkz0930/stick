@@ -36,10 +36,12 @@ struct StickApp: App {
                             options: .customDismissAction
                         )
                     ])
-                    // 请求通知权限
-                    Task { _ = await NotificationService.shared.requestAuthorization() }
                     // 启动晨间报告触发器
                     MorningReportTrigger.shared.startMonitoring()
+                }
+                .task {
+                    // 请求通知权限（独立 .task，遵循 ios-dev Rule 7 避免 onAppear { Task {} }）
+                    _ = await NotificationService.shared.requestAuthorization()
                 }
         }
     }
