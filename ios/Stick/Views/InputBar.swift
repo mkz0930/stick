@@ -36,33 +36,46 @@ struct InputBar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // 1. 顶部 feature chips (横向滚动)
-            InputBarChipsRow(
-                features: features,
-                onOpenChat: onOpenChat,
-                onOpenCamera: onOpenCamera,
-                autoTopics: autoTopics,
-                onAutoTopic: onAutoTopic
-            )
+            chipsRow
 
             // 2. 底部 input pill + 相机按钮
             HStack(spacing: 8) {
-                InputBarPill(
-                    placeholderText: placeholderText,
-                    onOpenChat: onOpenChat,
-                    onPlusTap: onPlusTap,
-                    onPlaceholderTap: { onOpenChat(text) }
-                )
-                InputBarCameraButton(
-                    onTap: {
-                        if let cb = onOpenCamera {
-                            cb()
-                        } else {
-                            onOpenChat("拍照识别")
-                        }
-                    }
-                )
+                inputPill
+                cameraButton
             }
         }
+    }
+
+    // MARK: - 顶部 chips 行
+
+    private var chipsRow: some View {
+        InputBarChipsRow(
+            features: features,
+            onOpenCamera: onOpenCamera,
+            autoTopics: autoTopics,
+            onAutoTopic: onAutoTopic,
+            onOpenChat: onOpenChat
+        )
+    }
+
+    // MARK: - Pill 输入条
+
+    private var inputPill: some View {
+        InputBarInputPill(
+            text: text,
+            placeholderText: placeholderText,
+            onOpenChat: onOpenChat,
+            onPlusTap: onPlusTap
+        )
+    }
+
+    // MARK: - 相机按钮 (独立圆形 + 右上角小星)
+
+    private var cameraButton: some View {
+        InputBarCameraButton(
+            onOpenCamera: onOpenCamera,
+            onOpenChat: onOpenChat
+        )
     }
 
     private var placeholderText: String {
@@ -75,14 +88,13 @@ struct InputBar: View {
     }
 }
 
-// MARK: - 顶部 chips 行
-
+/// 顶部 feature chips 横向滚动行
 private struct InputBarChipsRow: View {
     let features: [InputFeature]
-    let onOpenChat: (_ seed: String) -> Void
-    let onOpenCamera: (() -> Void)?
-    let autoTopics: Set<String>
-    let onAutoTopic: ((_ title: String, _ seed: String) -> Void)?
+    var onOpenCamera: (() -> Void)? = nil
+    var autoTopics: Set<String> = []
+    var onAutoTopic: ((String, String) -> Void)? = nil
+    var onOpenChat: (String) -> Void = { _ in }
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -124,13 +136,12 @@ private struct InputBarChipsRow: View {
     }
 }
 
-// MARK: - Pill 输入条
-
-private struct InputBarPill: View {
+/// Pill 输入条
+private struct InputBarInputPill: View {
+    let text: String
     let placeholderText: String
-    let onOpenChat: (_ seed: String) -> Void
-    let onPlusTap: (() -> Void)?
-    let onPlaceholderTap: () -> Void
+    var onOpenChat: (String) -> Void = { _ in }
+    var onPlusTap: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 0) {
@@ -156,7 +167,7 @@ private struct InputBarPill: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    onPlaceholderTap()
+                    onOpenChat(text)
                 }
 
             // 右侧: + 按钮 (圆形描边) — 打开相册/相机选图，发给 LLM 视觉分析
@@ -183,13 +194,19 @@ private struct InputBarPill: View {
     }
 }
 
-// MARK: - 相机按钮 (独立圆形 + 右上角小星)
-
+/// 相机按钮 (独立圆形 + 右上角小星)
 private struct InputBarCameraButton: View {
-    let onTap: () -> Void
+    var onOpenCamera: (() -> Void)? = nil
+    var onOpenChat: (String) -> Void = { _ in }
 
     var body: some View {
-        Button(action: onTap) {
+        Button {
+            if let cb = onOpenCamera {
+                cb()
+            } else {
+                onOpenChat("拍照识别")
+            }
+        } label: {
             ZStack(alignment: .topTrailing) {
                 // 相机主体
                 Image(systemName: "camera.fill")
