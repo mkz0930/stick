@@ -908,146 +908,52 @@ struct ContentView: View {
     // MARK: - 首页内容 (抽出来便于在 ZStack 中复用)
 
     private var homeBody: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .top) {
-                background
-
-                // ① 顶部固定层：TopBar + FeatureRow（叠加在小人上方，展开时覆盖不下推）
-                VStack(spacing: 0) {
-                    HStack(alignment: .center, spacing: 0) {
-                        TopBarView(onMenuTap: { showPersonal = true })
-                        Spacer(minLength: 0)
-                        #if targetEnvironment(simulator)
-                        // 模拟器调试按钮：载入 Documents/MockHealth.json 当真实数据用
-                        Button {
-                            Task { @MainActor in
-                                let n = MockHealthDataLoader.shared.loadBundledIfExists()
-                                print("[ContentView] 🧪 载入 mock 数据: \(n) 条")
-                                var sed = await HealthKitService.shared.todaySedentaryMinutes()
-                                if let sleepHours = await HealthKitService.shared.todaySleepHours(), sleepHours > 0 {
-                                    sed = max(0, sed - Int(sleepHours * 60))
-                                    hasValidSleepData = true
-                                }
-                                homeSedentaryMinutes = sed
-                                currentSitMinutes = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
-                            }
-                        } label: {
-                            Image(systemName: "flask")
-                                .font(.system(size: 14))
-                                .foregroundColor(Theme.slate)
-                                .padding(8)
-                        }
-                        // 模拟器调试按钮：注入过去 7 天的 mock 数据到 HealthKit
-                        // 让"导出最近 7 天"按钮能看到多天数据（无需等 7 天累积）
-                        Button {
-                            showInjectConfirm = true
-                        } label: {
-                            Image(systemName: "syringe")
-                                .font(.system(size: 14))
-                                .foregroundColor(Theme.slate)
-                                .padding(8)
-                        }
-                        #endif
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
-                    .padding(.bottom, 4)
-
-                    FeatureRow(
-                        state: displayState,
-                        deviceSet: deviceSet,
-                        healthStatuses: healthAuth.statuses,
-                        moodLine: displayMoodLine,
-                        moodScore: moodScore,
-                        stressScore: 100 - moodScore,
-                        bodyScore: bodyEnergy,
-                        bodyScoreColor: energyColor,
-                        unifiedAlerts: unifiedAlerts,
-                        sitDurationText: sitDurationText,
-                        todaySitDescription: todaySitDescription,
-                        todaySteps: todaySteps,
-                        todayWalkMinutes: todayWalkMinutes,
-                        todaySleepHours: todaySleepHours,
-                        isExpanded: $featureRowExpanded,
-                        onAlertTap: handleAlertTap,
-                        onLockTap: { showDevicePicker = true },
-                        onSedentaryTap: { activeSheet = .sit },
-                        onWalkCardTap: { activeSheet = .walk },
-                        onSleepCardTap: { activeSheet = .sleep },
-                        onCardTap: { showChat = true }
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 6)
-                }
-                .zIndex(2)
-                .fixedSize(horizontal: false, vertical: true)  // 高度固定，展开时覆盖小人
-
-                // ② ScrollView 内容（小人 + 时间轴；在下层）
-                let scrollContent = VStack(spacing: 0) {
-                    // 为 FeatureRow 折叠态预留高度（190pt — 小人 + 时间轴整体下移 120pt，大小不变）
-                    Color.clear.frame(height: 190)
-
-                    HStack(alignment: .top, spacing: 10) {
-                        StageHeroView(
-                            state: displayState,
-                            mood: figureMood,
-                            bodyEnergy: bodyEnergy,
-                            energyColor: energyColor,
-                            isScrubbing: isScrubbing,
-                            inference: inference,
-                            showDevicePicker: $showDevicePicker,
-                            scrubOffset: $scrubOffset,
-                            manualStateOverride: $manualStateOverride,
-                            onPreview: { showFilm = true },
-                            onSleepAlert: { showSleepReport = true },
-                            onFigureTap: { activeSheet = .figure },
-                            subLine: realSubLine,
-                            schedule: hk.realDaySchedule ?? StickState.daySchedule
-                        )
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 400)
-
-                        DayTimelineView(
-                            schedule: hk.realDaySchedule ?? StickState.daySchedule,
-                            now: now,
-                            scrubOffset: $scrubOffset,
-                            showDevicePicker: $showDevicePicker,
-                            manualStateOverride: $manualStateOverride
-                        )
-                        .equatable()  // schedule 内容稳定时跳过 body 重绘，杜绝轴乱变
-                        .frame(width: 50)
-                        .frame(height: 400)
-                    }
-                    .padding(.leading, 16)
-                    .padding(.trailing, 4)
-
-                    Spacer().frame(height: 96)
-                }
-
-                if Self.isRunningForPreviews {
-                    scrollContent
-                } else {
-                    ScrollView(.vertical, showsIndicators: false) { scrollContent }
-                }
-
-                // ③ InputBar 钉在屏幕 0.9 位置
-                VStack(spacing: 0) {
-                    Spacer()
-                        .frame(height: geo.size.height * 0.9 - 44)
-                    InputBar(
-                        state: displayState,
-                        text: $inputDraft,
-                        onOpenChat: openChat,
-                        onOpenCamera: openCamera,
-                        onPlusTap: openChatWithPhoto,
-                        lastHistoryPrompt: chatHistory.loadedMessages.last(where: { $0.role == "user" })?.content,
-                        autoTopics: ["饮食建议"],
-                        onAutoTopic: openChatWithTopic
-                    )
-                    .padding(.horizontal, 16)
-                }
+        HomeBodyView(
+            hk: hk,
+            healthAuth: healthAuth,
+            chatHistory: chatHistory,
+            deviceSet: $deviceSet,
+            showPersonal: $showPersonal,
+            showInjectConfirm: $showInjectConfirm,
+            showDevicePicker: $showDevicePicker,
+            showFilm: $showFilm,
+            showSleepReport: $showSleepReport,
+            showChat: $showChat,
+            activeSheet: $activeSheet,
+            manualStateOverride: $manualStateOverride,
+            scrubOffset: $scrubOffset,
+            featureRowExpanded: $featureRowExpanded,
+            inputDraft: $inputDraft,
+            hasValidSleepData: $hasValidSleepData,
+            homeSedentaryMinutes: $homeSedentaryMinutes,
+            currentSitMinutes: $currentSitMinutes,
+            now: now,
+            displayState: displayState,
+            figureMood: figureMood,
+            bodyEnergy: bodyEnergy,
+            energyColor: energyColor,
+            moodScore: moodScore,
+            displayMoodLine: displayMoodLine,
+            unifiedAlerts: unifiedAlerts,
+            sitDurationText: sitDurationText,
+            todaySitDescription: todaySitDescription,
+            todaySteps: todaySteps,
+            todayWalkMinutes: todayWalkMinutes,
+            todaySleepHours: todaySleepHours,
+            realSubLine: realSubLine,
+            isScrubbing: isScrubbing,
+            inference: inference,
+            handleAlertTap: handleAlertTap,
+            openChat: openChat,
+            openCamera: openCamera,
+            openChatWithPhoto: openChatWithPhoto,
+            openChatWithTopic: openChatWithTopic,
+            loadMockData: { sed, sitMins, sleep in
+                hasValidSleepData = sleep
+                homeSedentaryMinutes = sed
+                currentSitMinutes = sitMins
             }
-        }
+        )
     }
 
     private func openChat(_ seed: String) {
@@ -1428,6 +1334,204 @@ private struct StageScrubBadge: View {
         )
         .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
         .animation(.easeInOut(duration: 0.2), value: isOverride)
+    }
+}
+
+// MARK: - HomeBodyView（rule 1 提取）
+
+/// 首页内容（被外层 ZStack 包了一层）— GeometryReader + 顶栏 + FeatureRow + 主舞台 + 时间线 + InputBar
+private struct HomeBodyView: View {
+    @ObservedObject var hk: HealthKitService
+    @ObservedObject var healthAuth: HealthAuthService
+    @ObservedObject var chatHistory: ChatHistoryStore
+
+    @Binding var deviceSet: Set<DeviceID>
+    @Binding var showPersonal: Bool
+    @Binding var showInjectConfirm: Bool
+    @Binding var showDevicePicker: Bool
+    @Binding var showFilm: Bool
+    @Binding var showSleepReport: Bool
+    @Binding var showChat: Bool
+    @Binding var activeSheet: SheetDestination?
+    @Binding var manualStateOverride: StickState?
+    @Binding var scrubOffset: Int?
+    @Binding var featureRowExpanded: Bool
+    @Binding var inputDraft: String
+    @Binding var hasValidSleepData: Bool
+    @Binding var homeSedentaryMinutes: Int
+    @Binding var currentSitMinutes: Int
+
+    let now: Date
+    let displayState: StickState
+    let figureMood: StickFigureMood
+    let bodyEnergy: Double
+    let energyColor: Color
+    let moodScore: Double
+    let displayMoodLine: MoodLineInfo?
+    let unifiedAlerts: [UnifiedAlert]
+    let sitDurationText: String?
+    let todaySitDescription: String
+    let todaySteps: Int
+    let todayWalkMinutes: Int
+    let todaySleepHours: Double?
+    let realSubLine: String
+    let isScrubbing: Bool
+    let inference: StateInference.Result?
+
+    let handleAlertTap: (UnifiedAlert) -> Void
+    let openChat: (String) -> Void
+    let openCamera: () -> Void
+    let openChatWithPhoto: () -> Void
+    let openChatWithTopic: (String, String) -> Void
+    /// 模拟器 mock 数据加载回调：(sedentary, sitMinutes, hasValidSleep) -> ()
+    let loadMockData: (Int, Int, Bool) -> Void
+
+    private static var isRunningForPreviews: Bool {
+        ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .top) {
+                HomeBackground(state: displayState)
+
+                // ① 顶部固定层：TopBar + FeatureRow（叠加在小人上方，展开时覆盖不下推）
+                VStack(spacing: 0) {
+                    HStack(alignment: .center, spacing: 0) {
+                        TopBarView(onMenuTap: { showPersonal = true })
+                        Spacer(minLength: 0)
+                        #if targetEnvironment(simulator)
+                        // 模拟器调试按钮：载入 Documents/MockHealth.json 当真实数据用
+                        Button {
+                            Task { @MainActor in
+                                let n = MockHealthDataLoader.shared.loadBundledIfExists()
+                                print("[ContentView] 🧪 载入 mock 数据: \(n) 条")
+                                var sed = await HealthKitService.shared.todaySedentaryMinutes()
+                                var sleep = false
+                                if let sleepHours = await HealthKitService.shared.todaySleepHours(), sleepHours > 0 {
+                                    sed = max(0, sed - Int(sleepHours * 60))
+                                    sleep = true
+                                }
+                                let sitMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
+                                loadMockData(sed, sitMins, sleep)
+                            }
+                        } label: {
+                            Image(systemName: "flask")
+                                .font(.system(size: 14))
+                                .foregroundColor(Theme.slate)
+                                .padding(8)
+                        }
+                        // 模拟器调试按钮：注入过去 7 天的 mock 数据到 HealthKit
+                        // 让"导出最近 7 天"按钮能看到多天数据（无需等 7 天累积）
+                        Button {
+                            showInjectConfirm = true
+                        } label: {
+                            Image(systemName: "syringe")
+                                .font(.system(size: 14))
+                                .foregroundColor(Theme.slate)
+                                .padding(8)
+                        }
+                        #endif
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+                    .padding(.bottom, 4)
+
+                    FeatureRow(
+                        state: displayState,
+                        deviceSet: deviceSet,
+                        healthStatuses: healthAuth.statuses,
+                        moodLine: displayMoodLine,
+                        moodScore: moodScore,
+                        stressScore: 100 - moodScore,
+                        bodyScore: bodyEnergy,
+                        bodyScoreColor: energyColor,
+                        unifiedAlerts: unifiedAlerts,
+                        sitDurationText: sitDurationText,
+                        todaySitDescription: todaySitDescription,
+                        todaySteps: todaySteps,
+                        todayWalkMinutes: todayWalkMinutes,
+                        todaySleepHours: todaySleepHours,
+                        isExpanded: $featureRowExpanded,
+                        onAlertTap: handleAlertTap,
+                        onLockTap: { showDevicePicker = true },
+                        onSedentaryTap: { activeSheet = .sit },
+                        onWalkCardTap: { activeSheet = .walk },
+                        onSleepCardTap: { activeSheet = .sleep },
+                        onCardTap: { showChat = true }
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 6)
+                }
+                .zIndex(2)
+                .fixedSize(horizontal: false, vertical: true)  // 高度固定，展开时覆盖小人
+
+                // ② ScrollView 内容（小人 + 时间轴；在下层）
+                let scrollContent = VStack(spacing: 0) {
+                    // 为 FeatureRow 折叠态预留高度（190pt — 小人 + 时间轴整体下移 120pt，大小不变）
+                    Color.clear.frame(height: 190)
+
+                    HStack(alignment: .top, spacing: 10) {
+                        StageHeroView(
+                            state: displayState,
+                            mood: figureMood,
+                            bodyEnergy: bodyEnergy,
+                            energyColor: energyColor,
+                            isScrubbing: isScrubbing,
+                            inference: inference,
+                            showDevicePicker: $showDevicePicker,
+                            scrubOffset: $scrubOffset,
+                            manualStateOverride: $manualStateOverride,
+                            onPreview: { showFilm = true },
+                            onSleepAlert: { showSleepReport = true },
+                            onFigureTap: { activeSheet = .figure },
+                            subLine: realSubLine,
+                            schedule: hk.realDaySchedule ?? StickState.daySchedule
+                        )
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 400)
+
+                        DayTimelineView(
+                            schedule: hk.realDaySchedule ?? StickState.daySchedule,
+                            now: now,
+                            scrubOffset: $scrubOffset,
+                            showDevicePicker: $showDevicePicker,
+                            manualStateOverride: $manualStateOverride
+                        )
+                        .equatable()  // schedule 内容稳定时跳过 body 重绘，杜绝轴乱变
+                        .frame(width: 50)
+                        .frame(height: 400)
+                    }
+                    .padding(.leading, 16)
+                    .padding(.trailing, 4)
+
+                    Spacer().frame(height: 96)
+                }
+
+                if Self.isRunningForPreviews {
+                    scrollContent
+                } else {
+                    ScrollView(.vertical, showsIndicators: false) { scrollContent }
+                }
+
+                // ③ InputBar 钉在屏幕 0.9 位置
+                VStack(spacing: 0) {
+                    Spacer()
+                        .frame(height: geo.size.height * 0.9 - 44)
+                    InputBar(
+                        state: displayState,
+                        text: $inputDraft,
+                        onOpenChat: openChat,
+                        onOpenCamera: openCamera,
+                        onPlusTap: openChatWithPhoto,
+                        lastHistoryPrompt: chatHistory.loadedMessages.last(where: { $0.role == "user" })?.content,
+                        autoTopics: ["饮食建议"],
+                        onAutoTopic: openChatWithTopic
+                    )
+                    .padding(.horizontal, 16)
+                }
+            }
+        }
     }
 }
 
