@@ -80,7 +80,7 @@ struct SleepAnomalyReportView: View {
             Theme.bgTop.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                header
+                SleepAlertHeader(issueCount: issues.count, onClose: onClose)
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
                     .padding(.bottom, 8)
@@ -92,7 +92,7 @@ struct SleepAnomalyReportView: View {
 
                 ScrollView {
                     VStack(spacing: 0) {
-                        summaryCard
+                        SleepAlertSummaryCard(issueCount: issues.count)
                             .padding(.horizontal, 20)
                             .padding(.top, 16)
                             .padding(.bottom, 16)
@@ -127,7 +127,7 @@ struct SleepAnomalyReportView: View {
                             .padding(.horizontal, 20)
 
                         // AI 综合分析 — 下方解读
-                        aiCard
+                        SleepAlertAICard(aiAnalysis: aiAnalysis, aiColor: aiColor)
                             .padding(.horizontal, 20)
                             .padding(.top, 16)
                             .padding(.bottom, 28)
@@ -138,182 +138,6 @@ struct SleepAnomalyReportView: View {
     }
 
     // MARK: 子视图
-
-    private var header: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Image(systemName: "moon.zzz.fill")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(StickState.sleep.accent)
-                    Text("睡眠异常报告")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(Theme.navy)
-                }
-                Text("昨夜 22:30 – 今晨 07:00 · 检测到 \(issues.count) 项事件")
-                    .font(.system(size: 12))
-                    .foregroundColor(Theme.slate)
-            }
-            Spacer()
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Theme.navy)
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(Theme.card))
-                    .overlay(Circle().stroke(Theme.borderSoft, lineWidth: 1))
-            }
-        }
-    }
-
-    private var summaryCard: some View {
-        HStack(spacing: 18) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(issues.count)")
-                    .font(.system(size: 48, weight: .black, design: .rounded))
-                    .foregroundColor(.red.opacity(0.85))
-                Text("异常事件")
-                    .font(.system(size: 12))
-                    .foregroundColor(Theme.slate)
-            }
-
-            Rectangle()
-                .fill(Theme.borderSoft)
-                .frame(width: 0.5, height: 48)
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 5) {
-                stat("心率过缓", "1")
-                stat("呼吸暂停", "1")
-            }
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.red.opacity(0.05))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.red.opacity(0.12), lineWidth: 0.6)
-        )
-    }
-
-    /// AI 综合分析卡片
-    private var aiCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            // 头部：AI 标 + 风险 chip
-            HStack(spacing: 8) {
-                HStack(spacing: 4) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 10, weight: .bold))
-                    Text("AI")
-                        .font(.system(size: 11, weight: .black, design: .monospaced))
-                        .tracking(0.6)
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(
-                    Capsule().fill(aiColor)
-                )
-
-                Text(aiAnalysis.title)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Theme.navy)
-
-                Spacer()
-
-                riskChip
-            }
-
-            // 一句话总结
-            Text(aiAnalysis.summary)
-                .font(.system(size: 13, weight: .regular))
-                .foregroundColor(Theme.navy)
-                .lineSpacing(3)
-
-            // 关键发现
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(Array(aiAnalysis.findings.enumerated()), id: \.offset) { idx, finding in
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("\(idx + 1).")
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(aiColor.opacity(0.7))
-                            .frame(width: 14, alignment: .leading)
-                        Text(finding)
-                            .font(.system(size: 12, weight: .regular))
-                            .foregroundColor(Theme.slate)
-                            .lineSpacing(2)
-                    }
-                }
-            }
-            .padding(.vertical, 4)
-
-            // OSA 提示（高亮警告行）
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.red)
-                Text(aiAnalysis.osaIndicator)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.red)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.red.opacity(0.08))
-            )
-
-            // 建议
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "lightbulb.fill")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(StickState.walk.accent)
-                    .padding(.top, 2)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("建议")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(Theme.slate)
-                        .tracking(0.4)
-                    Text(aiAnalysis.recommendation)
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundColor(Theme.navy)
-                        .lineSpacing(3)
-                }
-            }
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Theme.card)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(aiColor.opacity(0.35), lineWidth: 0.8)
-        )
-        .shadow(color: aiColor.opacity(0.08), radius: 12, y: 2)
-    }
-
-    private var riskChip: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(riskColor)
-                .frame(width: 6, height: 6)
-            Text(riskLabel)
-                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                .tracking(0.5)
-                .foregroundColor(riskColor)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3.5)
-        .background(
-            Capsule().fill(riskColor.opacity(0.12))
-        )
-    }
 
     private func sectionHeader(_ text: String) -> some View {
         HStack {
@@ -449,4 +273,222 @@ struct AIAnalysis {
     let findings: [String]
     let osaIndicator: String
     let recommendation: String
+}
+
+// MARK: - 睡眠异常报告子视图
+
+private struct SleepAlertHeader: View {
+    let issueCount: Int
+    var onClose: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Image(systemName: "moon.zzz.fill")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(StickState.sleep.accent)
+                    Text("睡眠异常报告")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(Theme.navy)
+                }
+                Text("昨夜 22:30 – 今晨 07:00 · 检测到 \(issueCount) 项事件")
+                    .font(.system(size: 12))
+                    .foregroundColor(Theme.slate)
+            }
+            Spacer()
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Theme.navy)
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(Theme.card))
+                    .overlay(Circle().stroke(Theme.borderSoft, lineWidth: 1))
+            }
+        }
+    }
+}
+
+private struct SleepAlertSummaryCard: View {
+    let issueCount: Int
+
+    var body: some View {
+        HStack(spacing: 18) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(issueCount)")
+                    .font(.system(size: 48, weight: .black, design: .rounded))
+                    .foregroundColor(.red.opacity(0.85))
+                Text("异常事件")
+                    .font(.system(size: 12))
+                    .foregroundColor(Theme.slate)
+            }
+
+            Rectangle()
+                .fill(Theme.borderSoft)
+                .frame(width: 0.5, height: 48)
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 5) {
+                stat("心率过缓", "1")
+                stat("呼吸暂停", "1")
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.red.opacity(0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.red.opacity(0.12), lineWidth: 0.6)
+        )
+    }
+
+    private func stat(_ label: String, _ value: String) -> some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundColor(Theme.slate)
+            Text(value)
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .foregroundColor(Theme.navy)
+        }
+    }
+}
+
+private struct SleepAlertAICard: View {
+    let aiAnalysis: AIAnalysis
+    let aiColor: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // 头部：AI 标 + 风险 chip
+            HStack(spacing: 8) {
+                HStack(spacing: 4) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 10, weight: .bold))
+                    Text("AI")
+                        .font(.system(size: 11, weight: .black, design: .monospaced))
+                        .tracking(0.6)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(
+                    Capsule().fill(aiColor)
+                )
+
+                Text(aiAnalysis.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Theme.navy)
+
+                Spacer()
+
+                riskChip
+            }
+
+            // 一句话总结
+            Text(aiAnalysis.summary)
+                .font(.system(size: 13, weight: .regular))
+                .foregroundColor(Theme.navy)
+                .lineSpacing(3)
+
+            // 关键发现
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(aiAnalysis.findings.enumerated()), id: \.offset) { idx, finding in
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("\(idx + 1).")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundColor(aiColor.opacity(0.7))
+                            .frame(width: 14, alignment: .leading)
+                        Text(finding)
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundColor(Theme.slate)
+                            .lineSpacing(2)
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+
+            // OSA 提示（高亮警告行）
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.red)
+                Text(aiAnalysis.osaIndicator)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.red)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.red.opacity(0.08))
+            )
+
+            // 建议
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(StickState.walk.accent)
+                    .padding(.top, 2)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("建议")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(Theme.slate)
+                        .tracking(0.4)
+                    Text(aiAnalysis.recommendation)
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundColor(Theme.navy)
+                        .lineSpacing(3)
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Theme.card)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(aiColor.opacity(0.35), lineWidth: 0.8)
+        )
+        .shadow(color: aiColor.opacity(0.08), radius: 12, y: 2)
+    }
+
+    private var riskChip: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(riskColor)
+                .frame(width: 6, height: 6)
+            Text(riskLabel)
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .tracking(0.5)
+                .foregroundColor(riskColor)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3.5)
+        .background(
+            Capsule().fill(riskColor.opacity(0.12))
+        )
+    }
+
+    private var riskColor: Color {
+        switch aiAnalysis.riskLevel {
+        case .low:     return Color(red: 0.20, green: 0.78, blue: 0.55)
+        case .moderate: return Color(red: 0.95, green: 0.65, blue: 0.10)
+        case .high:   return Color(red: 0.95, green: 0.30, blue: 0.20)
+        }
+    }
+
+    private var riskLabel: String {
+        switch aiAnalysis.riskLevel {
+        case .low:     return "低度风险"
+        case .moderate: return "中度风险"
+        case .high:   return "高度风险"
+        }
+    }
 }
