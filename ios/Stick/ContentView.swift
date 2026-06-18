@@ -1177,7 +1177,7 @@ private struct StageHeroView: View {
         let currentDisplayMin = max(0, min(rawDisplayMin, 1439))
 
         // 在 schedule 里按时间正方向找 nextState 之后最近的段；找不到则 wrap 到第一个
-        let targetSeg = nextSegment(for: nextState, after: currentDisplayMin, in: schedule)
+        let targetSeg = Self.nextSegment(for: nextState, after: currentDisplayMin, in: schedule)
         let jumpMinute = targetSeg.map { (($0.startMinute + $0.endMinute) / 2) } ?? nowMin
         // 让 scrubOffset 落点刚好让 displayMinute = jumpMinute（处理跨午夜）
         let rawOffset = (nowMin - jumpMinute + 1440) % 1440
@@ -1192,7 +1192,7 @@ private struct StageHeroView: View {
     /// 在 `schedule` 里按 startMinute 升序找 `state` 第一个 `startMinute > after` 的段；
     /// 找不到则 wrap 到 schedule 里该 state 的第一个段。
     /// 用于 swipe 切状态时按时间正方向跳 thumb。
-    private func nextSegment(
+    fileprivate static func nextSegment(
         for state: StickState,
         after minute: Int,
         in schedule: [StickState.DaySegment]
@@ -1283,81 +1283,14 @@ private struct StageHeroView: View {
 
             // 拖动时显示当前时间 / swipe 后显示状态 + 时段范围
             if isStageScrubbing || manualStateOverride != nil {
-                stageScrubBadge
+                StageScrubBadge(
+                    state: state,
+                    scrubOffset: $scrubOffset,
+                    manualStateOverride: $manualStateOverride,
+                    schedule: schedule
+                )
             }
         }
-    }
-
-    /// 主舞台中央徽章：
-    /// - swipe 切状态后 → `状态 · HH:MM–HH:MM`（按当前 thumb 位置定位到该 state 的最近段）
-    /// - 仅拖动时间 → `HH:MM`
-    private var stageScrubBadge: some View {
-        let offset = scrubOffset ?? 0
-        let m = StickState.minutesOfDay(Date().addingTimeInterval(-Double(offset) * 60))
-        let targetState = manualStateOverride ?? state
-        // 按当前 thumb 位置定位 segment；override state 时优先找当前位置匹配的段，否则取该 state 之后的最近段
-        // 注意：hk.realDaySchedule 可能比 daySchedule 有更多 gaps（如 HealthKit 数据稀疏），
-        // 此时 seg 可能为 nil，应优雅降级为仅显示 state 名字
-        let seg: StickState.DaySegment? = {
-            if let cur = schedule.first(where: {
-                $0.startMinute <= m && m < $0.endMinute && $0.state == targetState
-            }) {
-                return cur
-            }
-            return nextSegment(for: targetState, after: m, in: schedule)
-        }()
-        let isOverride = manualStateOverride != nil
-        return VStack(spacing: 2) {
-            if isOverride {
-                if let seg = seg {
-                    Text("\(StickState.formatMinute(seg.startMinute))–\(StickState.formatMinute(seg.endMinute)) · \(targetState.rawValue)")
-                        .font(.system(size: 20, weight: .heavy, design: .monospaced))
-                        .foregroundColor(Theme.navy)
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .fixedSize()
-                        .contentTransition(.numericText())
-                        .transition(.scale.combined(with: .opacity))
-                } else {
-                    // seg 为 nil（时间落在 schedule 间隙）时，仍显示 state 名字，不Crash也不错乱
-                    Text(targetState.rawValue)
-                        .font(.system(size: 20, weight: .heavy, design: .monospaced))
-                        .foregroundColor(Theme.navy)
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .fixedSize()
-                        .contentTransition(.numericText())
-                        .transition(.scale.combined(with: .opacity))
-                }
-            } else {
-                let hh = (m / 60) % 24
-                let mm = m % 60
-                Text(String(format: "%02d:%02d", hh, mm))
-                    .font(.system(size: 26, weight: .black, design: .monospaced))
-                    .foregroundColor(Theme.navy)
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .fixedSize()
-                    .contentTransition(.numericText())
-                    .transition(.scale.combined(with: .opacity))
-            }
-            Text("← 左右滑动切换状态 →")
-                .font(.system(size: 9, weight: .medium, design: .monospaced))
-                .tracking(0.6)
-                .foregroundColor(Theme.slate)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 4)
-                .fill(Theme.card.opacity(0.92))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(Theme.border, lineWidth: 0.5)
-        )
-        .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
-        .animation(.easeInOut(duration: 0.2), value: isOverride)
     }
 
 }
@@ -1414,6 +1347,87 @@ private struct HomeBackground: View {
                 .animation(.easeInOut(duration: 0.45), value: state)
             }
         }
+    }
+}
+
+// MARK: - StageScrubBadge（rule 1 提取）
+
+/// 主舞台中央徽章：
+/// - swipe 切状态后 → `状态 · HH:MM–HH:MM`（按当前 thumb 位置定位到该 state 的最近段）
+/// - 仅拖动时间 → `HH:MM`
+private struct StageScrubBadge: View {
+    let state: StickState
+    @Binding var scrubOffset: Int?
+    @Binding var manualStateOverride: StickState?
+    let schedule: [StickState.DaySegment]
+
+    var body: some View {
+        let offset = scrubOffset ?? 0
+        let m = StickState.minutesOfDay(Date().addingTimeInterval(-Double(offset) * 60))
+        let targetState = manualStateOverride ?? state
+        // 按当前 thumb 位置定位 segment；override state 时优先找当前位置匹配的段，否则取该 state 之后的最近段
+        // 注意：hk.realDaySchedule 可能比 daySchedule 有更多 gaps（如 HealthKit 数据稀疏），
+        // 此时 seg 可能为 nil，应优雅降级为仅显示 state 名字
+        let seg: StickState.DaySegment? = {
+            if let cur = schedule.first(where: {
+                $0.startMinute <= m && m < $0.endMinute && $0.state == targetState
+            }) {
+                return cur
+            }
+            return StageHeroView.nextSegment(for: targetState, after: m, in: schedule)
+        }()
+        let isOverride = manualStateOverride != nil
+        VStack(spacing: 2) {
+            if isOverride {
+                if let seg = seg {
+                    Text("\(StickState.formatMinute(seg.startMinute))–\(StickState.formatMinute(seg.endMinute)) · \(targetState.rawValue)")
+                        .font(.system(size: 20, weight: .heavy, design: .monospaced))
+                        .foregroundColor(Theme.navy)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .fixedSize()
+                        .contentTransition(.numericText())
+                        .transition(.scale.combined(with: .opacity))
+                } else {
+                    // seg 为 nil（时间落在 schedule 间隙）时，仍显示 state 名字，不Crash也不错乱
+                    Text(targetState.rawValue)
+                        .font(.system(size: 20, weight: .heavy, design: .monospaced))
+                        .foregroundColor(Theme.navy)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .fixedSize()
+                        .contentTransition(.numericText())
+                        .transition(.scale.combined(with: .opacity))
+                }
+            } else {
+                let hh = (m / 60) % 24
+                let mm = m % 60
+                Text(String(format: "%02d:%02d", hh, mm))
+                    .font(.system(size: 26, weight: .black, design: .monospaced))
+                    .foregroundColor(Theme.navy)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize()
+                    .contentTransition(.numericText())
+                    .transition(.scale.combined(with: .opacity))
+            }
+            Text("← 左右滑动切换状态 →")
+                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .tracking(0.6)
+                .foregroundColor(Theme.slate)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Theme.card.opacity(0.92))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Theme.border, lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
+        .animation(.easeInOut(duration: 0.2), value: isOverride)
     }
 }
 
