@@ -79,6 +79,8 @@
 		B299000000000000000000A23 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F299000000000000000000A23 /* LiveActivityManager.swift */; };
 		B40000000000000000000014 /* SedentaryTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000013 /* SedentaryTimerAttributes.swift */; };
 		B40000000000000000000015 /* SedentaryTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000013 /* SedentaryTimerAttributes.swift */; };
+		B70000000000000000000001 /* StickTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F70000000000000000000001 /* StickTests.swift */; };
+		B70000000000000000000002 /* Stick.app in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = F10000000000000000000001 /* Stick.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -88,6 +90,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = T40000000000000000000001;
 			remoteInfo = StickWidget;
+		};
+		X70000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = R10000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = T10000000000000000000001;
+			remoteInfo = Stick;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -101,6 +110,17 @@
 				B60000000000000000000001 /* StickWidget.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		P70000000000000000000002 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 16;
+			files = (
+				B70000000000000000000002 /* Stick.app in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -178,6 +198,8 @@
 		F50000000000000000000005 /* SleepReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepReportView.swift; sourceTree = "<group>"; };
 		F299000000000000000000A23 /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
 		F40000000000000000000013 /* SedentaryTimerAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SedentaryTimerAttributes.swift; sourceTree = "<group>"; };
+		F70000000000000000000001 /* StickTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickTests.swift; sourceTree = "<group>"; };
+		F70000000000000000000010 /* StickTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StickTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -194,6 +216,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				B40000000000000000000060 /* AppIntents.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		P70000000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -214,6 +243,7 @@
 				G10000000000000000000002 /* Stick */,
 				G40000000000000000000002 /* SharedKit */,
 				G40000000000000000000001 /* StickWidget */,
+				G70000000000000000000001 /* StickTests */,
 				G10000000000000000000003 /* Products */,
 				CBFA226C2FDFD41600DD9752 /* Recovered References */,
 			);
@@ -243,6 +273,7 @@
 			children = (
 				F10000000000000000000001 /* Stick.app */,
 				F40000000000000000000020 /* StickWidget.appex */,
+				F70000000000000000000010 /* StickTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -342,6 +373,14 @@
 			path = SharedKit;
 			sourceTree = "<group>";
 		};
+		G70000000000000000000001 /* StickTests */ = {
+			isa = PBXGroup;
+			children = (
+				F70000000000000000000001 /* StickTests.swift */,
+			);
+			path = StickTests;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -381,6 +420,24 @@
 			productReference = F40000000000000000000020 /* StickWidget.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		T70000000000000000000001 /* StickTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C70000000000000000000003 /* Build configuration list for PBXNativeTarget "StickTests" */;
+			buildPhases = (
+				P70000000000000000000001 /* Sources */,
+				P70000000000000000000003 /* Frameworks */,
+				P70000000000000000000002 /* Embed App Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D70000000000000000000001 /* PBXTargetDependency */,
+			);
+			name = StickTests;
+			productName = StickTests;
+			productReference = F70000000000000000000010 /* StickTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -411,6 +468,7 @@
 			targets = (
 				T10000000000000000000001 /* Stick */,
 				T40000000000000000000001 /* StickWidget */,
+				T70000000000000000000001 /* StickTests */,
 			);
 		};
 /* End PBXProject section */
@@ -516,6 +574,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		P70000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B70000000000000000000001 /* StickTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -523,6 +589,11 @@
 			isa = PBXTargetDependency;
 			target = T40000000000000000000001 /* StickWidget */;
 			targetProxy = X10000000000000000000001 /* PBXContainerItemProxy */;
+		};
+		D70000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = T10000000000000000000001 /* Stick */;
+			targetProxy = X70000000000000000000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -765,6 +836,52 @@
 			};
 			name = Release;
 		};
+		C70000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.stick.app.van.StickTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Stick.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Stick";
+			};
+			name = Debug;
+		};
+		C70000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.stick.app.van.StickTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Stick.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Stick";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -791,6 +908,15 @@
 			buildConfigurations = (
 				C40000000000000000000001 /* Debug */,
 				C40000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C70000000000000000000003 /* Build configuration list for PBXNativeTarget "StickTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C70000000000000000000001 /* Debug */,
+				C70000000000000000000002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
