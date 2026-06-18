@@ -71,7 +71,9 @@ final class HealthKitService: ObservableObject {
 
     /// 真实例用 .shared；preview 用 .noop（避开 HKHealthStore() 初始化）
     private let isPreview: Bool
-    private let store: HKHealthStore?
+    /// HKHealthStore 是 thread-safe reference type，标 `nonisolated` 让 query helper 能脱离 main actor
+    /// 解决 ios-dev rule 6: 所有 HKHealthStore calls off main
+    private nonisolated let store: HKHealthStore?
 
     private init(isPreview: Bool = false) {
         self.isPreview = isPreview
@@ -115,7 +117,7 @@ final class HealthKitService: ObservableObject {
     }()
 
     /// 写入类型（仅 mock 注入时使用）。需要额外请求写权限。
-    private let writeTypes: Set<HKSampleType> = {
+    private nonisolated let writeTypes: Set<HKSampleType> = {
         var s: Set<HKSampleType> = []
         if let t = HKObjectType.quantityType(forIdentifier: .stepCount)                { s.insert(t) }
         if let t = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)      { s.insert(t) }
@@ -214,7 +216,7 @@ final class HealthKitService: ObservableObject {
         return "HealthKit"
     }
 
-    private func recentAverage(_ id: HKQuantityTypeIdentifier, from: Date, unit: HKUnit) async -> Double? {
+    private nonisolated func recentAverage(_ id: HKQuantityTypeIdentifier, from: Date, unit: HKUnit) async -> Double? {
         guard let type = HKObjectType.quantityType(forIdentifier: id) else { return nil }
         return await withCheckedContinuation { (cont: CheckedContinuation<Double?, Never>) in
             let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: [])
@@ -222,11 +224,15 @@ final class HealthKitService: ObservableObject {
                 let val = stat?.averageQuantity()?.doubleValue(for: unit)
                 cont.resume(returning: val)
             }
-            store?.execute(q)
+            // 跳出 main actor：把 execute 派发到 global queue 让 callback 跑在 background thread，
+            // 满足 ios-dev rule 6 (All HKHealthStore calls off main)
+            DispatchQueue.global(qos: .userInitiated).async { [weak store] in
+                store?.execute(q)
+            }
         }
     }
 
-    private func recentSum(_ id: HKQuantityTypeIdentifier, from: Date, unit: HKUnit) async -> Double? {
+    private nonisolated func recentSum(_ id: HKQuantityTypeIdentifier, from: Date, unit: HKUnit) async -> Double? {
         guard let type = HKObjectType.quantityType(forIdentifier: id) else { return nil }
         return await withCheckedContinuation { (cont: CheckedContinuation<Double?, Never>) in
             let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: [])
@@ -234,12 +240,14 @@ final class HealthKitService: ObservableObject {
                 let val = stat?.sumQuantity()?.doubleValue(for: unit)
                 cont.resume(returning: val)
             }
-            store?.execute(q)
+            DispatchQueue.global(qos: .userInitiated).async { [weak store] in
+                store?.execute(q)
+            }
         }
     }
 
     /// 正念分钟数（HKCategoryType 需要单独处理，不能用 recentSum）
-    private func recentMindfulMinutes(from: Date) async -> Double? {
+    private nonisolated func recentMindfulMinutes(from: Date) async -> Double? {
         guard let type = HKObjectType.categoryType(forIdentifier: .mindfulSession) else { return nil }
         return await withCheckedContinuation { (cont: CheckedContinuation<Double?, Never>) in
             let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: [])
@@ -249,7 +257,9 @@ final class HealthKitService: ObservableObject {
                 } ?? 0
                 cont.resume(returning: totalMinutes)
             }
-            store?.execute(q)
+            DispatchQueue.global(qos: .userInitiated).async { [weak store] in
+                store?.execute(q)
+            }
         }
     }
 
