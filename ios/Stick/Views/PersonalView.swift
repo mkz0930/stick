@@ -72,13 +72,20 @@ struct PersonalView: View {
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
-                    topUserBar
+                    TopUserBarView(onClose: onClose)
                         .padding(.horizontal, 20)
                         .padding(.top, 12)
 
-                    devicesSection
-                        .padding(.horizontal, 20)
-                        .padding(.top, 24)
+                    DevicesSection(
+                        deviceSet: deviceSet,
+                        allDevices: allDevices,
+                        devicesExpanded: $devicesExpanded,
+                        healthAuth: healthAuth,
+                        hkService: hkService,
+                        onToggle: toggleDevice
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
 
                     VStack(spacing: 0) {
                         ForEach(menus) { item in
@@ -107,9 +114,18 @@ struct PersonalView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 24)
 
-                    chatHistorySection
-                        .padding(.horizontal, 20)
-                        .padding(.top, 20)
+                    ChatHistorySection(
+                        chatHistory: chatHistory,
+                        recentUserPrompts: recentUserPrompts,
+                        visibleUserPrompts: visibleUserPrompts,
+                        chatHistoryExpanded: $chatHistoryExpanded,
+                        showClearConfirm: $showClearConfirm,
+                        onHistoryTap: onHistoryTap,
+                        onExport: exportChat,
+                        onClear: clearChatHistory
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
 
                     // 分隔
                     Rectangle()
@@ -148,82 +164,7 @@ struct PersonalView: View {
         }
     }
 
-    // MARK: - 顶部用户栏
-
-    private var topUserBar: some View {
-        TopUserBarView(onClose: onClose)
-    }
-
     // MARK: - 智能设备
-
-    private var devicesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // 标题 + 副操作
-            HStack {
-                Text("连接智能设备")
-                    .font(.system(size: 14))
-                    .foregroundColor(Theme.slate)
-                Spacer()
-                Text("\(deviceSet.count) / \(DeviceID.allCases.count) 在线")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .tracking(0.4)
-                    .foregroundColor(Theme.slate)
-            }
-
-            VStack(spacing: 0) {
-                // 默认只显示 1 个（iPhone），展开后看全部
-                let visibleDevices = devicesExpanded ? allDevices : Array(allDevices.prefix(1))
-                ForEach(Array(visibleDevices.enumerated()), id: \.offset) { idx, dev in
-                    DeviceRow(
-                        device: dev,
-                        capabilities: dev.idEnum.capabilities,
-                        healthStatuses: healthAuth.statuses,
-                        deviceSet: deviceSet
-                    ) {
-                        // iPhone + 未授权 → 真实授权 + 抓取 + 刷新
-                        if dev.idEnum == .iPhone && !dev.isAuthorized {
-                            Task {
-                                await HealthKitService.shared.requestAuthorization()
-                                HealthKitService.shared.startAutoCapture(interval: 60)
-                                healthAuth.refresh()
-                                // 1.5s 后再 refresh 一次 (HKHealthStore.save 写入完成需要时间)
-                                try? await Task.sleep(nanoseconds: 1_500_000_000)
-                                healthAuth.refresh()
-                            }
-                        } else {
-                            toggleDevice(dev.idEnum)
-                        }
-                    }
-                    if idx < visibleDevices.count - 1 {
-                        Rectangle()
-                            .fill(Theme.borderSoft)
-                            .frame(height: 0.5)
-                            .padding(.leading, 54)
-                    }
-                }
-
-                // 折叠/展开按钮（设备 > 1 时显示）
-                if allDevices.count > 1 {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.22)) {
-                            devicesExpanded.toggle()
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(devicesExpanded ? "收起" : "展开 \(allDevices.count - 1) 个")
-                                .font(.system(size: 11, weight: .semibold))
-                            Image(systemName: devicesExpanded ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 9, weight: .bold))
-                        }
-                        .foregroundColor(StickState.walk.accent)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
 
     /// 切换设备连接状态 (iPhone 永远在)
     private func toggleDevice(_ id: DeviceID) {
@@ -306,8 +247,143 @@ struct PersonalView: View {
 
     @State private var showShareSheet: Bool = false
     @State private var shareItems: [Any] = []
+}
 
-    private var chatHistorySection: some View {
+private struct TopUserBarView: View {
+    let onClose: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Theme.card)
+                    .overlay(Circle().stroke(Theme.borderSoft, lineWidth: 1))
+                Text("X")
+                    .font(.system(size: 22, weight: .semibold, design: .rounded))
+                    .foregroundColor(StickState.walk.accent)
+            }
+            .frame(width: 48, height: 48)
+
+            Text("xxx")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(Theme.navy)
+
+            Spacer()
+
+            // 六边形 (设置)
+            Button {} label: {
+                Image(systemName: "hexagon")
+                    .font(.system(size: 20, weight: .light))
+                    .foregroundColor(Theme.navy)
+                    .frame(width: 48, height: 48)
+                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+            }
+
+            // 三横线 (关闭)
+            Button(action: onClose) {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(Theme.navy)
+                    .frame(width: 48, height: 48)
+                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+            }
+        }
+    }
+}
+
+// MARK: - 智能设备 section
+
+private struct DevicesSection: View {
+    let deviceSet: Set<DeviceID>
+    let allDevices: [Device]
+    @Binding var devicesExpanded: Bool
+    @ObservedObject var healthAuth: HealthAuthService
+    @ObservedObject var hkService: HealthKitService
+    var onToggle: (DeviceID) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // 标题 + 副操作
+            HStack {
+                Text("连接智能设备")
+                    .font(.system(size: 14))
+                    .foregroundColor(Theme.slate)
+                Spacer()
+                Text("\(deviceSet.count) / \(DeviceID.allCases.count) 在线")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(0.4)
+                    .foregroundColor(Theme.slate)
+            }
+
+            VStack(spacing: 0) {
+                // 默认只显示 1 个（iPhone），展开后看全部
+                let visibleDevices = devicesExpanded ? allDevices : Array(allDevices.prefix(1))
+                ForEach(Array(visibleDevices.enumerated()), id: \.offset) { idx, dev in
+                    DeviceRow(
+                        device: dev,
+                        capabilities: dev.idEnum.capabilities,
+                        healthStatuses: healthAuth.statuses,
+                        deviceSet: deviceSet
+                    ) {
+                        // iPhone + 未授权 → 真实授权 + 抓取 + 刷新
+                        if dev.idEnum == .iPhone && !dev.isAuthorized {
+                            Task {
+                                await HealthKitService.shared.requestAuthorization()
+                                HealthKitService.shared.startAutoCapture(interval: 60)
+                                healthAuth.refresh()
+                                // 1.5s 后再 refresh 一次 (HKHealthStore.save 写入完成需要时间)
+                                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                                healthAuth.refresh()
+                            }
+                        } else {
+                            onToggle(dev.idEnum)
+                        }
+                    }
+                    if idx < visibleDevices.count - 1 {
+                        Rectangle()
+                            .fill(Theme.borderSoft)
+                            .frame(height: 0.5)
+                            .padding(.leading, 54)
+                    }
+                }
+
+                // 折叠/展开按钮（设备 > 1 时显示）
+                if allDevices.count > 1 {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            devicesExpanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(devicesExpanded ? "收起" : "展开 \(allDevices.count - 1) 个")
+                                .font(.system(size: 11, weight: .semibold))
+                            Image(systemName: devicesExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 9, weight: .bold))
+                        }
+                        .foregroundColor(StickState.walk.accent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - 对话记录 section
+
+private struct ChatHistorySection: View {
+    @ObservedObject var chatHistory: ChatHistoryStore
+    let recentUserPrompts: [PersistedChatMessage]
+    let visibleUserPrompts: [PersistedChatMessage]
+    @Binding var chatHistoryExpanded: Bool
+    @Binding var showClearConfirm: Bool
+    var onHistoryTap: ((UUID) -> Void)?
+    var onExport: () -> Void = { }
+    var onClear: () -> Void = { }
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("对话记录")
@@ -322,7 +398,7 @@ struct PersonalView: View {
                 }
                 // 保存按钮
                 Button {
-                    exportChat()
+                    onExport()
                 } label: {
                     HStack(spacing: 2) {
                         Image(systemName: "square.and.arrow.down")
@@ -430,52 +506,10 @@ struct PersonalView: View {
         .alert("清空所有对话记录？", isPresented: $showClearConfirm) {
             Button("取消", role: .cancel) {}
             Button("清空", role: .destructive) {
-                clearChatHistory()
+                onClear()
             }
         } message: {
             Text("将永久删除全部 \(chatHistory.loadedMessages.count) 条消息，此操作不可恢复。")
-        }
-    }
-}
-
-private struct TopUserBarView: View {
-    let onClose: () -> Void
-
-    var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(Theme.card)
-                    .overlay(Circle().stroke(Theme.borderSoft, lineWidth: 1))
-                Text("X")
-                    .font(.system(size: 22, weight: .semibold, design: .rounded))
-                    .foregroundColor(StickState.walk.accent)
-            }
-            .frame(width: 48, height: 48)
-
-            Text("xxx")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(Theme.navy)
-
-            Spacer()
-
-            // 六边形 (设置)
-            Button {} label: {
-                Image(systemName: "hexagon")
-                    .font(.system(size: 20, weight: .light))
-                    .foregroundColor(Theme.navy)
-                    .frame(width: 48, height: 48)
-                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
-            }
-
-            // 三横线 (关闭)
-            Button(action: onClose) {
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(Theme.navy)
-                    .frame(width: 48, height: 48)
-                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
-            }
         }
     }
 }
