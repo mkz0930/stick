@@ -176,69 +176,6 @@ struct SleepDetailSheet: View {
     }
 }
 
-// MARK: - 火柴人状态详情 sheet
-
-struct StickFigureDetailSheet: View {
-    let state: StickState
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // 状态名称
-                    DetailMetricCard(
-                        title: "当前状态",
-                        value: state.rawValue,
-                        unit: "",
-                        icon: iconForState(state),
-                        color: state.accent
-                    )
-
-                    // 英文名称
-                    DetailMetricCard(
-                        title: "英文名称",
-                        value: state.englishName,
-                        unit: "",
-                        icon: "globe",
-                        color: state.accent
-                    )
-
-                    // 状态描述
-                    DetailMetricCard(
-                        title: "状态描述",
-                        value: state.actionPhrase,
-                        unit: "",
-                        icon: "text.alignleft",
-                        color: state.accent
-                    )
-
-                    // 主指标
-                    DetailMetricCard(
-                        title: state.primaryMetric.label,
-                        value: state.primaryMetric.value,
-                        unit: "",
-                        icon: "chart.bar.fill",
-                        color: state.accent
-                    )
-                }
-                .padding()
-            }
-            .background(Theme.bgTop.ignoresSafeArea())
-            .navigationTitle("状态详情")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-
-    private func iconForState(_ state: StickState) -> String {
-        switch state {
-        case .walk:  return "figure.walk"
-        case .sit:   return "chair.fill"
-        case .stand: return "figure.stand"
-        case .sleep: return "bed.double.fill"
-        }
-    }
-}
-
 // MARK: - 通用 DetailMetricCard 组件
 
 struct DetailMetricCard: View {
@@ -302,8 +239,4 @@ struct DetailMetricCard: View {
 
 #Preview("Sleep") {
     SleepDetailSheet(sleepHours: 7.5, sleepQualityLabel: "良好", nightWakeCount: 2, nightWakeTotalMin: 15)
-}
-
-#Preview("Figure") {
-    StickFigureDetailSheet(state: .walk)
 }

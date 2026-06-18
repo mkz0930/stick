@@ -6,7 +6,7 @@ import WidgetKit
 
 /// 详情页 sheet 路由
 enum SheetDestination: String, Identifiable {
-    case walk, sit, sleep, figure
+    case walk, sit, sleep
     var id: String { rawValue }
 }
 
@@ -710,8 +710,6 @@ struct ContentView: View {
                 nightWakeCount: walkingQuality?.nightWakeCount ?? 0,
                 nightWakeTotalMin: walkingQuality?.nightWakeTotalMin ?? 0
             )
-        case .figure:
-            StickFigureDetailSheet(state: displayState)
         }
     }
 
@@ -731,7 +729,6 @@ private struct StageHeroView: View {
     @Binding var manualStateOverride: StickState?  // swipe 切状态后的强制状态
     var onPreview: () -> Void
     var onSleepAlert: () -> Void
-    var onFigureTap: () -> Void
     let subLine: String
     let schedule: [StickState.DaySegment]    // 真实时刻表（用于按时间正方向查找下一个 state 的段）
 
@@ -833,7 +830,6 @@ private struct StageHeroView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
-            .onTapGesture { onFigureTap() }
             .padding(.top, 6)
             .animation(.easeInOut(duration: 0.45), value: state)
             .animation(.easeInOut(duration: 0.35), value: hasNoData)
@@ -1590,7 +1586,6 @@ private struct HomeBodyView: View {
                             manualStateOverride: $manualStateOverride,
                             onPreview: { showFilm = true },
                             onSleepAlert: { showSleepReport = true },
-                            onFigureTap: { activeSheet = .figure },
                             subLine: realSubLine,
                             schedule: hk.realDaySchedule ?? StickState.daySchedule
                         )
