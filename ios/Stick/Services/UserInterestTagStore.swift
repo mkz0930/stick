@@ -10,14 +10,15 @@ import Foundation
 import SwiftUI
 
 @MainActor
-final class UserInterestTagStore: ObservableObject {
+@Observable
+final class UserInterestTagStore {
     static let shared = UserInterestTagStore()
 
     /// 短期标签分数（周衰减）
-    @Published private(set) var shortTermScores: [String: Double] = [:]
+    private(set) var shortTermScores: [String: Double] = [:]
 
     /// 长期标签分数（年重置）
-    @Published private(set) var longTermScores: [String: Double] = [:]
+    private(set) var longTermScores: [String: Double] = [:]
 
     private let shortTermKey = "stick.tags.shortterm.v1"
     private let longTermKey  = "stick.tags.longterm.v1"

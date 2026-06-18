@@ -23,11 +23,12 @@ struct DailySteps: Codable, Identifiable {
 
 /// 跨天持久化：每日累计步数，存储到 UserDefaults
 @MainActor
-final class DailyStepsStore: ObservableObject {
+@Observable
+final class DailyStepsStore {
     static let shared = DailyStepsStore()
 
     /// 所有日数据（按日期升序）
-    @Published private(set) var records: [DailySteps] = []
+    private(set) var records: [DailySteps] = []
 
     private let key = "stick.daily.steps.v1"
     private let goal: Int = 10_000

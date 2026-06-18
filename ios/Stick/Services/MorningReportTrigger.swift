@@ -3,7 +3,8 @@ import Foundation
 import UIKit
 
 @MainActor
-final class MorningReportTrigger: ObservableObject {
+@Observable
+final class MorningReportTrigger {
     static let shared = MorningReportTrigger()
 
     private var monitorTask: Task<Void, Never>?

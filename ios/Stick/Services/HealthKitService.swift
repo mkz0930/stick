@@ -63,7 +63,8 @@ struct HealthSnapshot: Codable, Identifiable {
 }
 
 @MainActor
-final class HealthKitService: ObservableObject {
+@Observable
+final class HealthKitService {
     static let shared = HealthKitService()
 
     /// Xcode Canvas Preview 用的 no-op 实例：不构造 HKHealthStore（避免 framework import 卡 preview）
@@ -80,13 +81,13 @@ final class HealthKitService: ObservableObject {
         self.store = isPreview ? nil : HKHealthStore()
     }
 
-    @Published var lastSnapshot: HealthSnapshot?
-    @Published var isAuthorized: Bool = false
-    @Published var error: String?
+    private(set) var lastSnapshot: HealthSnapshot?
+    private(set) var isAuthorized: Bool = false
+    private(set) var error: String?
     /// 最后检测到明显步数的时间（incrementalStepCount > 10），用于立即打断久坐计时
-    @Published var lastMovementTime: Date? = nil
+    private(set) var lastMovementTime: Date? = nil
     /// 基于今天真实 HealthKit 步数数据生成的 24h 时刻表
-    @Published var realDaySchedule: [StickState.DaySegment]? = nil
+    var realDaySchedule: [StickState.DaySegment]? = nil
 
     private var timer: Timer?
 

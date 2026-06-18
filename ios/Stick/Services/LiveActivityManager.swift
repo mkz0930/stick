@@ -4,7 +4,8 @@ import Foundation
 /// 久坐 Live Activity 管理器（iOS 16.1+ ActivityKit）。
 /// 负责启动、更新、结束 SedentaryTimer Live Activity。
 @MainActor
-final class LiveActivityManager: ObservableObject {
+@Observable
+final class LiveActivityManager {
     /// 单例
     static let shared = LiveActivityManager()
 
@@ -12,7 +13,7 @@ final class LiveActivityManager: ObservableObject {
     private var currentActivity: Activity<SedentaryTimerAttributes>?
 
     /// Live Activity 是否已启动
-    @Published private(set) var isActivityActive: Bool = false
+    private(set) var isActivityActive: Bool = false
 
     /// 久坐开始的时刻（用于计算 elapsedSeconds）
     private var sedentaryStartTime: Date?

@@ -15,10 +15,10 @@ struct PersonalView: View {
     @Binding var openDataRecord: Bool
     @Binding var openWidgetPreview: Bool
     @Binding var deviceSet: Set<DeviceID>
-    @ObservedObject var healthAuth: HealthAuthService
-    @ObservedObject var chatHistory: ChatHistoryStore
+    @Bindable var healthAuth: HealthAuthService
+    var chatHistory: ChatHistoryStore
     /// HealthKit 服务 — 观察 `isAuthorized` 变化，系统授权完成后立刻刷新 UI
-    @ObservedObject private var hkService: HealthKitService = HealthKitService.shared
+    var hkService: HealthKitService
     /// 点击历史消息 → 打开 chat 并滚动到该消息位置
     var onHistoryTap: ((UUID) -> Void)? = nil
     /// 点击 widget 卡片 → 关闭个人面板并打开聊天（seed = 预填文字）
@@ -297,8 +297,8 @@ private struct DevicesSection: View {
     let deviceSet: Set<DeviceID>
     let allDevices: [Device]
     @Binding var devicesExpanded: Bool
-    @ObservedObject var healthAuth: HealthAuthService
-    @ObservedObject var hkService: HealthKitService
+    @Bindable var healthAuth: HealthAuthService
+    @Bindable var hkService: HealthKitService
     var onToggle: (DeviceID) -> Void
 
     var body: some View {
@@ -374,7 +374,7 @@ private struct DevicesSection: View {
 // MARK: - 对话记录 section
 
 private struct ChatHistorySection: View {
-    @ObservedObject var chatHistory: ChatHistoryStore
+    var chatHistory: ChatHistoryStore
     let recentUserPrompts: [PersistedChatMessage]
     let visibleUserPrompts: [PersistedChatMessage]
     @Binding var chatHistoryExpanded: Bool
@@ -722,6 +722,7 @@ private struct CapabilityTag: View {
         openWidgetPreview: .constant(false),
         deviceSet: .constant([.iPhone]),
         healthAuth: HealthAuthService.shared,
-        chatHistory: ChatHistoryStore.shared
+        chatHistory: ChatHistoryStore.shared,
+        hkService: HealthKitService.shared
     )
 }

@@ -14,14 +14,15 @@ import Foundation
 import HealthKit
 
 @MainActor
-final class HealthAuthService: ObservableObject {
+@Observable
+final class HealthAuthService {
     static let shared = HealthAuthService()
 
     /// Xcode Canvas Preview 用的 no-op 实例：不构造 HKHealthStore（避开 framework import 卡 preview）
     static let noop = HealthAuthService(isPreview: true)
 
     /// 状态字典 (启动 + 30s 刷新)
-    @Published private(set) var statuses: [MetricID: MetricDataStatus] = [:]
+    private(set) var statuses: [MetricID: MetricDataStatus] = [:]
 
     private let isPreview: Bool
     private let store: HKHealthStore?
