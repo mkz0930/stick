@@ -36,46 +36,28 @@ struct InputBar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // 1. 顶部 feature chips (横向滚动)
-            chipsRow
+            InputBarChipsRow(
+                features: features,
+                onOpenCamera: onOpenCamera,
+                autoTopics: autoTopics,
+                onAutoTopic: onAutoTopic,
+                onOpenChat: onOpenChat
+            )
 
             // 2. 底部 input pill + 相机按钮
             HStack(spacing: 8) {
-                inputPill
-                cameraButton
+                InputBarInputPill(
+                    text: text,
+                    placeholderText: placeholderText,
+                    onOpenChat: onOpenChat,
+                    onPlusTap: onPlusTap
+                )
+                InputBarCameraButton(
+                    onOpenCamera: onOpenCamera,
+                    onOpenChat: onOpenChat
+                )
             }
         }
-    }
-
-    // MARK: - 顶部 chips 行
-
-    private var chipsRow: some View {
-        InputBarChipsRow(
-            features: features,
-            onOpenCamera: onOpenCamera,
-            autoTopics: autoTopics,
-            onAutoTopic: onAutoTopic,
-            onOpenChat: onOpenChat
-        )
-    }
-
-    // MARK: - Pill 输入条
-
-    private var inputPill: some View {
-        InputBarInputPill(
-            text: text,
-            placeholderText: placeholderText,
-            onOpenChat: onOpenChat,
-            onPlusTap: onPlusTap
-        )
-    }
-
-    // MARK: - 相机按钮 (独立圆形 + 右上角小星)
-
-    private var cameraButton: some View {
-        InputBarCameraButton(
-            onOpenCamera: onOpenCamera,
-            onOpenChat: onOpenChat
-        )
     }
 
     private var placeholderText: String {
