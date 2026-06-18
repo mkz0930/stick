@@ -386,7 +386,7 @@ private struct SleepAlertAICard: View {
 
                 Spacer()
 
-                riskChip
+                riskChip()
             }
 
             // 一句话总结
@@ -459,7 +459,7 @@ private struct SleepAlertAICard: View {
         .shadow(color: aiColor.opacity(0.08), radius: 12, y: 2)
     }
 
-    private var riskChip: some View {
+    private func riskChip() -> some View {
         HStack(spacing: 4) {
             Circle()
                 .fill(riskColor)
