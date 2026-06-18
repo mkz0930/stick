@@ -152,11 +152,13 @@ struct DayTimelineView: View, Equatable {
     var body: some View {
         VStack(spacing: 20) {
             HStack(spacing: 0) {
-                shareButton
+                TimelineShareButton {
+                    showPlayback = true
+                }
                 Spacer(minLength: 0)
             }
             .frame(width: 22, alignment: .leading)
-            track
+            track()
                 .frame(width: thumbSize, height: trackLength)
             // 时段起止范围（仅在用户主动查看时间 / swipe 切状态时显示）
             if isScrubbing || manualStateOverride != nil,
@@ -212,50 +214,7 @@ struct DayTimelineView: View, Equatable {
 
     // MARK: - 子视图
 
-    /// 竖线上方的分享按钮（点开 → 1-day 回放 sheet，播完后可分享）
-    private var shareButton: some View {
-        Button {
-            showPlayback = true
-        } label: {
-            Image(systemName: "play.rectangle")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(Theme.slate.opacity(0.7))
-                .frame(width: 22, height: 22)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Theme.slate.opacity(0.1))
-                )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var header: some View {
-        HStack(alignment: .center) {
-            Spacer()
-            // 右上：状态色点 + + 按钮 (纯图标，无文字)
-            Button {
-                showDevicePicker = true
-            } label: {
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(displayState.accent)
-                        .frame(width: 7, height: 7)
-                    Image(systemName: "plus")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(Theme.slate.opacity(0.6))
-                }
-                .padding(.horizontal, 5)
-                .padding(.vertical, 3)
-                .background(
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Theme.slate.opacity(0.06))
-                )
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private var track: some View {
+    private func track() -> some View {
         GeometryReader { geo in
             let height = geo.size.height
             // 步行胶囊直接重算 — schedule 已通过 View.Equatable 稳定，
@@ -275,7 +234,7 @@ struct DayTimelineView: View, Equatable {
 
                 // thumb (圆环) — 圆心落在竖线中心
                 let yPos = windowY(forMinute: displayOffset, in: height)
-                thumb
+                thumb()
                     .position(x: trackWidth / 2, y: yPos)
                     .opacity(thumbAlpha)
                     .animation(.interactiveSpring(response: 0.18, dampingFraction: 0.85),
@@ -303,50 +262,6 @@ struct DayTimelineView: View, Equatable {
                         frozenNowMinute = nil  // 结束拖动，解冻 now
                         scheduleAutoReset()
                     }
-            )
-        }
-    }
-
-    /// 7 个刻度短线（无数字）+ thumb 旁边的"可拖动"提示
-    private var hourLabelsColumn: some View {
-        GeometryReader { geo in
-            let height = geo.size.height
-            ZStack(alignment: .topLeading) {
-                ForEach(0..<7, id: \.self) { i in
-                    let offMin = i * 4 * 60
-                    let isNow = offMin == 0
-                    let yPos = windowY(forMinute: offMin, in: height)
-                    // 短刻线 (无数字)
-                    Rectangle()
-                        .fill(isNow ? displayState.accent : Theme.slate.opacity(0.3))
-                        .frame(width: isNow ? 5 : 3, height: 0.5)
-                        .position(x: 6, y: yPos)
-                }
-            }
-        }
-        .frame(height: trackLength)
-    }
-
-    /// 拖动提示：thumb 旁的 "可拖动" 小标 (仅未交互时显示)
-    @ViewBuilder
-    private var thumbHint: some View {
-        if !isScrubbing && !hasInteracted {
-            VStack(spacing: 2) {
-                Image(systemName: "arrow.up")
-                    .font(.system(size: 7, weight: .bold))
-                Text("拖动")
-                    .font(.system(size: 8, weight: .semibold, design: .monospaced))
-                    .tracking(0.4)
-                Image(systemName: "arrow.down")
-                    .font(.system(size: 7, weight: .bold))
-            }
-            .foregroundColor(Theme.slate.opacity(0.6))
-            .padding(.horizontal, 5)
-            .padding(.vertical, 3)
-            .background(
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Theme.card)
-                    .shadow(color: Theme.navy.opacity(0.12), radius: 2, y: 1)
             )
         }
     }
@@ -506,7 +421,7 @@ struct DayTimelineView: View, Equatable {
         }
     }
 
-    private var thumb: some View {
+    private func thumb() -> some View {
         ZStack {
             Circle()
                 .fill(Theme.card)
@@ -519,15 +434,6 @@ struct DayTimelineView: View, Equatable {
                 .fill(displayState.accent)
                 .frame(width: 6, height: 6)
         }
-    }
-
-    private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 4, style: .continuous)
-            .fill(Theme.card)
-            .overlay(
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .stroke(Theme.border, lineWidth: 1)
-            )
     }
 
     // MARK: - 几何
@@ -687,6 +593,28 @@ struct DayTimelineView: View, Equatable {
         let h = c.component(.hour, from: date)
         let m = c.component(.minute, from: date)
         return String(format: "%02d:%02d", h, m)
+    }
+}
+
+// MARK: - 分享按钮
+
+private struct TimelineShareButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            action()
+        } label: {
+            Image(systemName: "play.rectangle")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(Theme.slate.opacity(0.7))
+                .frame(width: 22, height: 22)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Theme.slate.opacity(0.1))
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 
