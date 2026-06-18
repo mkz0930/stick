@@ -73,6 +73,13 @@
 		B40000000000000000000060 /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F40000000000000000000060 /* AppIntents.framework */; };
 		B50000000000000000000004 /* SleepReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000005 /* SleepReportView.swift */; };
 		B50000000000000000000006 /* ChatOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000004 /* ChatOverlay.swift */; };
+		B50000000000000000000016 /* ChatOverlayHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000016 /* ChatOverlayHeader.swift */; };
+		B50000000000000000000017 /* ChatInputBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000017 /* ChatInputBar.swift */; };
+		B50000000000000000000018 /* ChatMessageList.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000018 /* ChatMessageList.swift */; };
+		B50000000000000000000019 /* ChatHistorySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000019 /* ChatHistorySection.swift */; };
+		B50000000000000000000020 /* ChatImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000020 /* ChatImagePicker.swift */; };
+		B50000000000000000000021 /* ChatOverlayContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000021 /* ChatOverlayContext.swift */; };
+		B50000000000000000000022 /* ChatOverlaySuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000022 /* ChatOverlaySuggestions.swift */; };
 		B50000000000000000000007 /* StickRiskAlertWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000011 /* StickRiskAlertWidgetView.swift */; };
 		B50000000000000000000060 /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F40000000000000000000060 /* AppIntents.framework */; };
 		B60000000000000000000001 /* StickWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F40000000000000000000020 /* StickWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -196,6 +203,13 @@
 		F40000000000000000000060 /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
 		F50000000000000000000004 /* ChatOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOverlay.swift; sourceTree = "<group>"; };
 		F50000000000000000000005 /* SleepReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepReportView.swift; sourceTree = "<group>"; };
+		F50000000000000000000016 /* ChatOverlayHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOverlayHeader.swift; sourceTree = "<group>"; };
+		F50000000000000000000017 /* ChatInputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatInputBar.swift; sourceTree = "<group>"; };
+		F50000000000000000000018 /* ChatMessageList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessageList.swift; sourceTree = "<group>"; };
+		F50000000000000000000019 /* ChatHistorySection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistorySection.swift; sourceTree = "<group>"; };
+		F50000000000000000000020 /* ChatImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatImagePicker.swift; sourceTree = "<group>"; };
+		F50000000000000000000021 /* ChatOverlayContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOverlayContext.swift; sourceTree = "<group>"; };
+		F50000000000000000000022 /* ChatOverlaySuggestions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOverlaySuggestions.swift; sourceTree = "<group>"; };
 		F299000000000000000000A23 /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
 		F40000000000000000000013 /* SedentaryTimerAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SedentaryTimerAttributes.swift; sourceTree = "<group>"; };
 		F70000000000000000000001 /* StickTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickTests.swift; sourceTree = "<group>"; };
@@ -308,6 +322,13 @@
 				F10000000000000000000028 /* MorningReportDetailView.swift */,
 				F10000000000000000000029 /* TrendDataPage.swift */,
 				F1000000000000000000002A /* Views/DetailSheets.swift */,
+				F50000000000000000000016 /* ChatOverlayHeader.swift */,
+				F50000000000000000000017 /* ChatInputBar.swift */,
+				F50000000000000000000018 /* ChatMessageList.swift */,
+				F50000000000000000000019 /* ChatHistorySection.swift */,
+				F50000000000000000000020 /* ChatImagePicker.swift */,
+				F50000000000000000000021 /* ChatOverlayContext.swift */,
+				F50000000000000000000022 /* ChatOverlaySuggestions.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -521,6 +542,13 @@
 				B20000000000000000000002 /* ChatView.swift in Sources */,
 				B10000000000000000000017 /* Views/SleepAlertChip.swift in Sources */,
 				B50000000000000000000006 /* ChatOverlay.swift in Sources */,
+				B50000000000000000000016 /* ChatOverlayHeader.swift in Sources */,
+				B50000000000000000000017 /* ChatInputBar.swift in Sources */,
+				B50000000000000000000018 /* ChatMessageList.swift in Sources */,
+				B50000000000000000000019 /* ChatHistorySection.swift in Sources */,
+				B50000000000000000000020 /* ChatImagePicker.swift in Sources */,
+				B50000000000000000000021 /* ChatOverlayContext.swift in Sources */,
+				B50000000000000000000022 /* ChatOverlaySuggestions.swift in Sources */,
 				B50000000000000000000004 /* SleepReportView.swift in Sources */,
 				B29900000000000000000A09 /* AIRiskAnalyzer.swift in Sources */,
 				B29900000000000000000A11 /* ChatHistoryStore.swift in Sources */,
