@@ -114,15 +114,16 @@ final class SleepAnalyzer: ObservableObject {
 
     @Published var lastSession: SleepSession?
 
-    private let store = HKHealthStore()
-    private let sleepType: HKCategoryType? = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
+    /// HKHealthStore 是 thread-safe reference type，标 nonisolated 让 query helper 脱离 main actor
+    private nonisolated let store = HKHealthStore()
+    private nonisolated let sleepType: HKCategoryType? = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
 
     private init() {}
 
     // MARK: - 授权
 
     /// 请求 sleep analysis 读权限 (应在 app 启动早期调用)
-    func requestAuthorization() async -> Bool {
+    nonisolated func requestAuthorization() async -> Bool {
         guard HKHealthStore.isHealthDataAvailable(), let type = sleepType else {
             return false
         }
@@ -180,7 +181,7 @@ final class SleepAnalyzer: ObservableObject {
 
     // MARK: - 内部: HKSampleQuery 包装
 
-    private func loadSamples(type: HKCategoryType, start: Date, end: Date) async -> [HKCategorySample] {
+    private nonisolated func loadSamples(type: HKCategoryType, start: Date, end: Date) async -> [HKCategorySample] {
         await withCheckedContinuation { (cont: CheckedContinuation<[HKCategorySample], Never>) in
             let predicate = HKQuery.predicateForSamples(
                 withStart: start, end: end, options: [.strictStartDate, .strictEndDate]
@@ -200,7 +201,10 @@ final class SleepAnalyzer: ObservableObject {
                 let casted = (samples as? [HKCategorySample]) ?? []
                 cont.resume(returning: casted)
             }
-            store.execute(query)
+            // 跳出 main actor：把 execute 派发到 global queue 让 callback 跑在 background thread
+            DispatchQueue.global(qos: .userInitiated).async { [store] in
+                store.execute(query)
+            }
         }
     }
 
