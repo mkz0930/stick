@@ -1,6 +1,17 @@
 // ios/Stick/Views/TrendDataPage.swift
 import SwiftUI
 
+/// Rule 9 预聚合后的指标桶：UI 直接消费，不在 body 里再做 map
+struct MetricBucket: Identifiable, Equatable {
+    let id: String          // 日期 "yyyy-MM-dd"
+    let value: Double
+}
+
+struct ScoreBucket: Identifiable, Equatable {
+    let id: String          // 日期 "yyyy-MM-dd"
+    let score: Int
+}
+
 struct TrendDataPage: View {
     @State private var selectedRange: TrendRange = .week
 
@@ -21,13 +32,13 @@ struct TrendDataPage: View {
                     .pickerStyle(.segmented)
                     .padding(.horizontal)
 
-                    // 三大指标趋势
+                    // 三大指标趋势 —— 全部消费预聚合桶
                     MetricTrendCard(
                         title: "睡眠时长",
                         icon: "moon.fill",
                         unit: "h",
-                        values: trendReports.map { Double($0.sleepMinutes) / 60.0 },
-                        qualityValues: trendReports.map { $0.sleepQuality },
+                        buckets: sleepBuckets,
+                        qualityValues: sleepQualityValues,
                         baseColor: .purple
                     )
 
@@ -35,7 +46,7 @@ struct TrendDataPage: View {
                         title: "步行时长",
                         icon: "figure.walk",
                         unit: "m",
-                        values: trendReports.map { Double($0.walkMinutes) },
+                        buckets: walkBuckets,
                         qualityValues: nil,
                         baseColor: .green
                     )
@@ -44,7 +55,7 @@ struct TrendDataPage: View {
                         title: "久坐时长",
                         icon: "chair.fill",
                         unit: "h",
-                        values: trendReports.map { Double($0.sedentaryMinutes) / 60.0 },
+                        buckets: sedentaryBuckets,
                         qualityValues: nil,
                         baseColor: .orange
                     )
@@ -53,14 +64,14 @@ struct TrendDataPage: View {
                         title: "步行稳定度",
                         icon: "figure.walk.motion",
                         unit: "",
-                        values: trendReports.map { walkingStabilityScore(report: $0) },
+                        buckets: stabilityBuckets,
                         qualityValues: nil,
                         baseColor: .blue,
                         referenceValue: stabilityBaseline14d
                     )
 
-                    // 身体状态得分折线图
-                    BodyScoreTrendChart(scores: trendReports.map { $0.llmScore })
+                    // 身体状态得分折线图 —— 消费预聚合桶
+                    BodyScoreTrendChart(buckets: scoreBuckets)
 
                     // 历史日报列表
                     if !trendReports.isEmpty {
@@ -85,6 +96,9 @@ struct TrendDataPage: View {
         }
     }
 
+    // MARK: - 数据源
+
+    /// 选定范围内的 report 列表（已限定窗口）
     private var trendReports: [MorningReport] {
         let reports = MorningReportStore.shared.reports
         switch selectedRange {
@@ -95,6 +109,44 @@ struct TrendDataPage: View {
             return Array(reports.prefix(7))
         case .month:
             return Array(reports.prefix(30))
+        }
+    }
+
+    // MARK: - Rule 9 预聚合桶
+    // 每个桶对应一天 (yyyy-MM-dd)，每个 metric 一次性物化成 [MetricBucket]
+    // 视图层直接遍历 bucket，不在 body 里再算 map
+
+    private var sleepBuckets: [MetricBucket] {
+        trendReports.map {
+            MetricBucket(id: $0.date, value: Double($0.sleepMinutes) / 60.0)
+        }
+    }
+
+    private var sleepQualityValues: [String] {
+        trendReports.map { $0.sleepQuality }
+    }
+
+    private var walkBuckets: [MetricBucket] {
+        trendReports.map {
+            MetricBucket(id: $0.date, value: Double($0.walkMinutes))
+        }
+    }
+
+    private var sedentaryBuckets: [MetricBucket] {
+        trendReports.map {
+            MetricBucket(id: $0.date, value: Double($0.sedentaryMinutes) / 60.0)
+        }
+    }
+
+    private var stabilityBuckets: [MetricBucket] {
+        trendReports.map {
+            MetricBucket(id: $0.date, value: walkingStabilityScore(report: $0))
+        }
+    }
+
+    private var scoreBuckets: [ScoreBucket] {
+        trendReports.map {
+            ScoreBucket(id: $0.date, score: $0.llmScore)
         }
     }
 
@@ -132,11 +184,14 @@ struct MetricTrendCard: View {
     let title: String
     let icon: String
     let unit: String
-    let values: [Double]
+    /// Rule 9: 消费预聚合桶；body 不再做 map
+    let buckets: [MetricBucket]
     let qualityValues: [String]?
     let baseColor: Color
     /// 可选：参考基线（如 14 天均值），会在柱状图上画一条水平虚线
     var referenceValue: Double? = nil
+
+    private var values: [Double] { buckets.map { $0.value } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -213,20 +268,18 @@ struct MetricTrendCard: View {
         return max(0, min(36, ratio * 36))
     }
 
-    private var showLabels: Bool { values.count <= 7 }
+    private var showLabels: Bool { buckets.count <= 7 }
 
     private var dayLabels: [String] {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM/dd"
-        return trendReports.map { r in
-            if let date = Self.dateFormatter.date(from: r.date) {
+        return buckets.map { b in
+            if let date = Self.dateFormatter.date(from: b.id) {
                 return formatter.string(from: date)
             }
             return ""
         }
     }
-
-    private var trendReports: [MorningReport] { MorningReportStore.shared.reports }
 
     private var averageText: String {
         guard !values.isEmpty else { return "--" }
@@ -270,7 +323,10 @@ struct MetricTrendCard: View {
 }
 
 struct BodyScoreTrendChart: View {
-    let scores: [Int]
+    /// Rule 9: 消费预聚合桶；body 不再做 map
+    let buckets: [ScoreBucket]
+
+    private var scores: [Int] { buckets.map { $0.score } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -294,7 +350,7 @@ struct BodyScoreTrendChart: View {
                 }
             }
 
-            if scores.isEmpty {
+            if buckets.isEmpty {
                 Text("暂无数据")
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -302,7 +358,7 @@ struct BodyScoreTrendChart: View {
                     .padding(.vertical, 20)
             } else {
                 // 主图：彩色区域 + 折线 + 数据点
-                TrendChartArea(scores: scores, average14d: average14d, scoreColor: scoreColor)
+                TrendChartArea(buckets: buckets, average14d: average14d, scoreColor: scoreColor)
 
                 // 底部：min / avg / max + 14天均值对照
                 TrendStatsRow(
@@ -319,23 +375,9 @@ struct BodyScoreTrendChart: View {
         .padding(.horizontal)
     }
 
-    // MARK: - 子视图
-
-    private func statItem(label: String, value: Int?, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.system(size: 9))
-                .foregroundColor(.secondary)
-            Text(value.map { "\($0)" } ?? "--")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundColor(color)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     // MARK: - 计算属性
 
-    private var currentScore: Int? { scores.first }
+    private var currentScore: Int? { buckets.first?.score }
 
     private var minScore: Int? {
         guard !scores.isEmpty else { return nil }
@@ -380,9 +422,12 @@ private extension Array {
 // MARK: - 子视图
 
 private struct TrendChartArea: View {
-    let scores: [Int]
+    /// Rule 9: 消费预聚合桶
+    let buckets: [ScoreBucket]
     let average14d: Double?
     var scoreColor: (Int) -> Color
+
+    private var scores: [Int] { buckets.map { $0.score } }
 
     var body: some View {
         GeometryReader { geo in
