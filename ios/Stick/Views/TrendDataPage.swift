@@ -302,10 +302,15 @@ struct BodyScoreTrendChart: View {
                     .padding(.vertical, 20)
             } else {
                 // 主图：彩色区域 + 折线 + 数据点
-                chartArea
+                TrendChartArea(scores: scores, average14d: average14d, scoreColor: scoreColor)
 
                 // 底部：min / avg / max + 14天均值对照
-                statsRow
+                TrendStatsRow(
+                    minScore: minScore,
+                    avgScore: avgScore,
+                    maxScore: maxScore,
+                    trendVsAvg: trendVsAvg
+                )
             }
         }
         .padding()
@@ -316,7 +321,70 @@ struct BodyScoreTrendChart: View {
 
     // MARK: - 子视图
 
-    private var chartArea: some View {
+    private func statItem(label: String, value: Int?, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 9))
+                .foregroundColor(.secondary)
+            Text(value.map { "\($0)" } ?? "--")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundColor(color)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - 计算属性
+
+    private var currentScore: Int? { scores.first }
+
+    private var minScore: Int? {
+        guard !scores.isEmpty else { return nil }
+        return scores.min()
+    }
+
+    private var maxScore: Int? {
+        guard !scores.isEmpty else { return nil }
+        return scores.max()
+    }
+
+    private var avgScore: Int? {
+        guard !scores.isEmpty else { return nil }
+        return Int(Double(scores.reduce(0, +)) / Double(scores.count))
+    }
+
+    private var average14d: Double? {
+        let last14 = Array(scores.prefix(14))
+        guard last14.count >= 3 else { return nil }
+        return Double(last14.reduce(0, +)) / Double(last14.count)
+    }
+
+    /// 当前 vs 14天均值差（正数=优于均值，负数=低于均值）
+    private var trendVsAvg: Int? {
+        guard let current = currentScore, let avg = average14d else { return nil }
+        return current - Int(avg.rounded())
+    }
+
+    private func scoreColor(_ score: Int) -> Color {
+        if score >= 80 { return .green }
+        if score >= 60 { return .orange }
+        return .red
+    }
+}
+
+extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
+    }
+}
+
+// MARK: - 子视图
+
+private struct TrendChartArea: View {
+    let scores: [Int]
+    let average14d: Double?
+    var scoreColor: (Int) -> Color
+
+    var body: some View {
         GeometryReader { geo in
             let width = geo.size.width
             let height: CGFloat = 100
@@ -400,8 +468,15 @@ struct BodyScoreTrendChart: View {
             }
         }
     }
+}
 
-    private var statsRow: some View {
+private struct TrendStatsRow: View {
+    let minScore: Int?
+    let avgScore: Int?
+    let maxScore: Int?
+    let trendVsAvg: Int?
+
+    var body: some View {
         HStack(spacing: 12) {
             statItem(label: "最低", value: minScore, color: .red)
             Divider().frame(height: 24)
@@ -432,48 +507,5 @@ struct BodyScoreTrendChart: View {
                 .foregroundColor(color)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    // MARK: - 计算属性
-
-    private var currentScore: Int? { scores.first }
-
-    private var minScore: Int? {
-        guard !scores.isEmpty else { return nil }
-        return scores.min()
-    }
-
-    private var maxScore: Int? {
-        guard !scores.isEmpty else { return nil }
-        return scores.max()
-    }
-
-    private var avgScore: Int? {
-        guard !scores.isEmpty else { return nil }
-        return Int(Double(scores.reduce(0, +)) / Double(scores.count))
-    }
-
-    private var average14d: Double? {
-        let last14 = Array(scores.prefix(14))
-        guard last14.count >= 3 else { return nil }
-        return Double(last14.reduce(0, +)) / Double(last14.count)
-    }
-
-    /// 当前 vs 14天均值差（正数=优于均值，负数=低于均值）
-    private var trendVsAvg: Int? {
-        guard let current = currentScore, let avg = average14d else { return nil }
-        return current - Int(avg.rounded())
-    }
-
-    private func scoreColor(_ score: Int) -> Color {
-        if score >= 80 { return .green }
-        if score >= 60 { return .orange }
-        return .red
-    }
-}
-
-extension Array {
-    subscript(safe index: Int) -> Element? {
-        indices.contains(index) ? self[index] : nil
     }
 }
