@@ -33,7 +33,7 @@ struct FeatureRow: View {
 
     @State private var alertsDetailExpanded: Bool = false
     @State private var pinnedMetricIds: Set<String> = []
-    @State private var autoCollapseTimer: Timer? = nil
+    @State private var autoCollapseTimer: Timer?
 
     private let pinnedMetricsKey = "stick.pinned.metrics"
 
