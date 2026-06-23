@@ -551,35 +551,7 @@ struct ContentView: View {
             healthAuth: healthAuth,
             chatHistory: chatHistory,
             liveActivityManager: liveActivityManager,
-            now: $now,
-            timerTick: $timerTick,
-            scrubOffset: $scrubOffset,
-            manualStateOverride: $manualStateOverride,
-            showPersonal: $showPersonal,
-            showFilm: $showFilm,
-            showSleepReport: $showSleepReport,
-            activeSheet: $activeSheet,
-            openDataRecord: $openDataRecord,
-            openWidgetPreview: $openWidgetPreview,
-            deviceSet: $deviceSet,
-            showInjectConfirm: $showInjectConfirm,
-            injectStatus: $injectStatus,
-            chatSeed: $chatSeed,
-            chatKey: $chatKey,
-            chatPendingPhoto: $chatPendingPhoto,
-            showChat: $showChat,
-            targetScrollId: $targetScrollId,
-            scrollTrigger: $scrollTrigger,
-            currentSitMinutes: $currentSitMinutes,
-            currentSitStartTime: $currentSitStartTime,
-            lastSitAnalysisTime: $lastSitAnalysisTime,
-            backgroundedAt: $backgroundedAt,
-            homeSedentaryMinutes: $homeSedentaryMinutes,
-            hasValidSleepData: $hasValidSleepData,
-            walkingQuality: $walkingQuality,
-            realHeartRate: $realHeartRate,
-            inference: $inference,
-            todaySleepHours: $todaySleepHours,
+            state: mainContentStateBinding,
             homeBody: AnyView(homeBody),
             displayState: displayState,
             realSubLine: realSubLine,
@@ -590,6 +562,78 @@ struct ContentView: View {
             openChat: openChat,
             sheetContent: { destination in
                 sheetContent(for: destination)
+            }
+        )
+    }
+
+    /// 把 ContentView 自身的 29 个 @State 打包成 `Binding<HomeState>` 传给 MainContentView。
+    /// 保持 ContentView 现有 @State 不动（HomeBodyView 还在直接消费它们），只在这一层做
+    /// get/set 桥接。
+    private var mainContentStateBinding: Binding<HomeState> {
+        Binding(
+            get: {
+                HomeState(
+                    now: now,
+                    timerTick: timerTick,
+                    scrubOffset: scrubOffset,
+                    manualStateOverride: manualStateOverride,
+                    showPersonal: showPersonal,
+                    showFilm: showFilm,
+                    showSleepReport: showSleepReport,
+                    activeSheet: activeSheet,
+                    openDataRecord: openDataRecord,
+                    openWidgetPreview: openWidgetPreview,
+                    deviceSet: deviceSet,
+                    showInjectConfirm: showInjectConfirm,
+                    injectStatus: injectStatus,
+                    chatSeed: chatSeed,
+                    chatKey: chatKey,
+                    chatPendingPhoto: chatPendingPhoto,
+                    showChat: showChat,
+                    targetScrollId: targetScrollId,
+                    scrollTrigger: scrollTrigger,
+                    currentSitMinutes: currentSitMinutes,
+                    currentSitStartTime: currentSitStartTime,
+                    lastSitAnalysisTime: lastSitAnalysisTime,
+                    backgroundedAt: backgroundedAt,
+                    homeSedentaryMinutes: homeSedentaryMinutes,
+                    hasValidSleepData: hasValidSleepData,
+                    walkingQuality: walkingQuality,
+                    realHeartRate: realHeartRate,
+                    inference: inference,
+                    todaySleepHours: todaySleepHours
+                )
+            },
+            set: { newState in
+                now = newState.now
+                timerTick = newState.timerTick
+                scrubOffset = newState.scrubOffset
+                manualStateOverride = newState.manualStateOverride
+                showPersonal = newState.showPersonal
+                showFilm = newState.showFilm
+                showSleepReport = newState.showSleepReport
+                activeSheet = newState.activeSheet
+                openDataRecord = newState.openDataRecord
+                openWidgetPreview = newState.openWidgetPreview
+                deviceSet = newState.deviceSet
+                showInjectConfirm = newState.showInjectConfirm
+                injectStatus = newState.injectStatus
+                chatSeed = newState.chatSeed
+                chatKey = newState.chatKey
+                chatPendingPhoto = newState.chatPendingPhoto
+                showChat = newState.showChat
+                targetScrollId = newState.targetScrollId
+                scrollTrigger = newState.scrollTrigger
+                currentSitMinutes = newState.currentSitMinutes
+                currentSitStartTime = newState.currentSitStartTime
+                lastSitAnalysisTime = newState.lastSitAnalysisTime
+                backgroundedAt = newState.backgroundedAt
+                homeSedentaryMinutes = newState.homeSedentaryMinutes
+                hasValidSleepData = newState.hasValidSleepData
+                walkingQuality = newState.walkingQuality
+                realHeartRate = newState.realHeartRate
+                inference = newState.inference
+                todaySleepHours = newState.todaySleepHours
             }
         )
     }
@@ -1022,6 +1066,58 @@ private struct StageScrubBadge: View {
     }
 }
 
+// MARK: - HomeState（MainContentView state bundle）
+
+/// MainContentView 的全部 UI state 集合（替代 29 个 @Binding 的 prop drilling）。
+/// 用 struct + @Binding 保持原 binding 语义：外部 ContentView 通过 Binding(get:set:)
+/// 把现有 29 个 @State 字段重新打包传进来，内部通过 `state.xxx` / `$state.xxx` 访问。
+struct HomeState {
+    // MARK: 时间驱动
+    var now: Date
+    var timerTick: Date
+
+    // MARK: 时间线 scrubbing
+    var scrubOffset: Int?
+    var manualStateOverride: StickState?
+
+    // MARK: 面板 / 弹层 flag
+    var showPersonal: Bool
+    var showFilm: Bool
+    var showSleepReport: Bool
+    var activeSheet: SheetDestination?
+    var openDataRecord: Bool
+    var openWidgetPreview: Bool
+
+    // MARK: 设备 & mock 注入
+    var deviceSet: Set<DeviceID>
+    var showInjectConfirm: Bool
+    var injectStatus: String?
+
+    // MARK: Chat
+    var chatSeed: String
+    var chatKey: Int
+    var chatPendingPhoto: Bool
+    var showChat: Bool
+
+    // MARK: 滚动
+    var targetScrollId: UUID?
+    var scrollTrigger: Int
+
+    // MARK: 久坐实时
+    var currentSitMinutes: Int
+    var currentSitStartTime: Date?
+    var lastSitAnalysisTime: Date
+    var backgroundedAt: Date?
+    var homeSedentaryMinutes: Int
+    var hasValidSleepData: Bool
+
+    // MARK: 实时分析（HealthKit 30s 抓取）
+    var walkingQuality: WalkingQualityData?
+    var realHeartRate: Int?
+    var inference: StateInference.Result?
+    var todaySleepHours: Double?
+}
+
 // MARK: - MainContentView（rule 1 提取）
 
 /// 主页（被外层 ZStack 包了一层）— GeometryReader + 个人面板
@@ -1032,35 +1128,9 @@ private struct MainContentView<SheetContent: View>: View {
     var chatHistory: ChatHistoryStore
     @Bindable var liveActivityManager: LiveActivityManager
 
-    @Binding var now: Date
-    @Binding var timerTick: Date
-    @Binding var scrubOffset: Int?
-    @Binding var manualStateOverride: StickState?
-    @Binding var showPersonal: Bool
-    @Binding var showFilm: Bool
-    @Binding var showSleepReport: Bool
-    @Binding var activeSheet: SheetDestination?
-    @Binding var openDataRecord: Bool
-    @Binding var openWidgetPreview: Bool
-    @Binding var deviceSet: Set<DeviceID>
-    @Binding var showInjectConfirm: Bool
-    @Binding var injectStatus: String?
-    @Binding var chatSeed: String
-    @Binding var chatKey: Int
-    @Binding var chatPendingPhoto: Bool
-    @Binding var showChat: Bool
-    @Binding var targetScrollId: UUID?
-    @Binding var scrollTrigger: Int
-    @Binding var currentSitMinutes: Int
-    @Binding var currentSitStartTime: Date?
-    @Binding var lastSitAnalysisTime: Date
-    @Binding var backgroundedAt: Date?
-    @Binding var homeSedentaryMinutes: Int
-    @Binding var hasValidSleepData: Bool
-    @Binding var walkingQuality: WalkingQualityData?
-    @Binding var realHeartRate: Int?
-    @Binding var inference: StateInference.Result?
-    @Binding var todaySleepHours: Double?
+    /// 29 个 UI state 打包成一个 binding。`$state.xxx` 用于 `.sheet(item:)` / `.confirmationDialog`
+    /// 等需要 binding 投影的场景；直接 `state.xxx` 用于读取与赋值。
+    @Binding var state: HomeState
 
     let homeBody: AnyView
     let displayState: StickState
@@ -1083,24 +1153,24 @@ private struct MainContentView<SheetContent: View>: View {
     private func handleDisplayStateChange(oldValue: StickState, newValue: StickState) {
         if newValue == .sit {
             let startTime = Date()
-            currentSitStartTime = startTime
-            currentSitMinutes = 0
+            state.currentSitStartTime = startTime
+            state.currentSitMinutes = 0
             if !isScrubbing {
                 liveActivityManager.startSedentaryActivity(from: startTime)
             }
             Task {
                 let sitMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
-                currentSitMinutes = sitMins
+                state.currentSitMinutes = sitMins
                 if sitMins > 0 {
-                    currentSitStartTime = Date().addingTimeInterval(-Double(sitMins) * 60)
+                    state.currentSitStartTime = Date().addingTimeInterval(-Double(sitMins) * 60)
                 } else {
-                    currentSitStartTime = nil
+                    state.currentSitStartTime = nil
                 }
-                lastSitAnalysisTime = Date()
+                state.lastSitAnalysisTime = Date()
             }
         } else if !isScrubbing {
-            currentSitMinutes = 0
-            currentSitStartTime = nil
+            state.currentSitMinutes = 0
+            state.currentSitStartTime = nil
             liveActivityManager.endSedentaryActivity()
         }
         guard !Self.isRunningForPreviews else { return }
@@ -1108,13 +1178,13 @@ private struct MainContentView<SheetContent: View>: View {
             stateRaw: displayState.rawValue,
             englishName: displayState.englishName,
             actionPhrase: displayState.actionPhrase,
-            heartRate: realHeartRate ?? primaryHeartRate,
-            mood: walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
+            heartRate: state.realHeartRate ?? primaryHeartRate,
+            mood: state.walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
             durationMinutes: primaryDurationMinutes,
             subLine: realSubLine,
             updatedAt: Date(),
-            currentSedentarySeconds: currentSitMinutes * 60,
-            sedentaryStartTime: currentSitStartTime
+            currentSedentarySeconds: state.currentSitMinutes * 60,
+            sedentaryStartTime: state.currentSitStartTime
         )
         SharedStateStore.write(snap)
         #if canImport(WidgetKit)
@@ -1125,8 +1195,8 @@ private struct MainContentView<SheetContent: View>: View {
     private func handleLastMovementTimeChange(oldValue: Date?, newValue: Date?) {
         guard newValue != nil, oldValue != newValue else { return }
         guard !Self.isRunningForPreviews else { return }
-        currentSitMinutes = 0
-        currentSitStartTime = nil
+        state.currentSitMinutes = 0
+        state.currentSitStartTime = nil
     }
 
     @ViewBuilder
@@ -1136,7 +1206,7 @@ private struct MainContentView<SheetContent: View>: View {
             Color.black.opacity(0.35)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.32)) { showPersonal = false }
+                    withAnimation(.easeInOut(duration: 0.32)) { state.showPersonal = false }
                 }
         }
         .transition(.opacity)
@@ -1145,20 +1215,20 @@ private struct MainContentView<SheetContent: View>: View {
     @ViewBuilder
     private func personalPanelView(panelWidth: CGFloat, showPersonal: Bool) -> some View {
         PersonalView(
-            onClose: { withAnimation(.easeInOut(duration: 0.32)) { self.showPersonal = false } },
-            openDataRecord: $openDataRecord,
-            openWidgetPreview: $openWidgetPreview,
-            deviceSet: $deviceSet,
+            onClose: { withAnimation(.easeInOut(duration: 0.32)) { self.state.showPersonal = false } },
+            openDataRecord: $state.openDataRecord,
+            openWidgetPreview: $state.openWidgetPreview,
+            deviceSet: $state.deviceSet,
             healthAuth: healthAuth,
             chatHistory: chatHistory,
             hkService: hk,
             onHistoryTap: { id in
-                targetScrollId = id
-                scrollTrigger += 1
-                withAnimation(.easeInOut(duration: 0.28)) { showChat = true }
+                state.targetScrollId = id
+                state.scrollTrigger += 1
+                withAnimation(.easeInOut(duration: 0.28)) { state.showChat = true }
             },
             onOpenChat: { seed in
-                withAnimation(.easeInOut(duration: 0.32)) { self.showPersonal = false }
+                withAnimation(.easeInOut(duration: 0.32)) { self.state.showPersonal = false }
                 openChat(seed)
             },
             currentSitDuration: sitDurationText,
@@ -1176,61 +1246,61 @@ private struct MainContentView<SheetContent: View>: View {
                     .frame(width: geo.size.width)
 
                 // 2. 黑色蒙层 (仅显示在右侧 22% 的 home 上)
-                if showPersonal {
+                if state.showPersonal {
                     overlayDimView(panelWidth: panelWidth)
                 }
 
                 // 3. 左侧滑出的个人面板 (78% 宽)
                 personalPanelView(
                     panelWidth: panelWidth,
-                    showPersonal: showPersonal
+                    showPersonal: state.showPersonal
                 )
                 .frame(width: panelWidth)
-                .offset(x: showPersonal ? 0 : -panelWidth)
+                .offset(x: state.showPersonal ? 0 : -panelWidth)
             }
             .background(Theme.bgTop.ignoresSafeArea())
-            .animation(.easeInOut(duration: 0.32), value: showPersonal)
+            .animation(.easeInOut(duration: 0.32), value: state.showPersonal)
             .gesture(
                 DragGesture(minimumDistance: 20)
                     .onEnded { value in
-                        guard showPersonal else { return }
+                        guard state.showPersonal else { return }
                         // 左滑超 60pt 关闭
                         if value.translation.width < -60 {
-                            withAnimation(.easeInOut(duration: 0.32)) { showPersonal = false }
+                            withAnimation(.easeInOut(duration: 0.32)) { state.showPersonal = false }
                         }
                     }
             )
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { nowVal in
             // 驱动秒表重算：每秒写一次 Date，保证 SwiftUI 视为"变化"
-            timerTick = nowVal
+            state.timerTick = nowVal
             // Preview 模式跳过 — 不让 Timer 反复触发重渲染
             guard !Self.isRunningForPreviews else { return }
             // 更新 now（每秒都在变，但 DayTimelineView 用 Equatable 只在分钟边界触发重绘）
-            let oldMin = StickState.minutesOfDay(now)
+            let oldMin = StickState.minutesOfDay(state.now)
             let newMin = StickState.minutesOfDay(nowVal)
             // 分钟边界、或刚启动时（now 与 nowVal 相差 >60s）才写 now，大幅减少 ContentView body 重绘
-            if oldMin != newMin || nowVal.timeIntervalSince(now) > 60 {
-                now = nowVal
+            if oldMin != newMin || nowVal.timeIntervalSince(state.now) > 60 {
+                state.now = nowVal
             }
             // 每 30 秒基于真实快照重新分析连续久坐时长
-            if Date().timeIntervalSince(lastSitAnalysisTime) >= 30 {
-                lastSitAnalysisTime = Date()
+            if Date().timeIntervalSince(state.lastSitAnalysisTime) >= 30 {
+                state.lastSitAnalysisTime = Date()
                 Task {
                     // 在 Task 内读取 currentSitMinutes，避免与 lastMovementTime onChange 竞争导致 stale 数据
-                    let prevMinutes = await MainActor.run { currentSitMinutes }
+                    let prevMinutes = await MainActor.run { state.currentSitMinutes }
                     let newMinutes = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
                     // 如果新分析结果比当前记录更长，说明session在延续，更新开始时刻
                     if newMinutes > prevMinutes {
                         // session 延长：从当前时刻往前推 newMinutes 分钟作为开始时刻
                         await MainActor.run {
-                            currentSitStartTime = Date().addingTimeInterval(-Double(newMinutes) * 60)
+                            state.currentSitStartTime = Date().addingTimeInterval(-Double(newMinutes) * 60)
                         }
                     }
                     await MainActor.run {
-                        currentSitMinutes = newMinutes
+                        state.currentSitMinutes = newMinutes
                         if newMinutes == 0 {
-                            currentSitStartTime = nil
+                            state.currentSitStartTime = nil
                         }
                     }
                     // 定期写入 SharedState（同步到 Widget）
@@ -1240,8 +1310,8 @@ private struct MainContentView<SheetContent: View>: View {
                             stateRaw: displayState.rawValue,
                             englishName: displayState.englishName,
                             actionPhrase: displayState.actionPhrase,
-                            heartRate: realHeartRate ?? primaryHeartRate,
-                            mood: walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
+                            heartRate: state.realHeartRate ?? primaryHeartRate,
+                            mood: state.walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
                             durationMinutes: primaryDurationMinutes,
                             subLine: realSubLine,
                             updatedAt: Date(),
@@ -1259,20 +1329,20 @@ private struct MainContentView<SheetContent: View>: View {
             // 30s 重新跑一次 HealthKit 抓取 + 状态推断（.today 持续增长）
             Task {
                 _ = await HealthKitService.shared.captureSnapshot()
-                inference = HealthKitService.shared.currentInference
+                state.inference = HealthKitService.shared.currentInference
                 // 实时读取步态质量 + 心率
                 let wq = await HealthKitService.shared.todayWalkingQuality()
-                walkingQuality = WalkingQualityData.from(wq)
+                state.walkingQuality = WalkingQualityData.from(wq)
                 let hr = await HealthKitService.shared.todayHeartRate()
-                realHeartRate = hr
+                state.realHeartRate = hr
                 // 持续更新 SharedState（让 Widget 始终显示最新的久坐秒数）
                 let sessionMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
                 let snap = SharedStickState(
                     stateRaw: displayState.rawValue,
                     englishName: displayState.englishName,
                     actionPhrase: displayState.actionPhrase,
-                    heartRate: hr ?? realHeartRate ?? primaryHeartRate,
-                    mood: walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
+                    heartRate: hr ?? state.realHeartRate ?? primaryHeartRate,
+                    mood: state.walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
                     durationMinutes: primaryDurationMinutes,
                     subLine: realSubLine,
                     updatedAt: Date(),
@@ -1295,7 +1365,7 @@ private struct MainContentView<SheetContent: View>: View {
         .onChange(of: scenePhase) { oldPhase, newPhase in
             // 切到后台：记录时间
             if newPhase != .active {
-                backgroundedAt = Date()
+                state.backgroundedAt = Date()
             }
             // 回到前台（解锁）：优先刷久坐秒表，其他查询并行
             if oldPhase != .active && newPhase == .active {
@@ -1309,14 +1379,14 @@ private struct MainContentView<SheetContent: View>: View {
                     //    基于"最后一次明显步数时间"，黑屏期间走动过 → 自动截断/重置
                     let sessionMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
                     if sessionMins > 0 {
-                        currentSitStartTime = Date().addingTimeInterval(-Double(sessionMins) * 60)
-                        currentSitMinutes = sessionMins
+                        state.currentSitStartTime = Date().addingTimeInterval(-Double(sessionMins) * 60)
+                        state.currentSitMinutes = sessionMins
                     } else {
                         // 最近 4h 有走动/活动，重置
-                        currentSitStartTime = nil
-                        currentSitMinutes = 0
+                        state.currentSitStartTime = nil
+                        state.currentSitMinutes = 0
                     }
-                    lastSitAnalysisTime = Date()
+                    state.lastSitAnalysisTime = Date()
 
                     // 3) 累计 + 心率 + 步态 + 时刻表 — 并行刷新（不再阻塞秒表）
                     async let sedentaryTask: (minutes: Int, hasValidSleep: Bool) = {
@@ -1335,58 +1405,58 @@ private struct MainContentView<SheetContent: View>: View {
                         return (WalkingQualityData.from(wq), heartRate)
                     }()
                     let (sedentary, _, quality) = await (sedentaryTask, scheduleTask, qualityTask)
-                    homeSedentaryMinutes = sedentary.minutes
-                    hasValidSleepData = sedentary.hasValidSleep
-                    walkingQuality = quality.walkingQuality
-                    realHeartRate = quality.heartRate
+                    state.homeSedentaryMinutes = sedentary.minutes
+                    state.hasValidSleepData = sedentary.hasValidSleep
+                    state.walkingQuality = quality.walkingQuality
+                    state.realHeartRate = quality.heartRate
                 }
             }
         }
         .onChange(of: hk.lastMovementTime) { oldValue, newValue in
             handleLastMovementTimeChange(oldValue: oldValue, newValue: newValue)
         }
-        .onChange(of: scrubOffset) { _, newValue in
+        .onChange(of: state.scrubOffset) { _, newValue in
             // scrubOffset 归零（"回到现在" 按钮 / DayTimelineView 自动 10s 复位）→ 释放 swipe override，
             // 让 displayState 重新回到基于时间的真实状态。
             if (newValue ?? 0) == 0 {
-                manualStateOverride = nil
+                state.manualStateOverride = nil
             }
         }
-        .sheet(isPresented: $showFilm) {
-            MiniFilmShareSheet(isPresented: $showFilm)
+        .sheet(isPresented: $state.showFilm) {
+            MiniFilmShareSheet(isPresented: $state.showFilm)
                 .presentationBackground(Color.black)
         }
         // Chat 改到外层 ZStack（贴底）
-        .sheet(isPresented: $showSleepReport) {
-            SleepReportView(onClose: { showSleepReport = false })
+        .sheet(isPresented: $state.showSleepReport) {
+            SleepReportView(onClose: { state.showSleepReport = false })
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
-        .sheet(item: $activeSheet) { destination in
+        .sheet(item: $state.activeSheet) { destination in
             sheetContent(destination)
         }
         .confirmationDialog(
             "注入过去 7 天的 mock 数据到 HealthKit？\n\n将申请 HealthKit 写权限，并写入步数 / 心率 / 距离 / 能量 / 睡眠。\n\n⚠️ 仅用于调试 — 真机数据会被污染。",
-            isPresented: $showInjectConfirm,
+            isPresented: $state.showInjectConfirm,
             titleVisibility: .visible
         ) {
             Button("注入 7 天数据") {
                 Task { @MainActor in
                     let count = await HealthKitService.shared.injectMockDataIntoHealthKit(days: 7)
-                    injectStatus = count > 0 ? "✅ 注入成功：\(count) 条样本" : "❌ 注入失败（请检查写权限）"
-                    print("[ContentView] \(injectStatus ?? "")")
+                    state.injectStatus = count > 0 ? "✅ 注入成功：\(count) 条样本" : "❌ 注入失败（请检查写权限）"
+                    print("[ContentView] \(state.injectStatus ?? "")")
                 }
             }
             Button("取消", role: .cancel) { }
         } message: {
-            if let s = injectStatus { Text(s) }
+            if let s = state.injectStatus { Text(s) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openChatWithPhoto)) { note in
             if let seed = note.object as? String {
-                chatSeed = seed
-                chatKey += 1
-                chatPendingPhoto = true
-                showChat = true
+                state.chatSeed = seed
+                state.chatKey += 1
+                state.chatPendingPhoto = true
+                state.showChat = true
             }
         }
         .task {
@@ -1403,31 +1473,31 @@ private struct MainContentView<SheetContent: View>: View {
             // 延迟 500ms 启动定时抓取（给首帧渲染让路）
             try? await Task.sleep(nanoseconds: 500_000_000)
             HealthKitService.shared.startAutoCapture(interval: 60)
-            inference = HealthKitService.shared.currentInference
+            state.inference = HealthKitService.shared.currentInference
 
             // 2. 第一组：久坐核心数据（UI 上最显眼的两行）
-            homeSedentaryMinutes = await HealthKitService.shared.todaySedentaryMinutes()
+            state.homeSedentaryMinutes = await HealthKitService.shared.todaySedentaryMinutes()
             if let sleepHours = await HealthKitService.shared.todaySleepHours(), sleepHours > 0 {
                 let sleepMinutes = Int(sleepHours * 60)
-                homeSedentaryMinutes = max(0, homeSedentaryMinutes - sleepMinutes)
-                hasValidSleepData = true
+                state.homeSedentaryMinutes = max(0, state.homeSedentaryMinutes - sleepMinutes)
+                state.hasValidSleepData = true
             } else {
-                hasValidSleepData = false
+                state.hasValidSleepData = false
             }
             let sitMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
-            currentSitMinutes = sitMins
+            state.currentSitMinutes = sitMins
             if sitMins > 0 {
-                currentSitStartTime = Date().addingTimeInterval(-Double(sitMins) * 60)
+                state.currentSitStartTime = Date().addingTimeInterval(-Double(sitMins) * 60)
             }
-            lastSitAnalysisTime = Date()
+            state.lastSitAnalysisTime = Date()
 
             // 3. 写入 SharedState（Widget 同步）
             let snap = SharedStickState(
                 stateRaw: displayState.rawValue,
                 englishName: displayState.englishName,
                 actionPhrase: displayState.actionPhrase,
-                heartRate: realHeartRate ?? primaryHeartRate,
-                mood: walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
+                heartRate: state.realHeartRate ?? primaryHeartRate,
+                mood: state.walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
                 durationMinutes: primaryDurationMinutes,
                 subLine: realSubLine,
                 updatedAt: Date(),
@@ -1443,9 +1513,9 @@ private struct MainContentView<SheetContent: View>: View {
             try? await Task.sleep(nanoseconds: 250_000_000)
             await HealthKitService.shared.computeDaySchedule()
             let wq = await HealthKitService.shared.todayWalkingQuality()
-            walkingQuality = WalkingQualityData.from(wq)
-            realHeartRate = await HealthKitService.shared.todayHeartRate()
-            todaySleepHours = await HealthKitService.shared.todaySleepHours()
+            state.walkingQuality = WalkingQualityData.from(wq)
+            state.realHeartRate = await HealthKitService.shared.todayHeartRate()
+            state.todaySleepHours = await HealthKitService.shared.todaySleepHours()
         }
     }
 }
