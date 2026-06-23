@@ -32,8 +32,8 @@ final class ChatHistoryStore {
     static let shared = ChatHistoryStore()
 
     private let key = "stick.chat.history.v1"
-    private let maxMessages = 200
-    private let pageSize = 10
+    private let pageSize: Int = 50
+    private let maxMessages: Int = 200
 
     /// 全量历史（持久化，懒加载）
     private(set) var allMessages: [PersistedChatMessage] = []
@@ -41,14 +41,22 @@ final class ChatHistoryStore {
     /// 当前展示的消息（分页加载）
     private(set) var loadedMessages: [PersistedChatMessage] = []
 
+    /// 是否已完成 JSON 加载（异步）。未完成期间 `allMessages` / `loadedMessages` 为空，
+    /// 调用方应等待 `loaded == true` 再消费，避免误判为「无历史」。
+    private(set) var loaded: Bool = false
+
     /// 是否还有更早的消息可加载
     var hasMore: Bool { loadedCount < allMessages.count }
 
     /// 当前已加载的条数
     var loadedCount: Int { loadedMessages.count }
 
-    init() {
-        load()
+    private init() {
+        // 启动期跳过同步文件 IO；放到后台线程异步加载，避免首帧阻塞主线程
+        // （200 条 chat history 约 500KB JSON，同步 decode 会阻塞主线程 50-200ms）
+        Task.detached(priority: .userInitiated) { [weak self] in
+            await self?.loadFromDisk()
+        }
     }
 
     /// 初始加载最近 pageSize 条
@@ -106,13 +114,21 @@ final class ChatHistoryStore {
         }
     }
 
-    private func load() {
-        guard let data = UserDefaults.standard.data(forKey: key) else { return }
+    /// 后台读取 JSON 并在主线程回填数据。`init()` 中启动。
+    @MainActor
+    private func loadFromDisk() async {
+        guard let data = UserDefaults.standard.data(forKey: key) else {
+            loaded = true
+            return
+        }
         do {
-            allMessages = try JSONDecoder().decode([PersistedChatMessage].self, from: data)
-            print("[ChatHistoryStore] load(): \(allMessages.count) msgs loaded")
+            let messages = try JSONDecoder().decode([PersistedChatMessage].self, from: data)
+            self.allMessages = messages
+            self.loadedMessages = Array(messages.suffix(pageSize))
+            print("[ChatHistoryStore] load(): \(messages.count) msgs loaded")
         } catch {
             print("[ChatHistoryStore] load failed: \(error)")
         }
+        loaded = true
     }
 }
