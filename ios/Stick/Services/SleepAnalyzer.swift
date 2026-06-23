@@ -117,9 +117,17 @@ final class SleepAnalyzer {
 
     /// HKHealthStore 是 thread-safe reference type，标 nonisolated 让 query helper 脱离 main actor
     private nonisolated let store = HKHealthStore()
-    private nonisolated let sleepType: HKCategoryType? = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
+    private nonisolated let sleepType: HKCategoryType?
 
-    private init() {}
+    // MARK: - HKObjectType 查询 helper
+    // HKObjectType 系统常量访问是线程安全的，标 `nonisolated` 让 query helper 能在任意 actor 上调用
+    private nonisolated func categoryType(_ id: HKCategoryTypeIdentifier) -> HKCategoryType? {
+        HKObjectType.categoryType(forIdentifier: id)
+    }
+
+    private init() {
+        self.sleepType = categoryType(.sleepAnalysis)
+    }
 
     // MARK: - 授权
 
