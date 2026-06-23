@@ -61,7 +61,7 @@ struct DayPlaybackSheet: View {
                 .transition(.opacity)
             }
         }
-        .onAppear {
+        .task {
             startTime = .init()
             elapsed = 0
             isFinished = false
