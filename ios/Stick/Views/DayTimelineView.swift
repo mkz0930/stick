@@ -188,10 +188,7 @@ struct DayTimelineView: View, Equatable {
         .animation(.easeInOut(duration: 0.4), value: hasInteracted)
         .animation(.easeInOut(duration: 0.25), value: manualStateOverride)
         .onAppear {
-            // 0..1 循环驱动 active 段的呼吸
-            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
-                pulse = 1
-            }
+            startPulse()
         }
         .onChange(of: scrubOffset) { _, newValue in
             // 外部 (例如 "连接设备" 按钮) 把 scrubOffset 改回 nil/0 时，
@@ -199,6 +196,14 @@ struct DayTimelineView: View, Equatable {
             if (newValue ?? 0) == 0 {
                 autoResetWorkItem?.cancel()
                 autoResetWorkItem = nil
+            }
+        }
+        .onChange(of: isScrubbing) { _, scrubbing in
+            // 拖动期间停止 pulse，避免 active 段呼吸与 thumb 拖动冲突造成视觉跳动
+            if scrubbing {
+                stopPulse()
+            } else {
+                startPulse()
             }
         }
         .sheet(isPresented: $showDevicePicker) {
@@ -237,7 +242,8 @@ struct DayTimelineView: View, Equatable {
                 thumb()
                     .position(x: trackWidth / 2, y: yPos)
                     .opacity(thumbAlpha)
-                    .animation(.interactiveSpring(response: 0.18, dampingFraction: 0.85),
+                    // 高 damping 让弹簧几乎线性,避免跟手时产生回弹"跳"
+                    .animation(.interactiveSpring(response: 0.12, dampingFraction: 0.95),
                                value: displayOffset)
             }
             .contentShape(Rectangle())
@@ -281,6 +287,22 @@ struct DayTimelineView: View, Equatable {
         }
         autoResetWorkItem = item
         DispatchQueue.main.asyncAfter(deadline: .now() + 10, execute: item)
+    }
+
+    // MARK: - pulse 控制
+
+    /// 0..1 循环驱动 active 段的呼吸
+    private func startPulse() {
+        withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+            pulse = 1
+        }
+    }
+
+    /// 拖动期间停止 pulse,避免 active 段阴影动画和 thumb 拖动冲突造成视觉跳动
+    private func stopPulse() {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            pulse = 0
+        }
     }
 
     // MARK: - 组件
