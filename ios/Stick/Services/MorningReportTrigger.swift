@@ -20,6 +20,8 @@ final class MorningReportTrigger {
 
     private init() {}
 
+    // 单例永生；停止监听请显式调用 stopMonitoring()。
+
     func startMonitoring() {
         guard monitorTask == nil else { return }
         // 注册一次 scenePhase 监听，token 必须持有
@@ -53,15 +55,6 @@ final class MorningReportTrigger {
         }
         monitorTask?.cancel()
         monitorTask = nil
-    }
-
-    deinit {
-        // 单例永生，理论上不会调，但写上保险
-        pendingCheck?.cancel()
-        if let token = didBecomeActiveObserver {
-            NotificationCenter.default.removeObserver(token)
-        }
-        monitorTask?.cancel()
     }
 
     private func runMonitor() async {
