@@ -501,7 +501,7 @@ struct ContentView: View {
                 .id(chatKey)
             }
             .ignoresSafeArea(edges: .bottom)
-            .onAppear {
+            .task {
                 // 启动定位服务（GPS 出差检测）— 当用户没授权时内部静默 noop
                 LocationService.shared.start()
                 // 调试用：env STICK_TEST_OPEN_CHAT=1 → 启动时自动开 chat
@@ -839,11 +839,11 @@ private struct StageHeroView: View {
                 Group {
                     if ContentView.isRunningForPreviews {
                         // Preview 跳过嵌套 GeometryReader；用 360 作为 iPhone 17 宽度估计
-                        Color.clear.onAppear { dragWidth = 360 }
+                        Color.clear.task { dragWidth = 360 }
                     } else {
                         GeometryReader { proxy in
                             Color.clear
-                                .onAppear { dragWidth = proxy.size.width }
+                                .task { dragWidth = proxy.size.width }
                                 .onChange(of: proxy.size.width) { _, new in dragWidth = new }
                         }
                     }
@@ -1389,7 +1389,7 @@ private struct MainContentView<SheetContent: View>: View {
                 showChat = true
             }
         }
-        .onAppear {
+        .task {
             // Preview 模式完全短路 — 不跑 HealthKit / Timer / refresh
             guard !Self.isRunningForPreviews else { return }
             // 检查各 metric 真实授权状态 (有/无/拒绝)
