@@ -1504,6 +1504,11 @@ private struct MainContentView<SheetContent: View>: View {
             // 查询分批错开执行（stagger），避免启动瞬间并发 10+ HK 请求阻塞主线程
             // 1. 先授权（必须立即执行，可能弹系统弹窗）
             await HealthKitService.shared.requestAuthorization()
+            // 只有授权成功才启动定时抓取（避免未授权时浪费 CPU + 显示全 0 数据）
+            guard HealthKitService.shared.isAuthorized else {
+                // 用户拒绝授权，不启动 capture；首帧照常渲染
+                return
+            }
             // 延迟 500ms 启动定时抓取（给首帧渲染让路）
             try? await Task.sleep(nanoseconds: 500_000_000)
             HealthKitService.shared.startAutoCapture(interval: 60)

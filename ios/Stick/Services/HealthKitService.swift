@@ -321,6 +321,13 @@ final class HealthKitService {
     private static var hasInjectedMockDataInThisCycle = false
 
     func startAutoCapture(interval: TimeInterval = 60) {
+        // 用户未授权时跳过 auto capture — HK 查询返回空集会让 UI 显示全 0 数据
+        // （requestAuthorization() 拒绝后会设 isAuthorized = false）
+        guard isAuthorized else {
+            print("[HealthKitService] 未授权，跳过 auto capture")
+            return
+        }
+
         stopAutoCapture()
 
         // 模拟器无有效步数时，生成 mock 快照（模拟用户45分钟前走路，现在坐着）。
