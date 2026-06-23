@@ -641,26 +641,56 @@ struct ContentView: View {
 
     // MARK: - 首页内容 (抽出来便于在 ZStack 中复用)
 
+    /// 把 ContentView 自身的 16 个 @State 打包成 `Binding<HomeBodyState>` 传给 HomeBodyView。
+    /// 保持 ContentView 现有 @State 不动（MainContentView / HomeBodyView 还在通过 binding 桥接消费它们），
+    /// 只在这一层做 get/set 桥接。
+    private var homeBodyStateBinding: Binding<HomeBodyState> {
+        Binding(
+            get: {
+                HomeBodyState(
+                    deviceSet: deviceSet,
+                    showPersonal: showPersonal,
+                    showInjectConfirm: showInjectConfirm,
+                    showDevicePicker: showDevicePicker,
+                    showFilm: showFilm,
+                    showSleepReport: showSleepReport,
+                    showChat: showChat,
+                    activeSheet: activeSheet,
+                    manualStateOverride: manualStateOverride,
+                    scrubOffset: scrubOffset,
+                    featureRowExpanded: featureRowExpanded,
+                    inputDraft: inputDraft,
+                    hasValidSleepData: hasValidSleepData,
+                    homeSedentaryMinutes: homeSedentaryMinutes,
+                    currentSitMinutes: currentSitMinutes
+                )
+            },
+            set: { newState in
+                deviceSet = newState.deviceSet
+                showPersonal = newState.showPersonal
+                showInjectConfirm = newState.showInjectConfirm
+                showDevicePicker = newState.showDevicePicker
+                showFilm = newState.showFilm
+                showSleepReport = newState.showSleepReport
+                showChat = newState.showChat
+                activeSheet = newState.activeSheet
+                manualStateOverride = newState.manualStateOverride
+                scrubOffset = newState.scrubOffset
+                featureRowExpanded = newState.featureRowExpanded
+                inputDraft = newState.inputDraft
+                hasValidSleepData = newState.hasValidSleepData
+                homeSedentaryMinutes = newState.homeSedentaryMinutes
+                currentSitMinutes = newState.currentSitMinutes
+            }
+        )
+    }
+
     private var homeBody: some View {
         HomeBodyView(
             hk: hk,
             healthAuth: healthAuth,
             chatHistory: chatHistory,
-            deviceSet: $deviceSet,
-            showPersonal: $showPersonal,
-            showInjectConfirm: $showInjectConfirm,
-            showDevicePicker: $showDevicePicker,
-            showFilm: $showFilm,
-            showSleepReport: $showSleepReport,
-            showChat: $showChat,
-            activeSheet: $activeSheet,
-            manualStateOverride: $manualStateOverride,
-            scrubOffset: $scrubOffset,
-            featureRowExpanded: $featureRowExpanded,
-            inputDraft: $inputDraft,
-            hasValidSleepData: $hasValidSleepData,
-            homeSedentaryMinutes: $homeSedentaryMinutes,
-            currentSitMinutes: $currentSitMinutes,
+            state: homeBodyStateBinding,
             now: now,
             displayState: displayState,
             figureMood: figureMood,
@@ -1504,27 +1534,35 @@ private struct MainContentView<SheetContent: View>: View {
 
 // MARK: - HomeBodyView（rule 1 提取）
 
+/// HomeBodyView 的 16 个 @Binding 集合（替代 prop drilling）。
+/// 用 struct + @Binding 保持原 binding 语义，外部通过 Binding(get:set:) 把 16 个字段打包传进来。
+struct HomeBodyState {
+    var deviceSet: Set<DeviceID> = []
+    var showPersonal: Bool = false
+    var showInjectConfirm: Bool = false
+    var showDevicePicker: Bool = false
+    var showFilm: Bool = false
+    var showSleepReport: Bool = false
+    var showChat: Bool = false
+    var activeSheet: SheetDestination?
+    var manualStateOverride: StickState?
+    var scrubOffset: Int?
+    var featureRowExpanded: Bool = false
+    var inputDraft: String = ""
+    var hasValidSleepData: Bool = false
+    var homeSedentaryMinutes: Int = 0
+    var currentSitMinutes: Int = 0
+}
+
 /// 首页内容（被外层 ZStack 包了一层）— GeometryReader + 顶栏 + FeatureRow + 主舞台 + 时间线 + InputBar
 private struct HomeBodyView: View {
     var hk: HealthKitService
     @Bindable var healthAuth: HealthAuthService
     var chatHistory: ChatHistoryStore
 
-    @Binding var deviceSet: Set<DeviceID>
-    @Binding var showPersonal: Bool
-    @Binding var showInjectConfirm: Bool
-    @Binding var showDevicePicker: Bool
-    @Binding var showFilm: Bool
-    @Binding var showSleepReport: Bool
-    @Binding var showChat: Bool
-    @Binding var activeSheet: SheetDestination?
-    @Binding var manualStateOverride: StickState?
-    @Binding var scrubOffset: Int?
-    @Binding var featureRowExpanded: Bool
-    @Binding var inputDraft: String
-    @Binding var hasValidSleepData: Bool
-    @Binding var homeSedentaryMinutes: Int
-    @Binding var currentSitMinutes: Int
+    /// 16 个 UI binding 打包成一个。`$state.xxx` 用于 `.sheet(item:)` / `FeatureRow` 等
+    /// 需要 binding 投影的场景；直接 `state.xxx` 用于读取与赋值。
+    @Binding var state: HomeBodyState
 
     let now: Date
     let displayState: StickState
@@ -1563,7 +1601,7 @@ private struct HomeBodyView: View {
                 // ① 顶部固定层：TopBar + FeatureRow（叠加在小人上方，展开时覆盖不下推）
                 VStack(spacing: 0) {
                     HStack(alignment: .center, spacing: 0) {
-                        TopBarView(onMenuTap: { showPersonal = true })
+                        TopBarView(onMenuTap: { state.showPersonal = true })
                         Spacer(minLength: 0)
                         #if targetEnvironment(simulator)
                         // 模拟器调试按钮：载入 Documents/MockHealth.json 当真实数据用
@@ -1589,7 +1627,7 @@ private struct HomeBodyView: View {
                         // 模拟器调试按钮：注入过去 7 天的 mock 数据到 HealthKit
                         // 让"导出最近 7 天"按钮能看到多天数据（无需等 7 天累积）
                         Button {
-                            showInjectConfirm = true
+                            state.showInjectConfirm = true
                         } label: {
                             Image(systemName: "syringe")
                                 .font(.system(size: 14))
@@ -1604,7 +1642,7 @@ private struct HomeBodyView: View {
 
                     FeatureRow(
                         state: displayState,
-                        deviceSet: deviceSet,
+                        deviceSet: state.deviceSet,
                         healthStatuses: healthAuth.statuses,
                         moodLine: displayMoodLine,
                         moodScore: moodScore,
@@ -1617,13 +1655,13 @@ private struct HomeBodyView: View {
                         todaySteps: todaySteps,
                         todayWalkMinutes: todayWalkMinutes,
                         todaySleepHours: todaySleepHours,
-                        isExpanded: $featureRowExpanded,
+                        isExpanded: $state.featureRowExpanded,
                         onAlertTap: handleAlertTap,
-                        onLockTap: { showDevicePicker = true },
-                        onSedentaryTap: { activeSheet = .sit },
-                        onWalkCardTap: { activeSheet = .walk },
-                        onSleepCardTap: { activeSheet = .sleep },
-                        onCardTap: { showChat = true }
+                        onLockTap: { state.showDevicePicker = true },
+                        onSedentaryTap: { state.activeSheet = .sit },
+                        onWalkCardTap: { state.activeSheet = .walk },
+                        onSleepCardTap: { state.activeSheet = .sleep },
+                        onCardTap: { state.showChat = true }
                     )
                     .padding(.horizontal, 20)
                     .padding(.bottom, 6)
@@ -1644,11 +1682,11 @@ private struct HomeBodyView: View {
                             energyColor: energyColor,
                             isScrubbing: isScrubbing,
                             inference: inference,
-                            showDevicePicker: $showDevicePicker,
-                            scrubOffset: $scrubOffset,
-                            manualStateOverride: $manualStateOverride,
-                            onPreview: { showFilm = true },
-                            onSleepAlert: { showSleepReport = true },
+                            showDevicePicker: $state.showDevicePicker,
+                            scrubOffset: $state.scrubOffset,
+                            manualStateOverride: $state.manualStateOverride,
+                            onPreview: { state.showFilm = true },
+                            onSleepAlert: { state.showSleepReport = true },
                             subLine: realSubLine,
                             schedule: hk.realDaySchedule ?? StickState.daySchedule
                         )
@@ -1658,9 +1696,9 @@ private struct HomeBodyView: View {
                         DayTimelineView(
                             schedule: hk.realDaySchedule ?? StickState.daySchedule,
                             now: now,
-                            scrubOffset: $scrubOffset,
-                            showDevicePicker: $showDevicePicker,
-                            manualStateOverride: $manualStateOverride
+                            scrubOffset: $state.scrubOffset,
+                            showDevicePicker: $state.showDevicePicker,
+                            manualStateOverride: $state.manualStateOverride
                         )
                         .equatable()  // schedule 内容稳定时跳过 body 重绘，杜绝轴乱变
                         .frame(width: 50)
@@ -1684,7 +1722,7 @@ private struct HomeBodyView: View {
                         .frame(height: geo.size.height * 0.9 - 44)
                     InputBar(
                         state: displayState,
-                        text: $inputDraft,
+                        text: $state.inputDraft,
                         onOpenChat: openChat,
                         onOpenCamera: openCamera,
                         onPlusTap: openChatWithPhoto,
