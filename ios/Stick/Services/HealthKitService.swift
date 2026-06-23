@@ -105,36 +105,36 @@ final class HealthKitService {
     private let readTypes: Set<HKObjectType> = {
         var s: Set<HKObjectType> = []
         // 基础: 心率/步数/活动能量/HRV
-        if let t = quantityType(.heartRate)                  { s.insert(t) }
-        if let t = quantityType(.stepCount)                  { s.insert(t) }
-        if let t = quantityType(.activeEnergyBurned)        { s.insert(t) }
-        if let t = quantityType(.heartRateVariabilitySDNN)  { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .heartRate)                  { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .stepCount)                  { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)        { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)  { s.insert(t) }
         // 苹果手表 / iPhone
-        if let t = quantityType(.restingHeartRate)         { s.insert(t) }
-        if let t = quantityType(.appleStandTime)            { s.insert(t) }
-        if let t = quantityType(.appleExerciseTime)         { s.insert(t) }
-        if let t = categoryType(.mindfulSession)            { s.insert(t) }
-        if let t = quantityType(.respiratoryRate)          { s.insert(t) }
-        if let t = quantityType(.distanceWalkingRunning)   { s.insert(t) }
-        if let t = quantityType(.flightsClimbed)           { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .restingHeartRate)         { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .appleStandTime)            { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .appleExerciseTime)         { s.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .mindfulSession)            { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .respiratoryRate)          { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)   { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .flightsClimbed)           { s.insert(t) }
         // 睡眠分析
-        if let t = categoryType(.sleepAnalysis)            { s.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)            { s.insert(t) }
         // 步行 mobility (纯 iPhone，iOS 15+) — 仅添加 SDK 支持的类型
-        if let t = quantityType(.walkingSpeed) { s.insert(t) }
-        if let t = quantityType(.walkingDoubleSupportPercentage) { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .walkingSpeed) { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .walkingDoubleSupportPercentage) { s.insert(t) }
         // 听力保护
-        if let t = quantityType(.headphoneAudioExposure) { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .headphoneAudioExposure) { s.insert(t) }
         return s
     }()
 
     /// 写入类型（仅 mock 注入时使用）。需要额外请求写权限。
     private nonisolated let writeTypes: Set<HKSampleType> = {
         var s: Set<HKSampleType> = []
-        if let t = quantityType(.stepCount)                { s.insert(t) }
-        if let t = quantityType(.activeEnergyBurned)      { s.insert(t) }
-        if let t = quantityType(.heartRate)               { s.insert(t) }
-        if let t = quantityType(.distanceWalkingRunning)  { s.insert(t) }
-        if let t = categoryType(.sleepAnalysis)           { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .stepCount)                { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)      { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .heartRate)               { s.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)  { s.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)           { s.insert(t) }
         return s
     }()
 
