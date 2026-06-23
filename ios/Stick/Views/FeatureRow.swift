@@ -186,7 +186,7 @@ struct FeatureRow: View {
                 resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded)
             }
         }
-        .onAppear {
+        .task {
             loadPinned()
             if isExpanded { resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded) }
         }
