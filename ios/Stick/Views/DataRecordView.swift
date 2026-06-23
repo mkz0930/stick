@@ -316,10 +316,9 @@ struct DataRecordView: View {
             }
         }
         .preferredColorScheme(.light)
-        .onAppear {
-            vm.refresh()
-        }
         .task {
+            // 同步刷新内部状态（vm 已是 @Observable，赋值后自动触发 view 重渲染）
+            vm.refresh()
             // vm 已是 @Observable：属性赋值后自动追踪变更并触发 view 重渲染，UI 通过 hk 计算属性读取
             await vm.loadHKData()
             // 每次打开都调 LLM 生成一句洞察
