@@ -575,7 +575,7 @@ private struct AssistantText: View {
                 }
             }
         }
-        .onAppear {
+        .task {
             analysisExpanded = !isStreaming
         }
         .onChange(of: isStreaming) { oldStreaming, nowStreaming in
