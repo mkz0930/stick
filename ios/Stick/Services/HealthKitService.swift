@@ -105,36 +105,36 @@ final class HealthKitService {
     private let readTypes: Set<HKObjectType> = {
         var s: Set<HKObjectType> = []
         // 基础: 心率/步数/活动能量/HRV
-        if let t = HKObjectType.quantityType(forIdentifier: .heartRate)                  { s.insert(t) }
-        if let t = HKObjectType.quantityType(forIdentifier: .stepCount)                  { s.insert(t) }
-        if let t = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)        { s.insert(t) }
-        if let t = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)  { s.insert(t) }
+        if let t = quantityType(.heartRate)                  { s.insert(t) }
+        if let t = quantityType(.stepCount)                  { s.insert(t) }
+        if let t = quantityType(.activeEnergyBurned)        { s.insert(t) }
+        if let t = quantityType(.heartRateVariabilitySDNN)  { s.insert(t) }
         // 苹果手表 / iPhone
-        if let t = HKObjectType.quantityType(forIdentifier: .restingHeartRate)         { s.insert(t) }
-        if let t = HKObjectType.quantityType(forIdentifier: .appleStandTime)            { s.insert(t) }
-        if let t = HKObjectType.quantityType(forIdentifier: .appleExerciseTime)         { s.insert(t) }
-        if let t = HKObjectType.categoryType(forIdentifier: .mindfulSession)            { s.insert(t) }
-        if let t = HKObjectType.quantityType(forIdentifier: .respiratoryRate)          { s.insert(t) }
-        if let t = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)   { s.insert(t) }
-        if let t = HKObjectType.quantityType(forIdentifier: .flightsClimbed)           { s.insert(t) }
+        if let t = quantityType(.restingHeartRate)         { s.insert(t) }
+        if let t = quantityType(.appleStandTime)            { s.insert(t) }
+        if let t = quantityType(.appleExerciseTime)         { s.insert(t) }
+        if let t = categoryType(.mindfulSession)            { s.insert(t) }
+        if let t = quantityType(.respiratoryRate)          { s.insert(t) }
+        if let t = quantityType(.distanceWalkingRunning)   { s.insert(t) }
+        if let t = quantityType(.flightsClimbed)           { s.insert(t) }
         // 睡眠分析
-        if let t = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)            { s.insert(t) }
+        if let t = categoryType(.sleepAnalysis)            { s.insert(t) }
         // 步行 mobility (纯 iPhone，iOS 15+) — 仅添加 SDK 支持的类型
-        if let t = HKObjectType.quantityType(forIdentifier: .walkingSpeed) { s.insert(t) }
-        if let t = HKObjectType.quantityType(forIdentifier: .walkingDoubleSupportPercentage) { s.insert(t) }
+        if let t = quantityType(.walkingSpeed) { s.insert(t) }
+        if let t = quantityType(.walkingDoubleSupportPercentage) { s.insert(t) }
         // 听力保护
-        if let t = HKObjectType.quantityType(forIdentifier: .headphoneAudioExposure) { s.insert(t) }
+        if let t = quantityType(.headphoneAudioExposure) { s.insert(t) }
         return s
     }()
 
     /// 写入类型（仅 mock 注入时使用）。需要额外请求写权限。
     private nonisolated let writeTypes: Set<HKSampleType> = {
         var s: Set<HKSampleType> = []
-        if let t = HKObjectType.quantityType(forIdentifier: .stepCount)                { s.insert(t) }
-        if let t = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)      { s.insert(t) }
-        if let t = HKObjectType.quantityType(forIdentifier: .heartRate)               { s.insert(t) }
-        if let t = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)  { s.insert(t) }
-        if let t = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)           { s.insert(t) }
+        if let t = quantityType(.stepCount)                { s.insert(t) }
+        if let t = quantityType(.activeEnergyBurned)      { s.insert(t) }
+        if let t = quantityType(.heartRate)               { s.insert(t) }
+        if let t = quantityType(.distanceWalkingRunning)  { s.insert(t) }
+        if let t = categoryType(.sleepAnalysis)           { s.insert(t) }
         return s
     }()
 
@@ -214,7 +214,7 @@ final class HealthKitService {
 
     /// 数据来源设备 (iPhone / Apple Watch / 等)
     private func sourceName() -> String? {
-        guard let type = HKObjectType.quantityType(forIdentifier: .heartRate) else { return nil }
+        guard let type = quantityType(.heartRate) else { return nil }
         let q = HKSampleQuery(
             sampleType: type,
             predicate: HKQuery.predicateForSamples(withStart: Date().addingTimeInterval(-120), end: nil, options: []),
@@ -228,7 +228,7 @@ final class HealthKitService {
     }
 
     private nonisolated func recentAverage(_ id: HKQuantityTypeIdentifier, from: Date, unit: HKUnit) async -> Double? {
-        guard let type = HKObjectType.quantityType(forIdentifier: id) else { return nil }
+        guard let type = quantityType(id) else { return nil }
         return await withCheckedContinuation { (cont: CheckedContinuation<Double?, Never>) in
             let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: [])
             let q = HKStatisticsQuery(quantityType: type, quantitySamplePredicate: predicate, options: .discreteAverage) { _, stat, _ in
@@ -244,7 +244,7 @@ final class HealthKitService {
     }
 
     private nonisolated func recentSum(_ id: HKQuantityTypeIdentifier, from: Date, unit: HKUnit) async -> Double? {
-        guard let type = HKObjectType.quantityType(forIdentifier: id) else { return nil }
+        guard let type = quantityType(id) else { return nil }
         return await withCheckedContinuation { (cont: CheckedContinuation<Double?, Never>) in
             let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: [])
             let q = HKStatisticsQuery(quantityType: type, quantitySamplePredicate: predicate, options: .cumulativeSum) { _, stat, _ in
@@ -259,7 +259,7 @@ final class HealthKitService {
 
     /// 正念分钟数（HKCategoryType 需要单独处理，不能用 recentSum）
     private nonisolated func recentMindfulMinutes(from: Date) async -> Double? {
-        guard let type = HKObjectType.categoryType(forIdentifier: .mindfulSession) else { return nil }
+        guard let type = categoryType(.mindfulSession) else { return nil }
         return await withCheckedContinuation { (cont: CheckedContinuation<Double?, Never>) in
             let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: [])
             let q = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
@@ -406,7 +406,7 @@ final class HealthKitService {
     }
 
     func todayHeartRate() async -> Int? {
-        guard let type = HKObjectType.quantityType(forIdentifier: .heartRate) else { return nil }
+        guard let type = quantityType(.heartRate) else { return nil }
         return await withCheckedContinuation { cont in
             let from = Calendar.current.startOfDay(for: Date())
             let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: .strictStartDate)
@@ -695,7 +695,7 @@ final class HealthKitService {
 
     /// 辅助：查询某类型近 N 个样本的值列表
     private func fetchSamples(_ id: HKQuantityTypeIdentifier, from: Date, limit: Int = 100, unit: HKUnit) async -> [Double] {
-        guard let type = HKObjectType.quantityType(forIdentifier: id) else { return [] }
+        guard let type = quantityType(id) else { return [] }
         return await withCheckedContinuation { cont in
             let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: .strictStartDate)
             let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
@@ -1216,7 +1216,7 @@ final class HealthKitService {
         var totalSamples = 0
 
         for (name, id, unit) in types {
-            guard let type = HKObjectType.quantityType(forIdentifier: id) else {
+            guard let type = quantityType(id) else {
                 print("[Export] ⚠️ \(name) (\(id.rawValue)) → type 为 nil，跳过")
                 continue
             }
@@ -1232,7 +1232,7 @@ final class HealthKitService {
         }
 
         // 睡眠
-        if let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+        if let sleepType = categoryType(.sleepAnalysis) {
             let sleepSamples = await fetchCategorySamples(type: sleepType, from: from, to: to)
             totalSamples += sleepSamples.count
             print("[Export] 睡眠分析: \(sleepSamples.count) 样本")
@@ -1346,7 +1346,7 @@ final class HealthKitService {
             let hourSteps = Int(Double(stepsPerDay) * weight / 14.0)  // 14 小时活动 / 1 小时其它
             cumulativeSteps += hourSteps
 
-            if let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) {
+            if let stepType = quantityType(.stepCount) {
                 let sample = HKQuantitySample(
                     type: stepType,
                     quantity: HKQuantity(unit: .count(), doubleValue: Double(hourSteps)),
@@ -1354,7 +1354,7 @@ final class HealthKitService {
                 )
                 out.append(sample)
             }
-            if let distType = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning) {
+            if let distType = quantityType(.distanceWalkingRunning) {
                 // 平均步幅 0.75m
                 let meters = Double(hourSteps) * 0.75
                 let sample = HKQuantitySample(
@@ -1364,7 +1364,7 @@ final class HealthKitService {
                 )
                 out.append(sample)
             }
-            if let energyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) {
+            if let energyType = quantityType(.activeEnergyBurned) {
                 // 每千步约 40 kcal
                 let kcal = Double(hourSteps) * 0.04
                 let sample = HKQuantitySample(
@@ -1400,7 +1400,7 @@ final class HealthKitService {
 
         // 3. 睡眠 — 当晚 23:30 到次日 06:30（HKCategorySample，value=2 表示 Asleep）
         //   跳过今天（避免注入未来时间）
-        if !isToday, let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+        if !isToday, let sleepType = categoryType(.sleepAnalysis) {
             // "当晚"= day 当天 23:30 → 次日 06:30
             // 对于 day=N（N>0），就寝发生在 day=N 当晚 23:30，醒来在 day=N+1 早晨 06:30
             // 所以 sleep start = day 23:30, end = day+1 06:30
