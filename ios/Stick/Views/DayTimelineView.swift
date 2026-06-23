@@ -674,7 +674,7 @@ struct DevicePickerSheet: View {
                 }
             }
         }
-        .onAppear {
+        .task {
             // 假装扫一下
             withAnimation { scanning = true }
         }
