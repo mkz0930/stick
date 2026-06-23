@@ -598,6 +598,7 @@ struct ContentView: View {
                     backgroundedAt: backgroundedAt,
                     homeSedentaryMinutes: homeSedentaryMinutes,
                     hasValidSleepData: hasValidSleepData,
+                    pendingSitMetricsTask: nil,
                     walkingQuality: walkingQuality,
                     realHeartRate: realHeartRate,
                     inference: inference,
@@ -1110,6 +1111,12 @@ struct HomeState {
     var backgroundedAt: Date?
     var homeSedentaryMinutes: Int
     var hasValidSleepData: Bool
+    /// single-flight 锁：5 个写入源（Timer 1s / Timer 30s / scenePhase / .task / lastMovementTime
+    /// onChange）同时改 sit metrics 时，只允许一个 Task 真正跑 HealthKit 查询并写状态。
+    /// 避免「回到桌面再回来」秒表跳数，也避免 stale `state.realHeartRate` 被跨 await 读到。
+    /// `Task` 是引用类型，struct 字段塞可选引用即可；
+    /// 通过 @Binding 投影时由 SwiftUI 同步回 ContentView 的 @State 存储。
+    var pendingSitMetricsTask: Task<Void, Never>?
 
     // MARK: 实时分析（HealthKit 30s 抓取）
     var walkingQuality: WalkingQualityData?
@@ -1195,8 +1202,62 @@ private struct MainContentView<SheetContent: View>: View {
     private func handleLastMovementTimeChange(oldValue: Date?, newValue: Date?) {
         guard newValue != nil, oldValue != newValue else { return }
         guard !Self.isRunningForPreviews else { return }
+        // 重置走"单飞 reset"路径：先取消 in-flight 任务（避免它 sleep 完后覆盖 reset），
+        // 再原子地把秒表归零、清空 start time，并刷新 lastSitAnalysisTime 让下个 30s tick 重新算
+        state.pendingSitMetricsTask?.cancel()
+        state.pendingSitMetricsTask = nil
         state.currentSitMinutes = 0
         state.currentSitStartTime = nil
+        state.lastSitAnalysisTime = Date()
+    }
+
+    /// single-flight 入口：5 个写入源（Timer 1s / Timer 30s / scenePhase 恢复 / .task 启动 /
+    /// lastMovementTime 重置）全部走这里。已有 Task 在跑就复用，不再 fork 新的 HealthKit 查询。
+    /// `reason` 仅用于日志排障；`reset` 走单独路径（直接归零）。
+    /// 返回 true 表示本次新建并派发了任务，false 表示已有任务在跑、复用。
+    @discardableResult
+    private func scheduleSitMetricsUpdate(reason: String) -> Bool {
+        if let existing = state.pendingSitMetricsTask, !existing.isCancelled {
+            return false  // 已有 Task 在跑，复用，不 fork 新的
+        }
+        state.pendingSitMetricsTask = Task { @MainActor in
+            defer { state.pendingSitMetricsTask = nil }
+            if Task.isCancelled { return }
+            // 抓 HealthKit 当前 session 久坐（小时窗覆盖午餐后等长坐场景）
+            let prevMinutes = state.currentSitMinutes
+            let newMinutes = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
+            if Task.isCancelled { return }
+            // session 延长：从当前时刻往前推 newMinutes 分钟作为开始时刻
+            if newMinutes > prevMinutes {
+                state.currentSitStartTime = Date().addingTimeInterval(-Double(newMinutes) * 60)
+            }
+            state.currentSitMinutes = newMinutes
+            if newMinutes == 0 {
+                state.currentSitStartTime = nil
+            }
+            state.lastSitAnalysisTime = Date()
+            // 同步到 Widget（仅在 sit + 有 session 时写，避免 sleep/stand 反复写）
+            if displayState == .sit && newMinutes > 0 {
+                let startTime = Date().addingTimeInterval(-Double(newMinutes) * 60)
+                let snap = SharedStickState(
+                    stateRaw: displayState.rawValue,
+                    englishName: displayState.englishName,
+                    actionPhrase: displayState.actionPhrase,
+                    heartRate: state.realHeartRate ?? primaryHeartRate,
+                    mood: state.walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
+                    durationMinutes: primaryDurationMinutes,
+                    subLine: realSubLine,
+                    updatedAt: Date(),
+                    currentSedentarySeconds: newMinutes * 60,
+                    sedentaryStartTime: startTime
+                )
+                SharedStateStore.write(snap)
+            }
+            #if canImport(WidgetKit)
+            WidgetCenter.shared.reloadAllTimelines()
+            #endif
+        }
+        return true
     }
 
     @ViewBuilder
@@ -1286,41 +1347,7 @@ private struct MainContentView<SheetContent: View>: View {
             // 每 30 秒基于真实快照重新分析连续久坐时长
             if Date().timeIntervalSince(state.lastSitAnalysisTime) >= 30 {
                 state.lastSitAnalysisTime = Date()
-                Task {
-                    // 在 Task 内读取 currentSitMinutes，避免与 lastMovementTime onChange 竞争导致 stale 数据
-                    let prevMinutes = await MainActor.run { state.currentSitMinutes }
-                    let newMinutes = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
-                    // 如果新分析结果比当前记录更长，说明session在延续，更新开始时刻
-                    if newMinutes > prevMinutes {
-                        // session 延长：从当前时刻往前推 newMinutes 分钟作为开始时刻
-                        await MainActor.run {
-                            state.currentSitStartTime = Date().addingTimeInterval(-Double(newMinutes) * 60)
-                        }
-                    }
-                    await MainActor.run {
-                        state.currentSitMinutes = newMinutes
-                        if newMinutes == 0 {
-                            state.currentSitStartTime = nil
-                        }
-                    }
-                    // 定期写入 SharedState（同步到 Widget）
-                    if displayState == .sit && newMinutes > 0 {
-                        let startTime = Date().addingTimeInterval(-Double(newMinutes) * 60)
-                        let snap = SharedStickState(
-                            stateRaw: displayState.rawValue,
-                            englishName: displayState.englishName,
-                            actionPhrase: displayState.actionPhrase,
-                            heartRate: state.realHeartRate ?? primaryHeartRate,
-                            mood: state.walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
-                            durationMinutes: primaryDurationMinutes,
-                            subLine: realSubLine,
-                            updatedAt: Date(),
-                            currentSedentarySeconds: newMinutes * 60,
-                            sedentaryStartTime: startTime
-                        )
-                        SharedStateStore.write(snap)
-                    }
-                }
+                _ = scheduleSitMetricsUpdate(reason: "timer1s-30s-tick")
             }
         }
         .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
@@ -1335,24 +1362,9 @@ private struct MainContentView<SheetContent: View>: View {
                 state.walkingQuality = WalkingQualityData.from(wq)
                 let hr = await HealthKitService.shared.todayHeartRate()
                 state.realHeartRate = hr
-                // 持续更新 SharedState（让 Widget 始终显示最新的久坐秒数）
-                let sessionMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
-                let snap = SharedStickState(
-                    stateRaw: displayState.rawValue,
-                    englishName: displayState.englishName,
-                    actionPhrase: displayState.actionPhrase,
-                    heartRate: hr ?? state.realHeartRate ?? primaryHeartRate,
-                    mood: state.walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
-                    durationMinutes: primaryDurationMinutes,
-                    subLine: realSubLine,
-                    updatedAt: Date(),
-                    currentSedentarySeconds: sessionMins * 60,
-                    sedentaryStartTime: sessionMins > 0 ? Date().addingTimeInterval(-Double(sessionMins) * 60) : nil
-                )
-                SharedStateStore.write(snap)
-                #if canImport(WidgetKit)
-                WidgetCenter.shared.reloadAllTimelines()
-                #endif
+                // 久坐秒表走 single-flight 入口：避免与 Timer 1s 的 30s tick / scenePhase
+                // 恢复 / .task 启动 / lastMovementTime 重置互相踩
+                _ = scheduleSitMetricsUpdate(reason: "timer30s-tick")
                 // 每 5 分钟重新生成一次 24h 时刻表（不必 30s 一次，太重）
                 if Calendar.current.component(.minute, from: Date()) % 5 == 0 {
                     await HealthKitService.shared.computeDaySchedule()
@@ -1376,17 +1388,9 @@ private struct MainContentView<SheetContent: View>: View {
                     _ = await HealthKitService.shared.captureSnapshot()
 
                     // 2) **优先** 算当前 session 久坐（live 秒表要的数）
-                    //    基于"最后一次明显步数时间"，黑屏期间走动过 → 自动截断/重置
-                    let sessionMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
-                    if sessionMins > 0 {
-                        state.currentSitStartTime = Date().addingTimeInterval(-Double(sessionMins) * 60)
-                        state.currentSitMinutes = sessionMins
-                    } else {
-                        // 最近 4h 有走动/活动，重置
-                        state.currentSitStartTime = nil
-                        state.currentSitMinutes = 0
-                    }
-                    state.lastSitAnalysisTime = Date()
+                    //    走 single-flight 入口：避免与 Timer 1s/30s / .task / lastMovementTime
+                    //    互相踩。session=0 时 helper 内部会把秒表归零 + 清空 start time。
+                    _ = scheduleSitMetricsUpdate(reason: "scenePhase-active")
 
                     // 3) 累计 + 心率 + 步态 + 时刻表 — 并行刷新（不再阻塞秒表）
                     async let sedentaryTask: (minutes: Int, hasValidSleep: Bool) = {
@@ -1484,32 +1488,10 @@ private struct MainContentView<SheetContent: View>: View {
             } else {
                 state.hasValidSleepData = false
             }
-            let sitMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
-            state.currentSitMinutes = sitMins
-            if sitMins > 0 {
-                state.currentSitStartTime = Date().addingTimeInterval(-Double(sitMins) * 60)
-            }
-            state.lastSitAnalysisTime = Date()
+            // 久坐秒表走 single-flight 入口（与 Timer 1s/30s / scenePhase / lastMovementTime 互斥）
+            _ = scheduleSitMetricsUpdate(reason: "task-startup")
 
-            // 3. 写入 SharedState（Widget 同步）
-            let snap = SharedStickState(
-                stateRaw: displayState.rawValue,
-                englishName: displayState.englishName,
-                actionPhrase: displayState.actionPhrase,
-                heartRate: state.realHeartRate ?? primaryHeartRate,
-                mood: state.walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
-                durationMinutes: primaryDurationMinutes,
-                subLine: realSubLine,
-                updatedAt: Date(),
-                currentSedentarySeconds: sitMins * 60,
-                sedentaryStartTime: sitMins > 0 ? Date().addingTimeInterval(-Double(sitMins) * 60) : nil
-            )
-            SharedStateStore.write(snap)
-            #if canImport(WidgetKit)
-            WidgetCenter.shared.reloadAllTimelines()
-            #endif
-
-            // 4. 第二组：24h 时刻表 + 步态质量（延迟 250ms，非首屏立即显示）
+            // 3. 第二组：24h 时刻表 + 步态质量（延迟 250ms，非首屏立即显示）
             try? await Task.sleep(nanoseconds: 250_000_000)
             await HealthKitService.shared.computeDaySchedule()
             let wq = await HealthKitService.shared.todayWalkingQuality()
