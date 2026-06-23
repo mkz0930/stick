@@ -234,21 +234,31 @@ enum MetricID: String, CaseIterable, Hashable, Identifiable {
     /// 对应的 HealthKit type (用于真实 query 授权状态)
     var hkType: HKObjectType? {
         switch self {
-        case .steps:            return HKObjectType.quantityType(forIdentifier: .stepCount)
-        case .distance:         return HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)
-        case .flightsClimbed:   return HKObjectType.quantityType(forIdentifier: .flightsClimbed)
-        case .activeEnergy:     return HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)
-        case .standHours:       return HKObjectType.quantityType(forIdentifier: .appleStandTime)
-        case .exerciseMinutes:  return HKObjectType.quantityType(forIdentifier: .appleExerciseTime)
-        case .mindfulMinutes:   return HKObjectType.categoryType(forIdentifier: .mindfulSession)
-        case .heartRate:        return HKObjectType.quantityType(forIdentifier: .heartRate)
-        case .restingHeartRate: return HKObjectType.quantityType(forIdentifier: .restingHeartRate)
-        case .hrv:              return HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)
-        case .respiratoryRate:  return HKObjectType.quantityType(forIdentifier: .respiratoryRate)
-        case .sleepStage:       return HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
+        case .steps:            return Self.quantityType(.stepCount)
+        case .distance:         return Self.quantityType(.distanceWalkingRunning)
+        case .flightsClimbed:   return Self.quantityType(.flightsClimbed)
+        case .activeEnergy:     return Self.quantityType(.activeEnergyBurned)
+        case .standHours:       return Self.quantityType(.appleStandTime)
+        case .exerciseMinutes:  return Self.quantityType(.appleExerciseTime)
+        case .mindfulMinutes:   return Self.categoryType(.mindfulSession)
+        case .heartRate:        return Self.quantityType(.heartRate)
+        case .restingHeartRate: return Self.quantityType(.restingHeartRate)
+        case .hrv:              return Self.quantityType(.heartRateVariabilitySDNN)
+        case .respiratoryRate:  return Self.quantityType(.respiratoryRate)
+        case .sleepStage:       return Self.categoryType(.sleepAnalysis)
         case .bloodOxygen, .sleepApnea, .posture, .stride, .neckAngle:
             return nil   // iPhone 内置 HealthKit 不支持 (posture/stride/neckAngle 走外设)
         }
+    }
+
+    // MARK: - HKObjectType 查询 helper
+    // HKObjectType 系统常量访问是线程安全的，static 让 helper 能在任意位置调用
+    private static func quantityType(_ id: HKQuantityTypeIdentifier) -> HKQuantityType? {
+        HKObjectType.quantityType(forIdentifier: id)
+    }
+
+    private static func categoryType(_ id: HKCategoryTypeIdentifier) -> HKCategoryType? {
+        HKObjectType.categoryType(forIdentifier: id)
     }
 }
 
