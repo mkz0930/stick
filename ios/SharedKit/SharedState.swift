@@ -65,7 +65,8 @@ enum SharedStateStore {
         if let data = try? JSONEncoder().encode(state) {
             defaults.set(data, forKey: key)
         }
-        // Widget 暂时屏蔽；恢复 widget 后再启用 reloadAllTimelines()
+        // 注：caller 负责触发 WidgetCenter.shared.reloadAllTimelines()，并加 50ms 延迟
+        // 保证 UserDefaults fsync 完成后再让 widget 读取，避免陈旧 1 帧
     }
 
     // MARK: - Widget → App：pending risk alert（OpenRiskAlertIntent 写，主 app 读）

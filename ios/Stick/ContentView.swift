@@ -1225,7 +1225,11 @@ private struct MainContentView<SheetContent: View>: View {
         )
         SharedStateStore.write(snap)
         #if canImport(WidgetKit)
-        WidgetCenter.shared.reloadAllTimelines()
+        // 延迟 50ms 给 UserDefaults 落盘时间，避免 widget reload 时读到旧值
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            WidgetCenter.shared.reloadAllTimelines()
+        }
         #endif
     }
 
@@ -1284,7 +1288,11 @@ private struct MainContentView<SheetContent: View>: View {
                 SharedStateStore.write(snap)
             }
             #if canImport(WidgetKit)
-            WidgetCenter.shared.reloadAllTimelines()
+            // 延迟 50ms 给 UserDefaults 落盘时间，避免 widget reload 时读到旧值
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 50_000_000)
+                WidgetCenter.shared.reloadAllTimelines()
+            }
             #endif
         }
         return true
