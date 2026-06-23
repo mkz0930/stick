@@ -175,16 +175,21 @@ extension StickState {
     }
 
     /// 一个典型上班族的 24h 时刻表。所有分钟都覆盖到。
-    /// 22:00–07:00 标记为 .sleep（凌晨/夜间休息）
-    /// 19:00–22:00 原本是 .stand，删除 .stand 后并入 .walk（晚间散步/休闲）
+    /// 包含显式的 .stand 段（站立汇报 / 下班站立），避免长时间步行段混入静态站立场景。
+    /// 步行段按通勤 / 午餐 / 晚间休闲拆开（不超过 1.5h），更贴近真实节奏。
     static let daySchedule: [DaySegment] = [
-        DaySegment(state: .sleep, startMinute: 0,    endMinute: 420, stepCount: nil),    // 00:00 – 07:00  夜间 / 睡眠
-        DaySegment(state: .walk,  startMinute: 420,  endMinute: 510, stepCount: 2000),   // 07:00 – 08:30  晨间通勤
-        DaySegment(state: .sit,   startMinute: 510,  endMinute: 720, stepCount: nil),    // 08:30 – 12:00  上午工作
-        DaySegment(state: .walk,  startMinute: 720,  endMinute: 810, stepCount: 1500),   // 12:00 – 13:30  午餐 + 散步
-        DaySegment(state: .sit,   startMinute: 810,  endMinute: 1080, stepCount: nil),   // 13:30 – 18:00  下午工作
-        DaySegment(state: .walk,  startMinute: 1080, endMinute: 1320, stepCount: 3000),  // 18:00 – 22:00  晚间通勤 + 休闲（合并）
-        DaySegment(state: .sleep, startMinute: 1320, endMinute: 1440, stepCount: nil),   // 22:00 – 24:00  夜间休息
+        DaySegment(state: .sleep, startMinute: 0,    endMinute: 420,  stepCount: nil),    // 00:00 – 07:00  夜间 / 睡眠 (7h)
+        DaySegment(state: .walk,  startMinute: 420,  endMinute: 480,  stepCount: 1500),   // 07:00 – 08:00  晨起通勤 (1h)
+        DaySegment(state: .sit,   startMinute: 480,  endMinute: 540,  stepCount: nil),    // 08:00 – 09:00  早会工位 (1h)
+        DaySegment(state: .stand, startMinute: 540,  endMinute: 570,  stepCount: nil),    // 09:00 – 09:30  站立汇报 (30min)
+        DaySegment(state: .sit,   startMinute: 570,  endMinute: 720,  stepCount: nil),    // 09:30 – 12:00  上午工作 (2.5h)
+        DaySegment(state: .walk,  startMinute: 720,  endMinute: 780,  stepCount: 1200),   // 12:00 – 13:00  午餐散步 (1h)
+        DaySegment(state: .sit,   startMinute: 780,  endMinute: 1080, stepCount: nil),    // 13:00 – 18:00  下午工作 (5h)
+        DaySegment(state: .stand, startMinute: 1080, endMinute: 1110, stepCount: nil),    // 18:00 – 18:30  下班站立 (30min)
+        DaySegment(state: .walk,  startMinute: 1110, endMinute: 1170, stepCount: 1500),   // 18:30 – 19:30  通勤 / 晚餐前 (1h)
+        DaySegment(state: .sit,   startMinute: 1170, endMinute: 1230, stepCount: nil),    // 19:30 – 20:30  晚餐 (1h)
+        DaySegment(state: .walk,  startMinute: 1230, endMinute: 1320, stepCount: 2000),   // 20:30 – 22:00  晚间休闲 (1.5h)
+        DaySegment(state: .sleep, startMinute: 1320, endMinute: 1440, stepCount: nil),    // 22:00 – 24:00  入睡 (2h)
     ]
 
     /// 给定时间查到当前 state
