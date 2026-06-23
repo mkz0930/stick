@@ -81,6 +81,16 @@ final class HealthKitService {
         self.store = isPreview ? nil : HKHealthStore()
     }
 
+    // MARK: - HKObjectType 查询 helper
+    // HKObjectType 系统常量访问是线程安全的，标 `nonisolated` 让 query helper 能在任意 actor 上调用
+    private nonisolated func quantityType(_ id: HKQuantityTypeIdentifier) -> HKQuantityType? {
+        HKObjectType.quantityType(forIdentifier: id)
+    }
+
+    private nonisolated func categoryType(_ id: HKCategoryTypeIdentifier) -> HKCategoryType? {
+        HKObjectType.categoryType(forIdentifier: id)
+    }
+
     private(set) var lastSnapshot: HealthSnapshot?
     private(set) var isAuthorized: Bool = false
     private(set) var error: String?
@@ -267,7 +277,7 @@ final class HealthKitService {
     /// 今日睡眠总时长（从 Health App 手动记录的睡眠数据）
     /// 注意：只统计 Asleep 样本（value=2,3,5,6），排除 Awake（value=4）和 InBed（value=0,1）
     func todaySleepHours() async -> Double? {
-        guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else { return nil }
+        guard let sleepType = categoryType(.sleepAnalysis) else { return nil }
         let startOfDay = Calendar.current.startOfDay(for: Date())
         return await withCheckedContinuation { (cont: CheckedContinuation<Double?, Never>) in
             let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: nil, options: [])
@@ -441,7 +451,7 @@ final class HealthKitService {
     /// 逻辑：从 04:00 开始扫描步数，第一条 >50 步的时间 = 真正起床
     /// 夜间起夜（<50步）不算起床；6 点前轻微活动也不算
     func queryWakeUpTime() async -> Date? {
-        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return nil }
+        guard let stepType = quantityType(.stepCount) else { return nil }
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: Date())
         guard let searchStart = calendar.date(bySettingHour: 4, minute: 0, second: 0, of: startOfDay) else { return nil }
@@ -472,7 +482,7 @@ final class HealthKitService {
     /// 在 12:00-14:00 午休窗口内，通过步数聚类推断午休时间
     /// 如果两个步行活动之间有 ≥30min 的连续无步数间隔 → 那段间隔是午休，不计久坐
     private func detectLunchNap() async -> ClosedRange<Date>? {
-        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return nil }
+        guard let stepType = quantityType(.stepCount) else { return nil }
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: Date())
         guard let windowStart = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: startOfDay),
@@ -545,7 +555,7 @@ final class HealthKitService {
     /// 有记录 = 实际清醒（戴耳机听东西），即便步数为零也不算睡眠。
     /// 返回分钟级闭合区间数组，每段代表一段清醒期。
     func detectNightWakePeriods() async -> [ClosedRange<Int>] {
-        guard let audioType = HKObjectType.quantityType(forIdentifier: .headphoneAudioExposure) else { return [] }
+        guard let audioType = quantityType(.headphoneAudioExposure) else { return [] }
         let calendar = Calendar.current
         let now = Date()
 
@@ -698,7 +708,7 @@ final class HealthKitService {
     }
 
     func todaySedentaryMinutes() async -> Int {
-        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return 0 }
+        guard let stepType = quantityType(.stepCount) else { return 0 }
         let startOfDay = Calendar.current.startOfDay(for: Date())
         let now = Date()
 
@@ -786,7 +796,7 @@ final class HealthKitService {
     /// 算法与 `todaySedentaryMinutes()` 一致：/80 divisor 反推步行时间 + 4h 无活动长间隔判睡眠。
     /// 唯一差异：本方法对全部 1440 分钟分类，而非只统计久坐分钟数。
     func computeDaySchedule() async {
-        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return }
+        guard let stepType = quantityType(.stepCount) else { return }
         let startOfDay = Calendar.current.startOfDay(for: Date())
         let now = Date()
 
@@ -1022,7 +1032,7 @@ final class HealthKitService {
     /// 从 HealthKit 直接查询最近一次有效步数（>10步）的时间
     /// 解决 app 快照覆盖不到历史时间段的问题
     private func queryLatestStepTime(hours: Double = 4) async -> Date? {
-        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return nil }
+        guard let stepType = quantityType(.stepCount) else { return nil }
         let cutoff = Date().addingTimeInterval(-hours * 3600)
         return await withCheckedContinuation { cont in
             let predicate = HKQuery.predicateForSamples(withStart: cutoff, end: nil, options: .strictStartDate)
@@ -1367,7 +1377,7 @@ final class HealthKitService {
         }
 
         // 2. 心率 — 每 10 分钟一条，活动时段稍高
-        guard let hrType = HKObjectType.quantityType(forIdentifier: .heartRate) else { return out }
+        guard let hrType = quantityType(.heartRate) else { return out }
         var t = cal.startOfDay(for: day)
         while t < dayEnd {
             let hour = cal.component(.hour, from: t)
@@ -1480,7 +1490,7 @@ extension HealthKitService {
     /// 己 60s 抓一次的本地聚合快照），App 刚启动时本地为空会误判为
     /// 「无步数」导致晨报不生成。改用 HKSampleQuery 直接查 24h 窗口。
     func hasStepData() async -> Bool {
-        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return false }
+        guard let stepType = quantityType(.stepCount) else { return false }
         let startOfDay = Calendar.current.startOfDay(for: Date())
         let windowStart = startOfDay.addingTimeInterval(-86400) // 包含昨日 + 今日
         return await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
@@ -1569,7 +1579,7 @@ extension HealthKitService {
     /// - Parameter age: 年龄，默认35岁
     /// - Returns: 心率区间分布和统计数据
     func analyzeYesterdayHeartRateZones(age: Int = 35) async -> HeartRateZoneAnalysis? {
-        guard let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate) else { return nil }
+        guard let heartRateType = quantityType(.heartRate) else { return nil }
 
         let calendar = Calendar.current
         let startOfToday = calendar.startOfDay(for: Date())
@@ -1653,7 +1663,7 @@ extension HealthKitService {
 
     /// 获取昨日最高心率
     func yesterdayMaxHeartRate() async -> Double? {
-        guard let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate) else { return nil }
+        guard let heartRateType = quantityType(.heartRate) else { return nil }
         let calendar = Calendar.current
         guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date())),
               let endOfYesterday = calendar.date(byAdding: .day, value: 1, to: yesterday) else {
@@ -1747,7 +1757,7 @@ extension HealthKitService {
     /// - Parameter daysBack: 从今天起回溯多少天 (含今天)
     /// - Returns: 按 startDate 升序排列的样本
     func querySleepAnalysis(daysBack: Int) async -> [SleepStageRecord] {
-        guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else { return [] }
+        guard let sleepType = categoryType(.sleepAnalysis) else { return [] }
         let calendar = Calendar.current
         let startOfToday = calendar.startOfDay(for: Date())
         guard let start = calendar.date(byAdding: .day, value: -max(daysBack, 1), to: startOfToday) else { return [] }
