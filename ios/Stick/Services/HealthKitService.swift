@@ -191,7 +191,7 @@ final class HealthKitService {
             flightsClimbed: (await flights).map { Int($0) },
             sourceName: source
         )
-        // 写 @Published 属性必须切回主线程，避免 SwiftUI 视图更新在后台线程触发
+        // 必须切回主线程写入：@Observable 触发视图更新在 SwiftUI 主线程上派发，避免后台线程触发 UI 刷新
         await Task { @MainActor in
             self.lastSnapshot = snapshot
             // 增量步数 > 10 → 打断久坐
@@ -940,7 +940,7 @@ final class HealthKitService {
                     i = j
                 }
 
-                // 切回主线程写入 @Published 属性（只在内容真变化时才写，避免触发不必要的视图重渲染）
+                // 切回主线程写入：@Observable 追踪变更后驱动视图更新（只在内容真变化时才写，避免触发不必要的视图重渲染）
                 Task { @MainActor in
                     guard self.realDaySchedule != segments else { return }
                     self.realDaySchedule = segments
