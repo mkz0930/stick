@@ -1287,7 +1287,7 @@ private struct FilmProgressBar: View {
                         time = Double(pct) * durationSec
                     }
             )
-            .onAppear { trackWidth = g.size.width }
+            .task { trackWidth = g.size.width }
             .onChange(of: g.size.width) { _, new in trackWidth = new }
         }
         .frame(height: 22)
