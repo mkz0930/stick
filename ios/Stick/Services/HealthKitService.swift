@@ -795,10 +795,22 @@ final class HealthKitService {
     /// 基于今天真实 HealthKit 步数数据生成的 24h 时刻表
     /// 算法与 `todaySedentaryMinutes()` 一致：/80 divisor 反推步行时间 + 4h 无活动长间隔判睡眠。
     /// 唯一差异：本方法对全部 1440 分钟分类，而非只统计久坐分钟数。
+    /// 节流：schedule 不会 1 分钟变化（HealthKit 步数聚合也是按分钟 bucket），最少 5 分钟才重算一次，
+    /// 避免 Timer 30s tick / scenePhase 切换 / .task 启动高频调用导致 HK 查询风暴。
+    private var lastScheduleComputeAt: Date = .distantPast
+    private let scheduleRecomputeInterval: TimeInterval = 5 * 60
+
     func computeDaySchedule() async {
-        guard let stepType = quantityType(.stepCount) else { return }
-        let startOfDay = Calendar.current.startOfDay(for: Date())
+        // 节流：5 分钟内已有结果则跳过（首次或跨日会重算）
         let now = Date()
+        if realDaySchedule != nil,
+           now.timeIntervalSince(lastScheduleComputeAt) < scheduleRecomputeInterval {
+            return
+        }
+        lastScheduleComputeAt = now
+
+        guard let stepType = quantityType(.stepCount) else { return }
+        let startOfDay = Calendar.current.startOfDay(for: now)
 
         // 快速检查：今天是否有任何步数样本（模拟器无 HealthKit 数据时避免全算久坐）
         let hasStepData = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
