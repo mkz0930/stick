@@ -11,6 +11,12 @@ final class MorningReportTrigger {
     private var lastActiveDate: Date?
     /// 持有 NotificationCenter observer token，避免闭包被释放后悬空
     private var didBecomeActiveObserver: NSObjectProtocol?
+    /// single-flight 锁：同一时刻只允许一个 `checkAndGenerate` 任务在跑，
+    /// 避免「上午多次解锁屏 → 5 份同一份昨天报告 → 5 条本地通知轰炸」。
+    private var pendingCheck: Task<Void, Never>?
+    /// 「上一次成功生成报告所对应的昨日日期字符串」缓存，
+    /// 兜底防止 store 写盘前被并发 check 抢跑（load 还没落地，下一次 unlock 又开始一次）。
+    private var lastGeneratedDateKey: String?
 
     private init() {}
 
@@ -23,14 +29,39 @@ final class MorningReportTrigger {
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    await self?.checkAndGenerate()
+                // single-flight：如果已有 Task 在跑，直接复用，不再 fork 新的
+                guard let self else { return }
+                if self.pendingCheck == nil {
+                    self.pendingCheck = Task { @MainActor [weak self] in
+                        await self?.checkAndGenerate()
+                        self?.pendingCheck = nil  // 释放锁，下次 unlock 才会重新 fork
+                    }
                 }
             }
         }
         monitorTask = Task { [weak self] in
             await self?.runMonitor()
         }
+    }
+
+    func stopMonitoring() {
+        pendingCheck?.cancel()
+        pendingCheck = nil
+        if let token = didBecomeActiveObserver {
+            NotificationCenter.default.removeObserver(token)
+            didBecomeActiveObserver = nil
+        }
+        monitorTask?.cancel()
+        monitorTask = nil
+    }
+
+    deinit {
+        // 单例永生，理论上不会调，但写上保险
+        pendingCheck?.cancel()
+        if let token = didBecomeActiveObserver {
+            NotificationCenter.default.removeObserver(token)
+        }
+        monitorTask?.cancel()
     }
 
     private func runMonitor() async {
@@ -58,8 +89,14 @@ final class MorningReportTrigger {
         guard let yesterday = calendar.date(byAdding: .day, value: -1, to: now) else { return }
         let yesterdayStr = Self.dateFormatter.string(from: yesterday)
 
-        // 检查昨日是否已有报告
+        // 内存级去重：同进程内本次 unlock 触发的 sleep 15min 期间再 unlock 不会重复进 sleep
+        if lastGeneratedDateKey == yesterdayStr {
+            return
+        }
+
+        // 检查昨日是否已有报告（持久层去重）
         if MorningReportStore.shared.load(date: yesterdayStr) != nil {
+            lastGeneratedDateKey = yesterdayStr
             return  // 昨日报告已生成
         }
 
@@ -71,14 +108,25 @@ final class MorningReportTrigger {
         // 实际用 scenePhase 监听，用户解锁后等待
         try? await Task.sleep(nanoseconds: 15 * 60_000_000_000) // 15 分钟
 
+        // 二次校验：sleep 完再查一次 store + 内存缓存，并发 unlock 可能已经在另一路径生成
+        if lastGeneratedDateKey == yesterdayStr {
+            return
+        }
+        if MorningReportStore.shared.load(date: yesterdayStr) != nil {
+            lastGeneratedDateKey = yesterdayStr
+            return
+        }
+
         // 生成昨日报告
-        await generateAndNotify(for: yesterday)
+        await generateAndNotify(for: yesterday, dateKey: yesterdayStr)
     }
 
-    private func generateAndNotify(for date: Date) async {
+    private func generateAndNotify(for date: Date, dateKey: String) async {
         do {
             let report = try await MorningReportGenerator.shared.generate(for: date)
             MorningReportStore.shared.save(report)
+            // 写盘成功后立刻标记内存缓存，避免其他 unlock 路径再次 fork
+            lastGeneratedDateKey = dateKey
             await NotificationService.shared.scheduleMorningReport(report)
         } catch {
             print("[MorningReportTrigger] 生成失败: \(error)")
