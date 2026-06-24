@@ -428,7 +428,7 @@ private struct ChatHistorySection: View {
                         Text("清空")
                             .font(.system(size: 12, weight: .semibold))
                     }
-                    .foregroundColor(Color(red: 0.93, green: 0.20, blue: 0.20))
+                    .foregroundColor(Theme.riskHigh)
                 }
                 .padding(.leading, 6)
                 .disabled(recentUserPrompts.isEmpty)
@@ -531,7 +531,7 @@ struct MenuRow: View {
             // 32-15=17pt 总 padding（每边 ~8.5pt），icon 不贴边
             ZStack {
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(Color(red: 0.86, green: 0.95, blue: 0.88))
+                    .fill(Theme.stateWalkSoft)
                 Image(systemName: item.icon)
                     .font(.system(size: 15, weight: .medium))
                     .foregroundColor(StickState.walk.accent)
