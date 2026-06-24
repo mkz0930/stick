@@ -1,5 +1,11 @@
 import SwiftUI
 
+// MARK: - 本地调色板（不属于 Theme，相机小星紫）
+private extension Color {
+    /// 相机按钮右上角小星紫
+    static let ibSparklePurple = Color(red: 0.45, green: 0.30, blue: 0.95)
+}
+
 /// 底部 input 区 (新设计 — 参考图):
 ///  - 顶部一行: 横向滚动 feature chips (AI 诊室 / 报告解读 / 拍皮肤 / 就医...)
 ///  - 底部一行: pill 输入条 (语音 + placeholder + +) + 独立圆形相机按钮 (右上角小星)
@@ -205,7 +211,7 @@ private struct InputBarCameraButton: View {
                 // 右上角小星 (紫蓝)
                 Image(systemName: "sparkle")
                     .font(.system(size: 9, weight: .heavy))
-                    .foregroundColor(Color(red: 0.45, green: 0.30, blue: 0.95))
+                    .foregroundColor(Color.ibSparklePurple)
                     .padding(3)
                     .background(
                         Circle().fill(Color.white)
