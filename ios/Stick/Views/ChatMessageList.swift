@@ -1,5 +1,19 @@
 import SwiftUI
 
+// MARK: - 本地调色板（不属于 Theme，AI 泡泡 + 警告专属）
+private extension Color {
+    /// AI 泡泡浅紫背景
+    static let cmBubbleBg     = Color(red: 0.97, green: 0.96, blue: 1.0)
+    /// AI 泡泡紫边
+    static let cmBubbleBorder = Color(red: 0.85, green: 0.80, blue: 0.98)
+    /// AI 泡泡紫阴影
+    static let cmBubbleShadow = Color(red: 0.7,  green: 0.6,  blue: 1.0)
+    /// 警告琥珀 icon
+    static let cmWarnIcon     = Color(red: 0.88, green: 0.55, blue: 0.2)
+    /// 警告琥珀文字
+    static let cmWarnText     = Color(red: 0.65, green: 0.4,  blue: 0.1)
+}
+
 // MARK: - Message Area View
 
 struct MessageAreaView: View {
@@ -190,13 +204,13 @@ struct MessageRow: View {
                 .padding(.vertical, 14)
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(red: 0.97, green: 0.96, blue: 1.0))
+                        .fill(Color.cmBubbleBg)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color(red: 0.85, green: 0.80, blue: 0.98), lineWidth: 0.8)
+                        .stroke(Color.cmBubbleBorder, lineWidth: 0.8)
                 )
-                .shadow(color: Color(red: 0.7, green: 0.6, blue: 1.0).opacity(0.15), radius: 6, x: 0, y: 3)
+                .shadow(color: Color.cmBubbleShadow.opacity(0.15), radius: 6, x: 0, y: 3)
 
                 // 追问意图按钮（竖向排列）
                 if !message.suggestions.isEmpty {
@@ -486,8 +500,8 @@ private struct AssistantText: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Image(systemName: "lightbulb.fill")
                     .font(.system(size: 13))
-                    .foregroundColor(Color(red: 0.88, green: 0.55, blue: 0.2))
-                renderRichText(line, font: .system(size: 14, weight: .medium), color: Color(red: 0.65, green: 0.4, blue: 0.1))
+                    .foregroundColor(Color.cmWarnIcon)
+                renderRichText(line, font: .system(size: 14, weight: .medium), color: Color.cmWarnText)
             }
         }
         // 粗体标题行 **xxx**
