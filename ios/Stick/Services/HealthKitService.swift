@@ -315,6 +315,72 @@ final class HealthKitService {
         return StateInference.infer(snapshots: HealthStore.shared.today, restingHR: rhr)
     }
 
+    // MARK: - 时刻表实时刷新（步数变化 + 10 分钟兜底）
+
+    /// 监听步数变化的 HKObserverQuery（步数变化立即触发 `computeDaySchedule()`）
+    private var scheduleObserverQuery: HKObserverQuery?
+    /// 10 分钟兜底定时器（observer 漏报时仍能刷新）
+    private var scheduleFallbackTimer: Timer?
+    /// 兜底间隔
+    private let scheduleFallbackInterval: TimeInterval = 10 * 60
+
+    /// 启动 schedule 实时刷新：HKObserverQuery 步数变化立即触发 + 10 分钟兜底定时器
+    /// 替代 `computeDaySchedule()` 内的 5 分钟节流；节流放宽到 30s 防 race（参见 scheduleRecomputeInterval）。
+    /// 必须在 startAutoCapture 内调用（依赖已授权的 `store`）。
+    func startScheduleRealtimeRefresh() {
+        stopScheduleRealtimeRefresh()  // 防止重复启动
+
+        guard let store else {
+            print("[HealthKitService] startScheduleRealtimeRefresh: store 为 nil，跳过")
+            return
+        }
+        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else {
+            print("[HealthKitService] startScheduleRealtimeRefresh: stepCount type 为 nil，跳过")
+            return
+        }
+
+        // (1) HKObserverQuery 监听步数变化
+        let observer = HKObserverQuery(sampleType: stepType, predicate: nil) { [weak self] _, completion, _ in
+            // observer 回调在后台线程，hop 回 main actor 后再触发 computeDaySchedule
+            Task { @MainActor in
+                await self?.computeDaySchedule()
+                // completion 必须调，否则系统会 throttle observer 后续触发
+                completion()
+            }
+        }
+        store.execute(observer)
+        scheduleObserverQuery = observer
+
+        // (2) 10 分钟兜底定时器
+        scheduleFallbackTimer = Timer.scheduledTimer(withTimeInterval: scheduleFallbackInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                await self?.computeDaySchedule()
+            }
+        }
+
+        print("[HealthKitService] ✅ schedule 实时刷新已启动（observer + \(Int(scheduleFallbackInterval / 60))min 兜底）")
+
+        // (3) 请求后台通知：observer 在后台需要 delivery 才能触发（iOS 13+）
+        //    失败也无所谓（前台场景不需要）
+        Task {
+            do {
+                try await store.enableBackgroundDelivery(for: stepType, frequency: .immediate)
+            } catch {
+                print("[HealthKitService] enableBackgroundDelivery 失败（可忽略）: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// 停止 schedule 实时刷新（observer + 兜底定时器）
+    func stopScheduleRealtimeRefresh() {
+        if let q = scheduleObserverQuery {
+            store?.stop(q)
+            scheduleObserverQuery = nil
+        }
+        scheduleFallbackTimer?.invalidate()
+        scheduleFallbackTimer = nil
+    }
+
     // MARK: - 定时抓取 (1 分钟一次)
 
     /// DEBUG 模式：追踪是否已自动注入过 mock 数据（避免每次启动重复注入）
@@ -329,6 +395,10 @@ final class HealthKitService {
         }
 
         stopAutoCapture()
+
+        // 启动 schedule 实时刷新（HKObserverQuery 步数变化 + 10 分钟兜底定时器）
+        // startScheduleRealtimeRefresh 内部在 main actor 上下文里启动 observer + Timer
+        startScheduleRealtimeRefresh()
 
         // 模拟器无有效步数时，生成 mock 快照（模拟用户45分钟前走路，现在坐着）。
         // 不能只判断 today.isEmpty：上次启动可能已持久化 0 步快照，导致 mock 永远不再注入。
@@ -387,6 +457,9 @@ final class HealthKitService {
     }
 
     func stopAutoCapture() {
+        // 停止 schedule 实时刷新（observer + 10 分钟兜底定时器）
+        stopScheduleRealtimeRefresh()
+
         timer?.invalidate()
         timer = nil
     }
@@ -802,13 +875,13 @@ final class HealthKitService {
     /// 基于今天真实 HealthKit 步数数据生成的 24h 时刻表
     /// 算法与 `todaySedentaryMinutes()` 一致：/80 divisor 反推步行时间 + 4h 无活动长间隔判睡眠。
     /// 唯一差异：本方法对全部 1440 分钟分类，而非只统计久坐分钟数。
-    /// 节流：schedule 不会 1 分钟变化（HealthKit 步数聚合也是按分钟 bucket），最少 5 分钟才重算一次，
-    /// 避免 Timer 30s tick / scenePhase 切换 / .task 启动高频调用导致 HK 查询风暴。
+    /// 节流：30s 防 race。调度由 `startScheduleRealtimeRefresh` 接管：HKObserverQuery 步数变化
+    /// 立即触发 + 10 分钟兜底定时器；这里只防 observer 在 1 秒内多次触发导致 HK 查询风暴。
     private var lastScheduleComputeAt: Date = .distantPast
-    private let scheduleRecomputeInterval: TimeInterval = 5 * 60
+    private let scheduleRecomputeInterval: TimeInterval = 30
 
     func computeDaySchedule() async {
-        // 节流：5 分钟内已有结果则跳过（首次或跨日会重算）
+        // 节流：30s 内已有结果则跳过（首次或跨日会重算）
         let now = Date()
         if realDaySchedule != nil,
            now.timeIntervalSince(lastScheduleComputeAt) < scheduleRecomputeInterval {
