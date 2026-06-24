@@ -1,5 +1,17 @@
 import SwiftUI
 
+// MARK: - 本地调色板（4 档年龄色，不属于 Theme）
+private extension Color {
+    /// 今天 (蓝)
+    static let historyAge0 = Color(red: 0.40, green: 0.65, blue: 0.95)
+    /// 昨天 (灰)
+    static let historyAge1 = Color(red: 0.50, green: 0.50, blue: 0.55)
+    /// 本周 (浅)
+    static let historyAge2 = Color(red: 0.75, green: 0.75, blue: 0.78)
+    /// 更早 (极浅)
+    static let historyAge3 = Color(red: 0.85, green: 0.85, blue: 0.88)
+}
+
 // MARK: - History Section View
 
 struct HistorySectionView: View {
@@ -106,10 +118,10 @@ struct HistorySectionView: View {
     /// 时间年龄颜色 (跟主页版 4 档一致: 今天 蓝 / 昨天 灰 / 本周 浅 / 更早 极浅)
     private func historyAgeColor(_ t: Date) -> Color {
         let days = -Int(t.timeIntervalSinceNow / 86400)
-        if days <= 0 { return Color(red: 0.40, green: 0.65, blue: 0.95) }
-        if days <= 1 { return Color(red: 0.50, green: 0.50, blue: 0.55) }
-        if days <= 6 { return Color(red: 0.75, green: 0.75, blue: 0.78) }
-        return Color(red: 0.85, green: 0.85, blue: 0.88)
+        if days <= 0 { return Color.historyAge0 }
+        if days <= 1 { return Color.historyAge1 }
+        if days <= 6 { return Color.historyAge2 }
+        return Color.historyAge3
     }
 }
 
@@ -192,10 +204,10 @@ struct HistoryPopoverContentView: View {
     /// 时间年龄颜色
     private func historyAgeColor(_ t: Date) -> Color {
         let days = -Int(t.timeIntervalSinceNow / 86400)
-        if days <= 0 { return Color(red: 0.40, green: 0.65, blue: 0.95) }
-        if days <= 1 { return Color(red: 0.50, green: 0.50, blue: 0.55) }
-        if days <= 6 { return Color(red: 0.75, green: 0.75, blue: 0.78) }
-        return Color(red: 0.85, green: 0.85, blue: 0.88)
+        if days <= 0 { return Color.historyAge0 }
+        if days <= 1 { return Color.historyAge1 }
+        if days <= 6 { return Color.historyAge2 }
+        return Color.historyAge3
     }
 }
 
@@ -258,9 +270,9 @@ private struct HistoryRowView: View {
     /// 时间年龄颜色
     private func historyAgeColor(_ t: Date) -> Color {
         let days = -Int(t.timeIntervalSinceNow / 86400)
-        if days <= 0 { return Color(red: 0.40, green: 0.65, blue: 0.95) }
-        if days <= 1 { return Color(red: 0.50, green: 0.50, blue: 0.55) }
-        if days <= 6 { return Color(red: 0.75, green: 0.75, blue: 0.78) }
-        return Color(red: 0.85, green: 0.85, blue: 0.88)
+        if days <= 0 { return Color.historyAge0 }
+        if days <= 1 { return Color.historyAge1 }
+        if days <= 6 { return Color.historyAge2 }
+        return Color.historyAge3
     }
 }
