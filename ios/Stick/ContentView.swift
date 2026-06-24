@@ -1614,6 +1614,13 @@ private struct HomeBodyView: View {
         ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil
     }
 
+    /// 横屏适配：iPad 全屏 / iPhone 横屏时为 .regular，竖屏 .compact。
+    /// 横屏用左小人 + 右时间线的横排，FeatureRow 顶部仍占一栏。
+    @Environment(\.horizontalSizeClass) private var horizontalSize
+
+    /// 是否走横屏布局（含 iPad 全屏、宽屏设备）
+    private var isWide: Bool { horizontalSize == .regular }
+
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .top) {
@@ -1691,55 +1698,63 @@ private struct HomeBodyView: View {
                 .fixedSize(horizontal: false, vertical: true)  // 高度固定，展开时覆盖小人
 
                 // ② ScrollView 内容（小人 + 时间轴；在下层）
+                //    竖屏 / 窄屏：上面 FeatureRow 190pt 留白 + 火柴人 + 时间线
+                //    横屏 / 宽屏：FeatureRow 顶部一栏保留更小留白（110pt），舞台 + 时间线
+                //    整段居中（HStack 自然撑满）
+                let heroAndTimeline = HStack(alignment: .top, spacing: 10) {
+                    StageHeroView(
+                        state: displayState,
+                        mood: figureMood,
+                        bodyEnergy: bodyEnergy,
+                        energyColor: energyColor,
+                        isScrubbing: isScrubbing,
+                        inference: inference,
+                        showDevicePicker: $state.showDevicePicker,
+                        scrubOffset: $state.scrubOffset,
+                        manualStateOverride: $state.manualStateOverride,
+                        onPreview: { state.showFilm = true },
+                        onSleepAlert: { state.showSleepReport = true },
+                        onStateTap: { s in
+                            // 单击火柴人 → 推当前 state 详情。沿用现有 .sheet(item: $activeSheet) 路径，
+                            // 不强行改 NavigationStack.push（要换得给 homeBody 整体包 NavigationStack，
+                            // 牵涉太广，下一轮再做）。本轮先把入口接起来。
+                            switch s {
+                            case .walk:  state.activeSheet = .walk
+                            case .sit:   state.activeSheet = .sit
+                            case .stand: state.activeSheet = .stand
+                            case .sleep: state.activeSheet = .sleep
+                            }
+                        },
+                        subLine: realSubLine,
+                        schedule: hk.realDaySchedule ?? StickState.daySchedule
+                    )
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 400)
+
+                    DayTimelineView(
+                        schedule: hk.realDaySchedule ?? StickState.daySchedule,
+                        now: now,
+                        scrubOffset: $state.scrubOffset,
+                        showDevicePicker: $state.showDevicePicker,
+                        manualStateOverride: $state.manualStateOverride
+                    )
+                    .equatable()  // schedule 内容稳定时跳过 body 重绘，杜绝轴乱变
+                    .frame(width: 50)
+                    .frame(height: 400)
+                }
+                .padding(.leading, 16)
+                .padding(.trailing, 4)
+
+                let topReserved: CGFloat = isWide ? 110 : 190
+
                 let scrollContent = VStack(spacing: 0) {
-                    // 为 FeatureRow 折叠态预留高度（190pt — 小人 + 时间轴整体下移 120pt，大小不变）
-                    Color.clear.frame(height: 190)
+                    // 为 FeatureRow 折叠态预留高度（竖屏 190pt — 小人 + 时间轴整体下移 120pt，大小不变；
+                    // 横屏 110pt — FeatureRow 收成一行，留 110pt 给标题区域）
+                    Color.clear.frame(height: topReserved)
 
-                    HStack(alignment: .top, spacing: 10) {
-                        StageHeroView(
-                            state: displayState,
-                            mood: figureMood,
-                            bodyEnergy: bodyEnergy,
-                            energyColor: energyColor,
-                            isScrubbing: isScrubbing,
-                            inference: inference,
-                            showDevicePicker: $state.showDevicePicker,
-                            scrubOffset: $state.scrubOffset,
-                            manualStateOverride: $state.manualStateOverride,
-                            onPreview: { state.showFilm = true },
-                            onSleepAlert: { state.showSleepReport = true },
-                            onStateTap: { s in
-                                // 单击火柴人 → 推当前 state 详情。沿用现有 .sheet(item: $activeSheet) 路径，
-                                // 不强行改 NavigationStack.push（要换得给 homeBody 整体包 NavigationStack，
-                                // 牵涉太广，下一轮再做）。本轮先把入口接起来。
-                                switch s {
-                                case .walk:  state.activeSheet = .walk
-                                case .sit:   state.activeSheet = .sit
-                                case .stand: state.activeSheet = .stand
-                                case .sleep: state.activeSheet = .sleep
-                                }
-                            },
-                            subLine: realSubLine,
-                            schedule: hk.realDaySchedule ?? StickState.daySchedule
-                        )
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 400)
+                    heroAndTimeline
 
-                        DayTimelineView(
-                            schedule: hk.realDaySchedule ?? StickState.daySchedule,
-                            now: now,
-                            scrubOffset: $state.scrubOffset,
-                            showDevicePicker: $state.showDevicePicker,
-                            manualStateOverride: $state.manualStateOverride
-                        )
-                        .equatable()  // schedule 内容稳定时跳过 body 重绘，杜绝轴乱变
-                        .frame(width: 50)
-                        .frame(height: 400)
-                    }
-                    .padding(.leading, 16)
-                    .padding(.trailing, 4)
-
-                    Spacer().frame(height: 96)
+                    Spacer().frame(height: isWide ? 60 : 96)
                 }
 
                 if Self.isRunningForPreviews {
