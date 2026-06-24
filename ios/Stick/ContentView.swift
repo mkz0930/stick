@@ -1343,36 +1343,46 @@ private struct MainContentView<SheetContent: View>: View {
         GeometryReader { geo in
             let panelWidth = geo.size.width * 0.78
 
-            ZStack(alignment: .leading) {
-                // 1. 首页 (永远在底层, 面板打开时露在右侧 22%)
-                homeBody
-                    .frame(width: geo.size.width)
+            // 包一层 NavigationStack：详情页用 .navigationDestination(item:) push 取代旧的 .sheet。
+            // WalkDetailSheet / SitDetailSheet / SleepDetailSheet 内部已经各自带自己的 NavigationStack，
+            // 这里再加一层是嵌套 NavigationStack（外层管 push 路由，内层管 sheet 标题栏）。
+            NavigationStack {
+                ZStack(alignment: .leading) {
+                    // 1. 首页 (永远在底层, 面板打开时露在右侧 22%)
+                    homeBody
+                        .frame(width: geo.size.width)
 
-                // 2. 黑色蒙层 (仅显示在右侧 22% 的 home 上)
-                if state.showPersonal {
-                    overlayDimView(panelWidth: panelWidth)
-                }
-
-                // 3. 左侧滑出的个人面板 (78% 宽)
-                personalPanelView(
-                    panelWidth: panelWidth,
-                    showPersonal: state.showPersonal
-                )
-                .frame(width: panelWidth)
-                .offset(x: state.showPersonal ? 0 : -panelWidth)
-            }
-            .background(Theme.bgTop.ignoresSafeArea())
-            .animation(.easeInOut(duration: 0.32), value: state.showPersonal)
-            .gesture(
-                DragGesture(minimumDistance: 20)
-                    .onEnded { value in
-                        guard state.showPersonal else { return }
-                        // 左滑超 60pt 关闭
-                        if value.translation.width < -60 {
-                            withAnimation(.easeInOut(duration: 0.32)) { state.showPersonal = false }
-                        }
+                    // 2. 黑色蒙层 (仅显示在右侧 22% 的 home 上)
+                    if state.showPersonal {
+                        overlayDimView(panelWidth: panelWidth)
                     }
-            )
+
+                    // 3. 左侧滑出的个人面板 (78% 宽)
+                    personalPanelView(
+                        panelWidth: panelWidth,
+                        showPersonal: state.showPersonal
+                    )
+                    .frame(width: panelWidth)
+                    .offset(x: state.showPersonal ? 0 : -panelWidth)
+                }
+                .background(Theme.bgTop.ignoresSafeArea())
+                .animation(.easeInOut(duration: 0.32), value: state.showPersonal)
+                .gesture(
+                    DragGesture(minimumDistance: 20)
+                        .onEnded { value in
+                            guard state.showPersonal else { return }
+                            // 左滑超 60pt 关闭
+                            if value.translation.width < -60 {
+                                withAnimation(.easeInOut(duration: 0.32)) { state.showPersonal = false }
+                            }
+                        }
+                )
+                // NavigationStack 路由：把 SheetDestination 的 4 个 case 都映射到 push 视图。
+                // 替代原来的 .sheet(item: $state.activeSheet)，视觉上仍是全屏覆盖，但有系统级左滑返回 + 导航栏。
+                .navigationDestination(item: $state.activeSheet) { destination in
+                    sheetContent(destination)
+                }
+            }
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { nowVal in
             // 驱动秒表重算：每秒写一次 Date，保证 SwiftUI 视为"变化"
@@ -1481,9 +1491,6 @@ private struct MainContentView<SheetContent: View>: View {
             SleepReportView(onClose: { state.showSleepReport = false })
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
-        }
-        .sheet(item: $state.activeSheet) { destination in
-            sheetContent(destination)
         }
         .confirmationDialog(
             "注入过去 7 天的 mock 数据到 HealthKit？\n\n将申请 HealthKit 写权限，并写入步数 / 心率 / 距离 / 能量 / 睡眠。\n\n⚠️ 仅用于调试 — 真机数据会被污染。",
