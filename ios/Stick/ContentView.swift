@@ -1246,21 +1246,20 @@ private struct MainContentView<SheetContent: View>: View {
     /// 返回 true 表示本次新建并派发了任务，false 表示已有任务在跑、复用。
     @discardableResult
     private func scheduleSitMetricsUpdate(reason: String) -> Bool {
-        let stateBinding = state
-        let onUpdate: @MainActor @Sendable (Int, Date?) -> Void = { [stateBinding] newMinutes, startTime in
-            stateBinding.currentSitMinutes = newMinutes
-            stateBinding.currentSitStartTime = startTime
-            stateBinding.lastSitAnalysisTime = Date()
+        let onUpdate: @MainActor (Int, Date?) -> Void = { newMinutes, startTime in
+            state.currentSitMinutes = newMinutes
+            state.currentSitStartTime = startTime
+            state.lastSitAnalysisTime = Date()
         }
-        let onWidgetWrite: @MainActor @Sendable (Int, Date) -> Void = { [stateBinding, displayState, primaryHeartRate, primaryDurationMinutes, realSubLine] newMinutes, startTime in
+        let onWidgetWrite: @MainActor (Int, Date) -> Void = { [displayState, primaryHeartRate, primaryDurationMinutes, realSubLine] newMinutes, startTime in
             // 同步到 Widget（仅在 sit + 有 session 时写，避免 sleep/stand 反复写）
             guard displayState == .sit, newMinutes > 0 else { return }
             let snap = SharedStickState(
                 stateRaw: displayState.rawValue,
                 englishName: displayState.englishName,
                 actionPhrase: displayState.actionPhrase,
-                heartRate: stateBinding.realHeartRate ?? primaryHeartRate,
-                mood: stateBinding.walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
+                heartRate: state.realHeartRate ?? primaryHeartRate,
+                mood: state.walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
                 durationMinutes: primaryDurationMinutes,
                 subLine: realSubLine,
                 updatedAt: Date(),
