@@ -5,6 +5,14 @@
 
 import SwiftUI
 
+// MARK: - 本地调色板（不属于 Theme，仪表盘心情绿 + 心率红）
+private extension Color {
+    /// 心情记录 icon 绿（柔和、略偏黄）
+    static let drMoodGreen = Color(red: 0.55, green: 0.75, blue: 0.50)
+    /// 心率 icon 红
+    static let drHeartRed = Color(red: 0.86, green: 0.21, blue: 0.27)
+}
+
 /// HealthKit 实时数据
 struct HKLiveData: Equatable {
     var steps: Int = 0
@@ -747,7 +755,7 @@ private struct DashboardSection: View {
                 // 心情记录 (单卡)
                 DashboardCard(
                     icon: "face.smiling",
-                    iconColor: Color(red: 0.55, green: 0.75, blue: 0.50),
+                    iconColor: Color.drMoodGreen,
                     title: "心情记录",
                     sub: "来自对话分析",
                     value: BodyMetricsStore.shared.mood ?? "--",
@@ -798,7 +806,7 @@ private struct DashboardSection: View {
                         )
                         DashboardCard(
                             icon: "heart.fill",
-                            iconColor: Color(red: 0.86, green: 0.21, blue: 0.27),
+                            iconColor: Color.drHeartRed,
                             title: "心率",
                             sub: "暂无数据",
                             value: "--",
