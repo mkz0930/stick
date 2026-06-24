@@ -108,9 +108,13 @@ final class ChatHistoryStore {
         do {
             let data = try JSONEncoder().encode(allMessages)
             UserDefaults.standard.set(data, forKey: key)
+            #if DEBUG
             print("[ChatHistoryStore] save(): \(allMessages.count) msgs")
+            #endif
         } catch {
+            #if DEBUG
             print("[ChatHistoryStore] save failed: \(error)")
+            #endif
         }
     }
 
@@ -127,10 +131,14 @@ final class ChatHistoryStore {
                 self.allMessages = messages
                 self.loadedMessages = Array(messages.suffix(pageSize))
                 self.loaded = true
+                #if DEBUG
                 print("[ChatHistoryStore] load(): \(messages.count) msgs loaded")
+                #endif
             }
         } catch {
+            #if DEBUG
             print("[ChatHistoryStore] load failed: \(error)")
+            #endif
             await MainActor.run { self.loaded = true }
         }
     }

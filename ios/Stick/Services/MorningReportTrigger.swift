@@ -126,7 +126,9 @@ final class MorningReportTrigger {
             lastGeneratedDateKey = dateKey
             await NotificationService.shared.scheduleMorningReport(report)
         } catch {
+            #if DEBUG
             print("[MorningReportTrigger] 生成失败: \(error)")
+            #endif
         }
     }
 

@@ -44,7 +44,9 @@ final class HealthStore {
                 self.loaded = true
             }
         } catch {
+            #if DEBUG
             print("[HealthStore] load failed: \(error)")
+            #endif
             await MainActor.run { self.loaded = true }
         }
     }
@@ -87,7 +89,9 @@ final class HealthStore {
             let data = try JSONEncoder().encode(all)
             try data.write(to: fileURL, options: .atomic)
         } catch {
+            #if DEBUG
             print("[HealthStore] save failed: \(error)")
+            #endif
         }
     }
 
@@ -152,6 +156,8 @@ final class HealthStore {
         all.sort { $0.timestamp < $1.timestamp }
         refreshToday()
         save()
+        #if DEBUG
         print("[HealthStore] writeSleepSegment: 写入 \(inserted) 条 sleep snapshot, [\(bedTime) → \(wakeTime)]")
+        #endif
     }
 }

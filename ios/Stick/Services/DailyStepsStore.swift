@@ -94,7 +94,9 @@ final class DailyStepsStore {
             let data = try JSONEncoder().encode(records)
             UserDefaults.standard.set(data, forKey: key)
         } catch {
+            #if DEBUG
             print("[DailyStepsStore] save failed: \(error)")
+            #endif
         }
     }
 

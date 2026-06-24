@@ -348,11 +348,15 @@ final class HealthKitService {
         stopScheduleRealtimeRefresh()  // 防止重复启动
 
         guard let store else {
+            #if DEBUG
             print("[HealthKitService] startScheduleRealtimeRefresh: store 为 nil，跳过")
+            #endif
             return
         }
         guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else {
+            #if DEBUG
             print("[HealthKitService] startScheduleRealtimeRefresh: stepCount type 为 nil，跳过")
+            #endif
             return
         }
 
@@ -388,7 +392,9 @@ final class HealthKitService {
             }
         }
 
+        #if DEBUG
         print("[HealthKitService] ✅ schedule 实时刷新已启动（observer + \(Int(scheduleFallbackInterval / 60))min 兜底）")
+        #endif
 
         // (3) 请求后台通知：observer 在后台需要 delivery 才能触发（iOS 13+）
         //    失败也无所谓（前台场景不需要）
@@ -396,7 +402,9 @@ final class HealthKitService {
             do {
                 try await store.enableBackgroundDelivery(for: stepType, frequency: .immediate)
             } catch {
+                #if DEBUG
                 print("[HealthKitService] enableBackgroundDelivery 失败（可忽略）: \(error.localizedDescription)")
+                #endif
             }
         }
         // 心率 observer 同样申请后台 delivery（手表端实时心率 → 前台立即刷新）
@@ -405,7 +413,9 @@ final class HealthKitService {
                 do {
                     try await store.enableBackgroundDelivery(for: hrType, frequency: .immediate)
                 } catch {
+                    #if DEBUG
                     print("[HealthKitService] enableBackgroundDelivery(heartRate) 失败（可忽略）: \(error.localizedDescription)")
+                    #endif
                 }
             }
         }
@@ -446,7 +456,9 @@ final class HealthKitService {
             if let hr {
                 // 写入 latestHeartRate 让 @Observable 触发 UI 刷新（详情页心率 / widget 等）
                 self.latestHeartRate = Int(hr.rounded())
+                #if DEBUG
                 print("[HealthKitService] 💗 心率 observer fire: 最近 60s 平均 \(self.latestHeartRate!) bpm")
+                #endif
             }
         }
     }
@@ -460,7 +472,9 @@ final class HealthKitService {
         // 用户未授权时跳过 auto capture — HK 查询返回空集会让 UI 显示全 0 数据
         // （requestAuthorization() 拒绝后会设 isAuthorized = false）
         guard isAuthorized else {
+            #if DEBUG
             print("[HealthKitService] 未授权，跳过 auto capture")
+            #endif
             return
         }
 
@@ -507,7 +521,9 @@ final class HealthKitService {
             Self.hasInjectedMockDataInThisCycle = true
             Task {
                 let count = await injectMockDataIntoHealthKit(days: 7)
+                #if DEBUG
                 print("[HealthKitService] 🧪 DEBUG 模拟器自动注入 7 天 mock 数据: \(count) 条")
+                #endif
             }
         }
         #endif
@@ -580,7 +596,9 @@ final class HealthKitService {
         // schedule 实时刷新也一并暂停（10 分钟兜底 timer 在后台 fire 同样浪费电）
         scheduleFallbackTimer?.invalidate()
         scheduleFallbackTimer = nil
+        #if DEBUG
         print("[HealthKitService] ⏸️ auto capture 已暂停（app 进入后台）")
+        #endif
     }
 
     /// 恢复 auto capture timer（仅在已启动过 + 未授权未失效时有效）
@@ -595,7 +613,9 @@ final class HealthKitService {
         }
         // schedule 实时刷新也需要重新挂回 observer + 兜底 timer（pause 时一起 stop 了）
         startScheduleRealtimeRefresh()
+        #if DEBUG
         print("[HealthKitService] ▶️ auto capture 已恢复（interval=\(Int(autoCaptureInterval))s）")
+        #endif
     }
 
     // MARK: - Today Convenience Methods
@@ -1499,12 +1519,16 @@ final class HealthKitService {
 
         for (name, id, unit) in types {
             guard let type = quantityType(id) else {
+                #if DEBUG
                 print("[Export] ⚠️ \(name) (\(id.rawValue)) → type 为 nil，跳过")
+                #endif
                 continue
             }
             let samples = await fetchSamples(type: type, unit: unit, from: from, to: to)
             totalSamples += samples.count
+            #if DEBUG
             print("[Export] \(name): \(samples.count) 样本 (from \(from) to \(to))")
+            #endif
             results.append([
                 "类型": name,
                 "identifier": id.rawValue,
@@ -1517,7 +1541,9 @@ final class HealthKitService {
         if let sleepType = categoryType(.sleepAnalysis) {
             let sleepSamples = await fetchCategorySamples(type: sleepType, from: from, to: to)
             totalSamples += sleepSamples.count
+            #if DEBUG
             print("[Export] 睡眠分析: \(sleepSamples.count) 样本")
+            #endif
             results.append([
                 "类型": "睡眠分析",
                 "identifier": HKCategoryTypeIdentifier.sleepAnalysis.rawValue,
@@ -1545,10 +1571,14 @@ final class HealthKitService {
             let fileName = "health_export_\(timeStr)_\(deviceName)\(suffix).json"
             let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
             try jsonData.write(to: tempURL)
+            #if DEBUG
             print("[Export] ✅ 写文件: \(fileName) — \(totalSamples) 总样本 / \(results.count) 类型")
+            #endif
             return tempURL
         } catch {
+            #if DEBUG
             print("[HealthKitService] export failed: \(error)")
+            #endif
             return nil
         }
     }
@@ -1562,7 +1592,9 @@ final class HealthKitService {
             try await store.requestAuthorization(toShare: writeTypes, read: readTypes)
             return true
         } catch {
+            #if DEBUG
             print("[HealthKitService] write auth failed: \(error)")
+            #endif
             return false
         }
     }
@@ -1593,10 +1625,14 @@ final class HealthKitService {
 
         do {
             try await store.save(samples)
+            #if DEBUG
             print("[HealthKitService] ✅ 注入 \(samples.count) 条样本到 HealthKit（\(days) 天）")
+            #endif
             return samples.count
         } catch {
+            #if DEBUG
             print("[HealthKitService] ❌ 注入失败: \(error)")
+            #endif
             return 0
         }
     }
@@ -1721,7 +1757,9 @@ final class HealthKitService {
                 try await store.delete(toDelete)
                 deleted += toDelete.count
             } catch {
+                #if DEBUG
                 print("[HealthKitService] ❌ 删除失败: \(error)")
+                #endif
             }
         }
         // 给样本加上 source metadata 后再标记

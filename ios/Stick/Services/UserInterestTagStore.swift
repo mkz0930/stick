@@ -109,7 +109,9 @@ final class UserInterestTagStore {
             let data = try JSONEncoder().encode(shortTermScores)
             UserDefaults.standard.set(data, forKey: shortTermKey)
         } catch {
+            #if DEBUG
             print("[UserInterestTagStore] saveShortTerm failed: \(error)")
+            #endif
         }
     }
 
@@ -118,7 +120,9 @@ final class UserInterestTagStore {
         do {
             shortTermScores = try JSONDecoder().decode([String: Double].self, from: data)
         } catch {
+            #if DEBUG
             print("[UserInterestTagStore] loadShortTerm failed: \(error)")
+            #endif
         }
     }
 
@@ -127,7 +131,9 @@ final class UserInterestTagStore {
             let data = try JSONEncoder().encode(longTermScores)
             UserDefaults.standard.set(data, forKey: longTermKey)
         } catch {
+            #if DEBUG
             print("[UserInterestTagStore] saveLongTerm failed: \(error)")
+            #endif
         }
     }
 
@@ -136,7 +142,9 @@ final class UserInterestTagStore {
         do {
             longTermScores = try JSONDecoder().decode([String: Double].self, from: data)
         } catch {
+            #if DEBUG
             print("[UserInterestTagStore] loadLongTerm failed: \(error)")
+            #endif
         }
     }
 }

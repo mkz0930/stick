@@ -34,11 +34,15 @@ final class LiveActivityManager {
     /// - Parameter startTime: 久坐开始时刻
     func startSedentaryActivity(from startTime: Date) {
         guard areActivitiesEnabled else {
+            #if DEBUG
             print("[LiveActivityManager] Live Activities are disabled")
+            #endif
             return
         }
         guard currentActivity == nil else {
+            #if DEBUG
             print("[LiveActivityManager] Activity already running")
+            #endif
             return
         }
 
@@ -58,9 +62,13 @@ final class LiveActivityManager {
             sedentaryStartTime = startTime
             isActivityActive = true
             startUpdateTimer()
+            #if DEBUG
             print("[LiveActivityManager] Started activity: \(activity.id)")
+            #endif
         } catch {
+            #if DEBUG
             print("[LiveActivityManager] Failed to start activity: \(error)")
+            #endif
         }
     }
 
@@ -110,7 +118,9 @@ final class LiveActivityManager {
         currentActivity = nil
         sedentaryStartTime = nil
         isActivityActive = false
+        #if DEBUG
         print("[LiveActivityManager] Ended activity (total: \(totalSeconds)s)")
+        #endif
     }
 
     // MARK: - Private

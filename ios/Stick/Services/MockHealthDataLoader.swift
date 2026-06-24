@@ -17,11 +17,15 @@ final class MockHealthDataLoader {
     @discardableResult
     func load(from url: URL) -> Int {
         guard let data = try? Data(contentsOf: url) else {
+            #if DEBUG
             print("[MockHealthDataLoader] ❌ 读不到文件: \(url.path)")
+            #endif
             return 0
         }
         guard let export = try? JSONDecoder().decode(HealthExport.self, from: data) else {
+            #if DEBUG
             print("[MockHealthDataLoader] ❌ JSON 解析失败")
+            #endif
             return 0
         }
         return ingest(export)
@@ -232,7 +236,9 @@ final class MockHealthDataLoader {
             guard HealthKitService.shared.realDaySchedule != schedule else { return }
             HealthKitService.shared.realDaySchedule = schedule
         }
+        #if DEBUG
         print("[MockHealthDataLoader] ✅ 注入 \(snapshots.count) 条快照 + \(schedule.count) 个时刻段")
+        #endif
         return snapshots.count
     }
 

@@ -136,7 +136,9 @@ final class SleepAnalyzer {
             try await store.requestAuthorization(toShare: [], read: [type])
             return true
         } catch {
+            #if DEBUG
             print("[SleepAnalyzer] auth failed: \(error)")
+            #endif
             return false
         }
     }
@@ -199,7 +201,9 @@ final class SleepAnalyzer {
                 sortDescriptors: [sort]
             ) { _, samples, error in
                 if let error = error {
+                    #if DEBUG
                     print("[SleepAnalyzer] query failed: \(error)")
+                    #endif
                     cont.resume(returning: [])
                     return
                 }
