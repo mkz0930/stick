@@ -1261,14 +1261,16 @@ private struct MainContentView<SheetContent: View>: View {
             let prevMinutes = state.currentSitMinutes
             let newMinutes = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
             if Task.isCancelled { return }
-            // session 延长：从当前时刻往前推 newMinutes 分钟作为开始时刻
-            if newMinutes > prevMinutes {
-                state.currentSitStartTime = Date().addingTimeInterval(-Double(newMinutes) * 60)
+            // session 变化时同步 startTime：从当前时刻往前推 newMinutes 分钟（newMinutes=0 则归零）
+            // 覆盖三种场景：延长 (new>prev) / 缩短 (new<prev) / 归零 (new=0)
+            if newMinutes != prevMinutes {
+                if newMinutes == 0 {
+                    state.currentSitStartTime = nil
+                } else {
+                    state.currentSitStartTime = Date().addingTimeInterval(-Double(newMinutes) * 60)
+                }
             }
             state.currentSitMinutes = newMinutes
-            if newMinutes == 0 {
-                state.currentSitStartTime = nil
-            }
             state.lastSitAnalysisTime = Date()
             // 同步到 Widget（仅在 sit + 有 session 时写，避免 sleep/stand 反复写）
             if displayState == .sit && newMinutes > 0 {
