@@ -475,9 +475,14 @@ private func drawWalk(ctx: inout GraphicsContext, stroke: Color, fill: Color, jo
 
 // MARK: - 坐
 
-private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double, mood: StickFigureMood = .normal, tiredness: Double = 0.0, neckWarning: Double = 0.0, lineAlpha: CGFloat = 1.0, jointAlpha: CGFloat = 1.0) {
+private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double, mood: StickFigureMood = .normal, tiredness: Double = 0.0, neckWarning: Double = 0.0, lineAlpha: CGFloat = 1.0, jointAlpha: CGFloat = 1.0, pose: StickPose = .sit) {
     let isCalm = mood == .calm
     let isTired = mood == .tired
+
+    // 从 pose 派生头/躯干/腿角度（stand 调进来时 pose=stand：0° 直立；sit 时 pose=sit：spine 8°、thigh 80°、knee 90°）
+    let poseSpineTilt: Double = pose.spineTilt      // 躯干前倾角
+    let poseThighAngle: Double = pose.thighAngle    // 大腿角（相对垂直；0=直，80=水平）
+    let poseKneeBend: Double = pose.kneeBend        // 小腿相对大腿的屈膝角
 
     // 平稳装饰（慢呼吸光环 + 缓升小点）— 在 figure 之下、scene 之上
     if isCalm {
@@ -494,22 +499,26 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
     let headShiftX: CGFloat = isTired ? CGFloat(tiredness) * 6 : 0   // 头往屏幕方向靠 6px
     let headCenter = CGPoint(x: 108, y: 75)
     let head = CGRect(x: headCenter.x - 24, y: headCenter.y - 30, width: 48, height: 60)
-    let tiltAngle = Angle.degrees(20 + headTiltExtra).radians
+    // 头倾角：pose.headTilt 是基准（sit=20°，stand=0°），tired 时再加 0~10° 微调
+    let tiltAngle = Angle.degrees(pose.headTilt + headTiltExtra).radians
 
     // 肩
     drawDot(ctx: &ctx, at: CGPoint(x: 100, y: 130), r: 4, color: joint, filled: true, alpha: jointAlpha)
     let shoulder: CGPoint = CGPoint(x: 100, y: 130)
 
-    // 躯干（靠椅背但腰部略离）
-    strokeCurve(ctx: &ctx, from: shoulder, to: CGPoint(x: 96, y: 222),
+    // 躯干（靠椅背但腰部略离）。spineTilt 8° → 终点 y 微调（与 walk 同样的 0.6 比例），
+    // stand（0°）则 222 保持不变。
+    let torsoEndY: CGFloat = 222 + CGFloat(poseSpineTilt) * 0.6
+    let torsoEndX: CGFloat = 96 - CGFloat(max(0, poseSpineTilt)) * 0.2
+    strokeCurve(ctx: &ctx, from: shoulder, to: CGPoint(x: torsoEndX, y: torsoEndY),
                 control: CGPoint(x: 78, y: 175), color: stroke, width: w + 0.4, alpha: lineAlpha)
-    strokeCurve(ctx: &ctx, from: shoulder, to: CGPoint(x: 116, y: 222),
+    strokeCurve(ctx: &ctx, from: shoulder, to: CGPoint(x: torsoEndX + 20, y: torsoEndY),
                 control: CGPoint(x: 118, y: 175),
                 color: stroke, width: 1.4, dashed: true, alpha: lineAlpha * 0.55)
 
     // 髋
-    drawDot(ctx: &ctx, at: CGPoint(x: 96, y: 224), r: 4, color: joint, filled: true, alpha: jointAlpha)
-    strokeLine(ctx: &ctx, from: CGPoint(x: 84, y: 224), to: CGPoint(x: 110, y: 224),
+    drawDot(ctx: &ctx, at: CGPoint(x: torsoEndX, y: torsoEndY + 2), r: 4, color: joint, filled: true, alpha: jointAlpha)
+    strokeLine(ctx: &ctx, from: CGPoint(x: torsoEndX - 12, y: torsoEndY + 2), to: CGPoint(x: torsoEndX + 14, y: torsoEndY + 2),
                color: stroke, width: 1.8, alpha: lineAlpha)
 
     // 右臂（伸向键盘，敲击时手腕上下颤动）
@@ -549,23 +558,35 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
                 fill: fill, stroke: stroke, width: 1.8, alpha: lineAlpha)
     ctx.transform = lBase
 
-    // 大腿（水平）
+    // 大腿方向（y-down 屏幕坐标）：thighAngle 0° = 垂直向下，80° ≈ 水平向右。
+    // 单位向量 = (sin(θ), cos(θ))，y 正方向 = 屏幕向下。
+    // sit (80°) → x 偏移 ≈ +74, y 偏移 ≈ +13 (与原硬编码 (185-110, 222-224)≈(75, -2) 接近但 y 略下)
+    // stand (0°) → x=0, y=+75 (膝盖在髋正下方，视觉上正确)
+    let thighDeg = CGFloat(poseThighAngle)
+    let thighLen: CGFloat = 75
     let rHip   = CGPoint(x: 110, y: 224)
-    let rKnee  = CGPoint(x: 185, y: 222)
+    let rKneeX: CGFloat = rHip.x + thighLen * CGFloat(sin(thighDeg * .pi / 180))
+    let rKneeY: CGFloat = rHip.y + thighLen * CGFloat(cos(thighDeg * .pi / 180))
+    let rKnee  = CGPoint(x: rKneeX, y: rKneeY)
     strokeLine(ctx: &ctx, from: rHip, to: rKnee, color: stroke, width: w + 0.4, alpha: lineAlpha)
     drawDot(ctx: &ctx, at: rKnee, r: 4, color: joint, filled: true, alpha: jointAlpha)
 
-    // 小腿（垂直）
-    let rAnkle = CGPoint(x: 185, y: 295)
+    // 小腿方向角 = thighDeg - kneeBend（kneeBend 0° = 同向，90° = 大腿右转 90° → 接近垂直向下）
+    // 屏幕 y-down 坐标：(sin(θ), cos(θ)) 同样是右手系表达。
+    let shinDeg = thighDeg - CGFloat(poseKneeBend)
+    let shinLen: CGFloat = 78
+    let rAnkleX: CGFloat = rKnee.x + shinLen * CGFloat(sin(shinDeg * .pi / 180))
+    let rAnkleY: CGFloat = rKnee.y + shinLen * CGFloat(cos(shinDeg * .pi / 180))
+    let rAnkle = CGPoint(x: rAnkleX, y: rAnkleY)
     strokeLine(ctx: &ctx, from: rKnee, to: rAnkle, color: stroke, width: w + 0.4, alpha: lineAlpha)
     drawDot(ctx: &ctx, at: rAnkle, r: 3.5, color: joint, filled: true, alpha: jointAlpha)
 
-    // 脚
+    // 脚（跟着 rAnkle 走，避免与小腿脱节）
     let foot = Path { p in
-        p.move(to: CGPoint(x: 180, y: 297))
-        p.addLine(to: CGPoint(x: 202, y: 297))
-        p.addQuadCurve(to: CGPoint(x: 205, y: 305), control: CGPoint(x: 204, y: 297))
-        p.addLine(to: CGPoint(x: 178, y: 305))
+        p.move(to: CGPoint(x: rAnkle.x - 5, y: rAnkle.y + 2))
+        p.addLine(to: CGPoint(x: rAnkle.x + 17, y: rAnkle.y + 2))
+        p.addQuadCurve(to: CGPoint(x: rAnkle.x + 20, y: rAnkle.y + 10), control: CGPoint(x: rAnkle.x + 19, y: rAnkle.y + 2))
+        p.addLine(to: CGPoint(x: rAnkle.x - 3, y: rAnkle.y + 10))
         p.closeSubpath()
     }
     ctx.stroke(foot, with: .color(stroke.opacity(lineAlpha)), style: StrokeStyle(lineWidth: 1.8, lineJoin: .round))
@@ -654,7 +675,7 @@ private func drawSit(ctx: inout GraphicsContext, stroke: Color, fill: Color, joi
 
 // MARK: - 睡
 
-private func drawSleep(ctx: inout GraphicsContext, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double, lineAlpha: CGFloat = 1.0, jointAlpha: CGFloat = 1.0) {
+private func drawSleep(ctx: inout GraphicsContext, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double, lineAlpha: CGFloat = 1.0, jointAlpha: CGFloat = 1.0, pose: StickPose = .sleep) {
     // 呼吸：3.2s 周期，0.4 吸气 + 0.6 呼气（自然节奏），smoothstep 缓动
     //  - 整体上下 0~1.6px
     //  - 横向轻微 sway（睡中微动）
@@ -681,8 +702,12 @@ private func drawSleep(ctx: inout GraphicsContext, stroke: Color, fill: Color, j
         .translatedBy(x: -120, y: -200)
         .translatedBy(x: breathSway, y: -breath)
 
-    // 头（侧放枕上，朝右）
-    let head = CGRect(x: 22, y: 178, width: 50, height: 40)
+    // 头（侧放枕上，朝右）。pose.headTilt 是相对垂直的倾角；sleep 基准 -75° 几乎全侧躺，
+    // 头中心 y 受 spineTilt 上下偏移：spineTilt=0°（标准 sleep）→ y=178；poseTransition 期间
+    // 从 sit 过渡来时 spineTilt 0→0，y 几乎不变；headTilt 变化驱动头画 ellipses。
+    // 这里 headTilt 直接消费：负值让头略下俯一点（枕感更强）
+    let headYDroop: CGFloat = CGFloat(min(0, pose.headTilt + 75)) * 0.15   // -75°→0，-85°→-1.5
+    let head = CGRect(x: 22, y: 178 + headYDroop, width: 50, height: 40)
     drawEllipse(ctx: &ctx, rect: head, fill: fill, stroke: stroke, width: w, alpha: lineAlpha)
     // 闭眼线
     strokeLine(ctx: &ctx, from: CGPoint(x: 52, y: 192), to: CGPoint(x: 62, y: 192),
@@ -699,16 +724,18 @@ private func drawSleep(ctx: inout GraphicsContext, stroke: Color, fill: Color, j
     drawDot(ctx: &ctx, at: CGPoint(x: 92, y: 212), r: 4, color: joint, filled: true, alpha: jointAlpha)
     let shoulder: CGPoint = CGPoint(x: 92, y: 212)
 
-    // 躯干（水平）
-    strokeLine(ctx: &ctx, from: shoulder, to: CGPoint(x: 215, y: 220),
+    // 躯干（水平）。spineTilt 在 sleep 基准 0° 时不变（躺平），poseTransition 期间
+    // 仍会反映成轻微 y 偏移，避免视觉跳变。
+    let torsoEndY: CGFloat = 220 + CGFloat(pose.spineTilt) * 0.4
+    strokeLine(ctx: &ctx, from: shoulder, to: CGPoint(x: 215, y: torsoEndY),
                color: stroke, width: w + 0.4, alpha: lineAlpha)
     // 胸前轮廓
-    strokeCurve(ctx: &ctx, from: shoulder, to: CGPoint(x: 215, y: 215),
+    strokeCurve(ctx: &ctx, from: shoulder, to: CGPoint(x: 215, y: torsoEndY - 5),
                 control: CGPoint(x: 150, y: 205),
                 color: stroke, width: 1.4, dashed: true, alpha: lineAlpha * 0.55)
 
     // 髋
-    drawDot(ctx: &ctx, at: CGPoint(x: 215, y: 222), r: 4, color: joint, filled: true, alpha: jointAlpha)
+    drawDot(ctx: &ctx, at: CGPoint(x: 215, y: torsoEndY + 2), r: 4, color: joint, filled: true, alpha: jointAlpha)
 
     // 上臂（屈，置胸前）
     let fElbow = CGPoint(x: 122, y: 232)
@@ -726,20 +753,32 @@ private func drawSleep(ctx: inout GraphicsContext, stroke: Color, fill: Color, j
     strokeLine(ctx: &ctx, from: bElbow, to: bHand, color: stroke, width: w * 0.85, alpha: lineAlpha * 0.7)
     drawDot(ctx: &ctx, at: bElbow, r: 2.5, color: joint, filled: true, alpha: jointAlpha * 0.7)
 
-    // 大腿（knee.x=232 避免 foot 水平超出 240x320 坐标系）
-    let knee = CGPoint(x: 232, y: 226)
-    strokeLine(ctx: &ctx, from: CGPoint(x: 215, y: 222), to: knee, color: stroke, width: w + 0.4, alpha: lineAlpha)
+    // 大腿（knee.x=232 避免 foot 水平超出 240x320 坐标系）。
+    // sleep 是水平躺姿：thighAngle=0° → 水平向右；kneeBend 30° → 小腿略向下折。
+    // 用 (cos(θ), sin(θ))，θ 0°=右、90°=下，y 正方向=屏幕向下。
+    let sleepThighDeg: CGFloat = CGFloat(pose.thighAngle)
+    let sleepThighLen: CGFloat = 22
+    let hipJoint = CGPoint(x: 215, y: torsoEndY + 2)
+    let kneeX: CGFloat = hipJoint.x + sleepThighLen * CGFloat(cos(sleepThighDeg * .pi / 180))
+    let kneeY: CGFloat = hipJoint.y + sleepThighLen * CGFloat(sin(sleepThighDeg * .pi / 180))
+    let knee = CGPoint(x: kneeX, y: kneeY)
+    strokeLine(ctx: &ctx, from: hipJoint, to: knee, color: stroke, width: w + 0.4, alpha: lineAlpha)
     drawDot(ctx: &ctx, at: knee, r: 4, color: joint, filled: true, alpha: jointAlpha)
-    // 小腿（略屈）
-    let ankle = CGPoint(x: 232, y: 248)
+    // 小腿：方向角 = thighDeg + kneeBend（kneeBend 0° → 与大腿同向；30° → 略向下折到屏幕下）
+    // 长度限制 24，与原硬编码 ankle (232, 248) ≈ 24px 长 + 22px 下沉大致一致
+    let sleepShinDeg = sleepThighDeg + CGFloat(pose.kneeBend)
+    let sleepShinLen: CGFloat = 24
+    let ankleX: CGFloat = knee.x + sleepShinLen * CGFloat(cos(sleepShinDeg * .pi / 180))
+    let ankleY: CGFloat = knee.y + sleepShinLen * CGFloat(sin(sleepShinDeg * .pi / 180))
+    let ankle = CGPoint(x: min(ankleX, 232), y: ankleY)   // 钳制 x 不超过 232，保持脚在画布内
     strokeLine(ctx: &ctx, from: knee, to: ankle, color: stroke, width: w + 0.4, alpha: lineAlpha)
     drawDot(ctx: &ctx, at: ankle, r: 3.5, color: joint, filled: true, alpha: jointAlpha)
-    // 脚（统一在 240x320 坐标系内，右侧最远 x=240）
+    // 脚（统一在 240x320 坐标系内，右侧最远 x=240，跟 ankle 走）
     let foot = Path { p in
-        p.move(to: CGPoint(x: 220, y: 240))
-        p.addLine(to: CGPoint(x: 240, y: 240))
-        p.addQuadCurve(to: CGPoint(x: 240, y: 250), control: CGPoint(x: 238, y: 240))
-        p.addLine(to: CGPoint(x: 222, y: 250))
+        p.move(to: CGPoint(x: ankle.x - 12, y: ankle.y + 4))
+        p.addLine(to: CGPoint(x: ankle.x + 8, y: ankle.y + 4))
+        p.addQuadCurve(to: CGPoint(x: ankle.x + 8, y: ankle.y + 14), control: CGPoint(x: ankle.x + 6, y: ankle.y + 4))
+        p.addLine(to: CGPoint(x: ankle.x - 10, y: ankle.y + 14))
         p.closeSubpath()
     }
     ctx.stroke(foot, with: .color(stroke.opacity(lineAlpha)), style: StrokeStyle(lineWidth: 1.8, lineJoin: .round))
@@ -754,9 +793,9 @@ private func drawSleep(ctx: inout GraphicsContext, stroke: Color, fill: Color, j
 private func drawFigure(ctx: inout GraphicsContext, state: StickState, mood: StickFigureMood, tiredness: Double, neckWarning: Double, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double, lineAlpha: CGFloat, jointAlpha: CGFloat, pose: StickPose = .stand) {
     switch state {
     case .walk:  drawWalk(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood, lineAlpha: lineAlpha, jointAlpha: jointAlpha, pose: pose)
-    case .stand: drawSit(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood, tiredness: 0, neckWarning: 0, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
-    case .sit:   drawSit(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood, tiredness: tiredness, neckWarning: neckWarning, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
-    case .sleep: drawSleep(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
+    case .stand: drawSit(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood, tiredness: 0, neckWarning: 0, lineAlpha: lineAlpha, jointAlpha: jointAlpha, pose: .stand)
+    case .sit:   drawSit(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood, tiredness: tiredness, neckWarning: neckWarning, lineAlpha: lineAlpha, jointAlpha: jointAlpha, pose: pose)
+    case .sleep: drawSleep(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, lineAlpha: lineAlpha, jointAlpha: jointAlpha, pose: pose)
     }
 }
 
