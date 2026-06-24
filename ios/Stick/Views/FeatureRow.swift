@@ -1,5 +1,13 @@
 import SwiftUI
 
+// MARK: - 本地调色板（不属于 Theme）
+private extension Color {
+    /// 心率红 (ECG 心率波形 + FeatureLine 心率行)
+    static let frHeartRed  = Color(red: 0.86, green: 0.21, blue: 0.27)
+    /// 步数行 起步蓝（<50% 进度）
+    static let frStepsBlue = Color(red: 0.30, green: 0.55, blue: 0.85)
+}
+
 /// 主页 3-5 行紧凑指标（左上角）：
 ///  - 心率那一行额外带一个 48×18 的 ECG 动画波形（图形 + 数据）
 ///  - 心情那一行（白天）额外带一个 48×18 的心情曲线（图形 + 数据）
@@ -381,10 +389,10 @@ private struct StressLine: View {
     /// 颜色按 stressScore 数值 4 档（与 mood 相反方向）
     private var dotColor: Color {
         switch stressScore {
-        case ..<25:   return Color(red: 0.20, green: 0.65, blue: 0.45)   // 绿  低压力
-        case ..<50:   return Color(red: 0.55, green: 0.71, blue: 0.06)   // 黄绿
-        case ..<75:   return Color(red: 0.92, green: 0.55, blue: 0.20)   // 橙  中高压力
-        default:      return Color(red: 0.93, green: 0.20, blue: 0.20)   // 红  高压力
+        case ..<25:   return Theme.stateWalk   // 绿  低压力
+        case ..<50:   return Theme.stateStand  // 黄绿
+        case ..<75:   return Theme.dashSedentary // 橙  中高压力
+        default:      return Theme.riskHigh    // 红  高压力
         }
     }
 
@@ -476,10 +484,10 @@ private struct StepsLine: View {
     private var dotColor: Color {
         let pct = Double(steps) / Double(goal)
         switch pct {
-        case ..<0.25: return Color(red: 0.65, green: 0.68, blue: 0.74)   // 灰  起步
-        case ..<0.50: return Color(red: 0.30, green: 0.55, blue: 0.85)   // 蓝  进行中
-        case ..<1.00: return Color(red: 0.92, green: 0.55, blue: 0.20)   // 橙  接近目标
-        default:      return Color(red: 0.20, green: 0.65, blue: 0.45)   // 绿  达成
+        case ..<0.25: return Theme.mist          // 灰  起步
+        case ..<0.50: return Color.frStepsBlue   // 蓝  进行中
+        case ..<1.00: return Theme.dashSedentary // 橙  接近目标
+        default:      return Theme.stateWalk     // 绿  达成
         }
     }
 
@@ -748,7 +756,7 @@ private struct FeatureLine: View {
             // 心率行：ECG 波形叠加在数值列内部，不额外撑开布局
             ZStack {
                 if isHeartRate && !isLocked {
-                    HeartRateSparkline(color: Color(red: 0.86, green: 0.21, blue: 0.27))
+                    HeartRateSparkline(color: Color.frHeartRed)
                         .frame(width: 52, height: 18)
                 }
                 if isLocked {
