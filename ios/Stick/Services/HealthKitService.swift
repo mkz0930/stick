@@ -100,6 +100,10 @@ final class HealthKitService {
     var realDaySchedule: [StickState.DaySegment]? = nil
 
     private var timer: Timer?
+    /// background / foreground NotificationCenter 订阅持有（避免 ARC 立即释放 + 重复注册）
+    private var lifecycleObservers: [NSObjectProtocol] = []
+    /// 当前 timer 间隔（resume 时复用）
+    private var autoCaptureInterval: TimeInterval = 60
 
     /// single-flight 锁：保存当前在跑的 sit metrics 更新 Task。
     /// 5 个写入源（Timer 1s / Timer 30s / scenePhase / .task / lastMovementTime onChange）
@@ -402,6 +406,7 @@ final class HealthKitService {
         }
 
         stopAutoCapture()
+        autoCaptureInterval = interval
 
         // 启动 schedule 实时刷新（HKObserverQuery 步数变化 + 10 分钟兜底定时器）
         // startScheduleRealtimeRefresh 内部在 main actor 上下文里启动 observer + Timer
@@ -461,6 +466,10 @@ final class HealthKitService {
             let snap = await captureSnapshot()
             await MainActor.run { HealthStore.shared.append(snap) }
         }
+
+        // 监听 app 前后台：切到 background 时暂停 timer（RunLoop 即便降频也仍在 fire，浪费电），
+        // 回 foreground 时按原 interval 恢复。多次 start 会被 stopAutoCapture 先清掉 observer，不会重复注册。
+        registerLifecycleObserversIfNeeded()
     }
 
     func stopAutoCapture() {
@@ -469,6 +478,65 @@ final class HealthKitService {
 
         timer?.invalidate()
         timer = nil
+
+        // 清理 lifecycle observer（避免内存泄漏 + 下次 start 重复注册）
+        for observer in lifecycleObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        lifecycleObservers.removeAll()
+    }
+
+    // MARK: - 后台暂停（节电）
+
+    /// 注册一次性的 background / foreground observer。幂等：多次调用不会重复注册。
+    private func registerLifecycleObserversIfNeeded() {
+        guard lifecycleObservers.isEmpty else { return }
+
+        let bgObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.pauseAutoCapture()
+            }
+        }
+        let fgObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.resumeAutoCapture()
+            }
+        }
+        lifecycleObservers = [bgObserver, fgObserver]
+    }
+
+    /// 暂停 auto capture timer（保留 isAuthorized + store + interval；foreground 时 resume 复用）
+    func pauseAutoCapture() {
+        guard timer != nil else { return }
+        timer?.invalidate()
+        timer = nil
+        // schedule 实时刷新也一并暂停（10 分钟兜底 timer 在后台 fire 同样浪费电）
+        scheduleFallbackTimer?.invalidate()
+        scheduleFallbackTimer = nil
+        print("[HealthKitService] ⏸️ auto capture 已暂停（app 进入后台）")
+    }
+
+    /// 恢复 auto capture timer（仅在已启动过 + 未授权未失效时有效）
+    func resumeAutoCapture() {
+        guard isAuthorized, timer == nil else { return }
+        timer = Timer.scheduledTimer(withTimeInterval: autoCaptureInterval, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            Task {
+                let snap = await self.captureSnapshot()
+                await MainActor.run { HealthStore.shared.append(snap) }
+            }
+        }
+        // schedule 实时刷新也需要重新挂回 observer + 兜底 timer（pause 时一起 stop 了）
+        startScheduleRealtimeRefresh()
+        print("[HealthKitService] ▶️ auto capture 已恢复（interval=\(Int(autoCaptureInterval))s）")
     }
 
     // MARK: - Today Convenience Methods
