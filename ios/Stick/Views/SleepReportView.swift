@@ -12,25 +12,17 @@ import SwiftUI
 // MARK: - Stage color extension (从已有 SleepStage 派生 v6 调色板)
 
 extension SleepStage {
-    /// v6 调色板 (匹配任务定义 — SleepStage 专属，不进 Theme)
+    /// v6 调色板 (匹配任务定义 — SleepStage 专属，引用 Theme 中的 6 档睡眠色)
     var color: Color {
         switch self {
-        case .awake:  return Self.colorAwake
-        case .inBed:  return Self.colorInBed
-        case .asleep: return Self.colorAsleep
-        case .rem:    return Self.colorRem
-        case .core:   return Self.colorCore
-        case .deep:   return Self.colorDeep
+        case .awake:  return Theme.sleepAwake
+        case .inBed:  return Theme.sleepInBed
+        case .asleep: return Theme.sleepAsleep
+        case .rem:    return Theme.sleepRem
+        case .core:   return Theme.sleepCore
+        case .deep:   return Theme.sleepDeep
         }
     }
-
-    // MARK: - v6 调色板常量（SleepStage 专属，独立于 Theme）
-    static let colorAwake  = Color(red: 0.906, green: 0.298, blue: 0.235)  // #E74C3C 橙红
-    static let colorInBed  = Color(red: 0.722, green: 0.722, blue: 0.784)  // #B8B8C8 灰
-    static let colorAsleep = Color(red: 0.612, green: 0.627, blue: 0.847)  // #9CA0D8 淡紫
-    static let colorRem    = Color(red: 0.486, green: 0.227, blue: 0.929)  // #7C3AED 紫
-    static let colorCore   = Color(red: 0.357, green: 0.431, blue: 0.910)  // #5B6EE8 蓝靛
-    static let colorDeep   = Color(red: 0.239, green: 0.310, blue: 0.722)  // #3D4FB8 深靛
 
     /// 全英文短码 (UI 显示用)
     var shortName: String {
