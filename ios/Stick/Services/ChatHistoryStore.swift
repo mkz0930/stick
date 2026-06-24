@@ -114,21 +114,24 @@ final class ChatHistoryStore {
         }
     }
 
-    /// 后台读取 JSON 并在主线程回填数据。`init()` 中启动。
-    @MainActor
-    private func loadFromDisk() async {
+    /// 后台读取 JSON + decode，结果 hop 回主线程回填数据。
+    /// `init()` 中通过 Task.detached 启动，确保首帧不阻塞。
+    private nonisolated func loadFromDisk() async {
         guard let data = UserDefaults.standard.data(forKey: key) else {
-            loaded = true
+            await MainActor.run { self.loaded = true }
             return
         }
         do {
             let messages = try JSONDecoder().decode([PersistedChatMessage].self, from: data)
-            self.allMessages = messages
-            self.loadedMessages = Array(messages.suffix(pageSize))
-            print("[ChatHistoryStore] load(): \(messages.count) msgs loaded")
+            await MainActor.run {
+                self.allMessages = messages
+                self.loadedMessages = Array(messages.suffix(pageSize))
+                self.loaded = true
+                print("[ChatHistoryStore] load(): \(messages.count) msgs loaded")
+            }
         } catch {
             print("[ChatHistoryStore] load failed: \(error)")
+            await MainActor.run { self.loaded = true }
         }
-        loaded = true
     }
 }
