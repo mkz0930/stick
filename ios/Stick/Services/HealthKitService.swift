@@ -528,8 +528,10 @@ final class HealthKitService {
     /// - 0-6 AM：默认是睡眠时间，不算久坐
     /// - 连续 >4h 没有任何步数：可能睡眠/没带手机，整段跳过不算久坐
     /// 推测今早真正起床时间
-    /// 逻辑：从 04:00 开始扫描步数，第一条 >50 步的时间 = 真正起床
-    /// 夜间起夜（<50步）不算起床；6 点前轻微活动也不算
+    /// 逻辑：从 04:00 开始扫描步数，过滤凌晨翻身误报后第一条 >阈值步数的时间 = 真正起床
+    /// - 04:00-06:00：>100 步才算（避免凌晨翻身的 25 步被误判为起床）
+    /// - 06:00 之后：>50 步即起床
+    /// - 夜间起夜（<50步）不算起床
     func queryWakeUpTime() async -> Date? {
         guard let stepType = quantityType(.stepCount) else { return nil }
         let calendar = Calendar.current
@@ -541,16 +543,27 @@ final class HealthKitService {
         return await withCheckedContinuation { cont in
             let predicate = HKQuery.predicateForSamples(withStart: searchStart, end: now, options: .strictStartDate)
             let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
-            let q = HKSampleQuery(sampleType: stepType, predicate: predicate, limit: 50, sortDescriptors: [sort]) { _, samples, _ in
-                guard let samples = samples as? [HKQuantitySample] else {
+            let q = HKSampleQuery(sampleType: stepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
+                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty else {
                     cont.resume(returning: nil)
                     return
                 }
+                // 凌晨误报保护：04:00-06:00 之间的低步数样本视为翻身/起夜，跳过
                 for sample in samples {
-                    let steps = sample.quantity.doubleValue(for: .count())
-                    if steps > 50 {
-                        cont.resume(returning: sample.startDate)
-                        return
+                    let hour = calendar.component(.hour, from: sample.startDate)
+                    let steps = Int(sample.quantity.doubleValue(for: .count()))
+                    if hour < 6 {
+                        // 凌晨时段：需要 >100 步才算"真实起床"
+                        if steps > 100 {
+                            cont.resume(returning: sample.startDate)
+                            return
+                        }
+                    } else {
+                        // 6 点之后：>50 步即起床
+                        if steps > 50 {
+                            cont.resume(returning: sample.startDate)
+                            return
+                        }
                     }
                 }
                 cont.resume(returning: nil)
