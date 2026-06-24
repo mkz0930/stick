@@ -221,4 +221,22 @@ enum Theme {
     static let dashBody     = Color(red: 0.20, green: 0.75, blue: 0.50)   // 身材 绿
     static let dashBlood    = Color(red: 0.55, green: 0.50, blue: 0.90)   // 血压/血糖 紫
     static let dashSedentary = Color(red: 0.92, green: 0.55, blue: 0.20)   // 久坐 橙
+
+    /// 状态色（stick figure 关节 / 强调点 / 状态徽章）
+    static let stateWalk  = Color(red: 0.02, green: 0.59, blue: 0.41)  // #059669
+    static let stateStand = Color(red: 0.55, green: 0.71, blue: 0.06)
+    static let stateSit   = Color(red: 0.92, green: 0.34, blue: 0.05)  // #EA580C
+    static let stateSleep = Color(red: 0.70, green: 0.60, blue: 0.98)
+
+    /// 状态软色（背景柔光 / 卡片左 border）
+    static let stateWalkSoft  = Color(red: 0.85, green: 0.94, blue: 0.90)
+    static let stateStandSoft = Color(red: 0.93, green: 0.97, blue: 0.85)
+    static let stateSitSoft   = Color(red: 0.99, green: 0.91, blue: 0.83)
+    static let stateSleepSoft = Color(red: 0.95, green: 0.93, blue: 1.0)
+
+    /// 风险 / 警示色
+    static let riskHigh = Color(red: 0.95, green: 0.30, blue: 0.20)  // 警示红
+    static let riskWarn = Color(red: 0.96, green: 0.62, blue: 0.10)  // 橙
+    static let riskOk   = Color(red: 0.02, green: 0.59, blue: 0.41)  // 绿
+    static let riskInfo = Color(red: 0.62, green: 0.82, blue: 0.98)  // 蓝
 }
