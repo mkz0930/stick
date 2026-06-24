@@ -1,6 +1,30 @@
 import SwiftUI
 import UIKit
 
+// MARK: - 本地调色板（电影独有色，不属于 Theme）
+private extension Color {
+    /// 心率脉冲红（film 中独有的略偏粉红）
+    static let filmHeartRed = Color(red: 0.92, green: 0.22, blue: 0.30)
+    /// 起床蓝（film wake phase）
+    static let filmWakeBlue = Color(red: 0.62, green: 0.82, blue: 0.98)
+    /// 离开紫（film leave phase）
+    static let filmLeavePurple = Color(red: 0.62, green: 0.55, blue: 0.98)
+    /// 午休紫（film nap phase）
+    static let filmNapPurple = Color(red: 0.62, green: 0.55, blue: 0.98)
+    /// film 默认描边色（深蓝黑）
+    static let filmLineInk = Color(red: 0.10, green: 0.14, blue: 0.20)
+    /// film 场景线色（灰蓝）
+    static let filmSceneSlate = Color(red: 0.45, green: 0.50, blue: 0.58)
+    /// 摘要"活动"绿色（比 Theme.stateWalk 略亮，film 独用）
+    static let filmMoveGreen = Color(red: 0.20, green: 0.78, blue: 0.55)
+    /// 状态点蓝（film tired phase）
+    static let filmTiredBlue = Color(red: 0.42, green: 0.50, blue: 0.78)
+    /// 浅米色渐变（film 分享 sheet 背景）
+    static let filmSheetTop = Color(red: 0.97, green: 0.96, blue: 0.92)
+    /// 深米色渐变（film 分享 sheet 背景）
+    static let filmSheetBottom = Color(red: 0.92, green: 0.92, blue: 0.88)
+}
+
 /// 10 秒火柴人短片（播一遍后停在统计页，进度条可拖）：
 ///   起床伸懒腰 → 走到办公桌 → 坐下 → 敲键盘点鼠标 → 起身 → 离开工位
 ///   最后 1s 叠一行"今日工作/休息/活动"统计。
@@ -9,9 +33,9 @@ import UIKit
 struct MiniFilmView: View {
     var durationSec: Double = 10
     /// 默认深色（适配浅色卡片背景）。要深色背景时改成 .white 即可。
-    var lineColor: Color = Color(red: 0.10, green: 0.14, blue: 0.20)
+    var lineColor: Color = Color.filmLineInk
     /// 场景（桌/椅/地面）的线色。
-    var sceneColor: Color = Color(red: 0.45, green: 0.50, blue: 0.58)
+    var sceneColor: Color = Color.filmSceneSlate
     /// 进度回调（用来给 share sheet 显示当前状态文字）
     var onTimeUpdate: ((Double) -> Void)? = nil
 
@@ -115,9 +139,9 @@ private enum FilmTimeline {
 
     static let walkColor = Theme.stateWalk
     static let sitColor  = Theme.stateSit
-    static let wakeColor = Color(red: 0.62, green: 0.82, blue: 0.98)
-    static let leaveColor = Color(red: 0.62, green: 0.55, blue: 0.98)
-    static let napColor  = Color(red: 0.62, green: 0.55, blue: 0.98)
+    static let wakeColor = Color.filmWakeBlue
+    static let leaveColor = Color.filmLeavePurple
+    static let napColor  = Color.filmNapPurple
 
     /// 当前时间点的 mood (早上兴奋 → 下午疲惫，含午休低谷)
     static func mood(at t: Double) -> FilmMood {
@@ -533,9 +557,9 @@ private func drawSummary(ctx: inout GraphicsContext, alpha: Double) {
 
     // 3 行：图标小圆点 + 标签 + 数值
     let rows: [(String, String, String, Color)] = [
-        ("work", "工作", FilmStats.work, Color(red: 0.96, green: 0.62, blue: 0.10)),
-        ("rest", "休息", FilmStats.rest, Color(red: 0.62, green: 0.55, blue: 0.98)),
-        ("move", "活动", FilmStats.move, Color(red: 0.20, green: 0.78, blue: 0.55)),
+        ("work", "工作", FilmStats.work, Theme.riskWarn),
+        ("rest", "休息", FilmStats.rest, Color.filmNapPurple),
+        ("move", "活动", FilmStats.move, Color.filmMoveGreen),
     ]
     let baseY: CGFloat = 122
     let gap: CGFloat = 58
@@ -568,7 +592,7 @@ private func fract(_ x: Double) -> Double {
 // MARK: - 场景
 
 private func drawScene(ctx: inout GraphicsContext, t: Double, phase: FilmPhase) {
-    let sc = Color(red: 0.45, green: 0.50, blue: 0.58).opacity(0.55)
+    let sc = Color.filmSceneSlate.opacity(0.55)
     let dim = sc.opacity(0.45)
     let groundY: CGFloat = 322
 
@@ -917,7 +941,7 @@ private struct HeartPulseIcon: View {
     var body: some View {
         Image(systemName: "heart.fill")
             .font(.system(size: 12, weight: .bold))
-            .foregroundColor(Color(red: 0.92, green: 0.22, blue: 0.30))
+            .foregroundColor(Color.filmHeartRed)
             .scaleEffect(scale)
             .onAppear {
                 withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
@@ -985,12 +1009,12 @@ private struct MoodCurveView: View {
                     p.move(to: CGPoint(x: cx, y: 0))
                     p.addLine(to: CGPoint(x: cx, y: h))
                 }
-                .stroke(Color(red: 0.92, green: 0.22, blue: 0.30), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+                .stroke(Color.filmHeartRed, style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
 
                 // 当前点
                 let cy = h * (1 - CGFloat(moodValue(at: currentTime)))
                 Circle()
-                    .fill(Color(red: 0.92, green: 0.22, blue: 0.30))
+                    .fill(Color.filmHeartRed)
                     .frame(width: 6, height: 6)
                     .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
                     .position(x: cx, y: cy)
@@ -1012,7 +1036,7 @@ struct MiniFilmShareSheet: View {
         ZStack(alignment: .topTrailing) {
             // 浅色背景
             LinearGradient(
-                colors: [Color(red: 0.97, green: 0.96, blue: 0.92), Color(red: 0.92, green: 0.92, blue: 0.88)],
+                colors: [Color.filmSheetTop, Color.filmSheetBottom],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -1171,9 +1195,9 @@ private struct StatusPill: View {
         let moodText = mood.moodWord
         let dotColor: Color = {
             switch mood {
-            case .excited: return Color(red: 0.96, green: 0.62, blue: 0.10)
-            case .focused: return Color(red: 0.20, green: 0.78, blue: 0.55)
-            case .tired:   return Color(red: 0.42, green: 0.50, blue: 0.78)
+            case .excited: return Theme.riskWarn
+            case .focused: return Color.filmMoveGreen
+            case .tired:   return Color.filmTiredBlue
             }
         }()
         HStack(spacing: 6) {
