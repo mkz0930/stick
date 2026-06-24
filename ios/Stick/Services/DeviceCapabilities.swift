@@ -34,13 +34,20 @@ enum DeviceID: String, CaseIterable, Hashable, Identifiable {
 
     var color: Color {
         switch self {
-        case .iPhone:      return Color(red: 0.40, green: 0.45, blue: 0.55)
-        case .appleWatch:  return Color(red: 0.95, green: 0.40, blue: 0.45)
-        case .smartBelt:   return Color(red: 0.55, green: 0.50, blue: 0.85)
-        case .smartShoe:   return Color(red: 0.30, green: 0.70, blue: 0.85)
-        case .airpods:     return Color(red: 0.30, green: 0.55, blue: 0.85)
+        case .iPhone:      return Self.iPhoneColor
+        case .appleWatch:  return Self.appleWatchColor
+        case .smartBelt:   return Self.smartBeltColor
+        case .smartShoe:   return Self.smartShoeColor
+        case .airpods:     return Self.airpodsColor
         }
     }
+
+    // MARK: - 5 设备专属色（能力矩阵专用，独立于 Theme）
+    static let iPhoneColor     = Color(red: 0.40, green: 0.45, blue: 0.55)  // 灰蓝
+    static let appleWatchColor = Color(red: 0.95, green: 0.40, blue: 0.45)  // 粉
+    static let smartBeltColor  = Color(red: 0.55, green: 0.50, blue: 0.85)  // 紫
+    static let smartShoeColor  = Color(red: 0.30, green: 0.70, blue: 0.85)  // 青
+    static let airpodsColor    = Color(red: 0.30, green: 0.55, blue: 0.85)  // 蓝
 
     /// 哪些 metric 在缺这个设备时会被锁住 (用于"推荐解锁"提示)
     var enables: Set<MetricID> {
