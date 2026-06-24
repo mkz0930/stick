@@ -45,7 +45,7 @@ struct SleepAlertChip: View {
     }
 
     private var severityColor: Color {
-        Color(red: 0.95, green: 0.30, blue: 0.20)  // 警示红
+        Theme.riskHigh
     }
 }
 
