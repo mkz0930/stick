@@ -113,8 +113,8 @@ private enum FilmTimeline {
     /// 进度条上的阶段刻度（去掉首尾）
     static let breakpoints: [Double] = [wakeEnd, walkEnd, sitEnd, typeEnd, lieEnd, napEnd, wakeUpEnd, standEnd]
 
-    static let walkColor = Color(red: 0.20, green: 0.78, blue: 0.55)
-    static let sitColor  = Color(red: 0.96, green: 0.62, blue: 0.10)
+    static let walkColor = Theme.stateWalk
+    static let sitColor  = Theme.stateSit
     static let wakeColor = Color(red: 0.62, green: 0.82, blue: 0.98)
     static let leaveColor = Color(red: 0.62, green: 0.55, blue: 0.98)
     static let napColor  = Color(red: 0.62, green: 0.55, blue: 0.98)
