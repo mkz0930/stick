@@ -1,5 +1,13 @@
 import SwiftUI
 
+// MARK: - 本地调色板（不属于 Theme，widget 预览深睡蓝 + 心率红）
+private extension Color {
+    /// widget 预览深睡蓝（与 Theme.stateSleep 浅紫不同，更深蓝调，匹配 widget 设计）
+    static let wpSleepBlue = Color(red: 0.39, green: 0.40, blue: 0.95)
+    /// widget 心率 icon 红
+    static let wpHeartRed  = Color(red: 0.86, green: 0.21, blue: 0.27)
+}
+
 /// Widget 预览页：在主 app 内展示小部件 + 中型部件的样子，引导用户去主屏添加。
 /// 渲染用真实 SwiftUI view（跟 widget target 里用同一份 view），所以预览就是真实呈现。
 struct WidgetPreviewView: View {
@@ -169,9 +177,9 @@ private struct WidgetPreviewSmallBody: View {
 
     private var stateAccent: Color {
         switch state.stateRaw {
-        case "sit":   return Color(red: 0.92, green: 0.34, blue: 0.05)
-        case "sleep": return Color(red: 0.39, green: 0.40, blue: 0.95)
-        default:      return Color(red: 0.02, green: 0.59, blue: 0.41)
+        case "sit":   return Theme.stateSit
+        case "sleep": return Color.wpSleepBlue
+        default:      return Theme.stateWalk
         }
     }
 
@@ -206,9 +214,9 @@ private struct WidgetPreviewMediumBody: View {
 
     private var stateAccent: Color {
         switch state.stateRaw {
-        case "sit":   return Color(red: 0.92, green: 0.34, blue: 0.05)
-        case "sleep": return Color(red: 0.39, green: 0.40, blue: 0.95)
-        default:      return Color(red: 0.02, green: 0.59, blue: 0.41)
+        case "sit":   return Theme.stateSit
+        case "sleep": return Color.wpSleepBlue
+        default:      return Theme.stateWalk
         }
     }
 
@@ -231,7 +239,7 @@ private struct WidgetPreviewMediumBody: View {
                 HStack(spacing: 3) {
                     Image(systemName: "heart.fill")
                         .font(.system(size: 9))
-                        .foregroundColor(Color(red: 0.86, green: 0.21, blue: 0.27))
+                        .foregroundColor(Color.wpHeartRed)
                     Text("\(state.heartRate) bpm")
                         .font(.system(size: 11, weight: .heavy, design: .monospaced))
                         .foregroundColor(Theme.navy)
