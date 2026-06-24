@@ -4,6 +4,14 @@ import UIKit
 import WidgetKit
 #endif
 
+// MARK: - 本地调色板（能量色 4 档，独立于 Theme）
+private extension Color {
+    /// 能量 4 档 — 中档橙 (Theme.riskWarn 偏亮，这里用 energy 专用)
+    static let energyMid = Color(red: 0.92, green: 0.55, blue: 0.06)
+    /// 能量 4 档 — 低档红 (Theme.riskHigh 偏亮，这里用 energy 专用)
+    static let energyLow = Color(red: 0.93, green: 0.20, blue: 0.20)
+}
+
 /// 详情页 sheet 路由
 enum SheetDestination: String, Identifiable {
     case walk, sit, sleep, stand
@@ -397,10 +405,10 @@ struct ContentView: View {
     /// 能量条颜色：>75 绿 / >50 黄绿 / >30 橙 / ≤30 红
     private var energyColor: Color {
         let e = bodyEnergy
-        if e >= 75 { return Color(red: 0.02, green: 0.59, blue: 0.41) }
-        if e >= 50 { return Color(red: 0.55, green: 0.71, blue: 0.06) }
-        if e >= 30 { return Color(red: 0.92, green: 0.55, blue: 0.06) }
-        return Color(red: 0.93, green: 0.20, blue: 0.20)
+        if e >= 75 { return Theme.stateWalk }
+        if e >= 50 { return Theme.stateStand }
+        if e >= 30 { return Color.energyMid }
+        return Color.energyLow
     }
 
     /// Mood 颜色：跟 energyColor 同一套 4 档
