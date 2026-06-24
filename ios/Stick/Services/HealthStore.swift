@@ -28,21 +28,25 @@ final class HealthStore {
         }
     }
 
-    /// 后台读取 JSON 并在主线程回填数据。`init()` 中启动。
-    @MainActor
-    private func loadFromDisk() async {
+    /// 后台读取 JSON + decode，结果 hop 回主线程回填数据。
+    /// `init()` 中通过 Task.detached 启动，确保首帧不阻塞。
+    private nonisolated func loadFromDisk() async {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
-            loaded = true
+            await MainActor.run { self.loaded = true }
             return
         }
         do {
             let data = try Data(contentsOf: fileURL)
-            self.all = try JSONDecoder().decode([HealthSnapshot].self, from: data)
-            refreshToday()
+            let snapshots = try JSONDecoder().decode([HealthSnapshot].self, from: data)
+            await MainActor.run {
+                self.all = snapshots
+                self.refreshToday()
+                self.loaded = true
+            }
         } catch {
             print("[HealthStore] load failed: \(error)")
+            await MainActor.run { self.loaded = true }
         }
-        loaded = true
     }
 
     // MARK: - 增删改
