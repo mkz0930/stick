@@ -6,7 +6,7 @@ import WidgetKit
 
 /// 详情页 sheet 路由
 enum SheetDestination: String, Identifiable {
-    case walk, sit, sleep
+    case walk, sit, sleep, stand
     var id: String { rawValue }
 }
 
@@ -784,6 +784,13 @@ struct ContentView: View {
                 nightWakeCount: walkingQuality?.nightWakeCount ?? 0,
                 nightWakeTotalMin: walkingQuality?.nightWakeTotalMin ?? 0
             )
+        case .stand:
+            // 站立待机：复用 SitDetailSheet（无独立 UI 时不重复造组件）
+            SitDetailSheet(
+                sedentaryMinutes: homeSedentaryMinutes,
+                heartRate: realHeartRate,
+                bodyScore: bodyEnergy
+            )
         }
     }
 
@@ -803,6 +810,7 @@ private struct StageHeroView: View {
     @Binding var manualStateOverride: StickState?  // swipe 切状态后的强制状态
     var onPreview: () -> Void
     var onSleepAlert: () -> Void
+    var onStateTap: ((StickState) -> Void)? = nil   // 火柴人点击 → 推/弹当前 state 详情（nil = 旧调用方未接）
     let subLine: String
     let schedule: [StickState.DaySegment]    // 真实时刻表（用于按时间正方向查找下一个 state 的段）
 
@@ -949,6 +957,12 @@ private struct StageHeroView: View {
                         dragStartOffset = nil
                     }
             )
+            // 单击火柴人 → 打开当前 state 详情 sheet。TapGesture 与 DragGesture
+            // (minimumDistance: 12) 不会互相踩：tap 触发条件是「up 之前没有任何
+            // 移动」，drag 一旦移动就被吞掉。
+            .onTapGesture {
+                onStateTap?(manualStateOverride ?? state)
+            }
 
             // 拖动时显示当前时间 / swipe 后显示状态 + 时段范围
             if isStageScrubbing || manualStateOverride != nil {
@@ -1694,6 +1708,17 @@ private struct HomeBodyView: View {
                             manualStateOverride: $state.manualStateOverride,
                             onPreview: { state.showFilm = true },
                             onSleepAlert: { state.showSleepReport = true },
+                            onStateTap: { s in
+                                // 单击火柴人 → 推当前 state 详情。沿用现有 .sheet(item: $activeSheet) 路径，
+                                // 不强行改 NavigationStack.push（要换得给 homeBody 整体包 NavigationStack，
+                                // 牵涉太广，下一轮再做）。本轮先把入口接起来。
+                                switch s {
+                                case .walk:  state.activeSheet = .walk
+                                case .sit:   state.activeSheet = .sit
+                                case .stand: state.activeSheet = .stand
+                                case .sleep: state.activeSheet = .sleep
+                                }
+                            },
                             subLine: realSubLine,
                             schedule: hk.realDaySchedule ?? StickState.daySchedule
                         )
