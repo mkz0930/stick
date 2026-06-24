@@ -31,12 +31,16 @@ final class MorningReportTrigger {
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
-                // single-flight：如果已有 Task 在跑，直接复用，不再 fork 新的
-                guard let self else { return }
-                if self.pendingCheck == nil {
-                    self.pendingCheck = Task { @MainActor [weak self] in
-                        await self?.checkAndGenerate()
-                        self?.pendingCheck = nil  // 释放锁，下次 unlock 才会重新 fork
+                // NotificationCenter 闭包是 Sendable，无法直接访问 @MainActor-isolated 属性
+                // 通过 Task hop 到主 actor 之后再读写 self.pendingCheck
+                Task { @MainActor [weak self] in
+                    // single-flight：如果已有 Task 在跑，直接复用，不再 fork 新的
+                    guard let self else { return }
+                    if self.pendingCheck == nil {
+                        self.pendingCheck = Task { @MainActor [weak self] in
+                            await self?.checkAndGenerate()
+                            self?.pendingCheck = nil  // 释放锁，下次 unlock 才会重新 fork
+                        }
                     }
                 }
             }
