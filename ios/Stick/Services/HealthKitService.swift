@@ -330,6 +330,8 @@ final class HealthKitService {
 
     /// 监听步数变化的 HKObserverQuery（步数变化立即触发 `computeDaySchedule()`）
     private var scheduleObserverQuery: HKObserverQuery?
+    /// 监听心率变化的 HKObserverQuery（心率实时变化立即触发回调）
+    private var heartRateObserverQuery: HKObserverQuery?
     /// 10 分钟兜底定时器（observer 漏报时仍能刷新）
     private var scheduleFallbackTimer: Timer?
     /// 兜底间隔
@@ -362,6 +364,19 @@ final class HealthKitService {
         store.execute(observer)
         scheduleObserverQuery = observer
 
+        // (1b) HKObserverQuery 监听心率变化 — 单飞锁 + hop main actor；
+        //      目前仅打日志，后续接 captureSnapshot() 走增量更新
+        if let hrType = HKObjectType.quantityType(forIdentifier: .heartRate) {
+            let hrObserver = HKObserverQuery(sampleType: hrType, predicate: nil) { [weak self] _, completion, _ in
+                Task { @MainActor in
+                    self?.handleHeartRateObserverFire()
+                    completion()
+                }
+            }
+            store.execute(hrObserver)
+            heartRateObserverQuery = hrObserver
+        }
+
         // (2) 10 分钟兜底定时器
         scheduleFallbackTimer = Timer.scheduledTimer(withTimeInterval: scheduleFallbackInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
@@ -380,6 +395,16 @@ final class HealthKitService {
                 print("[HealthKitService] enableBackgroundDelivery 失败（可忽略）: \(error.localizedDescription)")
             }
         }
+        // 心率 observer 同样申请后台 delivery（手表端实时心率 → 前台立即刷新）
+        if let hrType = HKObjectType.quantityType(forIdentifier: .heartRate) {
+            Task {
+                do {
+                    try await store.enableBackgroundDelivery(for: hrType, frequency: .immediate)
+                } catch {
+                    print("[HealthKitService] enableBackgroundDelivery(heartRate) 失败（可忽略）: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 
     /// 停止 schedule 实时刷新（observer + 兜底定时器）
@@ -388,8 +413,36 @@ final class HealthKitService {
             store?.stop(q)
             scheduleObserverQuery = nil
         }
+        if let q = heartRateObserverQuery {
+            store?.stop(q)
+            heartRateObserverQuery = nil
+        }
         scheduleFallbackTimer?.invalidate()
         scheduleFallbackTimer = nil
+    }
+
+    /// 心率 observer fire 回调：调度到主 actor 后做轻量更新。
+    /// 当前实现：读最近一条心率样本（最近 60s 平均）并打印日志，供后续接入 captureSnapshot 增量更新。
+    /// 单飞锁：避免连续 fire 时并发触发多个 HK 查询。
+    private var heartRateRefreshTask: Task<Void, Never>?
+
+    private func handleHeartRateObserverFire() {
+        if let existing = heartRateRefreshTask, !existing.isCancelled {
+            return  // 已有查询在跑，复用
+        }
+        heartRateRefreshTask = Task { @MainActor in
+            defer { heartRateRefreshTask = nil }
+            if Task.isCancelled { return }
+            let hr = await recentAverage(
+                .heartRate,
+                from: Date().addingTimeInterval(-60),
+                unit: HKUnit.count().unitDivided(by: .minute())
+            )
+            if Task.isCancelled { return }
+            if let hr {
+                print("[HealthKitService] 💗 心率 observer fire: 最近 60s 平均 \(Int(hr.rounded())) bpm")
+            }
+        }
     }
 
     // MARK: - 定时抓取 (1 分钟一次)
