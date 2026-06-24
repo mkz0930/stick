@@ -598,7 +598,6 @@ struct ContentView: View {
                     backgroundedAt: backgroundedAt,
                     homeSedentaryMinutes: homeSedentaryMinutes,
                     hasValidSleepData: hasValidSleepData,
-                    pendingSitMetricsTask: nil,
                     walkingQuality: walkingQuality,
                     realHeartRate: realHeartRate,
                     inference: inference,
@@ -1141,12 +1140,8 @@ struct HomeState {
     var backgroundedAt: Date?
     var homeSedentaryMinutes: Int
     var hasValidSleepData: Bool
-    /// single-flight 锁：5 个写入源（Timer 1s / Timer 30s / scenePhase / .task / lastMovementTime
-    /// onChange）同时改 sit metrics 时，只允许一个 Task 真正跑 HealthKit 查询并写状态。
-    /// 避免「回到桌面再回来」秒表跳数，也避免 stale `state.realHeartRate` 被跨 await 读到。
-    /// `Task` 是引用类型，struct 字段塞可选引用即可；
-    /// 通过 @Binding 投影时由 SwiftUI 同步回 ContentView 的 @State 存储。
-    var pendingSitMetricsTask: Task<Void, Never>?
+    /// single-flight 锁已迁到 `HealthKitService.sitMetricsTask`（actor-isolated）。
+    /// 避免 view 重组时 HomeState struct 引用丢失导致死锁。
 
     // MARK: 实时分析（HealthKit 30s 抓取）
     var walkingQuality: WalkingQualityData?
@@ -1238,57 +1233,41 @@ private struct MainContentView<SheetContent: View>: View {
         guard !Self.isRunningForPreviews else { return }
         // 重置走"单飞 reset"路径：先取消 in-flight 任务（避免它 sleep 完后覆盖 reset），
         // 再原子地把秒表归零、清空 start time，并刷新 lastSitAnalysisTime 让下个 30s tick 重新算
-        state.pendingSitMetricsTask?.cancel()
-        state.pendingSitMetricsTask = nil
+        hk.cancelSitMetricsTask()
         state.currentSitMinutes = 0
         state.currentSitStartTime = nil
         state.lastSitAnalysisTime = Date()
     }
 
     /// single-flight 入口：5 个写入源（Timer 1s / Timer 30s / scenePhase 恢复 / .task 启动 /
-    /// lastMovementTime 重置）全部走这里。已有 Task 在跑就复用，不再 fork 新的 HealthKit 查询。
+    /// lastMovementTime 重置）全部走这里。锁在 HealthKitService 上（actor-isolated），
+    /// 这里只是把 UI state / widget 写入包装成闭包传过去。
     /// `reason` 仅用于日志排障；`reset` 走单独路径（直接归零）。
     /// 返回 true 表示本次新建并派发了任务，false 表示已有任务在跑、复用。
     @discardableResult
     private func scheduleSitMetricsUpdate(reason: String) -> Bool {
-        if let existing = state.pendingSitMetricsTask, !existing.isCancelled {
-            return false  // 已有 Task 在跑，复用，不 fork 新的
+        let stateBinding = state
+        let onUpdate: @MainActor @Sendable (Int, Date?) -> Void = { [stateBinding] newMinutes, startTime in
+            stateBinding.currentSitMinutes = newMinutes
+            stateBinding.currentSitStartTime = startTime
+            stateBinding.lastSitAnalysisTime = Date()
         }
-        state.pendingSitMetricsTask = Task { @MainActor in
-            defer { state.pendingSitMetricsTask = nil }
-            if Task.isCancelled { return }
-            // 抓 HealthKit 当前 session 久坐（小时窗覆盖午餐后等长坐场景）
-            let prevMinutes = state.currentSitMinutes
-            let newMinutes = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
-            if Task.isCancelled { return }
-            // session 变化时同步 startTime：从当前时刻往前推 newMinutes 分钟（newMinutes=0 则归零）
-            // 覆盖三种场景：延长 (new>prev) / 缩短 (new<prev) / 归零 (new=0)
-            if newMinutes != prevMinutes {
-                if newMinutes == 0 {
-                    state.currentSitStartTime = nil
-                } else {
-                    state.currentSitStartTime = Date().addingTimeInterval(-Double(newMinutes) * 60)
-                }
-            }
-            state.currentSitMinutes = newMinutes
-            state.lastSitAnalysisTime = Date()
+        let onWidgetWrite: @MainActor @Sendable (Int, Date) -> Void = { [stateBinding, displayState, primaryHeartRate, primaryDurationMinutes, realSubLine] newMinutes, startTime in
             // 同步到 Widget（仅在 sit + 有 session 时写，避免 sleep/stand 反复写）
-            if displayState == .sit && newMinutes > 0 {
-                let startTime = Date().addingTimeInterval(-Double(newMinutes) * 60)
-                let snap = SharedStickState(
-                    stateRaw: displayState.rawValue,
-                    englishName: displayState.englishName,
-                    actionPhrase: displayState.actionPhrase,
-                    heartRate: state.realHeartRate ?? primaryHeartRate,
-                    mood: state.walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
-                    durationMinutes: primaryDurationMinutes,
-                    subLine: realSubLine,
-                    updatedAt: Date(),
-                    currentSedentarySeconds: newMinutes * 60,
-                    sedentaryStartTime: startTime
-                )
-                SharedStateStore.write(snap)
-            }
+            guard displayState == .sit, newMinutes > 0 else { return }
+            let snap = SharedStickState(
+                stateRaw: displayState.rawValue,
+                englishName: displayState.englishName,
+                actionPhrase: displayState.actionPhrase,
+                heartRate: stateBinding.realHeartRate ?? primaryHeartRate,
+                mood: stateBinding.walkingQuality.map { "\($0.gaitScore)" } ?? displayState.secondaryMetric.value,
+                durationMinutes: primaryDurationMinutes,
+                subLine: realSubLine,
+                updatedAt: Date(),
+                currentSedentarySeconds: newMinutes * 60,
+                sedentaryStartTime: startTime
+            )
+            SharedStateStore.write(snap)
             #if canImport(WidgetKit)
             // 延迟 50ms 给 UserDefaults 落盘时间，避免 widget reload 时读到旧值
             Task { @MainActor in
@@ -1297,7 +1276,10 @@ private struct MainContentView<SheetContent: View>: View {
             }
             #endif
         }
-        return true
+        return hk.scheduleSitMetricsUpdate(
+            onUpdate: onUpdate,
+            onWidgetWrite: onWidgetWrite
+        )
     }
 
     @ViewBuilder

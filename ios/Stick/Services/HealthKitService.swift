@@ -101,6 +101,13 @@ final class HealthKitService {
 
     private var timer: Timer?
 
+    /// single-flight 锁：保存当前在跑的 sit metrics 更新 Task。
+    /// 5 个写入源（Timer 1s / Timer 30s / scenePhase / .task / lastMovementTime onChange）
+    /// 同时调 `scheduleSitMetricsUpdate(...)` 时，只允许一个 Task 真正跑 HealthKit 查询，
+    /// 其余调用直接返回。锁放在 HealthKitService（actor-isolated），避开 HomeState struct
+    /// 重组时 Task 引用丢失导致的死锁。
+    private var sitMetricsTask: Task<Void, Never>?
+
     // 写读的类型
     private let readTypes: Set<HKObjectType> = {
         var s: Set<HKObjectType> = []
@@ -1188,6 +1195,49 @@ final class HealthKitService {
         }
         guard let lastMove else { return 0 }
         return max(0, Int(Date().timeIntervalSince(lastMove) / 60))
+    }
+
+    /// single-flight 入口：5 个写入源（Timer 1s / Timer 30s / scenePhase 恢复 / .task 启动 /
+    /// lastMovementTime 重置）全部走这里。已有 Task 在跑就复用，不 fork 新 HealthKit 查询。
+    /// **锁放在 service（actor-isolated）**：旧实现把 Task 引用塞进 HomeState struct 字段，
+    /// view 重组时新 struct 实例看不到旧 Task，defer 里写回的 nil 不反映到新 state → 永远认为
+    /// 有 Task 在跑 → 后续 single-flight 全部死锁。
+    /// - Parameter onUpdate: 拿到 `newMinutes` 和 `startTime` 后写回 UI state（nil = 归零）
+    /// - Parameter onWidgetWrite: 写 SharedStateStore 给 widget（仅在 sit + 有 session 时）
+    /// 返回 true 表示本次新建并派发了任务，false 表示已有任务在跑、复用。
+    @discardableResult
+    func scheduleSitMetricsUpdate(
+        onUpdate: @MainActor @Sendable @escaping (_ newMinutes: Int, _ startTime: Date?) -> Void,
+        onWidgetWrite: @MainActor @Sendable @escaping (_ newMinutes: Int, _ startTime: Date) -> Void
+    ) -> Bool {
+        if let existing = sitMetricsTask, !existing.isCancelled {
+            return false  // 已有 Task 在跑，复用，不 fork 新的
+        }
+        sitMetricsTask = Task { @MainActor in
+            defer { sitMetricsTask = nil }
+            if Task.isCancelled { return }
+            // 抓 HealthKit 当前 session 久坐（小时窗覆盖午餐后等长坐场景）
+            let newMinutes = await currentSedentarySessionMinutes(hours: 4)
+            if Task.isCancelled { return }
+            // 同步 startTime：newMinutes=0 归零，否则从当前时刻往前推
+            let startTime: Date? = newMinutes == 0
+                ? nil
+                : Date().addingTimeInterval(-Double(newMinutes) * 60)
+            onUpdate(newMinutes, startTime)
+            if Task.isCancelled { return }
+            // 同步到 Widget（仅在 sit + 有 session 时写，避免 sleep/stand 反复写）
+            if let startTime {
+                onWidgetWrite(newMinutes, startTime)
+            }
+        }
+        return true
+    }
+
+    /// 取消 in-flight 的 sit metrics Task（lastMovementTime 重置路径用）。
+    /// 避免已 sleep 完的 stale Task 在 cancel 后覆盖刚 reset 的秒表。
+    func cancelSitMetricsTask() {
+        sitMetricsTask?.cancel()
+        sitMetricsTask = nil
     }
 
     // MARK: - 起床时间推测
