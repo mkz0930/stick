@@ -1,21 +1,5 @@
 import SwiftUI
 
-// MARK: - 本地调色板（不属于 Theme，是 sheet 内部独有色）
-private extension Color {
-    /// 浅米色背景
-    static let sheetBg     = Color(red: 0.98, green: 0.98, blue: 0.97)
-    /// 主深色文字
-    static let sheetInk    = Color(red: 0.10, green: 0.14, blue: 0.20)
-    /// 次级文字 / 关闭按钮
-    static let sheetMuted  = Color(red: 0.30, green: 0.35, blue: 0.40)
-    /// 标签小灰
-    static let sheetLabel  = Color(red: 0.45, green: 0.50, blue: 0.55)
-    /// 副标蓝灰
-    static let sheetSub    = Color(red: 0.40, green: 0.45, blue: 0.50)
-    /// 深蓝灰（图例时长）
-    static let sheetInkDim = Color(red: 0.20, green: 0.24, blue: 0.30)
-}
-
 /// 1 天回放 sheet（点击分享按钮后弹出）
 ///  - 10 秒内播放完 24h 火柴人状态变化
 ///  - 顶栏：动态时间（00:00 → 24:00）+ 关闭
@@ -57,7 +41,7 @@ struct DayPlaybackSheet: View {
     var body: some View {
         ZStack {
             // 浅色背景
-            Color.sheetBg.ignoresSafeArea()
+            Theme.sheetBg.ignoresSafeArea()
 
             if showSummary {
                 SummaryContentView(
@@ -173,8 +157,8 @@ private struct PlaybackContentView: View {
 
             StickFigureView(
                 state: displayState,
-                lineColor: Color.sheetInk,
-                fillColor: Color.sheetBg
+                lineColor: Theme.inkDark,
+                fillColor: Theme.sheetBg
             )
             .frame(maxWidth: 240, maxHeight: 320)
             .padding(.vertical, 8)
@@ -182,7 +166,7 @@ private struct PlaybackContentView: View {
 
             Text(displayState.subLine)
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
-                .foregroundColor(Color.sheetMuted)
+                .foregroundColor(Theme.inkMuted)
                 .lineLimit(1)
                 .padding(.horizontal, 32)
 
@@ -223,10 +207,10 @@ private struct SummaryContentView: View {
                 Text("TODAY · 24H")
                     .font(.system(size: 11, weight: .heavy, design: .monospaced))
                     .tracking(3)
-                    .foregroundColor(Color.sheetLabel)
+                    .foregroundColor(Theme.inkLabel)
                 Text("今日 24h")
                     .font(.system(size: 24, weight: .black, design: .rounded))
-                    .foregroundColor(Color.sheetInk)
+                    .foregroundColor(Theme.inkDark)
             }
             .padding(.top, 4)
 
@@ -234,8 +218,8 @@ private struct SummaryContentView: View {
 
             StickFigureView(
                 state: .walk,
-                lineColor: Color.sheetInk,
-                fillColor: Color.sheetBg
+                lineColor: Theme.inkDark,
+                fillColor: Theme.sheetBg
             )
             .frame(maxWidth: 280, maxHeight: 280)
             .padding(.vertical, 4)
@@ -255,7 +239,7 @@ private struct SummaryContentView: View {
                                 .frame(width: 6, height: 6)
                             Text("\(item.state.rawValue) \(pct)%")
                                 .font(.system(size: 11, weight: .heavy, design: .monospaced))
-                                .foregroundColor(Color.sheetMuted)
+                                .foregroundColor(Theme.inkMuted)
                         }
                     }
                 }
@@ -269,33 +253,33 @@ private struct SummaryContentView: View {
                         VStack(spacing: 1) {
                             Text("\(steps)")
                                 .font(.system(size: 16, weight: .black, design: .rounded))
-                                .foregroundColor(Color.sheetInk)
+                                .foregroundColor(Theme.inkDark)
                                 .monospacedDigit()
                             Text("步")
                                 .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                                .foregroundColor(Color.sheetLabel)
+                                .foregroundColor(Theme.inkLabel)
                         }
                     }
                     if let h = hr {
                         VStack(spacing: 1) {
                             Text("\(h)")
                                 .font(.system(size: 16, weight: .black, design: .rounded))
-                                .foregroundColor(Color.sheetInk)
+                                .foregroundColor(Theme.inkDark)
                                 .monospacedDigit()
                             Text("bpm")
                                 .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                                .foregroundColor(Color.sheetLabel)
+                                .foregroundColor(Theme.inkLabel)
                         }
                     }
                     if energy > 0 {
                         VStack(spacing: 1) {
                             Text("\(energy)")
                                 .font(.system(size: 16, weight: .black, design: .rounded))
-                                .foregroundColor(Color.sheetInk)
+                                .foregroundColor(Theme.inkDark)
                                 .monospacedDigit()
                             Text("kcal")
                                 .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                                .foregroundColor(Color.sheetLabel)
+                                .foregroundColor(Theme.inkLabel)
                         }
                     }
                 }
@@ -340,16 +324,16 @@ private struct SummaryTopBarView: View {
                 Text("回放结束")
                     .font(.system(size: 14, weight: .heavy, design: .monospaced))
                     .tracking(1.5)
-                    .foregroundColor(Color.sheetMuted)
+                    .foregroundColor(Theme.inkMuted)
                 Text(todayText)
                     .font(.system(size: 16, weight: .bold, design: .monospaced))
-                    .foregroundColor(Color.sheetInk)
+                    .foregroundColor(Theme.inkDark)
             }
             Spacer()
             Button { onDismiss() } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color.sheetMuted)
+                    .foregroundColor(Theme.inkMuted)
                     .frame(width: 32, height: 32)
                     .background(Circle().fill(Color.black.opacity(0.06)))
             }
@@ -373,7 +357,7 @@ private struct SummaryShareButtonView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 13)
             .background(
-                Capsule().fill(Color.sheetInk)
+                Capsule().fill(Theme.inkDark)
             )
         }
         .buttonStyle(.plain)
@@ -391,7 +375,7 @@ private struct PlaybackTopBarView: View {
                 Text("今日回放")
                     .font(.system(size: 14, weight: .heavy, design: .monospaced))
                     .tracking(2)
-                    .foregroundColor(Color.sheetMuted)
+                    .foregroundColor(Theme.inkMuted)
                 Text(displayTime)
                     .font(.system(size: 38, weight: .black, design: .monospaced))
                     .foregroundColor(displayState.accent)
@@ -403,7 +387,7 @@ private struct PlaybackTopBarView: View {
             Button { onDismiss() } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color.sheetMuted)
+                    .foregroundColor(Theme.inkMuted)
                     .frame(width: 32, height: 32)
                     .background(
                         Circle().fill(Color.black.opacity(0.06))
@@ -445,12 +429,12 @@ private struct BottomControlsView: View {
                     if let seg = displaySegment {
                         Text("位于 \(seg.state.rawValue) · \(StickState.formatMinute(seg.startMinute))–\(StickState.formatMinute(seg.endMinute))")
                             .font(.system(size: 11, weight: .regular, design: .monospaced))
-                            .foregroundColor(Color.sheetSub)
+                            .foregroundColor(Theme.inkSub)
                             .lineLimit(1)
                     }
                     Text(isFinished ? "回放结束" : "正在播放…")
                         .font(.system(size: 13, weight: .bold, design: .monospaced))
-                        .foregroundColor(Color.sheetInk)
+                        .foregroundColor(Theme.inkDark)
                 }
                 Spacer()
                 if isFinished {
@@ -509,12 +493,12 @@ private struct DistributionDonut: View {
             VStack(spacing: 2) {
                 Text("\(total / 60)")
                     .font(.system(size: 48, weight: .black, design: .rounded))
-                    .foregroundColor(Color.sheetInk)
+                    .foregroundColor(Theme.inkDark)
                     .monospacedDigit()
                 Text("小时")
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
                     .tracking(2)
-                    .foregroundColor(Color.sheetLabel)
+                    .foregroundColor(Theme.inkLabel)
             }
         }
     }
@@ -543,11 +527,11 @@ private struct SummaryLegendRow: View {
                 .frame(width: 8, height: 8)
             Text(state.rawValue)
                 .font(.system(size: 14, weight: .heavy, design: .rounded))
-                .foregroundColor(Color.sheetInk)
+                .foregroundColor(Theme.inkDark)
                 .frame(width: 24, alignment: .leading)
             Text(durationText)
                 .font(.system(size: 14, weight: .bold, design: .monospaced))
-                .foregroundColor(Color.sheetInkDim)
+                .foregroundColor(Theme.inkDim)
                 .monospacedDigit()
             Spacer()
             Text("\(percent)%")
