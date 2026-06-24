@@ -17,9 +17,9 @@ struct UnifiedAlert: Identifiable, Equatable {
 
         var color: Color {
             switch self {
-            case .info:  return Color(red: 0.30, green: 0.55, blue: 0.85)
-            case .warn:  return Color(red: 0.92, green: 0.55, blue: 0.20)
-            case .alert: return Color(red: 0.90, green: 0.25, blue: 0.25)
+            case .info:  return Theme.riskInfo
+            case .warn:  return Theme.riskWarn
+            case .alert: return Theme.riskHigh
             }
         }
         var label: String {
