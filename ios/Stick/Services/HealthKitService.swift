@@ -94,6 +94,10 @@ final class HealthKitService {
     private(set) var lastSnapshot: HealthSnapshot?
     private(set) var isAuthorized: Bool = false
     private(set) var error: String?
+    /// 最近一次心率 observer 触发时读到的「最近 60s 平均心率」(bpm)。
+    /// 心率 observer 实时写入；比 `lastSnapshot.heartRate` 频率更高（HKObserverQuery fire 时立即更新），
+    /// 适合「详情页心率数字」「心率 widget」等需要"最近心率"而不只是"最近一次 1 分钟聚合"的场景。
+    private(set) var latestHeartRate: Int? = nil
     /// 最后检测到明显步数的时间（incrementalStepCount > 10），用于立即打断久坐计时
     private(set) var lastMovementTime: Date? = nil
     /// 基于今天真实 HealthKit 步数数据生成的 24h 时刻表
@@ -422,8 +426,8 @@ final class HealthKitService {
     }
 
     /// 心率 observer fire 回调：调度到主 actor 后做轻量更新。
-    /// 当前实现：读最近一条心率样本（最近 60s 平均）并打印日志，供后续接入 captureSnapshot 增量更新。
-    /// 单飞锁：避免连续 fire 时并发触发多个 HK 查询。
+    /// 实现：读最近一条心率样本（最近 60s 平均）并写入 `latestHeartRate`，
+    /// 同时打日志供调试观察。单飞锁：避免连续 fire 时并发触发多个 HK 查询。
     private var heartRateRefreshTask: Task<Void, Never>?
 
     private func handleHeartRateObserverFire() {
@@ -440,7 +444,9 @@ final class HealthKitService {
             )
             if Task.isCancelled { return }
             if let hr {
-                print("[HealthKitService] 💗 心率 observer fire: 最近 60s 平均 \(Int(hr.rounded())) bpm")
+                // 写入 latestHeartRate 让 @Observable 触发 UI 刷新（详情页心率 / widget 等）
+                self.latestHeartRate = Int(hr.rounded())
+                print("[HealthKitService] 💗 心率 observer fire: 最近 60s 平均 \(self.latestHeartRate!) bpm")
             }
         }
     }
