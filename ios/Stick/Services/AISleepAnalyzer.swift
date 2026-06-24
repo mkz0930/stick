@@ -23,9 +23,9 @@ struct AISleepReport: Equatable {
         }
         var color: Color {
             switch self {
-            case .good: return Color(red: 0.20, green: 0.65, blue: 0.45)   // 绿
-            case .fair: return Color(red: 0.92, green: 0.55, blue: 0.20)   // 橙
-            case .poor: return Color(red: 0.90, green: 0.25, blue: 0.25)  // 红
+            case .good: return Theme.riskOk     // 绿
+            case .fair: return Theme.riskWarn   // 橙
+            case .poor: return Theme.riskHigh   // 红
             }
         }
         var icon: String {
