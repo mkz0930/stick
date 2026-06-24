@@ -35,6 +35,11 @@ struct FeatureRow: View {
     @State private var pinnedMetricIds: Set<String> = []
     @State private var autoCollapseTimer: Timer?
 
+    /// 横屏适配：iPad 全屏 / iPhone 横屏时为 .regular，竖屏 .compact。
+    /// 横屏时整行 FeatureRow 由竖排 VStack 改为横排 HStack（行内卡片平铺）。
+    @Environment(\.horizontalSizeClass) private var horizontalSize
+    private var isWide: Bool { horizontalSize == .regular }
+
     private let pinnedMetricsKey = "stick.pinned.metrics"
 
     // MARK: - 10秒无操作自动收起
@@ -117,73 +122,107 @@ struct FeatureRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // ① 身体状态得分（**唯一默认可见** — 视觉锤）
-            BodyScoreLine(score: bodyScore, color: bodyScoreColor)
-
-            if isExpanded {
-                // 展开态：所有行 + 📌 切换按钮
-                if let m = moodLine {
-                    StressLine(info: m, accent: state.accent, stressScore: stressScore, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+        // 横屏（iPad / iPhone 横屏）— 整行 HStack：所有 metrics 平铺，节省纵向空间给主舞台 + 时间线
+        // 竖屏 — 维持现有 VStack 折叠/展开逻辑
+        Group {
+            if isWide {
+                HStack(alignment: .top, spacing: 14) {
+                    BodyScoreLine(score: bodyScore, color: bodyScoreColor)
+                    if let m = moodLine {
+                        StressLine(info: m, accent: state.accent, stressScore: stressScore, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                    }
+                    StepsLine(steps: todaySteps, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                    if let ss = stateSpecificMetric {
+                        FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, onWalkCardTap: onWalkCardTap, onSleepCardTap: onSleepCardTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                    }
+                    ForEach(hiddenMetrics, id: \.label) { m in
+                        FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, onWalkCardTap: onWalkCardTap, onSleepCardTap: onSleepCardTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                    }
+                    if !unifiedAlerts.isEmpty {
+                        AlertsSection(
+                            alerts: unifiedAlerts,
+                            isExpanded: $alertsDetailExpanded,
+                            onAlertTap: onAlertTap,
+                            pinnedIds: $pinnedMetricIds,
+                            onPinToggle: savePinned
+                        )
+                    }
+                    Spacer(minLength: 0)
                 }
-                StepsLine(steps: todaySteps, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
-                if let ss = stateSpecificMetric {
-                    FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, onWalkCardTap: onWalkCardTap, onSleepCardTap: onSleepCardTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
-                }
-                ForEach(hiddenMetrics, id: \.label) { m in
-                    FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, onWalkCardTap: onWalkCardTap, onSleepCardTap: onSleepCardTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
-                }
-                // 异常摘要 — 折叠默认显示前 2 项，>2 项时显示 chevron 可展开看全部
-                if !unifiedAlerts.isEmpty {
-                    AlertsSection(
-                        alerts: unifiedAlerts,
-                        isExpanded: $alertsDetailExpanded,
-                        onAlertTap: onAlertTap,
-                        pinnedIds: $pinnedMetricIds,
-                        onPinToggle: savePinned
-                    )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .onTapGesture {
+                    onCardTap()
                 }
             } else {
-                // 折叠态：只显示固定行
-                if let m = moodLine, pinnedMetricIds.contains("stress") {
-                    StressLine(info: m, accent: state.accent, stressScore: stressScore, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
-                }
-                if pinnedMetricIds.contains("steps") {
-                    StepsLine(steps: todaySteps, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
-                }
-                if let ss = stateSpecificMetric, pinnedMetricIds.contains(ss.label) {
-                    FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, onWalkCardTap: onWalkCardTap, onSleepCardTap: onSleepCardTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
-                }
-                ForEach(hiddenMetrics.filter { pinnedMetricIds.contains($0.label) }, id: \.label) { m in
-                    FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, onWalkCardTap: onWalkCardTap, onSleepCardTap: onSleepCardTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
-                }
-                if pinnedMetricIds.contains("alerts") && !unifiedAlerts.isEmpty {
-                    AlertsSection(
-                        alerts: unifiedAlerts,
-                        isExpanded: $alertsDetailExpanded,
-                        onAlertTap: onAlertTap,
-                        pinnedIds: $pinnedMetricIds,
-                        onPinToggle: savePinned
+                VStack(alignment: .leading, spacing: 8) {
+                    // ① 身体状态得分（**唯一默认可见** — 视觉锤）
+                    BodyScoreLine(score: bodyScore, color: bodyScoreColor)
+
+                    if isExpanded {
+                        // 展开态：所有行 + 📌 切换按钮
+                        if let m = moodLine {
+                            StressLine(info: m, accent: state.accent, stressScore: stressScore, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                        }
+                        StepsLine(steps: todaySteps, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                        if let ss = stateSpecificMetric {
+                            FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, onWalkCardTap: onWalkCardTap, onSleepCardTap: onSleepCardTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                        }
+                        ForEach(hiddenMetrics, id: \.label) { m in
+                            FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, onWalkCardTap: onWalkCardTap, onSleepCardTap: onSleepCardTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                        }
+                        // 异常摘要 — 折叠默认显示前 2 项，>2 项时显示 chevron 可展开看全部
+                        if !unifiedAlerts.isEmpty {
+                            AlertsSection(
+                                alerts: unifiedAlerts,
+                                isExpanded: $alertsDetailExpanded,
+                                onAlertTap: onAlertTap,
+                                pinnedIds: $pinnedMetricIds,
+                                onPinToggle: savePinned
+                            )
+                        }
+                    } else {
+                        // 折叠态：只显示固定行
+                        if let m = moodLine, pinnedMetricIds.contains("stress") {
+                            StressLine(info: m, accent: state.accent, stressScore: stressScore, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                        }
+                        if pinnedMetricIds.contains("steps") {
+                            StepsLine(steps: todaySteps, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                        }
+                        if let ss = stateSpecificMetric, pinnedMetricIds.contains(ss.label) {
+                            FeatureLine(metric: ss, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, onWalkCardTap: onWalkCardTap, onSleepCardTap: onSleepCardTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                        }
+                        ForEach(hiddenMetrics.filter { pinnedMetricIds.contains($0.label) }, id: \.label) { m in
+                            FeatureLine(metric: m, accent: state.accent, deviceSet: deviceSet, healthStatuses: healthStatuses, sitDurationText: sitDurationText, todaySitDescription: todaySitDescription, onLockTap: onLockTap, onSedentaryTap: onSedentaryTap, onWalkCardTap: onWalkCardTap, onSleepCardTap: onSleepCardTap, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
+                        }
+                        if pinnedMetricIds.contains("alerts") && !unifiedAlerts.isEmpty {
+                            AlertsSection(
+                                alerts: unifiedAlerts,
+                                isExpanded: $alertsDetailExpanded,
+                                onAlertTap: onAlertTap,
+                                pinnedIds: $pinnedMetricIds,
+                                onPinToggle: savePinned
+                            )
+                        }
+                    }
+                    // 展开/折叠按键
+                    ExpandToggle(
+                        isExpanded: $isExpanded,
+                        alertsDetailExpanded: $alertsDetailExpanded,
+                        onExpand: { resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded) },
+                        onCollapse: { cancelAutoCollapseTimer() }
                     )
                 }
-            }
-            // 展开/折叠按键
-            ExpandToggle(
-                isExpanded: $isExpanded,
-                alertsDetailExpanded: $alertsDetailExpanded,
-                onExpand: { resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded) },
-                onCollapse: { cancelAutoCollapseTimer() }
-            )
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .animation(.easeInOut(duration: 0.35), value: moodLine)
-        .animation(.easeInOut(duration: 0.28), value: isExpanded)
-        .animation(.easeInOut(duration: 0.2), value: alertsDetailExpanded)
-        .onTapGesture {
-            onCardTap()
-            // 只在展开态才重置自动收起计时器；折叠态无需管理 timer
-            if isExpanded {
-                resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .animation(.easeInOut(duration: 0.35), value: moodLine)
+                .animation(.easeInOut(duration: 0.28), value: isExpanded)
+                .animation(.easeInOut(duration: 0.2), value: alertsDetailExpanded)
+                .onTapGesture {
+                    onCardTap()
+                    // 只在展开态才重置自动收起计时器；折叠态无需管理 timer
+                    if isExpanded {
+                        resetAutoCollapseTimer(expanded: $isExpanded, alertsBinding: $alertsDetailExpanded)
+                    }
+                }
             }
         }
         .task {
