@@ -892,6 +892,10 @@ private struct StageHeroView: View {
                     .padding(.bottom, 0)
                     .id(state)
                     .transition(.opacity)
+                    // thumb 拖动切 state 时让火柴人淡入淡出（0.25s easeInOut），
+                    // 避免 walk ↔ sit ↔ stand ↔ sleep 瞬时跳变；ZStack 上的
+                    // .animation(value: state) 已能驱动此 modifier。
+                    .animation(.easeInOut(duration: 0.25), value: state)
 
                 // 右上角：状态名 + 副标（睡眠异常 chip 已移除 — 暂无真实数据源）
                 HStack {
