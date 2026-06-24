@@ -50,6 +50,12 @@ final class HealthStore {
     func append(_ snapshot: HealthSnapshot) {
         all.append(snapshot)
         let key = Calendar.current.startOfDay(for: snapshot.timestamp)
+        // 保持 all 按时间升序 — 下游多处依赖 `.last` 拿最新值（HRV / HR / 步数），
+        // 若 all 乱序，`.last` 会拿到最晚 append 的而非最晚时间戳的。
+        // 成本：~几百条 snapshot 的 sort，可忽略。
+        if all.count > 1 && all[all.count - 1].timestamp < all[all.count - 2].timestamp {
+            all.sort { $0.timestamp < $1.timestamp }
+        }
         today = all.filter { Calendar.current.startOfDay(for: $0.timestamp) == key }
         // 同步更新每日步数累计
         DailyStepsStore.shared.updateTodaySteps(from: all)
@@ -58,6 +64,8 @@ final class HealthStore {
 
     func appendBatch(_ snapshots: [HealthSnapshot]) {
         all.append(contentsOf: snapshots)
+        // 批量插入同样按时间排序兜底，避免 setAllForMock 之后 append 产生逆序
+        all.sort { $0.timestamp < $1.timestamp }
         let key = Calendar.current.startOfDay(for: Date())
         today = all.filter { Calendar.current.startOfDay(for: $0.timestamp) == key }
         save()
