@@ -92,9 +92,12 @@ final class LiveActivityManager {
 
         stopUpdateTimer()
 
+        // 用真实 startTime（不是 now），避免 widget 看到 1 帧 stale "0 秒" 状态
+        let startTime = sedentaryStartTime ?? Date()
+        let totalSeconds = Int(Date().timeIntervalSince(startTime))
         let finalState = SedentaryTimerAttributes.ContentState(
-            elapsedSeconds: 0,
-            startTime: Date()
+            elapsedSeconds: totalSeconds,
+            startTime: startTime
         )
 
         Task {
@@ -107,7 +110,7 @@ final class LiveActivityManager {
         currentActivity = nil
         sedentaryStartTime = nil
         isActivityActive = false
-        print("[LiveActivityManager] Ended activity")
+        print("[LiveActivityManager] Ended activity (total: \(totalSeconds)s)")
     }
 
     // MARK: - Private
