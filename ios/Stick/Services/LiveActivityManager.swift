@@ -118,10 +118,10 @@ final class LiveActivityManager {
     private func startUpdateTimer() {
         stopUpdateTimer()
         // 每秒更新一次 elapsedSeconds
+        // 类已标 @MainActor，Timer 回调也在 main run loop 上跑 → 直接调即可，
+        // 不需要再 wrap 一层 Task @MainActor（避免每秒 1 个 Task 调度开销）
         updateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.updateSedentaryActivity()
-            }
+            self?.updateSedentaryActivity()
         }
     }
 
