@@ -1,5 +1,11 @@
 import SwiftUI
 
+// MARK: - 本地调色板（不属于 Theme，仅心率红用）
+private extension Color {
+    /// 心率红 (心率卡 / 心率行)
+    static let detailHeartRed = Color(red: 0.86, green: 0.21, blue: 0.27)
+}
+
 // MARK: - 步态详情 sheet
 
 struct WalkDetailSheet: View {
@@ -18,7 +24,7 @@ struct WalkDetailSheet: View {
                         value: "\(steps)",
                         unit: "步",
                         icon: "figure.walk",
-                        color: Color(red: 0.02, green: 0.59, blue: 0.41)
+                        color: Theme.stateWalk
                     )
 
                     // 行走时长卡片
@@ -27,7 +33,7 @@ struct WalkDetailSheet: View {
                         value: "\(walkMinutes)",
                         unit: "分钟",
                         icon: "clock.fill",
-                        color: Color(red: 0.02, green: 0.59, blue: 0.41)
+                        color: Theme.stateWalk
                     )
 
                     // 平均步速卡片
@@ -36,7 +42,7 @@ struct WalkDetailSheet: View {
                         value: avgSpeed.map { String(format: "%.2f", $0) } ?? "--",
                         unit: "m/s",
                         icon: "speedometer",
-                        color: Color(red: 0.02, green: 0.59, blue: 0.41)
+                        color: Theme.stateWalk
                     )
 
                     // 步态评分卡片
@@ -45,7 +51,7 @@ struct WalkDetailSheet: View {
                         value: "\(gaitScore)",
                         unit: "/ 100",
                         icon: "star.fill",
-                        color: Color(red: 0.02, green: 0.59, blue: 0.41)
+                        color: Theme.stateWalk
                     )
                 }
                 .padding()
@@ -83,7 +89,7 @@ struct SitDetailSheet: View {
                         value: formattedDuration,
                         unit: "",
                         icon: "chair.fill",
-                        color: Color(red: 0.92, green: 0.34, blue: 0.05)
+                        color: Theme.stateSit
                     )
 
                     // 当前心率
@@ -92,7 +98,7 @@ struct SitDetailSheet: View {
                         value: heartRate.map { "\($0)" } ?? "--",
                         unit: "bpm",
                         icon: "heart.fill",
-                        color: Color(red: 0.86, green: 0.21, blue: 0.27)
+                        color: Color.detailHeartRed
                     )
 
                     // 身体状态评分
@@ -101,7 +107,7 @@ struct SitDetailSheet: View {
                         value: "\(Int(bodyScore))",
                         unit: "/ 100",
                         icon: "bolt.fill",
-                        color: Color(red: 0.92, green: 0.55, blue: 0.20)
+                        color: Theme.dashSedentary
                     )
                 }
                 .padding()
@@ -137,7 +143,7 @@ struct SleepDetailSheet: View {
                         value: formattedSleep,
                         unit: "",
                         icon: "bed.double.fill",
-                        color: Color(red: 0.70, green: 0.60, blue: 0.98)
+                        color: Theme.stateSleep
                     )
 
                     // 睡眠质量标签
@@ -146,7 +152,7 @@ struct SleepDetailSheet: View {
                         value: sleepQualityLabel,
                         unit: "",
                         icon: "moon.stars.fill",
-                        color: Color(red: 0.70, green: 0.60, blue: 0.98)
+                        color: Theme.stateSleep
                     )
 
                     // 夜间清醒次数
@@ -155,7 +161,7 @@ struct SleepDetailSheet: View {
                         value: "\(nightWakeCount)",
                         unit: "次",
                         icon: "eye.fill",
-                        color: Color(red: 0.70, green: 0.60, blue: 0.98)
+                        color: Theme.stateSleep
                     )
 
                     // 夜间清醒总时长
@@ -164,7 +170,7 @@ struct SleepDetailSheet: View {
                         value: "\(nightWakeTotalMin)",
                         unit: "分钟",
                         icon: "clock.fill",
-                        color: Color(red: 0.70, green: 0.60, blue: 0.98)
+                        color: Theme.stateSleep
                     )
                 }
                 .padding()
