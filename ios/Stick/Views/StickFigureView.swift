@@ -11,6 +11,70 @@ enum StickFigureMood: Hashable {
     case tired
 }
 
+/// 关键关节角度（度数）。`StickFigureView` 内部从 `state` 派生；
+/// 给"两个 state 之间 smooth pose 插值"留好接口。
+///
+/// 当前 drawXxx 函数还是各自硬编码角度；下一轮会改成从 Pose 派生角度
+/// 做 `fromPose.interpolated(to: toPose, t: progress)`。
+/// 现在先把数据建模 + 4 个核心 state 的"基准 pose"写出来，便于联调。
+struct StickPose: Equatable {
+    /// 头部前倾角（度）。正 = 前倾，负 = 后仰。
+    var headTilt: Double
+    /// 颈椎前倾角（度）。
+    var neckTilt: Double
+    /// 躯干前倾角（度）。正 = 前倾（走路），0 = 垂直（站立 / 坐），负 = 略后仰（睡）。
+    var spineTilt: Double
+    /// 大腿角（度）。0 = 垂直（站），90 = 水平（前迈 / 坐），-90 = 后摆。
+    var thighAngle: Double
+    /// 小腿相对大腿的弯曲角（度）。0 = 伸直，90 = 屈膝。
+    var kneeBend: Double
+    /// 手臂摆角（度）。正 = 前摆，负 = 后摆。
+    var armSwing: Double
+
+    static let walk = StickPose(
+        headTilt: 8, neckTilt: 5, spineTilt: 5,
+        thighAngle: 30, kneeBend: 15, armSwing: 25
+    )
+    static let stand = StickPose(
+        headTilt: 0, neckTilt: 0, spineTilt: 0,
+        thighAngle: 0, kneeBend: 0, armSwing: 0
+    )
+    static let sit = StickPose(
+        headTilt: 20, neckTilt: 15, spineTilt: 8,
+        thighAngle: 80, kneeBend: 90, armSwing: -10
+    )
+    static let sleep = StickPose(
+        headTilt: -75, neckTilt: -10, spineTilt: 0,
+        thighAngle: 0, kneeBend: 30, armSwing: 45
+    )
+
+    /// 静态查表：state → 该 state 的"标准 pose"。
+    /// 下一轮 smooth pose 插值走这条路，drawXxx 不再各自硬编码。
+    static func forState(_ state: StickState) -> StickPose {
+        switch state {
+        case .walk:  return .walk
+        case .stand: return .stand
+        case .sit:   return .sit
+        case .sleep: return .sleep
+        }
+    }
+
+    /// 在 from → to 之间按 progress (0..1) 线性插值。下一轮 drawXxx 内部
+    /// 会用这个方法做关节角度过渡。`progress` 通常来自 thumb 拖动 + 时间窗
+    /// 推断的「距离目标 state 还有多少」。
+    func interpolated(to other: StickPose, progress: Double) -> StickPose {
+        let p = max(0, min(1, progress))
+        return StickPose(
+            headTilt: headTilt + (other.headTilt - headTilt) * p,
+            neckTilt: neckTilt + (other.neckTilt - neckTilt) * p,
+            spineTilt: spineTilt + (other.spineTilt - spineTilt) * p,
+            thighAngle: thighAngle + (other.thighAngle - thighAngle) * p,
+            kneeBend: kneeBend + (other.kneeBend - kneeBend) * p,
+            armSwing: armSwing + (other.armSwing - armSwing) * p
+        )
+    }
+}
+
 /// 火柴人主页的核心视图。
 /// 3 状态（走/坐/睡）侧视线框火柴人，参考 ATLAS 项目风格：
 ///  - 关节处小圆点
@@ -31,6 +95,19 @@ struct StickFigureView: View {
     var confidence: Double = 1.0   // 0–1, 越低越虚
     var tiredness: Double = 0.0    // 0–1, 越高越累（仅 .tired 用：头部下俯 + 浮 Z + 汗滴）
     var neckWarning: Double = 0.0  // 0–1, 越高颈线越粗越红（提醒"颈椎压力过大"）
+    /// thumb 拖动时从 fromState 平滑过渡到当前 state：progress=0 完全显示 fromState 姿态，
+    /// progress=1 完全显示 state 姿态。`nil` 表示不插值（用瞬时切换）。下一轮 drawXxx 内部
+    /// 会读 `interpolatedPose` 替换硬编码角度，本轮只把接口接进来不实际改 drawXxx。
+    var poseTransition: (fromState: StickState, progress: Double)? = nil
+
+    /// 派生：根据 `state` + `poseTransition` 算出最终显示的 pose。
+    /// drawXxx 下一轮会消费这个值；本轮仅保留 derivation 逻辑。
+    var interpolatedPose: StickPose {
+        guard let t = poseTransition else { return .forState(state) }
+        let p0 = StickPose.forState(t.fromState)
+        let p1 = StickPose.forState(state)
+        return p0.interpolated(to: p1, progress: t.progress)
+    }
 
     var body: some View {
         // SwiftUI 内置 TimelineView 提供时间信号，驱动状态专属动效
