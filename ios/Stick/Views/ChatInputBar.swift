@@ -1,5 +1,11 @@
 import SwiftUI
 
+// MARK: - 本地调色板（不属于 Theme，相机小星紫）
+private extension Color {
+    /// 相机按钮右上角小星紫
+    static let cibSparklePurple = Color(red: 0.45, green: 0.30, blue: 0.95)
+}
+
 // MARK: - Chat Input Bar
 
 struct ChatInputBar: View {
@@ -137,7 +143,7 @@ private struct CameraButtonView: View {
 
                 Image(systemName: "sparkle")
                     .font(.system(size: 9, weight: .heavy))
-                    .foregroundColor(Color(red: 0.45, green: 0.30, blue: 0.95))
+                    .foregroundColor(Color.cibSparklePurple)
                     .padding(3)
                     .background(
                         Circle().fill(Color.white)
