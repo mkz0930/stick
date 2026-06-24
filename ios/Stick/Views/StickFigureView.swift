@@ -132,7 +132,10 @@ struct StickFigureView: View {
                 ctx.scaleBy(x: scale, y: scale)
 
                 drawScene(ctx: &ctx, state: state, accent: accent, t: t, show: showScene)
-                drawFigure(ctx: &ctx, state: state, mood: mood, tiredness: tiredness, neckWarning: neckWarning, stroke: lineColor, fill: fillColor, joint: joint, w: lineWidth * widthScale, t: t, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
+                // 把 interpolatedPose 传下去，让 drawXxx 在 thumb 拖动期间能拿到当前帧的关节角度。
+                // 无 poseTransition 时 derivedPose == .forState(state)，保持现有硬编码视觉一致。
+                let derivedPose = interpolatedPose
+                drawFigure(ctx: &ctx, state: state, mood: mood, tiredness: tiredness, neckWarning: neckWarning, stroke: lineColor, fill: fillColor, joint: joint, w: lineWidth * widthScale, t: t, lineAlpha: lineAlpha, jointAlpha: jointAlpha, pose: derivedPose)
             }
             .drawingGroup()  // 离屏渲染保持线条锐利
         }
@@ -315,7 +318,7 @@ private func drawScene(ctx: inout GraphicsContext, state: StickState, accent: Co
 
 // MARK: - 走
 
-private func drawWalk(ctx: inout GraphicsContext, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double, mood: StickFigureMood = .normal, lineAlpha: CGFloat = 1.0, jointAlpha: CGFloat = 1.0) {
+private func drawWalk(ctx: inout GraphicsContext, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double, mood: StickFigureMood = .normal, lineAlpha: CGFloat = 1.0, jointAlpha: CGFloat = 1.0, pose: StickPose = .walk) {
     let isExcited = mood == .excited
 
     // 步态相位：~0.7 Hz 一周期
@@ -326,17 +329,21 @@ private func drawWalk(ctx: inout GraphicsContext, stroke: Color, fill: Color, jo
     let bob: CGFloat = CGFloat(abs(sin(phase * 2)) * Double(bobAmp))               // 上下颠 0~bobAmp px
     let rFootLift: CGFloat = CGFloat(max(0, sin(phase + .pi / 2)) * (isExcited ? 6 : 4))  // 兴奋时脚抬更高
 
+    // 从 StickPose 派生头/躯干角度（thumb 拖动时这两个值会随 poseTransition 平滑过渡）
+    let headTiltAngle: Double = pose.headTilt   // 正 = 前倾
+    let spineTiltAngle: Double = pose.spineTilt // 正 = 前倾
+
     // 整体上抬
     let savedTop = ctx.transform
     ctx.transform = savedTop.translatedBy(x: 0, y: -bob)
 
-    // 头（前倾 8°，椭圆）
+    // 头（前倾，椭圆）— 倾斜角由 pose.headTilt 驱动（walk=8°, sit=20°, sleep=-75°）
     let headCenter = CGPoint(x: 115, y: 75)
     let head = CGRect(x: headCenter.x - 24, y: headCenter.y - 30, width: 48, height: 60)
     let saved = ctx.transform
     ctx.transform = saved
         .translatedBy(x: headCenter.x, y: headCenter.y)
-        .rotated(by: Angle.degrees(8).radians)
+        .rotated(by: Angle.degrees(headTiltAngle).radians)
         .translatedBy(x: -headCenter.x, y: -headCenter.y)
     drawEllipse(ctx: &ctx, rect: head, fill: fill, stroke: stroke, width: w, alpha: lineAlpha)
     ctx.transform = saved
@@ -348,14 +355,18 @@ private func drawWalk(ctx: inout GraphicsContext, stroke: Color, fill: Color, jo
     strokeCurve(ctx: &ctx, from: CGPoint(x: 113, y: 105), to: CGPoint(x: 111, y: 128),
                 control: CGPoint(x: 111, y: 116), color: stroke, width: w, alpha: lineAlpha)
 
-    // 肩
-    drawDot(ctx: &ctx, at: CGPoint(x: 111, y: 130), r: 4, color: joint, filled: true, alpha: jointAlpha)
-    let shoulder: CGPoint = CGPoint(x: 111, y: 130)
+    // 肩 — 肩部位置受 spineTilt 上下偏移影响（前倾 → 肩略微前移 = y 微调）
+    let shoulderY: CGFloat = 130 + CGFloat(spineTiltAngle) * 0.6   // 1° ≈ 0.6pt，walk=5° → 肩 +3pt
+    let shoulderX: CGFloat = 111 - CGFloat(max(0, spineTiltAngle)) * 0.3  // 前倾时肩略向前
+    let shoulder: CGPoint = CGPoint(x: shoulderX, y: shoulderY)
+    drawDot(ctx: &ctx, at: shoulder, r: 4, color: joint, filled: true, alpha: jointAlpha)
 
-    // 躯干
-    strokeLine(ctx: &ctx, from: shoulder, to: CGPoint(x: 108, y: 238),
+    // 躯干（受 spineTilt 角度影响：终点 y = 238 + spine 偏移）
+    let torsoEndY: CGFloat = 238 + CGFloat(spineTiltAngle) * 0.6
+    let torsoEndX: CGFloat = 108 - CGFloat(max(0, spineTiltAngle)) * 0.2
+    strokeLine(ctx: &ctx, from: shoulder, to: CGPoint(x: torsoEndX, y: torsoEndY),
                color: stroke, width: w + 0.4, alpha: lineAlpha)
-    strokeCurve(ctx: &ctx, from: shoulder, to: CGPoint(x: 128, y: 238),
+    strokeCurve(ctx: &ctx, from: shoulder, to: CGPoint(x: torsoEndX + 20, y: torsoEndY),
                 control: CGPoint(x: 130, y: 180),
                 color: stroke, width: 1.4, dashed: true, alpha: lineAlpha * 0.55)
 
@@ -740,9 +751,9 @@ private func drawSleep(ctx: inout GraphicsContext, stroke: Color, fill: Color, j
 
 // MARK: - 路由
 
-private func drawFigure(ctx: inout GraphicsContext, state: StickState, mood: StickFigureMood, tiredness: Double, neckWarning: Double, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double, lineAlpha: CGFloat, jointAlpha: CGFloat) {
+private func drawFigure(ctx: inout GraphicsContext, state: StickState, mood: StickFigureMood, tiredness: Double, neckWarning: Double, stroke: Color, fill: Color, joint: Color, w: CGFloat, t: Double, lineAlpha: CGFloat, jointAlpha: CGFloat, pose: StickPose = .stand) {
     switch state {
-    case .walk:  drawWalk(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
+    case .walk:  drawWalk(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood, lineAlpha: lineAlpha, jointAlpha: jointAlpha, pose: pose)
     case .stand: drawSit(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood, tiredness: 0, neckWarning: 0, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
     case .sit:   drawSit(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, mood: mood, tiredness: tiredness, neckWarning: neckWarning, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
     case .sleep: drawSleep(ctx: &ctx, stroke: stroke, fill: fill, joint: joint, w: w, t: t, lineAlpha: lineAlpha, jointAlpha: jointAlpha)
