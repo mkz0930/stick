@@ -1722,9 +1722,7 @@ private struct HomeBodyView: View {
                         onPreview: { state.showFilm = true },
                         onSleepAlert: { state.showSleepReport = true },
                         onStateTap: { s in
-                            // 单击火柴人 → 推当前 state 详情。沿用现有 .sheet(item: $activeSheet) 路径，
-                            // 不强行改 NavigationStack.push（要换得给 homeBody 整体包 NavigationStack，
-                            // 牵涉太广，下一轮再做）。本轮先把入口接起来。
+                            // 单击火柴人 → 推当前 state 详情（走 NavigationStack push，由 navigationDestination 消费）
                             switch s {
                             case .walk:  state.activeSheet = .walk
                             case .sit:   state.activeSheet = .sit
@@ -1736,7 +1734,7 @@ private struct HomeBodyView: View {
                         schedule: hk.realDaySchedule ?? StickState.daySchedule
                     )
                     .frame(maxWidth: .infinity)
-                    .frame(height: 400)
+                    .frame(height: isWide ? 520 : 400)
 
                     DayTimelineView(
                         schedule: hk.realDaySchedule ?? StickState.daySchedule,
@@ -1746,8 +1744,8 @@ private struct HomeBodyView: View {
                         manualStateOverride: $state.manualStateOverride
                     )
                     .equatable()  // schedule 内容稳定时跳过 body 重绘，杜绝轴乱变
-                    .frame(width: 50)
-                    .frame(height: 400)
+                    .frame(width: isWide ? 64 : 50)
+                    .frame(height: isWide ? 520 : 400)
                 }
                 .padding(.leading, 16)
                 .padding(.trailing, 4)
