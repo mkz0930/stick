@@ -25,9 +25,9 @@ struct AIAnalysisReport: Equatable {
         }
         var color: Color {
             switch self {
-            case .low:      return Color(red: 0.20, green: 0.65, blue: 0.45)
-            case .moderate: return Color(red: 0.92, green: 0.55, blue: 0.20)
-            case .high:     return Color(red: 0.90, green: 0.25, blue: 0.25)
+            case .low:      return Theme.riskOk
+            case .moderate: return Theme.riskWarn
+            case .high:     return Theme.riskHigh
             }
         }
     }
