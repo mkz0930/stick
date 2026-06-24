@@ -1,5 +1,17 @@
 import SwiftUI
 
+// MARK: - 本地调色板（不属于 Theme，睡眠异常 4 色）
+private extension Color {
+    /// AI 靛紫（与 Theme.stateSleep 浅紫不同，更深蓝调，匹配 AI 卡片设计）
+    static let sacAIPurple = Color(red: 0.39, green: 0.40, blue: 0.95)
+    /// 风险低 绿
+    static let sacRiskLow = Color(red: 0.20, green: 0.78, blue: 0.55)
+    /// 风险中 琥珀
+    static let sacRiskMid = Color(red: 0.95, green: 0.65, blue: 0.10)
+    /// 风险高 红
+    static let sacRiskHigh = Color(red: 0.95, green: 0.30, blue: 0.20)
+}
+
 /// 睡眠时浮现的异常提示小章：红色胶囊 + 三角警示 + "N 项异常"
 ///  - 持续轻微脉冲（scale + shadow）吸引注意
 ///  - 点击 → onTap 回调（外部 present 报告 sheet）
@@ -162,14 +174,14 @@ struct SleepAnomalyReportView: View {
 
     // AI 配色
     private var aiColor: Color {
-        Color(red: 0.39, green: 0.40, blue: 0.95)  // 靛紫
+        Color.sacAIPurple
     }
 
     private var riskColor: Color {
         switch aiAnalysis.riskLevel {
-        case .low:     return Color(red: 0.20, green: 0.78, blue: 0.55)  // 绿
-        case .moderate: return Color(red: 0.95, green: 0.65, blue: 0.10)  // 琥珀
-        case .high:   return Color(red: 0.95, green: 0.30, blue: 0.20)  // 红
+        case .low:     return Color.sacRiskLow     // 绿
+        case .moderate: return Color.sacRiskMid    // 琥珀
+        case .high:   return Color.sacRiskHigh     // 红
         }
     }
 
@@ -249,8 +261,8 @@ struct SleepIssueRow: View {
 
     private var severityColor: Color {
         switch issue.severity {
-        case .mild:     return Color(red: 0.95, green: 0.65, blue: 0.10)  // 琥珀
-        case .moderate: return Color(red: 0.95, green: 0.30, blue: 0.20)  // 警示红
+        case .mild:     return Color.sacRiskMid     // 琥珀
+        case .moderate: return Color.sacRiskHigh    // 警示红
         }
     }
 
@@ -478,9 +490,9 @@ private struct SleepAlertAICard: View {
 
     private var riskColor: Color {
         switch aiAnalysis.riskLevel {
-        case .low:     return Color(red: 0.20, green: 0.78, blue: 0.55)
-        case .moderate: return Color(red: 0.95, green: 0.65, blue: 0.10)
-        case .high:   return Color(red: 0.95, green: 0.30, blue: 0.20)
+        case .low:     return Color.sacRiskLow
+        case .moderate: return Color.sacRiskMid
+        case .high:   return Color.sacRiskHigh
         }
     }
 
