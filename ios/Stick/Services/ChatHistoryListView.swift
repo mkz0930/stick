@@ -10,6 +10,20 @@
 
 import SwiftUI
 
+// MARK: - 本地调色板（不属于 Theme，4 档年龄色 + AI 紫）
+private extension Color {
+    /// 今天 (蓝)
+    static let age0 = Color(red: 0.40, green: 0.65, blue: 0.95)
+    /// 昨天 (灰)
+    static let age1 = Color(red: 0.50, green: 0.50, blue: 0.55)
+    /// 本周 (浅)
+    static let age2 = Color(red: 0.75, green: 0.75, blue: 0.78)
+    /// 更早 (极浅)
+    static let age3 = Color(red: 0.85, green: 0.85, blue: 0.88)
+    /// AI 气泡紫
+    static let aiBubblePurple = Color(red: 0.55, green: 0.40, blue: 0.95)
+}
+
 struct ChatHistoryListView: View {
     let messages: [PersistedChatMessage]
     var initialExpanded: Bool = false
@@ -126,10 +140,10 @@ struct ChatHistoryListView: View {
 
     private func ageColor(_ t: Date) -> Color {
         let days = -Int(t.timeIntervalSinceNow / 86400)
-        if days <= 0 { return Color(red: 0.40, green: 0.65, blue: 0.95) }
-        if days <= 1 { return Color(red: 0.50, green: 0.50, blue: 0.55) }
-        if days <= 6 { return Color(red: 0.75, green: 0.75, blue: 0.78) }
-        return Color(red: 0.85, green: 0.85, blue: 0.88)
+        if days <= 0 { return Color.age0 }
+        if days <= 1 { return Color.age1 }
+        if days <= 6 { return Color.age2 }
+        return Color.age3
     }
 
     private func timeString(_ t: Date) -> String {
@@ -296,7 +310,7 @@ private struct ExpandBubble: View {
                     .background(
                         Circle().fill(isUser
                             ? StickState.walk.accent
-                            : Color(red: 0.55, green: 0.40, blue: 0.95))
+                            : Color.aiBubblePurple)
                     )
 
                 VStack(alignment: .leading, spacing: 2) {
