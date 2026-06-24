@@ -239,4 +239,49 @@ enum Theme {
     static let riskWarn = Color(red: 0.96, green: 0.62, blue: 0.10)  // 橙
     static let riskOk   = Color(red: 0.02, green: 0.59, blue: 0.41)  // 绿
     static let riskInfo = Color(red: 0.62, green: 0.82, blue: 0.98)  // 蓝
+
+    /// 心率 / 健康
+    static let heartRed = Color(red: 0.92, green: 0.22, blue: 0.30)  // MiniFilm
+
+    /// 蓝紫 (AI / Wake)
+    static let wakeBlue      = Color(red: 0.62, green: 0.82, blue: 0.98)  // MiniFilm
+    static let leavePurple   = Color(red: 0.62, green: 0.55, blue: 0.98)  // MiniFilm
+    static let aiPurple      = Color(red: 0.39, green: 0.40, blue: 0.95)  // SleepAlertChip
+    static let aiBubblePurple = Color(red: 0.55, green: 0.40, blue: 0.95) // ChatHistoryListView
+    static let bubbleBg      = Color(red: 0.97, green: 0.96, blue: 1.0)   // ChatMessageList
+    static let bubbleBorder  = Color(red: 0.85, green: 0.80, blue: 0.98)   // ChatMessageList
+    static let bubbleShadow  = Color(red: 0.7,  green: 0.6,  blue: 1.0)    // ChatMessageList
+
+    /// 灰阶
+    static let inkDark  = Color(red: 0.10, green: 0.14, blue: 0.20)  // filmLineInk / sheetInk
+    static let inkSlate = Color(red: 0.45, green: 0.50, blue: 0.58)  // filmSceneSlate
+    static let inkMuted = Color(red: 0.30, green: 0.35, blue: 0.40)  // sheetMuted
+    static let inkLabel = Color(red: 0.45, green: 0.50, blue: 0.55)  // sheetLabel
+    static let inkSub   = Color(red: 0.40, green: 0.45, blue: 0.50)  // sheetSub
+    static let inkDim   = Color(red: 0.20, green: 0.24, blue: 0.30)  // sheetInkDim
+
+    /// 米色 (sheet bg)
+    static let sheetBg      = Color(red: 0.98, green: 0.98, blue: 0.97)  // DayPlaybackSheet
+    static let sheetBgTop   = Color(red: 0.97, green: 0.96, blue: 0.92)  // MiniFilm
+    static let sheetBgBottom = Color(red: 0.92, green: 0.92, blue: 0.88) // MiniFilm
+
+    /// 警示 / 暖色
+    static let warnIcon  = Color(red: 0.88, green: 0.55, blue: 0.2)   // ChatMessageList
+    static let warnText  = Color(red: 0.65, green: 0.4,  blue: 0.1)   // ChatMessageList
+    static let moveGreen = Color(red: 0.20, green: 0.78, blue: 0.55)  // MiniFilm
+    static let tiredBlue = Color(red: 0.42, green: 0.50, blue: 0.78)  // MiniFilm
+
+    /// 4 档灰度（历史对话年龄）
+    static let historyAge0 = Color(red: 0.40, green: 0.65, blue: 0.95)  // 今天
+    static let historyAge1 = Color(red: 0.50, green: 0.50, blue: 0.55)  // 昨天
+    static let historyAge2 = Color(red: 0.75, green: 0.75, blue: 0.78)  // 本周
+    static let historyAge3 = Color(red: 0.85, green: 0.85, blue: 0.88)  // 更早
+
+    /// 6 档睡眠色
+    static let sleepAwake  = Color(red: 0.906, green: 0.298, blue: 0.235)  // #E74C3C 橙红
+    static let sleepInBed  = Color(red: 0.722, green: 0.722, blue: 0.784)  // #B8B8C8 灰
+    static let sleepAsleep = Color(red: 0.612, green: 0.627, blue: 0.847)  // #9CA0D8 淡紫
+    static let sleepRem    = Color(red: 0.486, green: 0.227, blue: 0.929)  // #7C3AED 紫
+    static let sleepCore   = Color(red: 0.357, green: 0.431, blue: 0.910)  // #5B6EE8 蓝靛
+    static let sleepDeep   = Color(red: 0.239, green: 0.310, blue: 0.722)  // #3D4FB8 深靛
 }
