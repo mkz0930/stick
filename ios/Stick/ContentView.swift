@@ -1184,6 +1184,9 @@ private struct MainContentView<SheetContent: View>: View {
         ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil
     }
 
+    /// scenePhase 恢复时启动的 HK 刷新 task（切到 background 时 cancel 掉，省电）
+    @State private var backgroundRefreshTask: Task<Void, Never>? = nil
+
     // MARK: - onChange handlers (extracted to help Swift type-checker)
 
     private func handleDisplayStateChange(oldValue: StickState, newValue: StickState) {
@@ -1400,14 +1403,18 @@ private struct MainContentView<SheetContent: View>: View {
             handleDisplayStateChange(oldValue: oldValue, newValue: newValue)
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
-            // 切到后台：记录时间
+            // 切到后台：记录时间 + 取消未完成的 HK 刷新 task（省电，避免后台还在查 HK）
             if newPhase != .active {
                 state.backgroundedAt = Date()
+                backgroundRefreshTask?.cancel()
+                backgroundRefreshTask = nil
             }
             // 回到前台（解锁）：优先刷久坐秒表，其他查询并行
             if oldPhase != .active && newPhase == .active {
                 guard !Self.isRunningForPreviews else { return }
-                Task {
+                // 接管 task 句柄，background 时可以 cancel
+                backgroundRefreshTask?.cancel()
+                backgroundRefreshTask = Task {
                     // 1) 先抓一次最新快照 — 把黑屏期间走的步数写进 HealthStore
                     //    （这是关键，否则 HealthStore 里的步数还是锁屏前的）
                     _ = await HealthKitService.shared.captureSnapshot()
