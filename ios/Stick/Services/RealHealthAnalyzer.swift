@@ -29,10 +29,10 @@ enum RealHealthRisk: Int, Comparable {
 
     var color: Color {
         switch self {
-        case .normal: return Color(red: 0.02, green: 0.59, blue: 0.41)
-        case .low:    return Color(red: 0.55, green: 0.71, blue: 0.06)
-        case .medium: return Color(red: 0.92, green: 0.34, blue: 0.05)
-        case .high:   return Color(red: 0.93, green: 0.20, blue: 0.20)
+        case .normal: return Theme.stateWalk
+        case .low:    return Theme.stateStand
+        case .medium: return Theme.stateSit
+        case .high:   return Theme.riskHigh
         }
     }
 }
