@@ -103,6 +103,9 @@ final class HealthKitService {
     /// 基于今天真实 HealthKit 步数数据生成的 24h 时刻表
     var realDaySchedule: [StickState.DaySegment]? = nil
 
+    /// 昨晚完整睡眠 session 缓存
+    private(set) var cachedLastNightSession: SleepSession?
+
     private var timer: Timer?
     /// background / foreground NotificationCenter 订阅持有（避免 ARC 立即释放 + 重复注册）
     private var lifecycleObservers: [NSObjectProtocol] = []
@@ -289,28 +292,94 @@ final class HealthKitService {
         }
     }
 
+    // MARK: - 昨晚睡眠 Session (统一入口)
+
+    /// 从 HealthKit 拉取 sleep analysis 原始样本
+    private nonisolated func loadSleepSamples(start: Date, end: Date) async -> [HKCategorySample] {
+        guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else { return [] }
+        return await withCheckedContinuation { (cont: CheckedContinuation<[HKCategorySample], Never>) in
+            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: [.strictStartDate, .strictEndDate])
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+            let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
+                let casted = (samples as? [HKCategorySample]) ?? []
+                cont.resume(returning: casted)
+            }
+            store?.execute(query)
+        }
+    }
+
+    /// 把 HKCategoryValueSleepAnalysis 映射成 SleepStage (区分 core/deep/rem)
+    private nonisolated func mapSleepStageToDetail(_ rawValue: Int) -> SleepStage? {
+        if #available(iOS 16.0, *) {
+            if let v = HKCategoryValueSleepAnalysis(rawValue: rawValue) {
+                switch v {
+                case .inBed:            return .inBed
+                case .awake:            return .awake
+                case .asleepUnspecified: return .asleep
+                case .asleepCore:       return .core
+                case .asleepDeep:       return .deep
+                case .asleepREM:        return .rem
+                @unknown default:       return nil
+                }
+            }
+            return nil
+        } else {
+            if let v = HKCategoryValueSleepAnalysis(rawValue: rawValue) {
+                switch v {
+                case .inBed:            return .inBed
+                case .awake:            return .awake
+                case .asleepUnspecified: return .asleep
+                default:                return nil
+                }
+            }
+            return nil
+        }
+    }
+
+    /// 检查缓存的 session 是否在当前期望的时间窗口 [昨日 18:00, 今日 12:00] 内
+    private func isCacheValid(_ session: SleepSession) -> Bool {
+        let cal = Calendar.current
+        let startOfDay = cal.startOfDay(for: Date())
+        guard let windowStart = cal.date(byAdding: .day, value: -1, to: startOfDay)
+                .flatMap({ cal.date(bySettingHour: 18, minute: 0, second: 0, of: $0) }) else {
+            return false
+        }
+        return session.start >= windowStart
+    }
+
+    /// 昨晚完整睡眠 session (唯一 HealthKit 查询入口)
+    /// 时间窗口: [昨日 18:00, 今日 12:00]
+    /// 结果缓存，多消费者共享同一次 HK 查询
+    func fetchLastNightSession() async -> SleepSession? {
+        if let cached = cachedLastNightSession, isCacheValid(cached) { return cached }
+
+        let cal = Calendar.current
+        let startOfDay = cal.startOfDay(for: Date())
+        guard let windowStart = cal.date(byAdding: .day, value: -1, to: startOfDay)
+                .flatMap({ cal.date(bySettingHour: 18, minute: 0, second: 0, of: $0) }),
+              let windowEnd = cal.date(bySettingHour: 12, minute: 0, second: 0, of: startOfDay)
+        else { return nil }
+
+        let samples = await loadSleepSamples(start: windowStart, end: windowEnd)
+        guard !samples.isEmpty else { return nil }
+
+        let segments: [SleepSegment] = samples.compactMap { s in
+            guard let stage = mapSleepStageToDetail(s.value) else { return nil }
+            return SleepSegment(stage: stage, start: s.startDate, end: s.endDate)
+        }
+        let sorted = segments.sorted { $0.start < $1.start }
+        let merged = SleepAnalyzer.mergeAdjacent(sorted)
+        let session = SleepAnalyzer.pickLatestSession(merged, minDurationMinutes: 30)
+
+        if let session { cachedLastNightSession = session }
+        return session
+    }
+
     /// 今日睡眠总时长（从 Health App 手动记录的睡眠数据）
     /// 注意：只统计 Asleep 样本（value=2,3,5,6），排除 Awake（value=4）和 InBed（value=0,1）
     func todaySleepHours() async -> Double? {
-        guard let sleepType = categoryType(.sleepAnalysis) else { return nil }
-        let startOfDay = Calendar.current.startOfDay(for: Date())
-        return await withCheckedContinuation { (cont: CheckedContinuation<Double?, Never>) in
-            let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: nil, options: [])
-            let q = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
-                let totalSeconds = (samples as? [HKCategorySample])?.reduce(0.0) { sum, sample in
-                    // HKCategorySample.value 对于 sleepAnalysis: 0,1=InBed, 2,3,5,6=Asleep, 4=Awake
-                    // 只统计 Asleep 状态，排除 Awake 和 InBed
-                    switch sample.value {
-                    case 2, 3, 5, 6:  // Asleep variants
-                        return sum + sample.endDate.timeIntervalSince(sample.startDate)
-                    default:
-                        return sum  // InBed (0,1) 或 Awake (4) 不计入睡眠时长
-                    }
-                } ?? 0
-                cont.resume(returning: totalSeconds / 3600.0)
-            }
-            store?.execute(q)
-        }
+        guard let session = await fetchLastNightSession() else { return nil }
+        return Double(session.asleepMinutes) / 60.0
     }
 
     // MARK: - 推断身体状态 (来自加速度 + 心率)
@@ -2103,61 +2172,20 @@ extension HealthKitService {
     }
 
     /// 分析昨日 (date 减一天) 的睡眠 + 今日早起数据
-    /// - Parameter date: 报告日期 (生成器传入 "今天" 的 date，函数内部取前一天作为 "昨日")
+    /// 复用 fetchLastNightSession() 统一查询
     func analyzeSleep(forYesterday date: Date) async -> SleepAnalysisResult {
-        let calendar = Calendar.current
-        // 报告 date 视为 "今天"，昨日 = date - 1 天
-        let reportDayStart = calendar.startOfDay(for: date)
-        guard let yesterdayStart = calendar.date(byAdding: .day, value: -1, to: reportDayStart) else {
-            return SleepAnalysisResult(
-                bedtime: nil, wakeTime: nil, totalAsleepMinutes: 0,
-                lastWalkTime: nil, awakeCount: 0, quality: "连续"
-            )
-        }
-        // 睡眠窗口: 昨日 18:00 ~ 今日 12:00 (覆盖从晚 6 点到次日中午的所有可能睡眠段)
-        guard let windowStart = calendar.date(bySettingHour: 18, minute: 0, second: 0, of: yesterdayStart),
-              let windowEnd = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: reportDayStart)
-        else {
+        guard let session = await fetchLastNightSession() else {
             return SleepAnalysisResult(
                 bedtime: nil, wakeTime: nil, totalAsleepMinutes: 0,
                 lastWalkTime: nil, awakeCount: 0, quality: "连续"
             )
         }
 
-        // 1) 拉取最近 2 天样本，过滤到睡眠窗口
-        let allRecords = await querySleepAnalysis(daysBack: 2)
-        let windowRecords = allRecords.filter { rec in
-            rec.startDate >= windowStart && rec.startDate < windowEnd
-        }
+        let bedtime = session.start
+        let wakeTime = session.end
+        let totalAsleepMinutes = session.asleepMinutes
+        let awakeCount = session.segments.filter { $0.stage == .awake }.count
 
-        // 2) bedtime = 窗口内最早的 inBed / asleep 起点
-        let bedCandidates = windowRecords.filter { $0.stage == .inBed || $0.stage == .asleep }
-        let bedtime = bedCandidates.min(by: { $0.startDate < $1.startDate })?.startDate
-
-        // 3) wakeTime: 优先取最后一段 awake 的 startDate；无 awake 时取最后一段 inBed/asleep 的 endDate
-        let awakeRecords = windowRecords.filter { $0.stage == .awake }
-        let wakeTime: Date? = {
-            if let lastAwake = awakeRecords.max(by: { $0.startDate < $1.startDate }) {
-                return lastAwake.startDate
-            }
-            if let lastBed = bedCandidates.max(by: { $0.endDate < $1.endDate }) {
-                return lastBed.endDate
-            }
-            return nil
-        }()
-
-        // 4) totalAsleepMinutes = 窗口内 asleep 段累计秒数 / 60
-        let totalSeconds = windowRecords
-            .filter { $0.stage == .asleep }
-            .reduce(0.0) { sum, rec in
-                sum + rec.endDate.timeIntervalSince(rec.startDate)
-            }
-        let totalAsleepMinutes = Int(totalSeconds / 60.0)
-
-        // 5) awakeCount = 窗口内 awake 段数
-        let awakeCount = awakeRecords.count
-
-        // 6) quality 按 awakeCount 分级
         let quality: String
         switch awakeCount {
         case 0: quality = "连续"
@@ -2166,22 +2194,15 @@ extension HealthKitService {
         default: quality = "碎片化"
         }
 
-        // 7) lastWalkTime: 来自 body state snapshots，取 bedtime 之前最后一次 walk
         var lastWalkTime: Date? = nil
-        if let bedtime {
-            // 找 bedtime 之前的 walk snapshots
-            let all = HealthStore.shared.all
-            let walksBeforeBed = all.filter { $0.bodyState == "walk" && $0.timestamp < bedtime }
-            lastWalkTime = walksBeforeBed.max(by: { $0.timestamp < $1.timestamp })?.timestamp
-        }
+        let walksBeforeBed = HealthStore.shared.all
+            .filter { $0.bodyState == "walk" && $0.timestamp < bedtime }
+        lastWalkTime = walksBeforeBed.max(by: { $0.timestamp < $1.timestamp })?.timestamp
 
         return SleepAnalysisResult(
-            bedtime: bedtime,
-            wakeTime: wakeTime,
+            bedtime: bedtime, wakeTime: wakeTime,
             totalAsleepMinutes: totalAsleepMinutes,
-            lastWalkTime: lastWalkTime,
-            awakeCount: awakeCount,
-            quality: quality
+            lastWalkTime: lastWalkTime, awakeCount: awakeCount, quality: quality
         )
     }
 
