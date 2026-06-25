@@ -364,7 +364,7 @@ struct ContentView: View {
             return Double(score)
         case .sleep:
             guard let wq = walkingQuality else { return 25 }
-            var score = 50
+            var score: Double = 50
             let wakePenalty = min(20, Double(wq.nightWakeTotalMin) / 5)
             score -= wakePenalty
             return max(20, score)
@@ -677,7 +677,6 @@ struct ContentView: View {
                 realHeartRate = newState.realHeartRate
                 inference = newState.inference
                 todaySleepHours = newState.todaySleepHours
-                yesterdayGaitScore = newState.yesterdayGaitScore
             }
         )
     }
@@ -725,7 +724,6 @@ struct ContentView: View {
                 hasValidSleepData = newState.hasValidSleepData
                 homeSedentaryMinutes = newState.homeSedentaryMinutes
                 currentSitMinutes = newState.currentSitMinutes
-                yesterdayGaitScore = newState.yesterdayGaitScore
             }
         )
     }

@@ -685,27 +685,37 @@ private struct BodyScoreLine: View {
             }
             // 趋势箭头（仅有昨日数据时显示）
             if let t = trend {
-                let arrow: String
-                let arrowColor: Color
-                if t > 3 {
-                    arrow = "↗"
-                    arrowColor = Theme.stateWalk
-                } else if t < -3 {
-                    arrow = "↘"
-                    arrowColor = Color.energyLow
-                } else {
-                    arrow = "→"
-                    arrowColor = Theme.mist
-                }
-                Text(arrow)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(arrowColor)
-                Text(abs(Int(t.rounded())) > 0 ? "\(t > 0 ? "+" : "")\(Int(t.rounded()))" : "±0")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundColor(Theme.mist)
+                trendArrow(t)
+                trendDelta(t)
             }
         }
         .padding(.vertical, 3)
+    }
+
+    /// 趋势方向箭头
+    private func trendArrow(_ t: Double) -> some View {
+        Group {
+            if t > 3 {
+                Text("↗")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(Theme.stateWalk)
+            } else if t < -3 {
+                Text("↘")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(Color.energyLow)
+            } else {
+                Text("→")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(Theme.mist)
+            }
+        }
+    }
+
+    /// 趋势差值文字
+    private func trendDelta(_ t: Double) -> some View {
+        Text(abs(Int(t.rounded())) > 0 ? "\(t > 0 ? "+" : "")\(Int(t.rounded()))" : "±0")
+            .font(.system(size: 11, weight: .medium, design: .rounded))
+            .foregroundColor(Theme.mist)
     }
 }
 
