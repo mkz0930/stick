@@ -1,10 +1,11 @@
 import SwiftUI
 import UIKit
 #if canImport(WidgetKit)
-import WidgetKit
+    import WidgetKit
 #endif
 
 // MARK: - 本地调色板（能量色 4 档，独立于 Theme）
+
 private extension Color {
     /// 能量 4 档 — 中档橙 (Theme.riskWarn 偏亮，这里用 energy 专用)
     static let energyMid = Color(red: 0.92, green: 0.55, blue: 0.06)
@@ -15,7 +16,9 @@ private extension Color {
 /// 详情页 sheet 路由
 enum SheetDestination: String, Identifiable {
     case walk, sit, sleep, stand
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 }
 
 /// 步态质量数据（从 HealthKit 步速等指标综合计算）
@@ -69,30 +72,32 @@ struct ContentView: View {
     /// 来自 widget 点击（stick://chat?seed=...），由 StickApp 写入，本视图消费后清空
     @Binding var pendingChatSeed: String?
 
-    // HealthKit + HealthAuth 在 Xcode Preview (Canvas) 里会让预览变卡甚至 5s 超时
-    // (HKHealthStore 构造 + 真实 framework import)。Preview 注入 Noop 替代，真 app
-    // runtime 仍然用真 shared 单例。
+    /// HealthKit + HealthAuth 在 Xcode Preview (Canvas) 里会让预览变卡甚至 5s 超时
+    /// (HKHealthStore 构造 + 真实 framework import)。Preview 注入 Noop 替代，真 app
+    /// runtime 仍然用真 shared 单例。
     @State private var hk: HealthKitService = {
         #if DEBUG
-        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil {
-            return HealthKitService.noop
-        }
+            if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil {
+                return HealthKitService.noop
+            }
         #endif
         return HealthKitService.shared
     }()
+
     @State private var healthAuth: HealthAuthService = {
         #if DEBUG
-        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil {
-            return HealthAuthService.noop
-        }
+            if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil {
+                return HealthAuthService.noop
+            }
         #endif
         return HealthAuthService.shared
     }()
+
     @State private var chatHistory = ChatHistoryStore.shared
     /// Live Activity 管理器（iOS 16.1+ 久坐秒表）
     @State private var liveActivityManager = LiveActivityManager.shared
-    @State private var now: Date = Date()
-    @State private var scrubOffset: Int? = nil   // 0 = 现在；>0 表示过去多少分钟（窗口起点 = now - 24h）
+    @State private var now: Date = .init()
+    @State private var scrubOffset: Int? = nil // 0 = 现在；>0 表示过去多少分钟（窗口起点 = now - 24h）
     /// swipe gesture 强制覆盖的状态（nil = 跟时间走）。StageHeroView 在 onEnded 命中 swipe 时写入，
     /// 同时把 scrubOffset 跳到该 state 第一个 segment 的中点；scrubOffset 归零时自动清空。
     @State private var manualStateOverride: StickState? = nil
@@ -117,9 +122,9 @@ struct ContentView: View {
     @State private var backgroundedAt: Date? = nil
     /// 订阅 HealthStore：30s 一次 captureSnapshot() 会把 HealthSnapshot 写到 .today，
     /// 触发本视图重渲 → todaySteps computed property 重新求和，FeatureRow StepsLine 实时刷新。
-    @State private var healthStore: HealthStore = HealthStore.shared
+    @State private var healthStore: HealthStore = .shared
 
-    // HealthKit 状态推断（30s 重算一次）
+    /// HealthKit 状态推断（30s 重算一次）
     @State private var inference: StateInference.Result? = nil
 
     /// 首页久坐分钟数（从 HealthKit 直接查询，与数据记录一致）
@@ -132,9 +137,9 @@ struct ContentView: View {
     /// 当前久坐 session 开始时刻（从快照时间推算，用于秒级跳动）
     @State private var currentSitStartTime: Date? = nil
     /// 上次分析时间（控制30秒刷新一次）
-    @State private var lastSitAnalysisTime: Date = Date()
+    @State private var lastSitAnalysisTime: Date = .init()
     /// Timer 触发器，每秒更新驱动 live 秒表刷新（Date 值保证 SwiftUI 检测到变化）
-    @State private var timerTick: Date = Date()
+    @State private var timerTick: Date = .init()
 
     // Chat
     @State private var showChat: Bool = false
@@ -208,11 +213,11 @@ struct ContentView: View {
     /// 把 HealthStore 的 bodyState 字符串映射到 StickState
     private func mapBodyState(_ raw: String) -> StickState? {
         switch raw {
-        case "walk":  return .walk
-        case "sit":   return .sit
+        case "walk": return .walk
+        case "sit": return .sit
         case "stand": return .stand
         case "sleep": return .sleep
-        default:      return nil
+        default: return nil
         }
     }
 
@@ -258,7 +263,9 @@ struct ContentView: View {
         seed.hasPrefix("久坐风险提醒:")
     }
 
-    private var aiReport: AIAnalysisReport? { nil }
+    private var aiReport: AIAnalysisReport? {
+        nil
+    }
 
     private func handleAlertTap(_ a: UnifiedAlert) {
         if a.kind == .aiLive, a.aiReport != nil {
@@ -293,7 +300,7 @@ struct ContentView: View {
                 return MoodLineInfo(text: "兴奋", tone: .excited, spark: .excited)
             }
             let m = StickState.minutesOfDay(displayDate)
-            if m >= 720 && m < 810 {
+            if m >= 720, m < 810 {
                 return MoodLineInfo(text: "轻松", tone: .good, spark: .relaxed)
             }
             if m >= 1080 {
@@ -311,7 +318,7 @@ struct ContentView: View {
     /// 给当前展示状态派生火柴人心情覆盖。
     private var figureMood: StickFigureMood {
         if isMorningEnergetic { return .excited }
-        if isMorningCalm      { return .calm }
+        if isMorningCalm { return .calm }
         return .normal
     }
 
@@ -341,7 +348,7 @@ struct ContentView: View {
         case .sit:
             // 久坐时长越长能量越低
             let sit = Double(homeSedentaryMinutes)
-            let sitPenalty = min(30, sit / 6.0)  // 每6分钟久坐扣1分，上限30分
+            let sitPenalty = min(30, sit / 6.0) // 每6分钟久坐扣1分，上限30分
             return max(25, 75 - sitPenalty)
         case .sleep:
             // 夜间清醒越多睡眠修复效果越差
@@ -358,7 +365,7 @@ struct ContentView: View {
 
     /// 当前久坐 session live 时长（M:SS），基于 currentSitStartTime 每秒跳动
     var sitDurationText: String? {
-        _ = timerTick  // 每秒触发重算
+        _ = timerTick // 每秒触发重算
         guard let startTime = currentSitStartTime, displayState == .sit else { return nil }
         let elapsed = Date().timeIntervalSince(startTime)
         let totalSeconds = Int(elapsed)
@@ -395,7 +402,7 @@ struct ContentView: View {
         case .stand:
             return 70
         case .sit:
-            if homeSedentaryMinutes > 120 { return 55 }  // 久坐超2小时 → 心情差
+            if homeSedentaryMinutes > 120 { return 55 } // 久坐超2小时 → 心情差
             return 65
         case .sleep:
             return 25
@@ -412,7 +419,9 @@ struct ContentView: View {
     }
 
     /// Mood 颜色：跟 energyColor 同一套 4 档
-    private var moodColor: Color { energyColor }
+    private var moodColor: Color {
+        energyColor
+    }
 
     // MARK: - 给 Widget 用的派生值
 
@@ -447,17 +456,17 @@ struct ContentView: View {
                 // 1140-1200: 峰值段 130-148
                 // 1200-1260: 缓降 125-140
                 // 1260-1320: 回落 115-128
-                let t = Double(m - 1080) / 240.0   // 0..1
+                let t = Double(m - 1080) / 240.0 // 0..1
                 let base: Double
-                if t < 0.25      { base = 115 + 8 * sin(t * .pi * 8) }
-                else if t < 0.5  { base = 140 + 8 * sin(t * .pi * 8) }
+                if t < 0.25 { base = 115 + 8 * sin(t * .pi * 8) }
+                else if t < 0.5 { base = 140 + 8 * sin(t * .pi * 8) }
                 else if t < 0.75 { base = 132 + 8 * sin(t * .pi * 8) }
-                else             { base = 120 + 8 * sin(t * .pi * 8) }
+                else { base = 120 + 8 * sin(t * .pi * 8) }
                 return Int(base.rounded())
             }
             return 92
-        case .stand: return 70   // 站立待机：平稳静息
-        case .sit:   return 78
+        case .stand: return 70 // 站立待机：平稳静息
+        case .sit: return 78
         case .sleep: return 56
         }
     }
@@ -501,9 +510,9 @@ struct ContentView: View {
                     onClose: {
                         dismissKeyboard()
                         showChat = false
-                        chatPendingPhoto = false   // 重置标记，下次开 chat 不再自动开图
-                        chatPendingCamera = false  // 重置标记
-                        chatPendingTopic = nil     // 重置标记
+                        chatPendingPhoto = false // 重置标记，下次开 chat 不再自动开图
+                        chatPendingCamera = false // 重置标记
+                        chatPendingTopic = nil // 重置标记
                     }
                 )
                 .id(chatKey)
@@ -517,13 +526,13 @@ struct ContentView: View {
                     openChat("")
                 }
             }
-            #if targetEnvironment(simulator)
+        #if targetEnvironment(simulator)
             .task {
                 // 模拟器调试：env STICK_MOCK_HEALTH=1 → 启动时自动载入 Documents/MockHealth.json
                 if ProcessInfo.processInfo.environment["STICK_MOCK_HEALTH"] != nil {
                     let n = MockHealthDataLoader.shared.loadBundledIfExists()
                     #if DEBUG
-                    print("[ContentView] 🧪 Mock 健康数据载入: \(n) 条")
+                        print("[ContentView] 🧪 Mock 健康数据载入: \(n) 条")
                     #endif
                     // 触发一次今天的久坐重算
                     var sed = await HealthKitService.shared.todaySedentaryMinutes()
@@ -535,7 +544,7 @@ struct ContentView: View {
                     currentSitMinutes = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
                 }
             }
-            #endif
+        #endif
             .onChange(of: pendingChatSeed) { _, newSeed in
                 // widget 点击 → 打开 chat（预填 seed）→ 清空避免重复触发
                 guard let seed = newSeed, !seed.isEmpty else { return }
@@ -803,7 +812,6 @@ struct ContentView: View {
             )
         }
     }
-
 }
 
 // MARK: - 主舞台（v6 风格）
@@ -816,13 +824,12 @@ private struct StageHeroView: View {
     let isScrubbing: Bool
     let inference: StateInference.Result?
     @Binding var showDevicePicker: Bool
-    @Binding var scrubOffset: Int?            // 接收时间线 binding，stage 也可拖
-    @Binding var manualStateOverride: StickState?  // swipe 切状态后的强制状态
+    @Binding var scrubOffset: Int? // 接收时间线 binding，stage 也可拖
+    @Binding var manualStateOverride: StickState? // swipe 切状态后的强制状态
     var onPreview: () -> Void
     var onSleepAlert: () -> Void
-    var onStateTap: ((StickState) -> Void)? = nil   // 火柴人点击 → 推/弹当前 state 详情（nil = 旧调用方未接）
     let subLine: String
-    let schedule: [StickState.DaySegment]    // 真实时刻表（用于按时间正方向查找下一个 state 的段）
+    let schedule: [StickState.DaySegment] // 真实时刻表（用于按时间正方向查找下一个 state 的段）
 
     /// 拖动起点 + 起始 offset (用于把横向 delta 换算成分钟)
     @State private var dragStartOffset: Int? = nil
@@ -862,7 +869,7 @@ private struct StageHeroView: View {
 
         // 在 schedule 里按时间正方向找 nextState 之后最近的段；找不到则 wrap 到第一个
         let targetSeg = Self.nextSegment(for: nextState, after: currentDisplayMin, in: schedule)
-        let jumpMinute = targetSeg.map { (($0.startMinute + $0.endMinute) / 2) } ?? nowMin
+        let jumpMinute = targetSeg.map { ($0.startMinute + $0.endMinute) / 2 } ?? nowMin
         // 让 scrubOffset 落点刚好让 displayMinute = jumpMinute（处理跨午夜）
         let rawOffset = (nowMin - jumpMinute + 1440) % 1440
         let snappedOffset = (rawOffset / 5) * 5
@@ -967,13 +974,6 @@ private struct StageHeroView: View {
                         dragStartOffset = nil
                     }
             )
-            // 单击火柴人 → 打开当前 state 详情 sheet。TapGesture 与 DragGesture
-            // (minimumDistance: 12) 不会互相踩：tap 触发条件是「up 之前没有任何
-            // 移动」，drag 一旦移动就被吞掉。
-            .onTapGesture {
-                onStateTap?(manualStateOverride ?? state)
-            }
-
             // 拖动时显示当前时间 / swipe 后显示状态 + 时段范围
             if isStageScrubbing || manualStateOverride != nil {
                 StageScrubBadge(
@@ -985,7 +985,6 @@ private struct StageHeroView: View {
             }
         }
     }
-
 }
 
 // MARK: - HomeBackground（rule 1 提取）
@@ -1131,14 +1130,17 @@ private struct StageScrubBadge: View {
 /// 把现有 29 个 @State 字段重新打包传进来，内部通过 `state.xxx` / `$state.xxx` 访问。
 struct HomeState {
     // MARK: 时间驱动
+
     var now: Date
     var timerTick: Date
 
     // MARK: 时间线 scrubbing
+
     var scrubOffset: Int?
     var manualStateOverride: StickState?
 
     // MARK: 面板 / 弹层 flag
+
     var showPersonal: Bool
     var showFilm: Bool
     var showSleepReport: Bool
@@ -1147,31 +1149,36 @@ struct HomeState {
     var openWidgetPreview: Bool
 
     // MARK: 设备 & mock 注入
+
     var deviceSet: Set<DeviceID>
     var showInjectConfirm: Bool
     var injectStatus: String?
 
     // MARK: Chat
+
     var chatSeed: String
     var chatKey: Int
     var chatPendingPhoto: Bool
     var showChat: Bool
 
     // MARK: 滚动
+
     var targetScrollId: UUID?
     var scrollTrigger: Int
 
     // MARK: 久坐实时
+
     var currentSitMinutes: Int
     var currentSitStartTime: Date?
     var lastSitAnalysisTime: Date
     var backgroundedAt: Date?
     var homeSedentaryMinutes: Int
     var hasValidSleepData: Bool
-    /// single-flight 锁已迁到 `HealthKitService.sitMetricsTask`（actor-isolated）。
-    /// 避免 view 重组时 HomeState struct 引用丢失导致死锁。
+    // single-flight 锁已迁到 `HealthKitService.sitMetricsTask`（actor-isolated）。
+    // 避免 view 重组时 HomeState struct 引用丢失导致死锁。
 
     // MARK: 实时分析（HealthKit 30s 抓取）
+
     var walkingQuality: WalkingQualityData?
     var realHeartRate: Int?
     var inference: StateInference.Result?
@@ -1213,7 +1220,7 @@ private struct MainContentView<SheetContent: View>: View {
 
     // MARK: - onChange handlers (extracted to help Swift type-checker)
 
-    private func handleDisplayStateChange(oldValue: StickState, newValue: StickState) {
+    private func handleDisplayStateChange(oldValue _: StickState, newValue: StickState) {
         if newValue == .sit {
             let startTime = Date()
             state.currentSitStartTime = startTime
@@ -1251,11 +1258,11 @@ private struct MainContentView<SheetContent: View>: View {
         )
         SharedStateStore.write(snap)
         #if canImport(WidgetKit)
-        // 延迟 50ms 给 UserDefaults 落盘时间，避免 widget reload 时读到旧值
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 50_000_000)
-            WidgetCenter.shared.reloadAllTimelines()
-        }
+            // 延迟 50ms 给 UserDefaults 落盘时间，避免 widget reload 时读到旧值
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 50_000_000)
+                WidgetCenter.shared.reloadAllTimelines()
+            }
         #endif
     }
 
@@ -1276,7 +1283,7 @@ private struct MainContentView<SheetContent: View>: View {
     /// `reason` 仅用于日志排障；`reset` 走单独路径（直接归零）。
     /// 返回 true 表示本次新建并派发了任务，false 表示已有任务在跑、复用。
     @discardableResult
-    private func scheduleSitMetricsUpdate(reason: String) -> Bool {
+    private func scheduleSitMetricsUpdate(reason _: String) -> Bool {
         let onUpdate: @MainActor @Sendable (Int, Date?) -> Void = { newMinutes, startTime in
             state.currentSitMinutes = newMinutes
             state.currentSitStartTime = startTime
@@ -1299,11 +1306,11 @@ private struct MainContentView<SheetContent: View>: View {
             )
             SharedStateStore.write(snap)
             #if canImport(WidgetKit)
-            // 延迟 50ms 给 UserDefaults 落盘时间，避免 widget reload 时读到旧值
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 50_000_000)
-                WidgetCenter.shared.reloadAllTimelines()
-            }
+                // 延迟 50ms 给 UserDefaults 落盘时间，避免 widget reload 时读到旧值
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 50_000_000)
+                    WidgetCenter.shared.reloadAllTimelines()
+                }
             #endif
         }
         return hk.scheduleSitMetricsUpdate(
@@ -1312,7 +1319,6 @@ private struct MainContentView<SheetContent: View>: View {
         )
     }
 
-    @ViewBuilder
     private func overlayDimView(panelWidth: CGFloat) -> some View {
         HStack(spacing: 0) {
             Spacer().frame(width: panelWidth)
@@ -1325,8 +1331,7 @@ private struct MainContentView<SheetContent: View>: View {
         .transition(.opacity)
     }
 
-    @ViewBuilder
-    private func personalPanelView(panelWidth: CGFloat, showPersonal: Bool) -> some View {
+    private func personalPanelView(panelWidth _: CGFloat, showPersonal _: Bool) -> some View {
         PersonalView(
             onClose: { withAnimation(.easeInOut(duration: 0.32)) { self.state.showPersonal = false } },
             openDataRecord: $state.openDataRecord,
@@ -1512,11 +1517,11 @@ private struct MainContentView<SheetContent: View>: View {
                     let count = await HealthKitService.shared.injectMockDataIntoHealthKit(days: 7)
                     state.injectStatus = count > 0 ? "✅ 注入成功：\(count) 条样本" : "❌ 注入失败（请检查写权限）"
                     #if DEBUG
-                    print("[ContentView] \(state.injectStatus ?? "")")
+                        print("[ContentView] \(state.injectStatus ?? "")")
                     #endif
                 }
             }
-            Button("取消", role: .cancel) { }
+            Button("取消", role: .cancel) {}
         } message: {
             if let s = state.injectStatus { Text(s) }
         }
@@ -1638,7 +1643,9 @@ private struct HomeBodyView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSize
 
     /// 是否走横屏布局（含 iPad 全屏、宽屏设备）
-    private var isWide: Bool { horizontalSize == .regular }
+    private var isWide: Bool {
+        horizontalSize == .regular
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -1651,38 +1658,38 @@ private struct HomeBodyView: View {
                         TopBarView(onMenuTap: { state.showPersonal = true })
                         Spacer(minLength: 0)
                         #if targetEnvironment(simulator)
-                        // 模拟器调试按钮：载入 Documents/MockHealth.json 当真实数据用
-                        Button {
-                            Task { @MainActor in
-                                let n = MockHealthDataLoader.shared.loadBundledIfExists()
-                                #if DEBUG
-                                print("[ContentView] 🧪 载入 mock 数据: \(n) 条")
-                                #endif
-                                var sed = await HealthKitService.shared.todaySedentaryMinutes()
-                                var sleep = false
-                                if let sleepHours = await HealthKitService.shared.todaySleepHours(), sleepHours > 0 {
-                                    sed = max(0, sed - Int(sleepHours * 60))
-                                    sleep = true
+                            // 模拟器调试按钮：载入 Documents/MockHealth.json 当真实数据用
+                            Button {
+                                Task { @MainActor in
+                                    let n = MockHealthDataLoader.shared.loadBundledIfExists()
+                                    #if DEBUG
+                                        print("[ContentView] 🧪 载入 mock 数据: \(n) 条")
+                                    #endif
+                                    var sed = await HealthKitService.shared.todaySedentaryMinutes()
+                                    var sleep = false
+                                    if let sleepHours = await HealthKitService.shared.todaySleepHours(), sleepHours > 0 {
+                                        sed = max(0, sed - Int(sleepHours * 60))
+                                        sleep = true
+                                    }
+                                    let sitMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
+                                    loadMockData(sed, sitMins, sleep)
                                 }
-                                let sitMins = await HealthKitService.shared.currentSedentarySessionMinutes(hours: 4)
-                                loadMockData(sed, sitMins, sleep)
+                            } label: {
+                                Image(systemName: "flask")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Theme.slate)
+                                    .padding(8)
                             }
-                        } label: {
-                            Image(systemName: "flask")
-                                .font(.system(size: 14))
-                                .foregroundColor(Theme.slate)
-                                .padding(8)
-                        }
-                        // 模拟器调试按钮：注入过去 7 天的 mock 数据到 HealthKit
-                        // 让"导出最近 7 天"按钮能看到多天数据（无需等 7 天累积）
-                        Button {
-                            state.showInjectConfirm = true
-                        } label: {
-                            Image(systemName: "syringe")
-                                .font(.system(size: 14))
-                                .foregroundColor(Theme.slate)
-                                .padding(8)
-                        }
+                            // 模拟器调试按钮：注入过去 7 天的 mock 数据到 HealthKit
+                            // 让"导出最近 7 天"按钮能看到多天数据（无需等 7 天累积）
+                            Button {
+                                state.showInjectConfirm = true
+                            } label: {
+                                Image(systemName: "syringe")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Theme.slate)
+                                    .padding(8)
+                            }
                         #endif
                     }
                     .padding(.horizontal, 20)
@@ -1716,7 +1723,7 @@ private struct HomeBodyView: View {
                     .padding(.bottom, 6)
                 }
                 .zIndex(2)
-                .fixedSize(horizontal: false, vertical: true)  // 高度固定，展开时覆盖小人
+                .fixedSize(horizontal: false, vertical: true) // 高度固定，展开时覆盖小人
 
                 // ② ScrollView 内容（小人 + 时间轴；在下层）
                 //    竖屏 / 窄屏：上面 FeatureRow 190pt 留白 + 火柴人 + 时间线
@@ -1735,18 +1742,11 @@ private struct HomeBodyView: View {
                         manualStateOverride: $state.manualStateOverride,
                         onPreview: { state.showFilm = true },
                         onSleepAlert: { state.showSleepReport = true },
-                        onStateTap: { s in
-                            // 单击火柴人 → 推当前 state 详情（走 NavigationStack push，由 navigationDestination 消费）
-                            switch s {
-                            case .walk:  state.activeSheet = .walk
-                            case .sit:   state.activeSheet = .sit
-                            case .stand: state.activeSheet = .stand
-                            case .sleep: state.activeSheet = .sleep
-                            }
-                        },
                         subLine: realSubLine,
                         schedule: hk.realDaySchedule ?? StickState.daySchedule
                     )
+                    .opacity(state.featureRowExpanded ? 0.32 : 1.0)
+                    .animation(.easeInOut(duration: 0.28), value: state.featureRowExpanded)
                     .frame(maxWidth: .infinity)
                     .frame(height: isWide ? 520 : 400)
 
@@ -1757,7 +1757,7 @@ private struct HomeBodyView: View {
                         showDevicePicker: $state.showDevicePicker,
                         manualStateOverride: $state.manualStateOverride
                     )
-                    .equatable()  // schedule 内容稳定时跳过 body 重绘，杜绝轴乱变
+                    .equatable() // schedule 内容稳定时跳过 body 重绘，杜绝轴乱变
                     .frame(width: isWide ? 64 : 50)
                     .frame(height: isWide ? 520 : 400)
                 }
@@ -1804,10 +1804,11 @@ private struct HomeBodyView: View {
 }
 
 // MARK: - Preview (轻量 stub)
-// 真 ContentView 含 1100 行 SwiftUI + HealthKit + Timer + onAppear Task，
-// 渲染时间 > 5s 会触发 Xcode "Updating took more than 5 seconds" 超时。
-// 这里渲染一个 stub：顶栏 / FeatureRow / 主舞台 / 时间线 / 输入栏 静态组合，
-// 不挂 onAppear / 不用 StateObject / 不 import HealthKit framework。
+
+/// 真 ContentView 含 1100 行 SwiftUI + HealthKit + Timer + onAppear Task，
+/// 渲染时间 > 5s 会触发 Xcode "Updating took more than 5 seconds" 超时。
+/// 这里渲染一个 stub：顶栏 / FeatureRow / 主舞台 / 时间线 / 输入栏 静态组合，
+/// 不挂 onAppear / 不用 StateObject / 不 import HealthKit framework。
 private struct ContentViewPreviewStub: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -1826,9 +1827,9 @@ private struct ContentViewPreviewStub: View {
                 // FeatureRow 4 行静态
                 VStack(alignment: .leading, spacing: 4) {
                     featureLine("SEDENTARY", "0:00", "持续久坐")
-                    featureLine("POSTURE",   "POOR",  "姿态·前倾")
+                    featureLine("POSTURE", "POOR", "姿态·前倾")
                     featureLine("HEART RATE", "78 bpm", "心率·静息")
-                    featureLine("MOOD",      "良好",   "心情·愉悦")
+                    featureLine("MOOD", "良好", "心情·愉悦")
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 12)
@@ -1846,7 +1847,7 @@ private struct ContentViewPreviewStub: View {
 
                 // 时间线 stub
                 HStack(spacing: 1) {
-                    ForEach(0..<24, id: \.self) { i in
+                    ForEach(0 ..< 24, id: \.self) { i in
                         Rectangle()
                             .fill([Color.green, .orange, .purple][i % 3])
                             .frame(maxWidth: .infinity)
@@ -1903,63 +1904,64 @@ private struct ContentViewPreviewStub: View {
 }
 
 // MARK: - 能量徽章
+
 /* [已注释] 能量徽章下线
-private struct EnergyBadge: View {
-    let state: StickState
-    let level: Double           // 0..100
-    let color: Color
-    var onTap: () -> Void
+ private struct EnergyBadge: View {
+     let state: StickState
+     let level: Double           // 0..100
+     let color: Color
+     var onTap: () -> Void
 
-    private let bodyW: CGFloat = 42
-    private let bodyH: CGFloat = 14
+     private let bodyW: CGFloat = 42
+     private let bodyH: CGFloat = 14
 
-    var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("BODY ENERGY")
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
-                    .tracking(1.4)
-                    .foregroundColor(Theme.slate)
-                // 手机电池：圆角外框 + 内部填充 + 右边小帽
-                HStack(spacing: 1) {
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 2.5)
-                            .fill(color.opacity(0.18))
-                        RoundedRectangle(cornerRadius: 1.5)
-                            .fill(color)
-                            .frame(width: max(0, (bodyW - 2) * CGFloat(level) / 100.0))
-                            .padding(1)
-                    }
-                    .frame(width: bodyW, height: bodyH)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 2.5)
-                            .stroke(color.opacity(0.7), lineWidth: 0.9)
-                    )
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(color.opacity(0.85))
-                        .frame(width: 2.2, height: 6)
-                }
-                // 大数字（放在电池下方）
-                Text("\(Int(level))%")
-                    .font(.system(size: 13, weight: .heavy, design: .monospaced))
-                    .foregroundColor(color)
-                    .monospacedDigit()
-            }
-            // 徽章整体无框：只留 4×2 padding 贴边
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
-        }
-        .buttonStyle(.plain)
-    }
-}
-*/  // [已注释] 能量徽章下线
+     var body: some View {
+         Button(action: onTap) {
+             VStack(alignment: .leading, spacing: 3) {
+                 Text("BODY ENERGY")
+                     .font(.system(size: 8, weight: .bold, design: .monospaced))
+                     .tracking(1.4)
+                     .foregroundColor(Theme.slate)
+                 // 手机电池：圆角外框 + 内部填充 + 右边小帽
+                 HStack(spacing: 1) {
+                     ZStack(alignment: .leading) {
+                         RoundedRectangle(cornerRadius: 2.5)
+                             .fill(color.opacity(0.18))
+                         RoundedRectangle(cornerRadius: 1.5)
+                             .fill(color)
+                             .frame(width: max(0, (bodyW - 2) * CGFloat(level) / 100.0))
+                             .padding(1)
+                     }
+                     .frame(width: bodyW, height: bodyH)
+                     .overlay(
+                         RoundedRectangle(cornerRadius: 2.5)
+                             .stroke(color.opacity(0.7), lineWidth: 0.9)
+                     )
+                     RoundedRectangle(cornerRadius: 1)
+                         .fill(color.opacity(0.85))
+                         .frame(width: 2.2, height: 6)
+                 }
+                 // 大数字（放在电池下方）
+                 Text("\(Int(level))%")
+                     .font(.system(size: 13, weight: .heavy, design: .monospaced))
+                     .foregroundColor(color)
+                     .monospacedDigit()
+             }
+             // 徽章整体无框：只留 4×2 padding 贴边
+             .padding(.horizontal, 4)
+             .padding(.vertical, 2)
+         }
+         .buttonStyle(.plain)
+     }
+ }
+ */ // [已注释] 能量徽章下线
 
 // MARK: - 心情数值徽章
 
 /// 简单数字徽章：MOOD 标签 + 0-100 数字。无电池图标、无框 — 跟 BODY ENERGY 并列。
 /// 颜色跟 bodyEnergy 同一套 4 档（绿/黄绿/橙/红）。
 private struct MoodBadge: View {
-    let score: Double      // 0..100
+    let score: Double // 0..100
     let color: Color
 
     var body: some View {
