@@ -315,40 +315,63 @@ struct ContentView: View {
         return .normal
     }
 
-    /// 身体能量 0..100。综合真实步态评分 + 状态：
-    ///   - walk + gaitScore ≥ 80: 80-95 (步态好 → 能量高)
-    ///   - walk + gaitScore < 80: 65-79
-    ///   - sit: 真实久坐分或 60
-    ///   - sleep: 基于夜间清醒评分
+    /// 身体能量 0..100。综合步态细节指标 + 心率校正：
+    ///   - walk: 基于 avgSpeed / doubleSupport / gaitScore 精确计算
+    ///   - sit: 久坐扣分 + 心率校正
+    ///   - stand: 基础 65 + 心率校正
+    ///   - sleep: 基于 nightWakeTotalMin 精确扣分
     private var bodyEnergy: Double {
-        guard let wq = walkingQuality else {
-            // fallback to hardcoded
-            switch displayState {
-            case .walk: return 72
-            case .stand: return 65
-            case .sit: return 55
-            case .sleep: return 25
-            }
-        }
-
         switch displayState {
         case .walk:
-            if wq.gaitScore >= 80 { return 90 }
-            if wq.gaitScore >= 60 { return 75 }
-            return 60
-        case .stand:
-            return 65
+            if let wq = walkingQuality {
+                var score = 70
+                if let sp = wq.avgSpeed {
+                    if sp >= 1.0 && sp <= 1.4 { score += 10 }
+                    else if sp >= 0.8 && sp <= 1.6 { score += 5 }
+                    else { score -= 10 }
+                }
+                if let ds = wq.avgDoubleSupport {
+                    if ds >= 25 && ds <= 33 { score += 10 }
+                    else if ds >= 22 && ds <= 36 { score += 5 }
+                    else { score -= 5 }
+                }
+                score += min(10, (wq.gaitScore - 60) / 4)
+                return max(25, min(95, Double(score)))
+            }
+            return 72
         case .sit:
-            // 久坐时长越长能量越低
             let sit = Double(homeSedentaryMinutes)
-            let sitPenalty = min(30, sit / 6.0)  // 每6分钟久坐扣1分，上限30分
-            return max(25, 75 - sitPenalty)
+            let sitPenalty = min(30, sit / 6.0)
+            var score = max(25, 75 - sitPenalty)
+            if let hr = realHeartRate {
+                if hr > 90 { score -= 10 }
+                else if hr > 80 { score -= 5 }
+            }
+            return score
+        case .stand:
+            var score = 65
+            if let hr = realHeartRate {
+                if hr > 90 { score -= 10 }
+                else if hr > 80 { score -= 5 }
+            }
+            return Double(score)
         case .sleep:
-            // 夜间清醒越多睡眠修复效果越差
-            if wq.nightWakeCount == 0 { return 40 }
-            if wq.nightWakeCount == 1 { return 30 }
-            return 20
+            guard let wq = walkingQuality else { return 25 }
+            var score = 50
+            let wakePenalty = min(20, Double(wq.nightWakeTotalMin) / 5)
+            score -= wakePenalty
+            return max(20, score)
         }
+    }
+
+    /// 昨日步态评分（从 MorningReport 取），用于趋势对比
+    private var yesterdayGaitScore: Int? {
+        let cal = Calendar.current
+        guard let yesterday = cal.date(byAdding: .day, value: -1, to: Date()) else { return nil }
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        let yesterdayStr = fmt.string(from: yesterday)
+        return MorningReportStore.shared.load(date: yesterdayStr)?.gaitScore
     }
 
     /// 今日累计久坐分钟数（来自 healthStore.today 的快照统计）
@@ -609,7 +632,8 @@ struct ContentView: View {
                     walkingQuality: walkingQuality,
                     realHeartRate: realHeartRate,
                     inference: inference,
-                    todaySleepHours: todaySleepHours
+                    todaySleepHours: todaySleepHours,
+                    yesterdayGaitScore: yesterdayGaitScore
                 )
             },
             set: { newState in
@@ -642,6 +666,7 @@ struct ContentView: View {
                 realHeartRate = newState.realHeartRate
                 inference = newState.inference
                 todaySleepHours = newState.todaySleepHours
+                yesterdayGaitScore = newState.yesterdayGaitScore
             }
         )
     }
@@ -669,7 +694,8 @@ struct ContentView: View {
                     inputDraft: inputDraft,
                     hasValidSleepData: hasValidSleepData,
                     homeSedentaryMinutes: homeSedentaryMinutes,
-                    currentSitMinutes: currentSitMinutes
+                    currentSitMinutes: currentSitMinutes,
+                    yesterdayGaitScore: yesterdayGaitScore
                 )
             },
             set: { newState in
@@ -688,6 +714,7 @@ struct ContentView: View {
                 hasValidSleepData = newState.hasValidSleepData
                 homeSedentaryMinutes = newState.homeSedentaryMinutes
                 currentSitMinutes = newState.currentSitMinutes
+                yesterdayGaitScore = newState.yesterdayGaitScore
             }
         )
     }
@@ -714,6 +741,7 @@ struct ContentView: View {
             realSubLine: realSubLine,
             isScrubbing: isScrubbing,
             inference: inference,
+            yesterdayGaitScore: yesterdayGaitScore,
             handleAlertTap: handleAlertTap,
             openChat: openChat,
             openCamera: openCamera,
@@ -1174,6 +1202,7 @@ struct HomeState {
     var realHeartRate: Int?
     var inference: StateInference.Result?
     var todaySleepHours: Double?
+    var yesterdayGaitScore: Int?
 }
 
 // MARK: - MainContentView（rule 1 提取）
@@ -1588,6 +1617,7 @@ struct HomeBodyState {
     var hasValidSleepData: Bool = false
     var homeSedentaryMinutes: Int = 0
     var currentSitMinutes: Int = 0
+    var yesterdayGaitScore: Int? = nil
 }
 
 /// 首页内容（被外层 ZStack 包了一层）— GeometryReader + 顶栏 + FeatureRow + 主舞台 + 时间线 + InputBar
@@ -1616,6 +1646,7 @@ private struct HomeBodyView: View {
     let realSubLine: String
     let isScrubbing: Bool
     let inference: StateInference.Result?
+    let yesterdayGaitScore: Int?
 
     let handleAlertTap: (UnifiedAlert) -> Void
     let openChat: (String) -> Void
@@ -1692,6 +1723,7 @@ private struct HomeBodyView: View {
                         stressScore: 100 - moodScore,
                         bodyScore: bodyEnergy,
                         bodyScoreColor: energyColor,
+                        bodyScoreTrend: yesterdayGaitScore.map { Double(bodyEnergy) - Double($0) },
                         unifiedAlerts: unifiedAlerts,
                         sitDurationText: sitDurationText,
                         todaySitDescription: todaySitDescription,
