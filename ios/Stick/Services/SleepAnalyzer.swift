@@ -145,116 +145,17 @@ final class SleepAnalyzer {
 
     // MARK: - 抓取
 
-    /// 抓取昨晚的 sleep session
-    /// 时间窗: [昨 18:00, 今 12:00]
-    /// 流程: HKSampleQuery 拉全部样本 (不设 limit) → 转 SleepSegment → 排序 → 合并相邻同 stage →
-    ///       找到最晚的"连续段" (从 >= 昨 18:00 起, 长度 > 30 min) → 包成 SleepSession
+    /// 抓取昨晚的 sleep session (委托 HealthKitService 统一入口)
     func fetchLastNight() async -> SleepSession? {
-        guard let type = sleepType else { return nil }
-
-        let now = Date()
-        let cal = Calendar.current
-        // 昨 18:00
-        guard let yesterday18 = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: now))
-                .flatMap({ cal.date(bySettingHour: 18, minute: 0, second: 0, of: $0) }) else {
-            return nil
-        }
-        // 今 12:00
-        let today12 = cal.date(bySettingHour: 12, minute: 0, second: 0, of: cal.startOfDay(for: now))
-            ?? now
-
-        let samples = await loadSamples(type: type, start: yesterday18, end: today12)
-        guard !samples.isEmpty else { return nil }
-
-        // 转段
-        let rawSegments: [SleepSegment] = samples.compactMap { sample in
-            guard let stage = Self.stage(from: sample) else { return nil }
-            return SleepSegment(stage: stage, start: sample.startDate, end: sample.endDate)
-        }
-
-        // 按 start 排序
-        let sorted = rawSegments.sorted { $0.start < $1.start }
-        // 合并相邻同 stage
-        let merged = Self.mergeAdjacent(sorted)
-
-        // 找"最晚"且长度 > 30 min 的连续睡眠 (从第一个非 awake/inBed 算, 到回 awake/inBed 为止)
-        guard let session = Self.pickLatestSession(merged, minDurationMinutes: 30) else {
-            return nil
-        }
-
-        self.lastSession = session
+        let session = await HealthKitService.shared.fetchLastNightSession()
+        if let session { self.lastSession = session }
         return session
-    }
-
-    // MARK: - 内部: HKSampleQuery 包装
-
-    private nonisolated func loadSamples(type: HKCategoryType, start: Date, end: Date) async -> [HKCategorySample] {
-        await withCheckedContinuation { (cont: CheckedContinuation<[HKCategorySample], Never>) in
-            let predicate = HKQuery.predicateForSamples(
-                withStart: start, end: end, options: [.strictStartDate, .strictEndDate]
-            )
-            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
-            let query = HKSampleQuery(
-                sampleType: type,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: [sort]
-            ) { _, samples, error in
-                if let error = error {
-                    #if DEBUG
-                    print("[SleepAnalyzer] query failed: \(error)")
-                    #endif
-                    cont.resume(returning: [])
-                    return
-                }
-                let casted = (samples as? [HKCategorySample]) ?? []
-                cont.resume(returning: casted)
-            }
-            // 跳出 main actor：把 execute 派发到 global queue 让 callback 跑在 background thread
-            DispatchQueue.global(qos: .userInitiated).async { [store] in
-                store.execute(query)
-            }
-        }
-    }
-
-    // MARK: - 内部: 类别值 → SleepStage
-
-    /// 把 HKCategoryValueSleepAnalysis 映射成我们的 SleepStage
-    /// `asleepCore / asleepDeep / asleepREM` 仅 iOS 16+
-    private static func stage(from sample: HKCategorySample) -> SleepStage? {
-        let raw = sample.value
-        // iOS 16+ 细分
-        if #available(iOS 16.0, *) {
-            if let v = HKCategoryValueSleepAnalysis(rawValue: raw) {
-                switch v {
-                case .inBed:            return .inBed
-                case .awake:            return .awake
-                case .asleepUnspecified: return .asleep
-                case .asleepCore:       return .core
-                case .asleepDeep:       return .deep
-                case .asleepREM:        return .rem
-                @unknown default:       return nil
-                }
-            }
-            return nil
-        } else {
-            // iOS 15 之前只有 inBed / asleep / awake
-            if let v = HKCategoryValueSleepAnalysis(rawValue: raw) {
-                switch v {
-                case .inBed:            return .inBed
-                case .awake:            return .awake
-                case .asleepUnspecified: return .asleep
-                default:                return nil
-                }
-            }
-            return nil
-        }
     }
 
     // MARK: - 内部: 合并相邻同 stage
 
     /// 合并相邻同 stage 段 (前提: 已按 start 排序)
-    private static func mergeAdjacent(_ segments: [SleepSegment]) -> [SleepSegment] {
+    static func mergeAdjacent(_ segments: [SleepSegment]) -> [SleepSegment] {
         guard !segments.isEmpty else { return [] }
         var out: [SleepSegment] = []
         var current = segments[0]
@@ -282,7 +183,7 @@ final class SleepAnalyzer {
     /// 启发式: 扫描, 把 inBed 算前导, 第一个 asleep 类段开始,
     /// 直到遇到 awake 段超过 30 分钟 (醒来) 结束
     /// 取所有这些 session 中"最晚的一个", 长度 > minMinutes
-    private static func pickLatestSession(
+    static func pickLatestSession(
         _ segments: [SleepSegment],
         minDurationMinutes: Int
     ) -> SleepSession? {
