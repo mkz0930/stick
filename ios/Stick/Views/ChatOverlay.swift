@@ -327,7 +327,9 @@ struct ChatOverlay: View {
                     suggestions: m.role == .assistant ? m.suggestions : []
                 )
             }
+            #if DEBUG
             print("[ChatOverlay] onDisappear: saving \(newHistory.count) messages, user msgs: \(newHistory.filter { $0.role == "user" }.count)")
+            #endif
             history.replaceAll(with: newHistory)
         }
         .fullScreenCover(isPresented: $showCamera) {
@@ -377,7 +379,9 @@ struct ChatOverlay: View {
         messages.append(ChatMessage(id: userMsgId, role: .user, content: text, imageData: imageData))
         input = ""
         capturedImage = nil
+        #if DEBUG
         print("[ChatOverlay] send(): user msg added, total msgs now: \(messages.count)")
+        #endif
 
         self.scrollToBottom = false
         self.pendingScrollId = userMsgId
@@ -968,7 +972,9 @@ struct ChatOverlay: View {
             }
         } catch {
             // 静默失败，不影响主流程
+            #if DEBUG
             print("UserProfile summarization failed: \(error)")
+            #endif
         }
     }
 }

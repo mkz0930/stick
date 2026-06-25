@@ -522,7 +522,9 @@ struct ContentView: View {
                 // 模拟器调试：env STICK_MOCK_HEALTH=1 → 启动时自动载入 Documents/MockHealth.json
                 if ProcessInfo.processInfo.environment["STICK_MOCK_HEALTH"] != nil {
                     let n = MockHealthDataLoader.shared.loadBundledIfExists()
+                    #if DEBUG
                     print("[ContentView] 🧪 Mock 健康数据载入: \(n) 条")
+                    #endif
                     // 触发一次今天的久坐重算
                     var sed = await HealthKitService.shared.todaySedentaryMinutes()
                     if let sleepHours = await HealthKitService.shared.todaySleepHours(), sleepHours > 0 {
@@ -1509,7 +1511,9 @@ private struct MainContentView<SheetContent: View>: View {
                 Task { @MainActor in
                     let count = await HealthKitService.shared.injectMockDataIntoHealthKit(days: 7)
                     state.injectStatus = count > 0 ? "✅ 注入成功：\(count) 条样本" : "❌ 注入失败（请检查写权限）"
+                    #if DEBUG
                     print("[ContentView] \(state.injectStatus ?? "")")
+                    #endif
                 }
             }
             Button("取消", role: .cancel) { }
@@ -1651,7 +1655,9 @@ private struct HomeBodyView: View {
                         Button {
                             Task { @MainActor in
                                 let n = MockHealthDataLoader.shared.loadBundledIfExists()
+                                #if DEBUG
                                 print("[ContentView] 🧪 载入 mock 数据: \(n) 条")
+                                #endif
                                 var sed = await HealthKitService.shared.todaySedentaryMinutes()
                                 var sleep = false
                                 if let sleepHours = await HealthKitService.shared.todaySleepHours(), sleepHours > 0 {

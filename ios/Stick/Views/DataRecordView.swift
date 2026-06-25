@@ -360,7 +360,9 @@ struct DataRecordView: View {
             insight = cleaned.count > 40 ? String(cleaned.prefix(40)) : cleaned
         } catch {
             insight = ""
+            #if DEBUG
             print("[DataRecordView] generateInsight failed: \(error)")
+            #endif
         }
     }
 
