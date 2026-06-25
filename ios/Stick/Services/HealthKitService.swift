@@ -871,6 +871,11 @@ final class HealthKitService {
     /// 有记录 = 实际清醒（戴耳机听东西），即便步数为零也不算睡眠。
     /// 返回分钟级闭合区间数组，每段代表一段清醒期。
     func detectNightWakePeriods() async -> [ClosedRange<Int>] {
+        // 缓存检查（有效期 1 小时）
+        if let (cached, cachedAt) = cachedNightWakePeriods,
+           Date().timeIntervalSince(cachedAt) < 3600 {
+            return cached
+        }
         guard let audioType = quantityType(.headphoneAudioExposure) else { return [] }
         let calendar = Calendar.current
         let now = Date()
@@ -893,6 +898,7 @@ final class HealthKitService {
             let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
             let q = HKSampleQuery(sampleType: audioType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
                 guard let samples = samples, !samples.isEmpty else {
+                    self.cachedNightWakePeriods = ([], Date())
                     cont.resume(returning: [])
                     return
                 }
@@ -939,6 +945,7 @@ final class HealthKitService {
                         ranges.append(0...l)
                     }
                 }
+                self.cachedNightWakePeriods = (ranges, Date())
                 cont.resume(returning: ranges)
             }
             store?.execute(q)
@@ -1115,6 +1122,8 @@ final class HealthKitService {
     /// 立即触发 + 10 分钟兜底定时器；这里只防 observer 在 1 秒内多次触发导致 HK 查询风暴。
     private var lastScheduleComputeAt: Date = .distantPast
     private let scheduleRecomputeInterval: TimeInterval = 30
+    /// 夜间清醒时段缓存（有效期 1 小时）
+    private var cachedNightWakePeriods: ([ClosedRange<Int>], Date)?
 
     func computeDaySchedule() async {
         // 节流：30s 内已有结果则跳过（首次或跨日会重算）
@@ -1905,16 +1914,10 @@ extension HealthKitService {
         return HealthStore.shared.all.filter { $0.timestamp >= yesterday && $0.timestamp < endOfYesterday }
     }
 
-    /// 查询昨日睡眠总分钟数
-    /// 优先用 HealthKit sleepAnalysis 累加 asleep 段；无数据时回退到 body state 计数
+    /// 查询昨日睡眠总分钟数（从统一入口 fetchLastNightSession 获取）
     func queryYesterdaySleepMinutes() async -> Int {
-        let result = await analyzeSleep(forYesterday: Date())
-        if result.totalAsleepMinutes > 0 {
-            return result.totalAsleepMinutes
-        }
-        // fallback: body state 计数
-        let snapshots = await queryYesterdaySnapshots()
-        return snapshots.filter { $0.bodyState == "sleep" }.count
+        guard let session = await fetchLastNightSession() else { return 0 }
+        return session.asleepMinutes
     }
 
     /// 查询昨日步行总分钟数
@@ -1935,16 +1938,12 @@ extension HealthKitService {
         return snapshots.last?.cumulativeStepCount ?? 0
     }
 
-    /// 查询昨日起床时间（分钟，0-1439）
-    /// 优先用 HealthKit sleepAnalysis 的 awake 段；无数据时回退到 body state 首条 walk
+    /// 查询昨日起床时间（分钟，0-1439）。从统一入口获取
     func queryYesterdayWakeUpMinute() async -> Int {
         if let wakeMin = await todayWakeUpMinuteFromHealthKit() {
             return wakeMin
         }
-        // fallback: body state
-        let snapshots = await queryYesterdaySnapshots()
-        guard let first = snapshots.first(where: { $0.bodyState == "walk" }) else { return 0 }
-        return StickState.minutesOfDay(first.timestamp)
+        return 0
     }
 }
 
@@ -2206,14 +2205,9 @@ extension HealthKitService {
         )
     }
 
-    /// 今日最早醒来的分钟 (0-1439)。优先用 HealthKit sleep awake stage，回退到 nil
+    /// 今日最早醒来的分钟 (0-1439)。从统一睡眠 session 端点获取
     func todayWakeUpMinuteFromHealthKit() async -> Int? {
-        let records = await querySleepAnalysis(daysBack: 2)
-        let calendar = Calendar.current
-        let todayStart = calendar.startOfDay(for: Date())
-        // 找今天范围内的 awake 段，取最早的 startDate
-        let todayAwake = records.filter { $0.stage == .awake && $0.startDate >= todayStart }
-        guard let firstAwake = todayAwake.min(by: { $0.startDate < $1.startDate }) else { return nil }
-        return StickState.minutesOfDay(firstAwake.startDate)
+        guard let session = await fetchLastNightSession() else { return nil }
+        return StickState.minutesOfDay(session.end)
     }
 }
