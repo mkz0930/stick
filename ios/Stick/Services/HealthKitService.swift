@@ -361,8 +361,13 @@ final class HealthKitService {
         else { return nil }
 
         let samples = await loadSleepSamples(start: windowStart, end: windowEnd)
-        guard !samples.isEmpty else { return nil }
 
+        if samples.isEmpty {
+            // Path B (iPhone-only): 无 HK sleepAnalysis → 从本地快照估算
+            return await estimateSleepFromSnapshots(windowStart: windowStart, windowEnd: windowEnd)
+        }
+
+        // Path A (Apple Watch): 有 HK sleepAnalysis → 详细阶段分析
         let segments: [SleepSegment] = samples.compactMap { s in
             guard let stage = mapSleepStageToDetail(s.value) else { return nil }
             return SleepSegment(stage: stage, start: s.startDate, end: s.endDate)
@@ -375,8 +380,52 @@ final class HealthKitService {
         return session
     }
 
-    /// 今日睡眠总时长（从 Health App 手动记录的睡眠数据）
-    /// 注意：只统计 Asleep 样本（value=2,3,5,6），排除 Awake（value=4）和 InBed（value=0,1）
+    // MARK: - iPhone-only 睡眠估算 (Path B)
+
+    /// iPhone-only 估算：无 HK sleepAnalysis 数据时，从本地快照推断睡眠
+    /// 信号：HealthStore 快照中 bodyState == "sleep" + 时段窗口
+    /// 产出：简化 SleepSession（仅 .asleep 段，无 core/deep/rem 细分）
+    private func estimateSleepFromSnapshots(windowStart: Date, windowEnd: Date) async -> SleepSession? {
+        let snaps = HealthStore.shared.all
+            .filter { $0.timestamp >= windowStart && $0.timestamp < windowEnd }
+            .filter { $0.bodyState == "sleep" }
+            .sorted { $0.timestamp < $1.timestamp }
+
+        guard !snaps.isEmpty else { return nil }
+
+        let merged = mergeSleepSnapshots(snaps)
+
+        // 挑最长且 ≥ 30min 的段
+        guard let longest = merged.max(by: { $0.durationMinutes < $1.durationMinutes }),
+              longest.durationMinutes >= 30 else { return nil }
+
+        let session = SleepSession(start: longest.start, end: longest.end, segments: [longest])
+        cachedLastNightSession = session
+        return session
+    }
+
+    /// 把相邻 (gap ≤ 5min) 的 sleep 快照合并为 SleepSegment
+    private func mergeSleepSnapshots(_ snapshots: [HealthSnapshot]) -> [SleepSegment] {
+        guard let first = snapshots.first else { return [] }
+        var segments: [SleepSegment] = []
+        var segStart = first.timestamp
+        var segEnd = first.timestamp.addingTimeInterval(60) // 每快照代表 1 分钟
+
+        for snap in snapshots.dropFirst() {
+            let gap = snap.timestamp.timeIntervalSince(segEnd)
+            if gap <= 300 { // 5min gap
+                segEnd = snap.timestamp.addingTimeInterval(60)
+            } else {
+                segments.append(SleepSegment(stage: .asleep, start: segStart, end: segEnd))
+                segStart = snap.timestamp
+                segEnd = snap.timestamp.addingTimeInterval(60)
+            }
+        }
+        segments.append(SleepSegment(stage: .asleep, start: segStart, end: segEnd))
+        return segments
+    }
+
+    /// 今日睡眠总时长（门户统一 fetchLastNightSession 获取）
     func todaySleepHours() async -> Double? {
         guard let session = await fetchLastNightSession() else { return nil }
         return Double(session.asleepMinutes) / 60.0
