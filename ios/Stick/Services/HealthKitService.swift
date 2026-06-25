@@ -382,60 +382,61 @@ final class HealthKitService {
 
     // MARK: - iPhone-only 睡眠估算 (Path B)
 
+    /// 合并连续 sleep 快照为 SleepSegment 数组
+    private func mergeSleepSnapshots(_ snapshots: [HealthSnapshot]) -> [SleepSegment] {
+        guard let first = snapshots.first else { return [] }
+        var segments: [SleepSegment] = []
+        var segStart = first.timestamp
+        var segEnd = first.timestamp.addingTimeInterval(60)
 
-/// iPhone-only 估算：无 HK sleepAnalysis 数据时，从本地快照推断睡眠
-/// 信号：HealthStore 快照按 bodyState 分 .asleep/.awake，产出交替段
-/// 产出：SleepSession 含 .asleep + .awake 交替 segment，支持 awakeCount 统计
-private func estimateSleepFromSnapshots(windowStart: Date, windowEnd: Date) async -> SleepSession? {
-    // 取窗口内所有快照（含 sleep 和 non-sleep），按时间排序
-    let allSnaps = HealthStore.shared.all
-        .filter { $0.timestamp >= windowStart && $0.timestamp < windowEnd }
-        .sorted { $0.timestamp < $1.timestamp }
-
-    guard !allSnaps.isEmpty else { return nil }
-
-    // 把快照序列转换为 .asleep/.awake 交替段
-    let rawSegments = buildSleepSegmentsFromSnapshots(allSnaps)
-    guard !rawSegments.isEmpty else { return nil }
-
-    // 合并相邻同 stage 段
-    let merged = SleepAnalyzer.mergeAdjacent(rawSegments)
-
-    // 挑最晚的连续睡眠 session（复用 pickLatestSession 逻辑）
-    guard let session = SleepAnalyzer.pickLatestSession(merged, minDurationMinutes: 30) else {
-        return nil
-    }
-
-    cachedLastNightSession = session
-    return session
-}
-
-/// 把快照序列转换为 .asleep/.awake 交替的 SleepSegment
-/// 每快照代表 1 分钟，相邻同 stage 快照合并为一段
-private func buildSleepSegmentsFromSnapshots(_ snapshots: [HealthSnapshot]) -> [SleepSegment] {
-    guard let first = snapshots.first else { return [] }
-    var segments: [SleepSegment] = []
-    var segStage: SleepStage = first.bodyState == "sleep" ? .asleep : .awake
-    var segStart = first.timestamp
-    var segEnd = first.timestamp.addingTimeInterval(60)
-
-    for snap in snapshots.dropFirst() {
-        let isSleep = snap.bodyState == "sleep"
-        let stage: SleepStage = isSleep ? .asleep : .awake
-        if stage == segStage {
-            // 同 stage → 延伸
-            segEnd = snap.timestamp.addingTimeInterval(60)
-        } else {
-            // stage 切换 → 封段 + 新段
-            segments.append(SleepSegment(stage: segStage, start: segStart, end: segEnd))
-            segStage = stage
-            segStart = snap.timestamp
-            segEnd = snap.timestamp.addingTimeInterval(60)
+        for snap in snapshots.dropFirst() {
+            let gap = snap.timestamp.timeIntervalSince(segEnd)
+            if gap <= 300 {
+                // ≤5min 同一段
+                segEnd = snap.timestamp.addingTimeInterval(60)
+            } else if gap <= 1800 {
+                // 5-30min = 短暂清醒
+                segments.append(SleepSegment(stage: .asleep, start: segStart, end: segEnd))
+                segments.append(SleepSegment(stage: .awake, start: segEnd, end: snap.timestamp))
+                segStart = snap.timestamp
+                segEnd = snap.timestamp.addingTimeInterval(60)
+            } else {
+                // >30min = 断裂，不产出 awake
+                segments.append(SleepSegment(stage: .asleep, start: segStart, end: segEnd))
+                segStart = snap.timestamp
+                segEnd = snap.timestamp.addingTimeInterval(60)
+            }
         }
+        segments.append(SleepSegment(stage: .asleep, start: segStart, end: segEnd))
+        return segments
     }
-    segments.append(SleepSegment(stage: segStage, start: segStart, end: segEnd))
-    return segments
-}
+
+    /// iPhone-only 估算：无 HK sleepAnalysis 数据时，从本地快照推断睡眠
+    /// 优先选夜间睡眠段 [22:00, 06:00]，否则 fallback 全时段最长段
+    private func estimateSleepFromSnapshots(windowStart: Date, windowEnd: Date) async -> SleepSession? {
+        let snaps = HealthStore.shared.all
+            .filter { $0.timestamp >= windowStart && $0.timestamp < windowEnd }
+            .filter { $0.bodyState == "sleep" }
+            .sorted { $0.timestamp < $1.timestamp }
+        guard !snaps.isEmpty else { return nil }
+
+        let merged = mergeSleepSnapshots(snaps)
+
+        // 优先选夜间段 [22:00, 06:00]，否则选最长的
+        let nightRange = merged.filter { segment in
+            let startMin = StickState.minutesOfDay(segment.start)
+            let endMin = StickState.minutesOfDay(segment.end)
+            // 段跨过 22:00 或 06:00 就算夜间
+            return startMin >= 22 * 60 || endMin <= 6 * 60 || (startMin < 6 * 60 && endMin >= 22 * 60)
+        }
+        let candidates = nightRange.filter { $0.durationMinutes >= 30 }
+        guard let chosen = candidates.first ?? merged.max(by: { $0.durationMinutes < $1.durationMinutes }),
+              chosen.durationMinutes >= 30 else { return nil }
+
+        let session = SleepSession(start: chosen.start, end: chosen.end, segments: [chosen])
+        cachedLastNightSession = session
+        return session
+    }
 
     /// 今日睡眠总时长（门户统一 fetchLastNightSession 获取）
     func todaySleepHours() async -> Double? {
@@ -959,7 +960,7 @@ private func buildSleepSegmentsFromSnapshots(_ snapshots: [HealthSnapshot]) -> [
             let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
             let q = HKSampleQuery(sampleType: audioType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
                 guard let samples = samples, !samples.isEmpty else {
-                    self.cachedNightWakePeriods = ([], Date())
+                    await MainActor.run { self.cachedNightWakePeriods = ([], Date()) }
                     cont.resume(returning: [])
                     return
                 }
@@ -1006,7 +1007,7 @@ private func buildSleepSegmentsFromSnapshots(_ snapshots: [HealthSnapshot]) -> [
                         ranges.append(0...l)
                     }
                 }
-                self.cachedNightWakePeriods = (ranges, Date())
+                await MainActor.run { self.cachedNightWakePeriods = (ranges, Date()) }
                 cont.resume(returning: ranges)
             }
             store?.execute(q)
