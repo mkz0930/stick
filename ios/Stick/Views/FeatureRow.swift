@@ -6,6 +6,8 @@ private extension Color {
     static let frHeartRed  = Color(red: 0.86, green: 0.21, blue: 0.27)
     /// 步数行 起步蓝（<50% 进度）
     static let frStepsBlue = Color(red: 0.30, green: 0.55, blue: 0.85)
+    /// 能量低档红 (FeatureLine 身体状态得分用)
+    static let energyLow = Color(red: 0.93, green: 0.20, blue: 0.20)
 }
 
 /// 主页 3-5 行紧凑指标（左上角）：
@@ -25,6 +27,7 @@ struct FeatureRow: View {
     let stressScore: Double         // 0..100, 压力 = 100 - moodScore（高=大压力；颜色逻辑反转）
     let bodyScore: Double           // 0..100, 身体打分（**第 1 行**，跟 MOOD 区分）
     let bodyScoreColor: Color
+    var bodyScoreTrend: Double?   // 0..100 趋势差值（nil = 无昨日数据，不显示箭头）
     let unifiedAlerts: [UnifiedAlert]
     let sitDurationText: String?      // 坐姿秒表 live MM:SS（sit 状态时为 "47:23" 这种，非 sit 时 nil）
     let todaySitDescription: String    // 今日累计久坐描述，如 "累计6小时23分"
@@ -135,7 +138,7 @@ struct FeatureRow: View {
         Group {
             if isWide {
                 HStack(alignment: .top, spacing: 14) {
-                    BodyScoreLine(score: bodyScore, color: bodyScoreColor)
+                    BodyScoreLine(score: bodyScore, color: bodyScoreColor, trend: bodyScoreTrend)
                     if let m = moodLine {
                         StressLine(info: m, accent: state.accent, stressScore: stressScore, pinnedIds: $pinnedMetricIds, onPinToggle: savePinned)
                     }
@@ -164,7 +167,7 @@ struct FeatureRow: View {
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     // ① 身体状态得分（**唯一默认可见** — 视觉锤）
-                    BodyScoreLine(score: bodyScore, color: bodyScoreColor)
+                    BodyScoreLine(score: bodyScore, color: bodyScoreColor, trend: bodyScoreTrend)
 
                     if isExpanded {
                         // 展开态：所有行 + 📌 切换按钮
@@ -648,6 +651,7 @@ private struct MoodSparkline: View {
 private struct BodyScoreLine: View {
     let score: Double           // 0..100
     let color: Color
+    let trend: Double?          // nil = 无昨日数据
 
     private var intScore: Int { Int(score.rounded()) }
     private var tier: String {
@@ -671,7 +675,6 @@ private struct BodyScoreLine: View {
                 .lineLimit(1)
                 .frame(width: 180, alignment: .leading)
 
-            // 大数字 + /100（**第 1 行视觉重点**，字号比 FeatureLine 数值还大）
             HStack(alignment: .firstTextBaseline, spacing: 1) {
                 Text("\(intScore)")
                     .font(.system(size: 45, weight: .heavy, design: .rounded))
@@ -680,7 +683,27 @@ private struct BodyScoreLine: View {
                     .font(.system(size: 16, weight: .medium, design: .monospaced))
                     .foregroundColor(Theme.slate)
             }
-            // [tier 文字去掉 — 颜色 + 数字已经传达档位信息]
+            // 趋势箭头（仅有昨日数据时显示）
+            if let t = trend {
+                let arrow: String
+                let arrowColor: Color
+                if t > 3 {
+                    arrow = "↗"
+                    arrowColor = Theme.stateWalk
+                } else if t < -3 {
+                    arrow = "↘"
+                    arrowColor = Color.energyLow
+                } else {
+                    arrow = "→"
+                    arrowColor = Theme.mist
+                }
+                Text(arrow)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(arrowColor)
+                Text(abs(Int(t.rounded())) > 0 ? "\(t > 0 ? "+" : "")\(Int(t.rounded()))" : "±0")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundColor(Theme.mist)
+            }
         }
         .padding(.vertical, 3)
     }
