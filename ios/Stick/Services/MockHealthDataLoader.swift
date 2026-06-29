@@ -153,7 +153,7 @@ final class MockHealthDataLoader {
                     let hour = comps.hour ?? 0
                     let minute = comps.minute ?? 0
                     let bodyState: String
-                    if hour >= 0 && hour < 6 {
+                    if hour >= 0 && hour < 7 {
                         bodyState = "sleep"
                     } else if hour == 13 && minute < 30 {
                         bodyState = "sleep"  // 午休
@@ -198,7 +198,7 @@ final class MockHealthDataLoader {
                     let hour = comps.hour ?? 0
                     let minute = comps.minute ?? 0
                     let bodyState: String
-                    if hour >= 0 && hour < 6 {
+                    if hour >= 0 && hour < 7 {
                         bodyState = "sleep"
                     } else if hour == 13 && minute < 30 {
                         bodyState = "sleep"  // 午休
@@ -300,7 +300,7 @@ final class MockHealthDataLoader {
     /// 根据步数 / 能量 / 速度推断姿态
     private func inferBodyState(steps: Double, energy: Double, speed: Double, hasSpeed: Bool, hour: Int, minute: Int = 0) -> String {
         // 夜间 0-6 → 睡眠
-        if hour >= 0 && hour < 6 { return "sleep" }
+        if hour >= 0 && hour < 7 { return "sleep" }
         // 有步速且 > 0.5 → walk
         if hasSpeed && speed > 0.5 { return "walk" }
         // 步数 > 10 → 运动
