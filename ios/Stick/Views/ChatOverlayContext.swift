@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 // MARK: - Chat Overlay Context Builders
 
@@ -93,7 +94,7 @@ extension ChatOverlay {
 
         // 4.5 睡眠习惯画像（出差状态切换时显示对应作息）
         let isTravelNow = LocationService.shared.isTravel(
-            now: .now,
+            now: Date.now,
             homeCity: UserProfileStore.shared.sleepHabit.homeCity
         )
         let sleepBlock = UserProfileStore.shared.sleepHabitContextBlock(isTravel: isTravelNow)
