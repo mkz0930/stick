@@ -1,0 +1,10 @@
+// 所有 HK 查询统一加 8s 超时保护，防止任一环节挂起导致 UI 卡死
+data.steps = (await withTimeout(seconds: 8) { await service.todaySteps() }) ?? 0
+data.energy = Int((await withTimeout(seconds: 8) { await service.todayEnergy() }) ?? 0)
+data.flights = (await withTimeout(seconds: 8) { await service.todayFlights() }) ?? 0
+data.distance = (await withTimeout(seconds: 8) { await service.todayDistance() }) ?? 0 / 1000
+data.heartRate = (await withTimeout(seconds: 8) { await service.todayHeartRate() }) ?? nil
+data.sleepHours = (await withTimeout(seconds: 8) { await service.todaySleepHours() }) ?? nil
+data.walkingSpeed = (await withTimeout(seconds: 8) { await service.todayWalkingSpeed() }) ?? nil
+data.walkingDoubleSupport = (await withTimeout(seconds: 8) { await service.todayWalkingDoubleSupport() }) ?? nil
+data.headphoneExposure = (await withTimeout(seconds: 8) { await service.todayHeadphoneExposure() }) ?? nil

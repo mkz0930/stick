@@ -255,6 +255,10 @@ final class HealthKitService {
             }
             // 跳出 main actor：把 execute 派发到 global queue 让 callback 跑在 background thread，
             // 满足 ios-dev rule 6 (All HKHealthStore calls off main)
+            guard let store else {
+                cont.resume(returning: nil)
+                return
+            }
             DispatchQueue.global(qos: .userInitiated).async { [weak store] in
                 store?.execute(q)
             }
@@ -269,6 +273,10 @@ final class HealthKitService {
                 let val = stat?.sumQuantity()?.doubleValue(for: unit)
                 cont.resume(returning: val)
             }
+            guard let store else {
+                cont.resume(returning: nil)
+                return
+            }
             DispatchQueue.global(qos: .userInitiated).async { [weak store] in
                 store?.execute(q)
             }
@@ -280,6 +288,7 @@ final class HealthKitService {
         guard let type = categoryType(.mindfulSession) else { return nil }
         return await withCheckedContinuation { (cont: CheckedContinuation<Double?, Never>) in
             let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: [])
+            guard let store else { cont.resume(returning: nil); return }
             let q = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
                 let totalMinutes = (samples as? [HKCategorySample])?.reduce(0.0) { sum, sample in
                     sum + sample.endDate.timeIntervalSince(sample.startDate) / 60.0
@@ -300,11 +309,12 @@ final class HealthKitService {
         return await withCheckedContinuation { (cont: CheckedContinuation<[HKCategorySample], Never>) in
             let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: [.strictStartDate, .strictEndDate])
             let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+            guard let store else { cont.resume(returning: []); return }
             let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
                 let casted = (samples as? [HKCategorySample]) ?? []
                 cont.resume(returning: casted)
             }
-            store?.execute(query)
+            store.execute(query)
         }
     }
 
@@ -776,6 +786,7 @@ final class HealthKitService {
             let from = Calendar.current.startOfDay(for: Date())
             let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: .strictStartDate)
             let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+            guard let store else { cont.resume(returning: nil); return }
             let q = HKSampleQuery(sampleType: type, predicate: predicate, limit: 1, sortDescriptors: [sort]) { _, samples, _ in
                 guard let sample = samples?.first as? HKQuantitySample else {
                     cont.resume(returning: nil)
@@ -784,7 +795,7 @@ final class HealthKitService {
                 let val = sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
                 cont.resume(returning: Int(val))
             }
-            store?.execute(q)
+            store.execute(q)
         }
     }
 
@@ -828,6 +839,7 @@ final class HealthKitService {
         return await withCheckedContinuation { cont in
             let predicate = HKQuery.predicateForSamples(withStart: searchStart, end: now, options: .strictStartDate)
             let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+            guard let store else { cont.resume(returning: nil); return }
             let q = HKSampleQuery(sampleType: stepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
                 guard let samples = samples as? [HKQuantitySample], !samples.isEmpty else {
                     cont.resume(returning: nil)
@@ -853,7 +865,7 @@ final class HealthKitService {
                 }
                 cont.resume(returning: nil)
             }
-            store?.execute(q)
+            store.execute(q)
         }
     }
 
@@ -881,6 +893,7 @@ final class HealthKitService {
                 intervalComponents: interval
             )
 
+            guard let store else { cont.resume(returning: nil); return }
             query.initialResultsHandler = { _, results, _ in
                 guard let results else { cont.resume(returning: nil); return }
 
@@ -924,7 +937,7 @@ final class HealthKitService {
                 }
                 cont.resume(returning: nil)
             }
-            store?.execute(query)
+            store.execute(query)
         }
     }
 
@@ -958,7 +971,9 @@ final class HealthKitService {
         return await withCheckedContinuation { cont in
             let predicate = HKQuery.predicateForSamples(withStart: nightStart, end: windowEnd, options: .strictStartDate)
             let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+            guard let store else { cont.resume(returning: []); return }
             let q = HKSampleQuery(sampleType: audioType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
+                Task {
                 guard let samples = samples, !samples.isEmpty else {
                     await MainActor.run { self.cachedNightWakePeriods = ([], Date()) }
                     cont.resume(returning: [])
@@ -1009,8 +1024,9 @@ final class HealthKitService {
                 }
                 await MainActor.run { self.cachedNightWakePeriods = (ranges, Date()) }
                 cont.resume(returning: ranges)
+                }
             }
-            store?.execute(q)
+            store.execute(q)
         }
     }
 
@@ -1100,10 +1116,11 @@ final class HealthKitService {
         // 快速检查：今天是否有任何步数样本（模拟器无 HealthKit 数据时避免全算久坐）
         let hasStepData = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
             let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: nil, options: .strictStartDate)
+            guard let store else { cont.resume(returning: false); return }
             let q = HKSampleQuery(sampleType: stepType, predicate: predicate, limit: 1, sortDescriptors: nil) { _, samples, _ in
                 cont.resume(returning: samples?.isEmpty == false)
             }
-            store?.execute(q)
+            store.execute(q)
         }
         guard hasStepData else { return 0 }
 
@@ -1126,6 +1143,7 @@ final class HealthKitService {
                 intervalComponents: interval
             )
 
+            guard let store else { cont.resume(returning: 0); return }
             query.initialResultsHandler = { _, results, _ in
                 guard let results = results else {
                     cont.resume(returning: 0)
@@ -1171,7 +1189,7 @@ final class HealthKitService {
                 }
                 cont.resume(returning: sedentaryCount)
             }
-            store?.execute(query)
+            store.execute(query)
         }
     }
 

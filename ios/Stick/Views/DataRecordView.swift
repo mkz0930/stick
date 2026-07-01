@@ -1,11 +1,26 @@
-//
-//  DataRecordView.swift
-//  数据记录 — 按设计稿重写
-//
+// DataRecordView.swift
+// 数据记录 — 按设计稿重写
 
 import SwiftUI
 
+// MARK: - Timeout Helper
+
+/// 给 async 操作加超时保护，超时后返回 defaultValue 避免永久挂起
+/// operation 返回 T（非可选），withTimeout 返回 T?（nil = 超时）
+private func withTimeout<T>(seconds: Double, defaultValue: T, operation: @escaping () async -> T) async -> T {
+    await withTaskGroup(of: T?.self) { group in
+        group.addTask { await operation() }
+        group.addTask {
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            return nil
+        }
+        // group.next() 返回 T?，nil = 超时，取 ?? defaultValue
+        return (await group.next()) ?? defaultValue
+    }
+}
+
 // MARK: - 本地调色板（不属于 Theme，仪表盘心情绿 + 心率红）
+
 private extension Color {
     /// 心情记录 icon 绿（柔和、略偏黄）
     static let drMoodGreen = Color(red: 0.55, green: 0.75, blue: 0.50)
@@ -20,11 +35,11 @@ struct HKLiveData: Equatable {
     var flights: Int = 0
     var distance: Double = 0
     var heartRate: Int?
-    var sleepHours: Double?           // 睡眠时长 小时（来自 Health App 手动记录）
+    var sleepHours: Double? // 睡眠时长 小时（来自 Health App 手动记录）
     // 新增 mobility
-    var walkingSpeed: Double?          // 步速 m/s
-    var walkingDoubleSupport: Double?  // 双脚支撑时间 %
-    var headphoneExposure: Double?    // 耳机音量 dB
+    var walkingSpeed: Double? // 步速 m/s
+    var walkingDoubleSupport: Double? // 双脚支撑时间 %
+    var headphoneExposure: Double? // 耳机音量 dB
     // 今日久坐分钟数（直接从 HealthKit 每分钟步数样本统计）
     var sedentaryMinutes: Int = 0
 }
@@ -38,31 +53,29 @@ final class DataRecordViewModel {
     var hkData: HKLiveData?
 
     private var observationTask: Task<Void, Never>?
+    private var observationResumed: Bool = false
 
-    func loadHKData() async {
+    private func loadHKData() async {
         var data = HKLiveData()
         let service = HealthKitService.shared
 
-        if let steps = await service.todaySteps() {
-            data.steps = steps
-        }
-        if let energy = await service.todayEnergy() {
-            data.energy = Int(energy)
-        }
-        if let flights = await service.todayFlights() {
-            data.flights = flights
-        }
-        if let dist = await service.todayDistance() {
-            data.distance = dist / 1000
-        }
-        data.heartRate = await service.todayHeartRate()
-        data.sleepHours = await service.todaySleepHours()
-        // 新增 mobility 数据
-        data.walkingSpeed = await service.todayWalkingSpeed()
-        data.walkingDoubleSupport = await service.todayWalkingDoubleSupport()
-        data.headphoneExposure = await service.todayHeadphoneExposure()
+        // 所有 HK 查询统一加 8s 超时保护，防止任一环节挂起导致 UI 卡死
+        // withTimeout<T> 签名: () async -> T -> async -> T，T 是 HK 方法的返回值类型
+        // 例如 todaySteps() -> Int?，则 T = Int?，withTimeout 返回 Int?，?? 0 降级到 Int
+        data.steps              = await withTimeout(seconds: 8, defaultValue: 0)        { await service.todaySteps()          }
+        data.energy             = Int(await withTimeout(seconds: 8, defaultValue: 0)    { await service.todayEnergy()         })
+        data.flights            = await withTimeout(seconds: 8, defaultValue: 0)        { await service.todayFlights()        }
+        data.distance           = await withTimeout(seconds: 8, defaultValue: 0.0)      { await service.todayDistance()       } / 1000
+        data.heartRate          = await withTimeout(seconds: 8, defaultValue: nil)      { await service.todayHeartRate()      }
+        data.sleepHours         = await withTimeout(seconds: 8, defaultValue: nil)      { await service.todaySleepHours()     }
+        data.walkingSpeed       = await withTimeout(seconds: 8, defaultValue: nil)      { await service.todayWalkingSpeed()   }
+        data.walkingDoubleSupport = await withTimeout(seconds: 8, defaultValue: nil)    { await service.todayWalkingDoubleSupport() }
+        data.headphoneExposure  = await withTimeout(seconds: 8, defaultValue: nil)      { await service.todayHeadphoneExposure() }
+
         // 读取今日久坐分钟数（直接从 HealthKit），减去睡眠时间（睡眠时步数为0不应算久坐）
-        let sedentary = await service.todaySedentaryMinutes()
+        let sedentary = await withTimeout(seconds: 8, defaultValue: 0) {
+            await service.todaySedentaryMinutes()
+        }
         let sleepMinutes = Int((data.sleepHours ?? 0) * 60)
         data.sedentaryMinutes = max(0, sedentary - sleepMinutes)
         hkData = data
@@ -76,29 +89,36 @@ final class DataRecordViewModel {
 
     private func startObservingHealthStore() {
         observationTask?.cancel()
+        observationResumed = false
         observationTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
+                // 先等待 HealthStore 数据变化，再读取，避免同步阻塞
+                await self?.waitForHealthStoreChange()
                 guard let self else { return }
                 let snaps = HealthStore.shared.today
                 self.today = snaps
                 self.insights = HealthAnalyzer.shared.analyze(snapshots: snaps)
-                await self.waitForHealthStoreChange()
             }
         }
     }
 
     private func waitForHealthStoreChange() async {
-        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+        await withUnsafeContinuation { (cont: UnsafeContinuation<Void, Never>) in
+            guard !observationResumed else { return }
+            observationResumed = true
             withObservationTracking {
                 _ = HealthStore.shared.today
             } onChange: {
+                Task { @MainActor in
+                    self.observationResumed = false
+                }
                 cont.resume()
             }
         }
     }
 
     deinit {
-        // observationTask 是 main actor isolated,deinit 不在 main actor,
+        // observationTask 是 main actor isolated, deinit 不在 main actor,
         // 不能直接 cancel。Task 会在 self 释放后由 GC 回收 (Task 持有 weak self)。
     }
 
@@ -329,8 +349,10 @@ struct DataRecordView: View {
             vm.refresh()
             // vm 已是 @Observable：属性赋值后自动追踪变更并触发 view 重渲染，UI 通过 hk 计算属性读取
             await vm.loadHKData()
-            // 每次打开都调 LLM 生成一句洞察
-            await generateInsight()
+            // 后台异步生成 LLM 洞察，不阻塞 UI
+            Task { @MainActor in
+                await generateInsight()
+            }
         }
         .sheet(isPresented: $showExportSheet) {
             if let url = exportURL {
@@ -339,8 +361,6 @@ struct DataRecordView: View {
             }
         }
     }
-
-    // MARK: - Header
 
     // MARK: - 今日洞察
 
@@ -356,13 +376,13 @@ struct DataRecordView: View {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .replacingOccurrences(of: "\n", with: " ")
                 .replacingOccurrences(of: "\"", with: "")
-            // 简单截断: 60 字符 ≈ 30 中文字 + 标点
+            // 简单截断
             insight = cleaned.count > 40 ? String(cleaned.prefix(40)) : cleaned
         } catch {
             insight = ""
-            #if DEBUG
+#if DEBUG
             print("[DataRecordView] generateInsight failed: \(error)")
-            #endif
+#endif
         }
     }
 
@@ -370,20 +390,19 @@ struct DataRecordView: View {
     private func buildInsightContext() -> String {
         let snaps = vm.today
         var sit = 0, walk = 0, sleep = 0, stand = 0
-        // 今日步数: 取最后一条 snapshot 的 cumulativeStepCount (已是全天累计)
         let steps = snaps.last?.cumulativeStepCount ?? 0
         var hrSum = 0.0, hrCount = 0
         var energy = 0.0
         for s in snaps {
             switch s.bodyState {
-            case "sit":   sit += 1
-            case "walk":  walk += 1
+            case "sit": sit += 1
+            case "walk": walk += 1
             case "sleep": sleep += 1
             case "stand": stand += 1
-            default:      break
+            default: break
             }
-            if let hr = s.heartRate   { hrSum += hr; hrCount += 1 }
-            if let e  = s.activeEnergy { energy += e }
+            if let hr = s.heartRate { hrSum += hr; hrCount += 1 }
+            if let e = s.activeEnergy { energy += e }
         }
         let avgHR = hrCount > 0 ? Int(hrSum / Double(hrCount)) : 0
         let profile = UserProfileStore.shared.profile
@@ -732,7 +751,7 @@ private struct DashboardSection: View {
                                 if !entries.isEmpty {
                                     let mealCal = entries.compactMap { $0.calories }.reduce(0, +)
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text("\(mealLabel(meal))  \(mealCal > 0 ? "\(mealCal) kcal" : "-- kcal")")
+                                        Text("\(mealLabel(meal)) \(mealCal > 0 ? "\(mealCal) kcal" : "-- kcal")")
                                             .font(.system(size: 12, weight: .medium))
                                             .foregroundColor(Theme.navy)
                                         ForEach(entries) { entry in
@@ -816,21 +835,21 @@ private struct DashboardSection: View {
                         )
                     }
                 }
+
+                // MARK: - HealthKit Section
+
+                HealthKitSectionView(
+                    hkSteps: hkSteps,
+                    hkEnergy: hkEnergy,
+                    hkFlights: hkFlights,
+                    hkDistance: hkDistance,
+                    hkWalkingSpeed: hkWalkingSpeed,
+                    hkDoubleSupport: hkDoubleSupport,
+                    hkSleepValue: hkSleepValue,
+                    hkCurrentSitValue: hkCurrentSitValue,
+                    hkSedentaryValue: hkSedentaryValue
+                )
             }
-
-            // MARK: - HealthKit Section
-
-            HealthKitSectionView(
-                hkSteps: hkSteps,
-                hkEnergy: hkEnergy,
-                hkFlights: hkFlights,
-                hkDistance: hkDistance,
-                hkWalkingSpeed: hkWalkingSpeed,
-                hkDoubleSupport: hkDoubleSupport,
-                hkSleepValue: hkSleepValue,
-                hkCurrentSitValue: hkCurrentSitValue,
-                hkSedentaryValue: hkSedentaryValue
-            )
         }
     }
 }
@@ -880,9 +899,14 @@ private struct DashboardCard: View {
 
 private struct DietProgressBar: View {
     let current: Int
-    let goal: Int  // 固定 1800
+    let goal: Int // 固定 1800
 
-    private var progress: Double { min(Double(current) / Double(goal), 1.0) }
+    private var progress: Double {
+        guard goal > 0 else { return 0 }
+        let raw = Double(current) / Double(goal)
+        guard raw.isFinite, raw >= 0 else { return 0 }
+        return min(raw, 1.0)
+    }
     private var isOver: Bool { current > goal }
 
     var body: some View {
@@ -892,7 +916,7 @@ private struct DietProgressBar: View {
                     RoundedRectangle(cornerRadius: 3).fill(Theme.border)
                     RoundedRectangle(cornerRadius: 3)
                         .fill(isOver ? Color.red : Theme.dashDiet)
-                        .frame(width: geo.size.width * progress)
+                        .frame(width: max(0, geo.size.width * progress))
                 }
             }
             .frame(height: 6)

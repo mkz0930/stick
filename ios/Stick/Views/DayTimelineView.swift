@@ -221,7 +221,7 @@ struct DayTimelineView: View, Equatable {
 
     private func track() -> some View {
         GeometryReader { geo in
-            let height = geo.size.height
+            let height = max(1, geo.size.height)
             // 步行胶囊直接重算 — schedule 已通过 View.Equatable 稳定，
             // pulse 触发的重渲只影响 isActive 段视觉，walk 段坐标不需要缓存。
             // 旧版用 @State 缓存会触发 SwiftUI "Modifying state during view update" 警告。

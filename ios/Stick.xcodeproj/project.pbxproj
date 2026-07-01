@@ -589,7 +589,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B40000000000000000000001 /* StickWidget.swift in Sources */,
-				B40000000000000000000011 /* SharedState.swift in Sources */,
+				B40000000000000000000010 /* SharedState.swift in Sources */,
 				B40000000000000000000012 /* StickRiskAlertWidgetView.swift in Sources */,
 				B40000000000000000000013 /* SedentaryTimerLiveActivity.swift in Sources */,
 				B40000000000000000000014 /* SedentaryTimerAttributes.swift in Sources */,

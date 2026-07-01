@@ -1383,7 +1383,7 @@ private struct MainContentView<SheetContent: View>: View {
 
     var body: some View {
         GeometryReader { geo in
-            let panelWidth = geo.size.width * 0.78
+            let panelWidth = max(0, geo.size.width * 0.78)
 
             // 包一层 NavigationStack：详情页用 .navigationDestination(item:) push 取代旧的 .sheet。
             // WalkDetailSheet / SitDetailSheet / SleepDetailSheet 内部已经各自带自己的 NavigationStack，
@@ -1392,7 +1392,7 @@ private struct MainContentView<SheetContent: View>: View {
                 ZStack(alignment: .leading) {
                     // 1. 首页 (永远在底层, 面板打开时露在右侧 22%)
                     homeBody
-                        .frame(width: geo.size.width)
+                        .frame(width: max(0, geo.size.width))
 
                     // 2. 黑色蒙层 (仅显示在右侧 22% 的 home 上)
                     if state.showPersonal {
@@ -1815,7 +1815,7 @@ private struct HomeBodyView: View {
                 // ③ InputBar 钉在屏幕 0.9 位置
                 VStack(spacing: 0) {
                     Spacer()
-                        .frame(height: geo.size.height * 0.9 - 44)
+                        .frame(height: max(0, geo.size.height * 0.9 - 44))
                     InputBar(
                         state: displayState,
                         text: $state.inputDraft,
