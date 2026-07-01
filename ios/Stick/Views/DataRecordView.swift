@@ -6,7 +6,7 @@ import SwiftUI
 // MARK: - Timeout Helper
 
 /// 给 async 操作加超时保护，超时后返回 defaultValue 避免永久挂起
-/// operation 返回 T（非可选），withTimeout 返回 T?（nil = 超时）
+/// 非可选返回值版本：operation 返回 T（非可选），withTimeout 返回 T（超时后返回 defaultValue）
 private func withTimeout<T>(seconds: Double, defaultValue: T, operation: @escaping () async -> T) async -> T {
     await withTaskGroup(of: T?.self) { group in
         group.addTask { await operation() }
@@ -14,8 +14,27 @@ private func withTimeout<T>(seconds: Double, defaultValue: T, operation: @escapi
             try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
             return nil
         }
-        // group.next() 返回 T?，nil = 超时，取 ?? defaultValue
-        return (await group.next()) ?? defaultValue
+        if let result = await group.next() {
+            group.cancelAll()
+            return result
+        }
+        group.cancelAll()
+        return defaultValue
+    }
+}
+
+/// 可选返回值版本：operation 返回 T?（可选），withTimeout 返回 T?（超时后返回 defaultValue）
+private func withTimeout<T>(seconds: Double, defaultValue: T?, operation: @escaping () async -> T?) async -> T? {
+    await withTaskGroup(of: T??.self) { group in
+        group.addTask { await operation() }
+        group.addTask {
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            return nil
+        }
+        // group.next() 返回 T??，nil 解包一层取 ()，再次 ?? 取 defaultValue
+        let result = await group.next()
+        if let unwrapped = result { return unwrapped }
+        return defaultValue
     }
 }
 
@@ -55,7 +74,7 @@ final class DataRecordViewModel {
     private var observationTask: Task<Void, Never>?
     private var observationResumed: Bool = false
 
-    private func loadHKData() async {
+    func loadHKData() async {
         var data = HKLiveData()
         let service = HealthKitService.shared
 
@@ -63,14 +82,14 @@ final class DataRecordViewModel {
         // withTimeout<T> 签名: () async -> T -> async -> T，T 是 HK 方法的返回值类型
         // 例如 todaySteps() -> Int?，则 T = Int?，withTimeout 返回 Int?，?? 0 降级到 Int
         data.steps              = await withTimeout(seconds: 8, defaultValue: 0)        { await service.todaySteps()          }
-        data.energy             = Int(await withTimeout(seconds: 8, defaultValue: 0)    { await service.todayEnergy()         })
-        data.flights            = await withTimeout(seconds: 8, defaultValue: 0)        { await service.todayFlights()        }
-        data.distance           = await withTimeout(seconds: 8, defaultValue: 0.0)      { await service.todayDistance()       } / 1000
-        data.heartRate          = await withTimeout(seconds: 8, defaultValue: nil)      { await service.todayHeartRate()      }
-        data.sleepHours         = await withTimeout(seconds: 8, defaultValue: nil)      { await service.todaySleepHours()     }
-        data.walkingSpeed       = await withTimeout(seconds: 8, defaultValue: nil)      { await service.todayWalkingSpeed()   }
-        data.walkingDoubleSupport = await withTimeout(seconds: 8, defaultValue: nil)    { await service.todayWalkingDoubleSupport() }
-        data.headphoneExposure  = await withTimeout(seconds: 8, defaultValue: nil)      { await service.todayHeadphoneExposure() }
+        data.energy             = Int((await withTimeout(seconds: 8, defaultValue: 0, operation: { await service.todayEnergy()         })) ?? 0)
+        data.flights            = (await withTimeout(seconds: 8, defaultValue: 0, operation: { await service.todayFlights()        })) ?? 0
+        data.distance           = ((await withTimeout(seconds: 8, defaultValue: 0.0, operation: { await service.todayDistance()       })) ?? 0.0) / 1000
+        data.heartRate          = await withTimeout(seconds: 8, defaultValue: nil, operation: { await service.todayHeartRate()      })
+        data.sleepHours         = await withTimeout(seconds: 8, defaultValue: nil, operation: { await service.todaySleepHours()     })
+        data.walkingSpeed       = await withTimeout(seconds: 8, defaultValue: nil, operation: { await service.todayWalkingSpeed()   })
+        data.walkingDoubleSupport = await withTimeout(seconds: 8, defaultValue: nil, operation: { await service.todayWalkingDoubleSupport() })
+        data.headphoneExposure  = await withTimeout(seconds: 8, defaultValue: nil, operation: { await service.todayHeadphoneExposure() })
 
         // 读取今日久坐分钟数（直接从 HealthKit），减去睡眠时间（睡眠时步数为0不应算久坐）
         let sedentary = await withTimeout(seconds: 8, defaultValue: 0) {

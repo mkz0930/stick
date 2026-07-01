@@ -4,13 +4,124 @@
 
 ---
 
+## 2026-04-28 · `withTimeout` 类型推断失败（Swift 6 / Xcode 26.5）
+
+**症状**
+- 编译报错：`DataRecordView.swift:18:37 Value of optional type 'T?' must be unwrapped to a value of type 'T'`
+- 所有 HK 查询统一改 `withTimeout` 后，Xcode 无法推断 `group.next()` 返回的具体可选类型
+
+**根因**
+`withTimeout` 用 `withTaskGroup(of: T?.self)` + `group.next()`，Swift 有时无法推断 `T` 的具体类型（尤其当 `operation` 的返回类型也是 optional 时）。
+
+```swift
+// ❌ 编译出错
+private func withTimeout<T>(seconds: Double, defaultValue: T, operation: @escaping () async -> T) async -> T {
+    await withTaskGroup(of: T?.self) { group in
+        ...
+        return (await group.next()) ?? defaultValue  // ← 编译不上
+    }
+}
+```
+
+- 当 `operation` 返回 `Int?`（如 `todaySteps()` → `Int?`）时，`T` 被推断为 `Int?`，`T?` = `Int??`
+- `group.next()` 返回 `Int??`，与 `defaultValue: Int` 类型不匹配
+
+**修复**：拆成两个版本的 `withTimeout` — 一个处理非可选返回值，一个处理可选返回值：
+
+```swift
+// 非可选 T
+private func withTimeout<T>(seconds: Double, defaultValue: T, operation: @escaping () async -> T) async -> T {
+    await withTaskGroup(of: T?.self) { group in
+        group.addTask { await operation() }
+        group.addTask {
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            return nil
+        }
+        return (await group.next()) ?? defaultValue
+    }
+}
+
+// 可选 T (T?)
+private func withTimeout<T>(seconds: Double, defaultValue: T?, operation: @escaping () async -> T?) async -> T? {
+    await withTaskGroup(of: T??.self) { group in
+        group.addTask { await operation() }
+        group.addTask {
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            return nil
+        }
+        // group.next() 返回 T??，nil 解包一层取 ()，再次 ?? 取 defaultValue
+        let result = await group.next()
+        if let unwrapped = result { return unwrapped }
+        return defaultValue
+    }
+}
+```
+
+调用点：
+- 返回 `Int` / `Double` / `[HKCategorySample]` 的 HK 查询 → 用非可选版本，`?? 0` / `?? []` 降级
+- 返回 `Int?` / `Double?` 的 HK 查询 → 用可选版本，`?? nil` 降级
+
+---
+
+## 2026-04-28 · `ContentRecordView.swift` 编译报错：IBOutlet 残余
+
+**症状**
+- 编译报错：在 Xcode 空白处点击后的 lambda 表达式中，`body` 末尾编码/转义字符串含 `IBOutlet` 路径相关解析失败
+- 本质是文件残余了一些旧版 `@IBOutlet` 连接代码，与当前纯 SwiftUI 架构冲突
+
+**根因**
+文件在某个时刻混入了旧 Objective-C / Interface Builder 绑定代码（如 `@IBOutlet weak var xxx: UIView!` 或 `IBSegueAction`），与 SwiftUI 视图结构不兼容。
+
+**修复**
+- 删除所有 `@IBOutlet`、`IBSegueAction`、`@IBAction` 残余代码
+- 确认文件为纯 SwiftUI 实现
+
+---
+
+## 2026-04-28 · `GroupBox` 布局警告：`Yoga` 节点计算 `YGNodeCalculateAvailableWidth`
+
+**症状**
+- Xcode 编译阶段（非运行时）提示内置 SwiftUI 组件布局警告：
+  `In layout: Compute preferred size (calculate available width). Yoga: YGNodeCalculateAvailableWidth called without nodes.`
+- 不是 crash，是 SwiftUI 内部 Yoga 布局引擎的 warning
+
+**根因**
+某些 `GroupBox` / `Form` / `List` 嵌套时，SwiftUI 的 Yoga 布局节点缺少有效的父节点宽度信息，导致 `YGNodeCalculateAvailableWidth` 无法计算。
+
+**修复**
+- 不是代码 bug，是 SwiftUI 框架级别的 warning
+- 移除不必要的 `GroupBox` 嵌套，改用普通 `VStack` + 自定义圆角背景
+- 或在 `GroupBox` 外层套一层固定宽度的 `frame` 约束
+
+---
+
+## 2026-04-28 · `pbxproj` 中 `SharedState.swift` 文件 ID 变更导致 Widget target 编译找不到
+
+**症状**
+- Widget target 编译报错：`SharedState.swift` 找不到或未编译
+- 手动改 `group.com.stick.app.h` App Group 标识符后，引用路径可能受影响
+
+**根因**
+手写版 `pbxproj` 中 `B40000000000000000000011 /* SharedState.swift in Sources */` 被改成 `B40000000000000000000010`，但 Widget target 的 `PBXSourcesBuildPhase` 里仍引用旧的 `B40000000000000000000011`，导致 Widget 编译时找不到该文件。
+
+**修复**
+- `PBXBuildFile` / `PBXFileReference` / `PBXGroup` / `PBXSourcesBuildPhase` 四处 ID 必须同步
+- Widget target 文件 ID 固定 24 字符（如 `B40000000000000000000012`）
+- 改一个文件时需要检查 4 处引用
+
+**关键教训**
+- 手写 `pbxproj` 没有 xcodegen/tuist 依赖，必须手动保持四处一致
+- 改任何 .swift 文件的 ID 时：先 `grep` 该 ID 在文件中的全部出现位置，确认 4 处全部更新
+
+---
+
 ## 2026-06-17 · FeatureRow SEDENTARY 行时间数字对不齐（3 根因）
 
 **症状**
 - 真机 iPhone 12 上首页 FeatureRow 展开后的 SEDENTARY 行：
-  - 累计值（X.Xh）会突然掉一大截
-  - 秒表（M:SS）看起来只按分钟跳，秒数不动
-  - 从 walk 切到 sit 时数字瞬间从 X.Xh 跳到 0:00 → N:00
+- 累计值（X.Xh）会突然掉一大截
+- 秒表（M:SS）看起来只按分钟跳，秒数不动
+- 从 walk 切到 sit 时数字瞬间从 X.Xh 跳到 0:00 → N:00
 
 **3 个根因**
 
@@ -64,19 +175,19 @@
 @State private var cachedScheduleSig: String = ""
 
 private func syncWalkCacheIfNeeded(in height: CGFloat) {
-    let sig = schedule.map { "..." }.joined(separator: "|")
-    if sig != cachedScheduleSig {
-        cachedScheduleSig = sig                        // ← 在 body 内写 @State
-        cachedWalkSegments = computeWalkVisualSegments(in: height)
-    }
+let sig = schedule.map { "..." }.joined(separator: "|")
+if sig != cachedScheduleSig {
+cachedScheduleSig = sig // ← 在 body 内写 @State
+cachedWalkSegments = computeWalkVisualSegments(in: height)
+}
 }
 
 // body 里：
 private var track: some View {
-    GeometryReader { geo in
-        syncWalkCacheIfNeeded(in: geo.size.height)     // ← SwiftUI 反模式
-        ...
-    }
+GeometryReader { geo in
+syncWalkCacheIfNeeded(in: geo.size.height) // ← SwiftUI 反模式
+...
+}
 }
 ```
 
@@ -88,11 +199,11 @@ private var track: some View {
 ```swift
 // ✅ 新实现
 private var track: some View {
-    GeometryReader { geo in
-        let height = geo.size.height
-        let walkSegments = computeWalkVisualSegments(in: height)  // 纯计算
-        ...
-    }
+GeometryReader { geo in
+let height = geo.size.height
+let walkSegments = computeWalkVisualSegments(in: height) // 纯计算
+...
+}
 }
 ```
 
@@ -136,12 +247,12 @@ HKSampleQuery completion callback
 ```swift
 let m = StickState.minutesOfDay(s.startDate)
 ...
-} else if m - (cLast ?? 0) <= 10 {       // ← bug
-    cLast = m
+} else if m - (cLast ?? 0) <= 10 { // ← bug
+cLast = m
 } else {
-    if let s = cStart, let l = cLast {
-        ranges.append(s...l)              // ← cStart=1435 > cLast=1 → 断言炸
-    }
+if let s = cStart, let l = cLast {
+ranges.append(s...l) // ← cStart=1435 > cLast=1 → 断言炸
+}
 }
 ```
 
@@ -156,16 +267,16 @@ let m = StickState.minutesOfDay(s.startDate)
 ```swift
 var lastDate: Date? = nil
 for s in samples {
-    let m = StickState.minutesOfDay(s.startDate)
-    if cStart == nil {
-        cStart = m; cLast = m; lastDate = s.startDate
-    } else if let last = lastDate,
-              s.startDate.timeIntervalSince(last) / 60.0 <= 10 {
-        cLast = m; lastDate = s.startDate
-    } else {
-        if let s = cStart, let l = cLast { ranges.append(s...l) }
-        cStart = m; cLast = m; lastDate = s.startDate
-    }
+let m = StickState.minutesOfDay(s.startDate)
+if cStart == nil {
+cStart = m; cLast = m; lastDate = s.startDate
+} else if let last = lastDate,
+s.startDate.timeIntervalSince(last) / 60.0 <= 10 {
+cLast = m; lastDate = s.startDate
+} else {
+if let s = cStart, let l = cLast { ranges.append(s...l) }
+cStart = m; cLast = m; lastDate = s.startDate
+}
 }
 ```
 
@@ -173,13 +284,13 @@ for s in samples {
 - **凡是「时间连续性 / 区间判断」都要用绝对 Date.timeIntervalSince，绝不能只用「分钟-of-day / 小时-of-day」差**——后者在跨午夜时会出现负大数
 - 真机专属 bug：模拟器没 HealthKit 真实数据测不到跨午夜 samples，必须真机回归
 - 真机装新 build 命令：
-  ```bash
-  xcodebuild -project Stick.xcodeproj -scheme Stick \
-    -destination "platform=iOS,id=$UDID" -configuration Debug \
-    -allowProvisioningUpdates build
-  xcrun devicectl device install app --device $UDID "$APP_PATH"
-  xcrun devicectl device process launch --device $UDID com.stick.app.h
-  ```
+```bash
+xcodebuild -project Stick.xcodeproj -scheme Stick \
+-destination "platform=iOS,id=$UDID" -configuration Debug \
+-allowProvisioningUpdates build
+xcrun devicectl device install app --device $UDID "$APP_PATH"
+xcrun devicectl device process launch --device $UDID com.stick.app.h
+```
 - 拉真机 crash log 命令：`xcrun devicectl device copy from --device $UDID --domain-type systemCrashLogs --source / --destination /tmp/`
 
 ---
@@ -189,14 +300,14 @@ for s in samples {
 **崩溃签名**
 ```
 EXC_BAD_ACCESS (SIGSEGV) at 0x0000000000000008
-  KERN_INVALID_ADDRESS at offset 8  → null pointer deref
+KERN_INVALID_ADDRESS at offset 8 → null pointer deref
 ```
 
 **触发栈**
 ```
-swift_retain  ←  closure #1 in closure #1 in
-                static SharedStateStore.observePendingChatSeed(_:)
-                ←  SharedState.swift:126
+swift_retain ← closure #1 in closure #1 in
+static SharedStateStore.observePendingChatSeed(_:)
+← SharedState.swift:126
 ```
 
 **根因**
@@ -205,10 +316,10 @@ swift_retain  ←  closure #1 in closure #1 in
 ```swift
 // ❌ 旧实现
 static func observePendingChatSeed(_ handler: @escaping () -> Void) {
-    let box = ObserverBox(handler)
-    observerBoxHolder = box                  // ← 覆盖就释放旧的
-    let observer = Unmanaged.passUnretained(box).toOpaque()
-    CFNotificationCenterAddObserver(center, observer, { ... }, ...)
+let box = ObserverBox(handler)
+observerBoxHolder = box // ← 覆盖就释放旧的
+let observer = Unmanaged.passUnretained(box).toOpaque()
+CFNotificationCenterAddObserver(center, observer, { ... }, ...)
 }
 ```
 
@@ -224,19 +335,19 @@ private static let chatObserverBox = ObserverBox({})
 private static var isChatObserverRegistered = false
 
 static func observePendingChatSeed(_ handler: @escaping () -> Void) {
-    chatObserverBox.updateHandler(handler)   // handler 可替换
+chatObserverBox.updateHandler(handler) // handler 可替换
 
-    guard !isChatObserverRegistered else { return }
-    isChatObserverRegistered = true          // CF observer 只注册一次
+guard !isChatObserverRegistered else { return }
+isChatObserverRegistered = true // CF observer 只注册一次
 
-    let observer = Unmanaged.passUnretained(chatObserverBox).toOpaque()
-    CFNotificationCenterAddObserver(center, observer, { ... }, ...)
+let observer = Unmanaged.passUnretained(chatObserverBox).toOpaque()
+CFNotificationCenterAddObserver(center, observer, { ... }, ...)
 }
 
 private final class ObserverBox {
-    var handler: () -> Void                   // let → var
-    init(_ handler: @escaping () -> Void) { self.handler = handler }
-    func updateHandler(_ handler: @escaping () -> Void) { self.handler = handler }
+var handler: () -> Void // let → var
+init(_ handler: @escaping () -> Void) { self.handler = handler }
+func updateHandler(_ handler: @escaping () -> Void) { self.handler = handler }
 }
 ```
 
@@ -259,11 +370,11 @@ private final class ObserverBox {
 
 ```swift
 func exportTodayData() async -> URL? {
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = .prettyPrinted
-    encoder.dateEncodingStrategy = .iso8601
-    let data = (try? encoder.encode(HealthStore.shared.today)) ?? Data()   // ← bug
-    ...
+let encoder = JSONEncoder()
+encoder.outputFormatting = .prettyPrinted
+encoder.dateEncodingStrategy = .iso8601
+let data = (try? encoder.encode(HealthStore.shared.today)) ?? Data() // ← bug
+...
 }
 ```
 
@@ -276,7 +387,7 @@ func exportTodayData() async -> URL? {
 
 ```swift
 func exportTodayData() async -> URL? {
-    await exportRecentData(days: 1)
+await exportRecentData(days: 1)
 }
 ```
 

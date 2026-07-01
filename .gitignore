@@ -33,3 +33,4 @@ Pods/
 *.swp
 ehthumbs.db
 Thumbs.db
+.worktrees/
